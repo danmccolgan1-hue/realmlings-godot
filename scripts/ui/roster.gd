@@ -59,5 +59,6 @@ func _process(_dt: float) -> void:
 			hud.focus_unit(r[0]))
 		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		b.flat = true
+		b.tooltip_text = "Click to select it and look there"
 		b.add_theme_color_override("font_color", Color.WHITE)
 		box.add_child(b)

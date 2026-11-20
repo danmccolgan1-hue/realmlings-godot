@@ -100,3 +100,39 @@ static func center(panel: Control) -> void:
 	panel.reset_size()
 	var vs := panel.get_viewport_rect().size
 	panel.position = ((vs - panel.size) / 2).floor()
+
+
+## Break a long tooltip into lines of about `width` characters (Godot's plain tooltips don't wrap by themselves).
+static func wrap(text: String, width := 64) -> String:
+	var out := []
+	for para in text.split("\n"):
+		var line := ""
+		for w in para.split(" "):
+			if line != "" and line.length() + 1 + w.length() > width:
+				out.append(line)
+				line = w
+			else:
+				line = w if line == "" else line + " " + w
+		out.append(line)
+	return "\n".join(out)
+
+
+## A number as the web game prints it: 5, not 5.0; 0.5 stays 0.5.
+static func num(v) -> String:
+	var f := float(v)
+	return str(int(f)) if is_equal_approx(f, roundf(f)) else str(snappedf(f, 0.01))
+
+
+## The game's tooltip look: dark ink boxes with a gold rim and readable type (set on the root window, so every
+## tooltip uses it).
+static func tooltip_theme() -> Theme:
+	var th := Theme.new()
+	var b := box(Color(INK, 0.97), 8, 2, GOLD)
+	b.content_margin_left = 12
+	b.content_margin_right = 12
+	b.content_margin_top = 8
+	b.content_margin_bottom = 8
+	th.set_stylebox("panel", "TooltipPanel", b)
+	th.set_font_size("font_size", "TooltipLabel", 17)
+	th.set_color("font_color", "TooltipLabel", Color("#faf1dc"))
+	return th

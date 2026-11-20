@@ -27,9 +27,13 @@ var thread: Thread
 var game: Game
 var dragging := false
 var drag_moved := 0.0
+var menu_settings: SettingsWindow
+var patch_notes: PatchNotes
 
 
 func _ready() -> void:
+	Settings.load_all()
+	Settings.apply(get_tree())
 	map = MapView.new()
 	add_child(map)
 	cam = Camera2D.new()
@@ -53,6 +57,8 @@ func _ready() -> void:
 			shot_slots = a.substr(8).split(",")
 		elif a == "--tutorial":
 			_on_ready.call_deferred(Tutorial.start(), false)
+		elif a.begins_with("--shot=") and OS.get_cmdline_user_args().has("--patch"):
+			_menu_shot.call_deferred(a.substr(7))
 		elif a.begins_with("--shot=") and not OS.get_cmdline_user_args().has("--tutorial"):
 			_start.call_deferred()
 
@@ -139,8 +145,22 @@ func _build_menu() -> void:
 	quick.pressed.connect(func(): load_from(QUICKSAVE))
 	quick.visible = FileAccess.file_exists(QUICKSAVE)
 	col.add_child(quick)
+	var more := HBoxContainer.new()
+	more.add_theme_constant_override("separation", 10)
+	more.alignment = BoxContainer.ALIGNMENT_CENTER
+	for b in [["Settings", func(): menu_settings.toggle(null)], ["Patch Notes", func(): patch_notes.open()]]:
+		var mb := Button.new()
+		mb.text = b[0]
+		mb.add_theme_font_size_override("font_size", 20)
+		mb.pressed.connect(b[1])
+		more.add_child(mb)
+	col.add_child(more)
 	status = _dark("F5 saves, F9 loads, the game autosaves every 5 minutes.")
 	col.add_child(status)
+	menu_settings = SettingsWindow.new()
+	ui.add_child(menu_settings)
+	patch_notes = PatchNotes.new()
+	ui.add_child(patch_notes)
 
 
 ## Leave the game for the start screen (from the in-game menu).
@@ -361,6 +381,8 @@ func _maybe_screenshot() -> void:
 	else:
 		map.selected_unit = mason
 		hud.select_unit(mason)
+	if OS.get_cmdline_user_args().has("--settings"):
+		hud.settings.open(game)
 	if OS.get_cmdline_user_args().has("--armory"):
 		hud.armory.open()
 	if OS.get_cmdline_user_args().has("--orders"):
@@ -383,8 +405,28 @@ func _maybe_screenshot() -> void:
 				cam.position = Vector2(game.G.provs[c].ic[0], game.G.provs[c].ic[1])
 	for i in 3:
 		await get_tree().process_frame
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--hover="):   # hold the mouse over a spot until its tooltip shows
+			var xy := a.substr(8).split(",")
+			var at := Vector2(float(xy[0]), float(xy[1]))
+			for i in 90:
+				var mv := InputEventMouseMotion.new()
+				mv.position = at + Vector2(i % 2, 0)
+				mv.global_position = mv.position
+				Input.parse_input_event(mv)
+				await get_tree().process_frame
 	await RenderingServer.frame_post_draw
 	get_viewport().get_texture().get_image().save_png(shot)
+	get_tree().quit()
+
+
+## A picture of the start screen with the Patch Notes open (--patch), for checking the view.
+func _menu_shot(path: String) -> void:
+	patch_notes.open()
+	for i in 4:
+		await get_tree().process_frame
+	await RenderingServer.frame_post_draw
+	get_viewport().get_texture().get_image().save_png(path)
 	get_tree().quit()
 
 
@@ -416,7 +458,9 @@ func zoom_by(f: float) -> void:
 func _unhandled_input(ev: InputEvent) -> void:
 	if ev is InputEventKey and ev.pressed and not ev.echo and game:
 		if ev.keycode == KEY_ESCAPE:
-			if hud.dialog.visible:
+			if hud.settings.win.panel.visible:
+				hud.settings.close()
+			elif hud.dialog.visible:
 				hud.dialog.pick("close")
 			elif hud.armory.visible:
 				hud.armory.close()

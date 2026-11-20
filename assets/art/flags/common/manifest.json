@@ -1,0 +1,114 @@
+{
+ "images": {
+  "flag_alliance_ended.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 2
+  },
+  "flag_allyfort.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 2
+  },
+  "flag_army_exhaustion.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 2
+  },
+  "flag_bandits.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 2
+  },
+  "flag_denroom.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 2
+  },
+  "flag_dxpeace.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 2
+  },
+  "flag_dxreq.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 2
+  },
+  "flag_dxwar.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 2
+  },
+  "flag_earthquake.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 2
+  },
+  "flag_empty_plots.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 2
+  },
+  "flag_government.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 2
+  },
+  "flag_magic.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 2
+  },
+  "flag_military.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 2
+  },
+  "flag_overlimit.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 2
+  },
+  "flag_peace.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 2
+  },
+  "flag_sp_graverob.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 2
+  },
+  "flag_sp_sacred.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 2
+  },
+  "flag_sp_trading.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 2
+  },
+  "flag_truce.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 2
+  },
+  "flag_tyranny_exhaustion.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 2
+  },
+  "flag_upgrade.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 2
+  },
+  "flag_wptimer.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 2
+  }
+ }
+}

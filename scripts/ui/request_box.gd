@@ -1,7 +1,7 @@
 class_name RequestBox
 extends PanelContainer
 ## A computer nation's request (an alliance offer, a gift, an access request…) waiting for your answer: 30 s, then
-## declined. "Later" tucks it away into a small "requests waiting" button. web: v105.js renderRequest / the dxreq flags.
+## declined. "Later" tucks it away into a flag (FlagBar). web: v105.js renderRequest.
 ## Views only: answers go through Game.answer_request.
 
 var game: Game
@@ -11,7 +11,6 @@ var title: RichTextLabel
 var text: RichTextLabel
 var timer: ProgressBar
 var btns: HBoxContainer
-var waiting: Button
 var shown_id := -1
 
 
@@ -37,8 +36,6 @@ func setup(g: Game, h) -> void:
 	btns.add_theme_constant_override("separation", 8)
 	col.add_child(btns)
 	hide()
-	waiting = UiKit.button("", 16, func(): _unminimize())
-	waiting.hide()
 
 
 func _current():
@@ -50,20 +47,9 @@ func _current():
 	return null
 
 
-func _unminimize() -> void:
-	var reqs: Array = game.dipl_state().reqs
-	if reqs.is_empty():
-		return
-	reqs[0].min = false
-
-
 func _process(_dt: float) -> void:
 	if game == null:
 		return
-	var reqs: Array = game.dipl_state().reqs if not game.dipl.is_empty() else []
-	var mins := reqs.filter(func(r): return r.min).size()
-	waiting.visible = mins > 0 and _current() == null
-	waiting.text = "%d request%s waiting" % [mins, "s" if mins > 1 else ""]
 	var r = _current()
 	if r == null:
 		hide()

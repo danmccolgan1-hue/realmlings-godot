@@ -69,6 +69,24 @@ The plan after milestone 1. Each step is tested against the web game, then commi
    - Pacts end with their reason (war, opinion, timeout); Trade Networks add gold to the capital's Trade Routes.
    - Gift vaults (v105) on the map and their payout; a news list (wars, peace, pacts) in the Diplomacy window.
    - Not ported: Swampling / Woodling-only pacts (growl, crime). The web AI doesn't flirt or gift to you either.
+7. **Batch C: flags, tooltips, settings, patch notes** — done (`tests/test_ui.gd`):
+   - Notification flags (`scripts/ui/flag_bar.gd`): flags.js plus the v96, v98, v102, v105 and v106 wrappers, in the
+     web order: idle research, Army Exhaustion, open plots and upgrades (several places: clicks step through them),
+     quakes, truces ending, warscore ±100, white peace in 30 s, Grave Robbing / Trading ready, requests waiting (these
+     replace the "N requests waiting" button), war news, over the province limit. Right-click hides a flag until its
+     reason goes away and comes back (v102 flagAck). Fix over the web game: right-clicking the province-limit flag
+     does hide it (in v106 the v102 handler cancels the dismissal). Swampling-only flags (Thug Den room, Sacred Pyre)
+     and the dead ones (alliance ended, ally fort) are left out. Flag art: `tools/export_flags.py` renders FLAG_IMG to PNG.
+   - Tooltips: the command card shows the web cmdInfo box (name, description, cost, why / Ready) for building,
+     surveying, roads, spells, Shockwave / Earthquake, flying, retreat, split, combine, rest, retrofit, inspect,
+     cancel and dismiss; the province panel's train, develop, rebuild walls, tear down and Forge / Mage Tower buttons
+     explain themselves; the resource bar, clock and roster too. The look is `assets/ui/theme.tres`
+     (`tools/make_theme.gd` from `UiKit.tooltip_theme`).
+   - Settings (`scripts/core/settings.gd`, `scripts/ui/settings_window.gd`, remembered in `user://settings.json`):
+     interface size, full screen, Calm map (trees stand still; the port has no villagers to hide), Record games, the
+     map seed, and the debug switches (reveal, +2000 resources, every technology; swamp.js). Not ported: Quick queue
+     (the port has no Ctrl+right-click build menu yet), music and sound volumes (no audio yet).
+   - Patch Notes on the start screen: the port's own versions, then the web game's v106 notes (PATCH_NOTES).
 
 ## Things to remember
 

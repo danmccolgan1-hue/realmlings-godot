@@ -352,7 +352,7 @@ func _paint_sway(ci: CanvasItem) -> void:
 	var vr := view_rect(120)
 	for it in D.sway:
 		if vr.has_point(Vector2(it.x, it.y)):
-			_sprite(ci, it, sin(t * 1.7 + it.ph) * 0.07)
+			_sprite(ci, it, 0.0 if Settings.calm_map else sin(t * 1.7 + it.ph) * 0.07)   # Settings: Calm map
 
 
 # --- nation borders (web: game.js buildTerritory / drawTerritory) ---------------------------------------------

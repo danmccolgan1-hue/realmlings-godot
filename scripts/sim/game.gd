@@ -1017,7 +1017,7 @@ func compute_income() -> void:
 
 # web: govtech.js storageCap()
 func storage_cap(k: String) -> int:
-	var n: int = GameData.c("BASE_CAP") + 500 * rep_lv("rep-storage") + (2000 if k == "gold" and has_art(ME, "goldskull") else 0)
+	var n: int = GameData.c("BASE_CAP") + 500 * rep_lv("rep-storage") + (2000 if k == "gold" and has_art(ME, "goldskull") else 0) + debug_cap
 	for p in extras:
 		if owned(p):
 			for e in extras[p]:
@@ -2211,6 +2211,8 @@ func compute_fog() -> void:
 
 ## Debug and pictures only (the view's --reveal): the whole map is seen. Not part of the web game's rules.
 var reveal_all := false
+var debug_cap := 0           # web: S.debugCap, the Settings debug button's extra storage
+var debug_tech := false      # web: S.debugTech
 
 
 func fog_state(i: int) -> String:
@@ -4373,7 +4375,7 @@ const SAVE_FIELDS := ["battles", "bandit_count", "monster_count", "leader", "cap
 	"xup", "auto_tech", "roads", "walls", "wall_hp", "artifacts", "gift_vault", "quakes", "quake_seq", "wall_max", "wall_crack", "broken_walls", "rewall_jobs", "gate_own", "fort_walled", "gpc_slow_t", "dev_t", "cd", "paths",
 	"harvest_by", "trap", "reveals", "eyes", "haunts", "mana_pool", "mana_prev_t", "mage_gear", "finds", "treasure_rolled",
 	"sp_found", "setpieces", "travelers", "train_orders", "train_order_seq", "design_seq", "prov_rename", "nations", "players", "race_of", "wars", "truces", "allies", "war_seq", "met", "occ", "occ_prog", "dipl", "war_log", "war_ever", "war_lock", "ai_met", "fallen", "ally_check", "bandit_next", "bandit_waves", "ally_ask", "crop_scan_at", "ai_scout_t", "wf", "known", "explored", "visible", "queues", "rally", "military", "UNIT_SPEED", "open_nbr", "all_nbr",
-	"yields", "tree_border", "t", "next_tick", "paused", "last", "started"]
+	"yields", "tree_border", "debug_cap", "debug_tech", "reveal_all", "t", "next_tick", "paused", "last", "started"]
 
 
 ## The whole game as a plain Dictionary (see SaveCodec for the text form).
@@ -8497,3 +8499,118 @@ func renounce_enemy(o: int) -> void:
 		toast("You renounce your proclamation against the %s." % player_info(r.t).name)
 	elif r.t == ME:
 		toast("The %s no longer proclaims you their enemy." % player_info(o).name)
+
+
+# --- notification flags: what the flag bar asks of the rules (read only, except the two dismissals) ---
+
+# web: game.js unitStatus(u)
+func unit_status(u: Dictionary) -> String:
+	if u.get("stealth", false) and u.moving:
+		return "sneaking"
+	if u.get("scouting") != null:
+		return "scouting"
+	if u.get("survey") != null:
+		return "surveying"
+	if u.get("build") != null:
+		return "building"
+	if u.get("pending") != null:
+		return "going to build"
+	if not u.get("surveyQueue", []).is_empty():
+		return "to survey"
+	if u.moving:
+		return "walking"
+	return "idle"
+
+
+# web: flags.js freeMasons(): a Mason with nothing to do
+func free_masons() -> Array:
+	return units.filter(func(u): return u.kind == MASON and u.owner == ME and not u.get("exiting", false) and unit_status(u) == "idle")
+
+
+# web: v102.js openPlots(): your provinces with an open plot you can afford to build on, while a Mason is free
+func open_plots() -> Array:
+	if free_masons().is_empty():
+		return []
+	var order: Array = GameData.c("BUILD_ORDER")
+	return provs_of(ME).filter(func(p): return used_slots(p).size() < plot_cap(p) and order.any(func(type): return BUILD_DEFS.has(type) and build_check(p, type) == null))
+
+
+# web: v102.js allUpgradable(): outposts that can become forts, Forges and Mage Towers you can afford to raise a level
+func all_upgradable() -> Array:
+	var out := []
+	for p in provs_of(ME):
+		if buildings[p].stage == 0 and upgrade_why(p) == null:
+			out.append({"p": p, "part": "settlement"})
+		for e in extras_in(p):
+			var d: Dictionary = BUILD_DEFS[e.type]
+			var lv: int = e.get("level", 1)
+			if not d.has("levels") or lv >= d.levels.size() or xup.has("%d@%d" % [p, e.slot]):
+				continue
+			if xup_why(p, e) == null:
+				out.append({"p": p, "part": "%s@%d" % [e.type, e.slot]})
+	return out
+
+
+# web: v98.js readyCaster(k, mana): a caster who could cast this economic spell now
+func ready_caster(k: String, need_mana: bool):
+	for c in units:
+		if c.owner == ME and is_caster(c) and c.get("cast") == null and c.get("battle") == null and not c.get("quake") and not c.get("exiting", false) \
+				and (not need_mana or mana_of(c) >= 25) and cast_why(c, k) == null:
+			return c
+	return null
+
+
+# web: flags.js / v105.js the flags' right-click: an earthquake's or a news item's flag goes away for good
+func dismiss_quake(id: int) -> void:
+	quakes = quakes.filter(func(q): return q.id != id)
+
+
+func dismiss_news(id: int) -> void:
+	var D := dipl_state()
+	D.news = D.news.filter(func(n): return n.id != id)
+
+
+# --- Settings → Debug (web: swamp.js #dbgReveal, #dbgRes, #dbgTech) ---
+
+func debug_reveal(on: bool) -> void:
+	reveal_all = on
+	compute_fog()
+	toast("Debug: the whole map is revealed." if on else "Debug: the fog is back.")
+
+
+func debug_resources() -> void:
+	debug_cap += 2000
+	for k in RES:
+		stock[k] += 2000
+	compute_income()
+	toast("Debug: +2000 gold, wood and food (storage raised by 2000 each to hold it).")
+
+
+func debug_all_tech() -> void:
+	var sc = current_school()
+	if sc == null:
+		sc = "life"   # the first of SCHOOLS a Realmling can take
+		tech.mag.done.append("school-" + sc)
+	var n := 0
+	for x in GameData.c("TECHS"):
+		if x.get("rep") or x.id == "abandon" or not tech_for(x):
+			continue
+		if x.tree == "mag" and (x.id.begins_with("school-") or (x.get("school") != null and x.school != "*" and x.school != sc)):
+			continue
+		var st: Dictionary = tech[x.tree]
+		if st.done.has(x.id):
+			continue
+		st.done.append(x.id)
+		n += 1
+	for tr in tech:
+		var st: Dictionary = tech[tr]
+		if st.cur != null and st.done.has(st.cur):
+			st.cur = null
+			st.prog = 0
+		st.opts = st.opts.filter(func(id): return not st.done.has(id))
+		if st.tier:
+			draw_options(tr)
+	compute_income()
+	clamp_stock()
+	debug_tech = true
+	toast("Debug: %d technologies researched (Magic school: %s)." % [n, GameData.c("SCHOOLS")[sc].name])

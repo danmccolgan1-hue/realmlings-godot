@@ -42,6 +42,8 @@ var cam: Camera2D
 var armory: ArmoryWindow
 var diplomacy: DiplomacyWindow
 var requests: RequestBox
+var flags: FlagBar
+var settings: SettingsWindow
 var dip_btn: Button
 var dialog: DialogBox
 var minimap: Minimap
@@ -71,10 +73,13 @@ func _ready() -> void:
 		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		row.add_child(icon)
 		var l := _label(24)
+		l.mouse_filter = Control.MOUSE_FILTER_STOP
 		row.add_child(l)
 		res_labels[k] = l
 		bar.add_child(row)
 	mana_label = _label(24)
+	mana_label.mouse_filter = Control.MOUSE_FILTER_STOP
+	mana_label.tooltip_text = "The selected Mage’s mana: it fills up over time, spells spend it"
 	bar.add_child(mana_label)
 	tick_bar = ProgressBar.new()
 	tick_bar.custom_minimum_size = Vector2(90, 14)
@@ -84,6 +89,7 @@ func _ready() -> void:
 	tick_bar.tooltip_text = "Next payday"
 	bar.add_child(tick_bar)
 	clock = _label(24)
+	clock.mouse_filter = Control.MOUSE_FILTER_STOP
 	bar.add_child(clock)
 	for b in [["Research [T]", func(): toggle_research()], ["Armory [G]", func(): armory.toggle()], ["Diplomacy [Y]", func(): diplomacy.toggle()], ["Pause [Space]", func(): game.paused = not game.paused], ["Menu [Esc]", func(): toggle_menu()]]:
 		var btn := UiKit.button(b[0], 17, b[1])
@@ -150,6 +156,11 @@ func _ready() -> void:
 		card_buttons.append(b)
 		card_cmds.append(null)
 	cpanel.hide()
+	flags = FlagBar.new()
+	add_child(flags)
+	flags.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT, Control.PRESET_MODE_MINSIZE, 20)
+	flags.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	flags.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	toasts = VBoxContainer.new()
 	toasts.custom_minimum_size = Vector2(520, 0)
 	toasts.grow_horizontal = Control.GROW_DIRECTION_BEGIN
@@ -158,8 +169,9 @@ func _ready() -> void:
 	toasts.offset_top = 70
 	roster = Roster.new()
 	add_child(roster)
-	roster.set_anchors_and_offsets_preset(Control.PRESET_CENTER_RIGHT, Control.PRESET_MODE_MINSIZE, 20)
+	roster.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT, Control.PRESET_MODE_MINSIZE, 20)
 	roster.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	roster.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	minimap = Minimap.new()
 	add_child(minimap)
 	minimap.position = Vector2(20, 70)
@@ -174,6 +186,8 @@ func _ready() -> void:
 	dialog = DialogBox.new()
 	add_child(dialog)
 	_build_menu()
+	settings = SettingsWindow.new()
+	add_child(settings)
 	hide()
 
 
@@ -185,10 +199,7 @@ func set_game(g: Game) -> void:
 	armory.setup(g, self)
 	diplomacy.setup(g, self)
 	requests.setup(g, self)
-	if requests.waiting.get_parent() == null:
-		requests.waiting.set_anchors_preset(Control.PRESET_CENTER_TOP)
-		requests.waiting.position = Vector2(-90, 70)
-		add_child(requests.waiting)
+	flags.setup(g, self)
 	g.on_game_over = func(_w): dialog.ask("Your realm has fallen", "Every province you held is gone. The other nations play on without you.",
 		[{"id": "menu", "label": "Main menu", "why": null}, {"id": "watch", "label": "Watch", "why": null}],
 		func(id): if id == "menu" and main: main.to_main_menu())
@@ -246,7 +257,13 @@ func commands_of(u) -> Array:
 				var casting: bool = u.get("cast") != null and (u.cast.spell == k or u.cast.spell == "q:" + k)
 				var mana = Game.SPELL_MANA.get(k, 0)
 				var label: String = game.TECH_BY_ID[game.line_tech(k)].name
-				out[cell] = {"id": "spell:" + k, "label": "%s\n%s" % [label, "stop" if casting else ("%s mana" % mana if mana is int else str(mana))], "why": game.cast_why(u, k)}
+				var left := ""
+				if casting and is_finite(u.cast.dur):
+					left = " %d s left." % ceili(u.cast.dur - (game.t - u.cast.t0))
+				var cd_tip := (" Cooldown: %d s." % ceili(game.cd_left(k))) if game.cd_left(k) > 0 else ""
+				out[cell] = {"id": "spell:" + k, "label": "%s\n%s" % [label, "stop" if casting else ("%s mana" % mana if mana is int else str(mana))], "why": null if casting else game.cast_why(u, k),
+					"name": label + (" (casting)" if casting else ""), "desc": str(game.TECH_BY_ID[game.line_tech(k)].get("blurb", "")) + left + cd_tip,
+					"ok": "Click to stop casting" if casting else "Click to cast"}
 				cell += 1
 		# Shockwave (every Mage) and Earthquake (Tier III Magic): web gpc.js Z11 / Z12
 		for k in (["shock", "quake"] if game.tech_of(Game.ME, "earthquake") else ["shock"]):
@@ -259,12 +276,15 @@ func commands_of(u) -> Array:
 			var why = null
 			if not on:
 				why = game.quake_why(u) if k == "quake" else (null if game.mages_in(u) > 0 else "No Mage")
-			out[cell] = {"id": "spell2:" + k, "label": "%s\n%s" % [game.spell2_name(k), left if on else "%d mana" % Game.SPELL2_MANA[k]], "why": why}
+			var d2: String = str(game.TECH_BY_ID["earthquake"].get("blurb", "")) if k == "quake" else "Click this, then a neighboring enemy province: after %d seconds of casting, the shockwave hits the walls on its border and the armies standing there." % Game.SHOCK_TIME
+			out[cell] = {"id": "spell2:" + k, "label": "%s\n%s" % [game.spell2_name(k), left if on else "%d mana" % Game.SPELL2_MANA[k]], "why": why,
+				"name": game.spell2_name(k), "desc": d2 + ((" " + left + ".") if on else ""), "ok": "Click to cancel" if on else "Click to cast"}
 			cell += 1
 	if u.kind == "army" and game.has_art(Game.ME, "slippers"):   # v95: Winged Slippers
 		for cell in [9, 7, 6, 5, 4]:
 			if out[cell] == null and not list.any(func(c): return c.get("cell", -1) == cell):
-				out[cell] = {"id": "fly", "label": "Fly\n(Slippers)", "why": game.fly_why(u)}
+				out[cell] = {"id": "fly", "label": "Fly\n(Slippers)", "why": game.fly_why(u), "name": "Fly (Winged Slippers)",
+					"desc": "Click this, then a province: the army flies there over walls, rivers and mountains. Then the Slippers rest for a minute.", "ok": "Click, then pick a province"}
 				break
 	for c in list:
 		var id: String = c.id
@@ -278,24 +298,33 @@ func commands_of(u) -> Array:
 			var short := []
 			for k in cost:
 				short.append("%d%s" % [cost[k], k.left(1)])
-			cmd = {"id": id, "label": "%s\n%s" % [name, " ".join(short)], "why": game.build_check(u.prov, type)}
+			cmd = {"id": id, "label": "%s\n%s" % [name, " ".join(short)], "why": game.build_check(u.prov, type), "name": name, "cost": cost, "desc": _build_desc(u, type)}
 		elif id == "survey":
 			var why = null
 			if game.surveyed.has(u.prov):
 				why = "Already surveyed"
 			elif u.survey != null:
 				why = "Surveying…"
-			cmd = {"id": id, "label": "Survey", "why": why}
+			cmd = {"id": id, "label": "Survey", "why": why, "desc": "Walk a loop around this province to reveal its resources and any Hidden Gold Deposit."}
 		elif id == "auto" and game.has_tech("autoscout"):
-			cmd = {"id": id, "label": "Auto: %s" % ("off" if u.get("auto", true) == false else "on"), "why": null}
+			var on: bool = u.get("auto", true) != false
+			cmd = {"id": id, "label": "Auto: %s" % ("on" if on else "off"), "why": null, "name": "Auto-survey: %s" % ("On" if on else "Off"),
+				"desc": "When idle, Wayfinders walk to the nearest explored province that hasn’t been surveyed and survey it. Click to turn it %s." % ("off" if on else "on")}
 		elif id == "cancelbuild":
-			cmd = {"id": id, "label": "Cancel build", "why": null if u.build != null else "Not building"}
+			var b = u.build
+			var nm := ""
+			if b != null:
+				nm = "outpost" if b.type == "outpost" else "road" if b.type == "road" else "wall" if b.type in ["wall", "rewall"] else (game.BUILD_DEFS[b.type].name if game.BUILD_DEFS.has(b.type) else "building")
+			cmd = {"id": id, "label": "Cancel build", "why": null if b != null else "He isn’t building anything", "name": ("Cancel the " + nm) if b != null else "Cancel construction",
+				"desc": ("Stop building and get back everything paid (%s)." % Game.cost_text(b.get("paid", {}))) if b != null else "When the Mason is building, this stops it and refunds what was paid.", "ok": "Click to cancel and get a refund"}
 		elif id == "road":
 			var q := game.mason_border(u)
 			var why = "Research Dirt Roads first" if not game.has_tech("roads") else "Walk up to an open border first" if q < 0 else game.link_why("road", u, q)
-			cmd = {"id": id, "label": "Road\n25g 75w", "why": why}
+			cmd = {"id": id, "label": "Road\n25g 75w", "why": why, "name": ("Build a road to " + game.prov_name(q)) if q >= 0 else "Build a road", "cost": {"gold": 25, "wood": 75},
+				"desc": "The Mason paves the open border he stands next to. %d s. Units move faster along roads." % int(Game.ROAD_TIME)}
 		elif id == "dismiss":
-			cmd = {"id": id, "label": "Dismiss", "why": null}
+			cmd = {"id": id, "label": "Dismiss", "why": null if u.get("battle") == null else "Not during battle",
+				"desc": "Send %s home for good. No refund; the upkeep stops. Click twice to confirm." % u.name}
 		elif id == "retreat":
 			# web: game.js cmdInfo 'retreat'
 			var why = null
@@ -308,25 +337,65 @@ func commands_of(u) -> Array:
 			var label := "Retreat"
 			if u.get("battle") != null:
 				label += "\nlose ~%d of %d" % [game.retreat_loss(u), game.troop_count(u)]
-			cmd = {"id": id, "label": label, "why": why}
+			cmd = {"id": id, "label": label, "why": why, "desc": "Pull out of the battle to a safe neighboring province. Some soldiers are lost covering the escape; the bigger the enemy compared to you, the more you lose."}
 		elif id == "split":
-			cmd = {"id": id, "label": "Split", "why": null if game.troop_count(u) >= 2 else "Needs 2 soldiers"}
+			cmd = {"id": id, "label": "Split", "why": null if game.troop_count(u) >= 2 else "Only one soldier", "name": "Split Army",
+				"desc": "Divide the army into two, sharing out each kind of soldier."}
 		elif id == "rest":
 			# web: features.js extraCmdInfo 'rest'
 			var why = null if u.get("battle") == null else "Not during battle"
 			if why == null and not (u.get("wounds", 0.0) > 0.01):
 				why = "The army isn’t hurt"
-			cmd = {"id": id, "label": "Resting…" if u.get("rest") != null else "Rest at a\nBarracks", "why": why}
+			cmd = {"id": id, "label": "Resting…" if u.get("rest") != null else "Rest at a\nBarracks", "why": why, "name": "Resting…" if u.get("rest") != null else "Rest at a Barracks",
+				"desc": "A wounded army gets its health back while it stands still at one of your Barracks: %d s for every soldier in it (%d s for this one). Click to march to the nearest Barracks." % [int(Game.REST_TIME), int(Game.REST_TIME * game.troop_count(u))]}
 		elif id == "retrofit":
-			cmd = {"id": id, "label": "Retrofit…", "why": game.retrofit_why(u)}
+			cmd = {"id": id, "label": "Retrofit…", "why": game.retrofit_why(u), "name": "Retrofit",
+				"desc": "Re-equip this army’s soldiers with another Armory design of the same kind; you pay the difference in gear cost. It takes %d s per soldier at a Barracks; the army marches to the nearest one by itself." % int(Game.RETRO_TIME)}
 		elif id == "inspect":
-			cmd = {"id": id, "label": "Inspect", "why": null}
+			cmd = {"id": id, "label": "Inspect", "why": null, "name": "Inspect army", "desc": "See what this army is made of: each kind of soldier, their gear, strength and upkeep."}
 		elif id == "combine":
 			var n := game.units.filter(func(v): return v.kind == "army" and v.owner == Game.ME and v.prov == u.prov and not v.moving).size()
-			cmd = {"id": id, "label": "Combine", "why": null if n >= 2 else "No other army here"}
+			cmd = {"id": id, "label": "Combine", "why": null if n >= 2 else "No other army here", "name": "Combine Armies", "desc": "Merge the armies standing in this province into one."}
 		if cmd != null:
 			out[int(c.cell)] = cmd
 	return out
+
+
+## A command's tooltip, like the web game's hover box: name, what it does, cost, and why it can't be used now
+## (web: game.js showCmdTip)
+func cmd_tip(c: Dictionary) -> String:
+	var name: String = c.get("name", str(c.label).split("\n")[0])
+	var out := name
+	if c.get("desc", "") != "":
+		out += "\n" + UiKit.wrap(c.desc)
+	if c.get("cost") != null and not c.cost.is_empty():
+		out += "\nCost: " + Game.cost_text(c.cost)
+	out += "\n" + (("✗ " + str(c.why)) if c.why != null else ("✓ " + c.get("ok", "Ready")))
+	return out
+
+
+# web: game.js cmdInfo('build:<type>') desc
+func _build_desc(u: Dictionary, type: String) -> String:
+	if type == "outpost":
+		return "Claims this province. It must be surveyed and border your land. Builds where the Mason stands in %d s." % int(game.build_time(type))
+	var d: Dictionary = game.BUILD_DEFS[type]
+	var desc := ""
+	var gv := game.gives_of(type)
+	if not gv.is_empty():
+		desc = "Adds " + ", ".join(gv.keys().map(func(k): return "+%s %s" % [UiKit.num(gv[k]), k])) + " every 10 s."
+		desc += " Up to 4 per province." if type == "farm" else " One per tree border." if type == "lumber" else ""
+		if game.owned(u.prov) and game.build_cap(u.prov, type) > 1:
+			desc += " %d/%d here." % [game.count_of(u.prov, type), game.build_cap(u.prov, type)]
+	elif type == "barracks":
+		desc = "Trains the infantry you design in the Armory. With a Stable in the same province, your cavalry designs too."
+	elif type == "stable":
+		desc = "Lets a Barracks in this province train Cavalry."
+	if desc == "":
+		desc = str(d.get("blurb", ""))
+	var up: Dictionary = d.get("upkeep", {})
+	if not up.is_empty():
+		desc += " Upkeep every 10 s: " + ", ".join(up.keys().map(func(k): return "%s %s" % [UiKit.num(up[k]), k])) + "."
+	return desc + " Builds where the Mason stands in %d s." % int(game.build_time(type))
 
 
 func press(i: int) -> void:
@@ -406,7 +475,7 @@ func _process(_delta: float) -> void:
 		var cap := game.storage_cap(k)
 		res_labels[k].text = "%d/%d  (%s%d)" % [game.stock[k], cap, "+" if inc >= 0 else "−", absi(inc)]
 		res_labels[k].add_theme_color_override("font_color", Color("#ff8a7a") if inc < 0 else Color("#ffe08a") if game.stock[k] >= cap else Color.WHITE)
-		res_labels[k].tooltip_text = "%s: %d of %d you can store; %s%d every payday" % [k.capitalize(), game.stock[k], cap, "+" if inc >= 0 else "−", absi(inc)]
+		res_labels[k].tooltip_text = _res_tip(k)
 	mana_label.visible = unit != null and game.is_caster(unit)
 	if mana_label.visible:
 		mana_label.text = "✦ %d/%d mana" % [int(Game.mana_of(unit)), game.mana_cap()]
@@ -414,8 +483,10 @@ func _process(_delta: float) -> void:
 	var secs := int(game.t)
 	var next := maxf(0.0, game.next_tick - game.t) if game.next_tick > 0 else game.TICK
 	clock.text = "%d:%02d   payday in %ds" % [secs / 60, secs % 60, ceili(next)]
+	clock.tooltip_text = "Game time. Every 10 s is a payday: your provinces and buildings pay out, upkeep is paid."
 	if game.exhaust > 0:
 		clock.text += "   Army Exhaustion %d/%d" % [game.exhaust, GameData.c("EXHAUST_MAX")]
+		clock.tooltip_text += "\nArmy Exhaustion: rises every payout you can’t feed your army. At %d the whole army deserts." % GameData.c("EXHAUST_MAX")
 	paused_label.visible = game.paused
 	if prov >= 0:
 		panel_text.text = _province_text(prov)
@@ -442,7 +513,14 @@ func _process(_delta: float) -> void:
 			var b: Button = card_buttons[i]
 			b.text = "" if c == null else "%s [%s]" % [c.label, GRID_KEYS[i].to_upper()]
 			b.disabled = c == null or c.why != null
-			b.tooltip_text = "" if c == null or c.why == null else str(c.why)
+			b.tooltip_text = "" if c == null else cmd_tip(c)
+	# the flags hang just above the command card (web: flags.js layoutRight)
+	var cp: Control = card.get_parent()
+	flags.offset_bottom = (-20.0 - cp.size.y - 12.0) if cp.visible else -20.0
+	flags.offset_top = flags.offset_bottom - flags.get_combined_minimum_size().y
+	# ...and the unit roster above them (web: layoutRight)
+	roster.offset_bottom = (flags.offset_top - 12.0) if flags.get_child_count() else flags.offset_bottom
+	roster.offset_top = roster.offset_bottom - roster.get_combined_minimum_size().y
 	var now := Time.get_ticks_msec()
 	while not toast_list.is_empty() and toast_list[0].until < now:
 		toast_list.pop_front().label.queue_free()
@@ -492,6 +570,19 @@ func focus_nation(o: int) -> void:
 	select_province(c)
 
 
+## Look at a province (web: lookAtProv / flyTo), and select it when asked to.
+func look_at_prov(p: int, sel := true) -> void:
+	if cam:
+		cam.position = Vector2(game.G.provs[p].ic[0], game.G.provs[p].ic[1])
+		cam.zoom = cam.zoom.max(Vector2(0.55, 0.55))
+	if sel:
+		select_unit(null)
+		if map:
+			map.selected_unit = null
+			map.selected_prov = p
+		select_province(p)
+
+
 func focus_unit(u: Dictionary) -> void:
 	select_unit(u)
 	if map:
@@ -521,14 +612,7 @@ func _build_menu() -> void:
 		if main:
 			toggle_menu()
 			main.load_from(main.QUICKSAVE)))
-	var size_row := HBoxContainer.new()
-	var sl := UiKit.ink(20)
-	sl.text = "Interface size"
-	sl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	size_row.add_child(sl)
-	size_row.add_child(UiKit.button("−", 20, func(): set_ui_scale(ui_scale - 0.1)))
-	size_row.add_child(UiKit.button("+", 20, func(): set_ui_scale(ui_scale + 0.1)))
-	b.add_child(size_row)
+	b.add_child(UiKit.button("Settings", 20, func(): settings.open(game)))
 	b.add_child(UiKit.button("Main menu", 20, func():
 		if main:
 			toggle_menu()
@@ -547,8 +631,10 @@ func toggle_menu() -> void:
 
 
 func set_ui_scale(v: float) -> void:
-	ui_scale = clampf(v, 0.7, 1.6)
-	get_tree().root.content_scale_factor = ui_scale
+	Settings.ui_scale = clampf(v, 0.7, 1.6)
+	ui_scale = Settings.ui_scale
+	Settings.save_all()
+	Settings.apply(get_tree())
 
 
 func _province_text(p: int) -> String:
@@ -644,22 +730,25 @@ func _refresh_actions() -> void:
 			for kind in game.trainable(src, prov):
 				var d: Dictionary = game.unit_defs[kind]
 				var why = game.train_why(src, prov, kind)
-				rows.append({"btn": "Train %s (%s)" % [d.name, Game.cost_text(d.cost)], "why": why, "do": game.train.bind(src, prov, kind)})
+				rows.append({"btn": "Train %s (%s)" % [d.name, Game.cost_text(d.cost)], "why": why, "do": game.train.bind(src, prov, kind), "tip": _train_tip(kind, qkey)})
 		var dr = game.dev_rec(prov)
 		if dr != null and dr.job != null:
 			rows.append({"label": "Developing to level %d: %d%%" % [dr.lv + 1, int(dr.job.done / GameData.c("DEV").time * 100)]})
 		elif dr == null or dr.lv < GameData.c("DEV").max:
 			var lv: int = dr.lv if dr != null else 0
-			rows.append({"btn": "Develop to level %d (%s, 5 min)" % [lv + 1, Game.cost_text(game.dev_cost(lv))], "why": game.dev_why(prov), "do": game.start_develop.bind(prov)})
+			var DV: Dictionary = GameData.c("DEV")
+			rows.append({"btn": "Develop to level %d (%s, 5 min)" % [lv + 1, Game.cost_text(game.dev_cost(lv))], "why": game.dev_why(prov), "do": game.start_develop.bind(prov),
+				"tip": "Level %d/%d. Develop to level %d: +1 gold, wood and food from the land, three new houses, and a %d%% chance of one more resource. %d%% chance of a Deep Gold Deposit (a Gold Mine there gives %d more gold). In a fort or capital each level holds one more province. %d minutes; hostile soldiers stall it, and an occupation resets the province to level 0." % [lv, DV.max, lv + 1, int(DV.luck * 100), int(DV.deep * 100), DV.deepGold, int(DV.time / 60)]})
 		if game.buildings[prov].stage >= 1:
 			var rj = game.rewall_jobs.get(prov)
 			if rj != null:
 				rows.append({"label": "Rebuilding walls: %d s left" % ceili(Game.REWALL_TIME - (game.t - rj.t0))})
 			else:
 				var nw := game.rewalls_at(prov).size()
-				rows.append({"btn": "Rebuild walls (%d wood each%s)" % [Game.REWALL_COST.wood, (", %d broken" % nw) if nw else ""], "why": game.rewalls_why(prov), "do": game.rebuild_walls.bind(prov)})
+				rows.append({"btn": "Rebuild walls (%d wood each%s)" % [Game.REWALL_COST.wood, (", %d broken" % nw) if nw else ""], "why": game.rewalls_why(prov), "do": game.rebuild_walls.bind(prov),
+					"tip": "Put back the walls of this province that were battered or torn down: %d wood each, %d s, no Mason needed. Only at peace with the nation on the other side." % [Game.REWALL_COST.wood, int(Game.REWALL_TIME)]})
 		for e in game.extras_in(prov):
-			rows.append({"btn": "Tear down the %s (no refund)" % game.BUILD_DEFS[e.type].name, "why": null, "do": _confirm.bind("destroy:%d@%d" % [prov, e.slot], "Tear down the %s? Press again to confirm." % game.BUILD_DEFS[e.type].name, game.destroy_extra.bind(prov, e.slot))})
+			rows.append({"btn": "Tear down the %s (no refund)" % game.BUILD_DEFS[e.type].name, "why": null, "tip": "Tear down this %s to free its plot. No refund; its upkeep stops. Click twice to confirm." % game.BUILD_DEFS[e.type].name, "do": _confirm.bind("destroy:%d@%d" % [prov, e.slot], "Tear down the %s? Press again to confirm." % game.BUILD_DEFS[e.type].name, game.destroy_extra.bind(prov, e.slot))})
 		for e in game.extras_in(prov):
 			if e.type in ["forge", "magetower"]:
 				var d: Dictionary = game.BUILD_DEFS[e.type]
@@ -669,7 +758,8 @@ func _refresh_actions() -> void:
 					var xu: Dictionary = game.xup[k]
 					rows.append({"btn": "Upgrading to %s… (cancel)" % d.levels[lv], "why": null, "do": game.cancel_xup.bind(prov, e.slot)})
 				elif lv < d.levels.size():
-					rows.append({"btn": "Upgrade %s to %s (%s)" % [d.levels[lv - 1], d.levels[lv], Game.cost_text(d.ups[lv].cost)], "why": game.xup_why(prov, e), "do": game.start_xup.bind(prov, e.slot)})
+					rows.append({"btn": "Upgrade %s to %s (%s)" % [d.levels[lv - 1], d.levels[lv], Game.cost_text(d.ups[lv].cost)], "why": game.xup_why(prov, e), "do": game.start_xup.bind(prov, e.slot),
+						"tip": "Raises %s research to Tier %s and to %d points every 10 s. Takes %d s; no Mason needed." % ["Military" if e.type == "forge" else "Magic", ["", "I", "II", "III"][lv + 1], [0, 2, 4, 6][lv + 1], d.ups[lv].time]})
 	if unit != null and game.is_caster(unit) and unit.prov == prov:
 		rows.append({"label": "%s: %d / %d mana%s" % [unit.name, int(Game.mana_of(unit)), game.mana_cap(), (" · casting " + str(unit.cast.spell).trim_prefix("q:")) if unit.get("cast") != null else ""]})
 		for q in game.all_nbr[prov]:
@@ -707,10 +797,43 @@ func _refresh_actions() -> void:
 			b.text = r.btn
 			b.add_theme_font_size_override("font_size", 17)
 			b.disabled = r.why != null
-			b.tooltip_text = "" if r.why == null else str(r.why)
+			var tip := UiKit.wrap(str(r.get("tip", ""))) if r.get("tip", "") != "" else ""
+			if r.why != null:
+				tip += ("\n" if tip != "" else "") + "✗ " + str(r.why)
+			b.tooltip_text = tip
 			var f: Callable = r.do
 			b.pressed.connect(func(): f.call())
 			actions.add_child(b)
+
+
+# web: game.js the resource bar's title: what you hold, what comes in and what goes out
+func _res_tip(k: String) -> String:
+	var inc: int = game.income[k]
+	var out := "%s: %d of %d you can store (Storehouses and Granaries hold more).\n%s%d every payday" % [k.capitalize(), game.stock[k], game.storage_cap(k), "+" if inc >= 0 else "−", absi(inc)]
+	var gross = game.income_parts.get("gross", {}).get(k)
+	var up = game.income_parts.get("up", {}).get(k)
+	if gross != null and up != null and up:
+		out += " (+%d coming in, −%d upkeep)" % [gross, up]
+	return out
+
+
+# web: game.js cmdInfo('train:<kind>') desc
+func _train_tip(kind: String, qkey: String) -> String:
+	var d: Dictionary = game.unit_defs[kind]
+	var out := str(d.get("blurb", ""))
+	if game.DSTATS.has(kind):
+		var ds := game.stats_of(kind, Game.ME)
+		out += " Attack %s, health %s, armor %d%%." % [snappedf(ds.atk, 0.1), snappedf(ds.hp, 0.1), int(round(ds.get("red", 0) * 100))]
+	if game.military.has(kind):
+		out += " Joins the army standing in this province."
+	out += " Takes %d s." % int(Game.train_time(kind))
+	var up: Dictionary = d.get("upkeep", {})
+	if not up.is_empty():
+		out += " Upkeep every 10 s: " + ", ".join(up.keys().map(func(k): return "%s %s" % [UiKit.num(up[k]), k])) + "."
+	var n: int = game.queues.get(qkey, []).size()
+	if n:
+		out += " %d already queued." % n
+	return out.strip_edges()
 
 
 func _confirm(key: String, msg: String, f: Callable) -> void:

@@ -37,3 +37,7 @@ renderer/rendering_method.mobile="gl_compatibility"
 textures/canvas_textures/default_texture_filter=1
 anti_aliasing/quality/msaa_2d=1
 environment/defaults/default_clear_color=Color(0.184, 0.231, 0.333, 1)
+
+[gui]
+
+theme/custom="res://assets/ui/theme.tres"
