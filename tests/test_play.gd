@@ -60,6 +60,18 @@ static func play(fx: Dictionary, map: Dictionary) -> Array:
 				"give":
 					for r in Game.RES:
 						g.stock[r] += int(A[r])
+				"train": g.train(A.src, int(A.p), A.kind)
+				"pick":
+					if A.id != null:
+						if not g.tech[A.tree].opts.has(A.id):
+							g.tech[A.tree].opts.append(A.id)
+						g.pick_tech(A.id)
+				"points": g.add_research(A.tree, int(A.n))
+				"xup":
+					for e in g.extras_in(int(A.p)):
+						if e.type == A.type:
+							g.start_xup(int(A.p), e.slot)
+							break
 		g.update(1.0 + i * 0.1)
 		if i % 10 == 0:
 			var e := compare(snaps[si], snapshot(g))
@@ -87,7 +99,7 @@ static func snapshot(g: Game) -> Dictionary:
 	for u in g.units:
 		us.append({"kind": u.kind, "prov": u.prov, "x": u.x, "y": u.y, "moving": u.moving, "slot": u.slot, "scouting": u.scouting,
 			"survey": u.survey != null, "build": u.build.type if u.build != null else null, "pending": u.pending.type if u.pending != null else null,
-			"queue": u.surveyQueue.size()})
+			"queue": u.surveyQueue.size(), "troops": u.get("troops")})
 	var bl := []
 	for p in sorted_keys(g.buildings):
 		bl.append([p, g.buildings[p].stage])
@@ -103,7 +115,20 @@ static func snapshot(g: Game) -> Dictionary:
 	var techs := 0
 	for tr in g.tech:
 		techs += g.tech[tr].done.size()
-	return {"t": g.t, "stock": g.stock, "income": g.income, "units": us, "explored": sorted_keys(g.explored), "visible": sorted_keys(g.visible),
+	var qs := []
+	for key in sorted_keys(g.queues):
+		var l := []
+		for q in g.queues[key]:
+			l.append([q.kind, q.t0])
+		qs.append([key, l])
+	var tch := {}
+	for tr in Game.TREE_KEYS:
+		var st: Dictionary = g.tech[tr]
+		tch[tr] = {"cur": st.cur, "prog": st.prog, "bank": st.bank, "done": st.done, "tier": st.tier}
+	var lv := []
+	for p in sorted_keys(g.extras):
+		lv.append([p, g.extras[p].map(func(e): return e.get("level", 1))])
+	return {"t": g.t, "queues": qs, "tech": tch, "rep": g.rep, "xup": g.xup.keys(), "levels": lv, "stock": g.stock, "income": g.income, "units": us, "explored": sorted_keys(g.explored), "visible": sorted_keys(g.visible),
 		"surveyed": sorted_keys(g.surveyed), "wf": sorted_keys(g.wf), "buildings": bl, "extras": ex, "upgrades": g.upgrades.keys(), "techs": techs, "finds": fd}
 
 

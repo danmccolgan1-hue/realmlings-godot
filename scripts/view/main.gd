@@ -1,7 +1,8 @@
 extends Node2D
 ## Entry point. Milestone 1 so far: pick a seed and a Realmling leader, then play the Practice island.
 ## Space: pause / play. Left-click: select a unit or a province. Right-click: send the selected unit there.
-## Command card keys: q w e r / a s d f / z x c v / u i o p. Drag (left or middle mouse) to pan, wheel to zoom.
+## Command card keys: q w e r / a s d f / z x c v / u i o p. T: research (with no unit selected).
+## Drag (left or middle mouse) to pan, wheel to zoom.
 
 const SEED_WORDS := ["ember", "oak", "river", "banner", "moss", "crown", "lantern", "stone", "harbor", "thistle", "kettle", "saffron"]
 
@@ -156,8 +157,11 @@ func _maybe_screenshot() -> void:
 		game.paused = true
 		game.last = 0.0
 		game.update(Time.get_ticks_msec() / 1000.0)
-	map.selected_unit = mason
-	hud.select_unit(mason)
+	if OS.get_cmdline_user_args().has("--research"):
+		hud.toggle_research()
+	else:
+		map.selected_unit = mason
+		hud.select_unit(mason)
 	var b := map.bounds()
 	cam.zoom = Vector2(0.55, 0.55)
 	cam.position = Vector2(game.G.provs[game.capital].ic[0], game.G.provs[game.capital].ic[1] - 60)
@@ -172,6 +176,10 @@ func _unhandled_input(ev: InputEvent) -> void:
 	if ev is InputEventKey and ev.pressed and not ev.echo and game:
 		if ev.keycode == KEY_SPACE:
 			game.paused = not game.paused
+			get_viewport().set_input_as_handled()
+			return
+		if ev.keycode == KEY_T and hud.unit == null:
+			hud.toggle_research()
 			get_viewport().set_input_as_handled()
 			return
 		if hud.key(OS.get_keycode_string(ev.keycode).to_lower()):

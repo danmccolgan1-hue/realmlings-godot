@@ -48,6 +48,11 @@ var exhaust_ok := 0
 var harvest = null
 var devel := {}
 var upgrades := {}           # province -> {t0, paid}: outposts becoming forts
+var xup := {}                # "<p>@<slot>" -> {t0, paid, to}: a Forge or Mage Tower going up a level
+var auto_tech := {"gov": false, "mil": false, "mag": false}
+var queues := {}             # "capital:<p>" / "barracks:<p>" / "magetower:<p>" -> [{kind, paid, t0}]
+var rally := {}              # queue key -> {prov, x, y}
+var military := {}           # unit kinds that are soldiers (web: game.js MILITARY)
 var finds := {}              # province -> {id: "ruins" | "treasure", done}
 var treasure_rolled := {}
 var sp_found := {}
@@ -92,6 +97,11 @@ func _init() -> void:
 	SPEED = GameData.c("SPEED")
 	WAYFINDER = GameData.c("WAYFINDER")
 	unit_defs = GameData.c("UNIT_DEFS").duplicate(true)
+	for k in GameData.c("MILITARY"):
+		military[k] = true
+	# the Realmlings' Armory starts with these designs (web: equip.js; the other races' designs never train here)
+	for d in [["d-spear", "inf"], ["d-sword", "inf"], ["d-club", "inf"], ["d-rider", "cav"]]:
+		designs.append({"id": d[0], "name": unit_defs[d[0]].name, "type": d[1], "race": "realm"})
 	stock = GameData.c("START_STOCK").duplicate()
 
 
@@ -159,7 +169,8 @@ func setup_game() -> void:
 	surveyed[best] = -10
 	tech = {}
 	for tr in ["gov", "mil", "mag"]:
-		tech[tr] = {"cur": null, "prog": 0, "bank": 0, "opts": [], "done": [], "tier": 1 if tr == "gov" else 0}
+		tech[tr] = {"cur": null, "prog": 0, "bank": 0, "opts": [], "done": [], "tier": 1 if tr == "gov" else 0, "sticky": []}
+	draw_options("gov")
 	units = [mk_unit(1, GameData.c("WAYFINDER"), "Wayfinder", best, 3), mk_unit(2, MASON, "Mason", best, 4)]
 	next_id = maxi(next_id, 3)
 	new_army(best, {footman_of(): 3})
@@ -389,8 +400,9 @@ func leader_design(d: Dictionary) -> String:
 	for x in designs:
 		if x.name == d.name:
 			return x.id
-	var id := "d%d" % (designs.size() + 1)
-	designs.append({"id": id, "name": d.name, "spec": d.spec})
+	var id := "d%d" % (designs.size() - 3)   # web ids: the built-in designs have names, new ones count from d1
+	designs.append({"id": id, "name": d.name, "type": d.spec.type, "race": d.spec.race, "spec": d.spec})
+	military[id] = true
 	var def := d.duplicate(true)
 	def.erase("spec")
 	def.erase("speed")
@@ -683,6 +695,7 @@ func payday(_t: float) -> void:
 	for k in RES:
 		stock[k] = maxi(0, stock[k] + income[k])
 	step_exhaustion(short)
+	tech_payday()
 	if on_payday.is_valid():
 		on_payday.call(_t)
 
@@ -735,8 +748,11 @@ func update(real_t: float) -> void:
 		var nt := next_tick
 		next_tick += TICK
 		payday(nt)
+	step_training(t)
 	clamp_stock()
 	step_upgrades(t)
+	if not paused:
+		rally_arrivals()
 	compute_fog()
 
 
@@ -1201,7 +1217,7 @@ func survey_finds(u: Dictionary) -> void:
 				pick.append(x)
 		if not pick.is_empty():
 			var x: Dictionary = pick[rng.randi() % pick.size()]
-			add_start_tech(x.id)
+			grant_tech(x.id)
 			toast("%s has found intact ruins of an ancient temple! Your nation gains %s." % [u.name, x.name])
 	if world.provinces[p].terrain == "desert" and not finds.has(p) and not treasure_rolled.has(p):
 		treasure_rolled[p] = true
@@ -1532,6 +1548,26 @@ func start_upgrade(p: int) -> bool:
 
 
 func step_upgrades(now: float) -> void:
+	for k in xup.keys():
+		var parts: PackedStringArray = k.split("@")
+		var p := int(parts[0])
+		var slot := int(parts[1])
+		var e = null
+		for x in extras_in(p):
+			if x.slot == slot:
+				e = x
+				break
+		if e == null:
+			xup.erase(k)
+			continue
+		var d: Dictionary = BUILD_DEFS[e.type]
+		var xu: Dictionary = xup[k]
+		if now - xu.t0 < d.ups[xu.to - 1].time:
+			continue
+		xup.erase(k)
+		e.level = xu.to
+		e.born = now
+		toast("%s upgraded to a %s! %s research reaches Tier %s." % [d.levels[xu.to - 2], d.levels[xu.to - 1], "Military" if e.type == "forge" else "Magic", ["", "I", "II", "III"][xu.to]])
 	var FU: Dictionary = GameData.c("FORT_UPGRADE")
 	for p in upgrades.keys():
 		if now - upgrades[p].t0 < FU.time:
@@ -1588,3 +1624,667 @@ func compute_fog() -> void:
 
 func fog_state(i: int) -> String:
 	return "visible" if visible.has(i) else "explored" if explored.has(i) else "unexplored"
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# training (web: game.js trainable / train / stepTraining, swamp.js and v104.js trainable, v96.js rally points)
+
+const QUEUE_MAX := 10
+
+
+# web: game.js trainTime()
+static func train_time(kind: String) -> float:
+	if kind == "mage:A":
+		return 30.0
+	if kind == "pioneer:B" or kind == MASON:
+		return 12.0
+	return 18.0
+
+
+## What a building trains. src: "capital", "barracks" or "magetower". web: game.js trainable + swamp.js (Realmlings:
+## Barracks soldiers from the Armory, cavalry only with a Stable in the province) + v104.js (a Forge adds the
+## Crossbowman)
+func trainable(src: String, prov: int) -> Array:
+	if src == "capital":
+		return GameData.c("TRAINS").capital
+	if src == "magetower":
+		return [GameData.c("MAGE")]
+	if src != "barracks":
+		return []
+	var has_stable := extras_in(prov).any(func(e): return e.type == "stable")
+	var list := []
+	for d in designs:
+		if d.get("race", "realm") == "realm" and (d.type == "inf" or has_stable):
+			list.append(d.id)
+	list = list.slice(0, 12)
+	if _has_forge():
+		var k: String = GameData.c("RANGED").realm.id
+		if not list.has(k):
+			list = (list.slice(0, 11) if list.size() >= 12 else list) + [k]
+			military[k] = true
+			UNIT_SPEED[k] = GameData.c("UNIT_SPEED").get(k, UNIT_SPEED.get(k, 1.0))
+	return list
+
+
+func _has_forge() -> bool:
+	for p in extras:
+		if owned(p) and extras[p].any(func(e): return e.type == "forge"):
+			return true
+	return false
+
+
+# web: game.js unitLimit() / content.js mageCap()
+func unit_limit(kind: String) -> int:
+	if kind == GameData.c("MAGE"):
+		return 1 + (1 if has_tech("apprentice") else 0) + rep_lv("rep-magecap")
+	if kind == MASON:
+		return GameData.c("UNIT_LIMIT")[kind] + rep_lv("rep-masons")
+	if kind == WAYFINDER:
+		return GameData.c("UNIT_LIMIT")[kind] + rep_lv("rep-wayfinders")
+	return 0
+
+
+# web: game.js unitTotal(): units, queued ones, and (for Mages) those inside armies
+func unit_total(kind: String) -> int:
+	var n := 0
+	for v in units:
+		if v.owner == ME and v.kind == kind:
+			n += 1
+		if kind == GameData.c("MAGE") and v.owner == ME and v.kind == "army":
+			n += v.troops.get(kind, 0)
+	for key in queues:
+		for e in queues[key]:
+			if e.kind == kind:
+				n += 1
+	return n
+
+
+func limit_why(kind: String):
+	var L := unit_limit(kind)
+	if L and unit_total(kind) >= L:
+		return "Limit reached: %d %s%s" % [L, unit_defs[kind].name, "s" if L > 1 else ""]
+	return null
+
+
+## Why `kind` can't be trained at src:prov now, or null.
+func train_why(src: String, prov: int, kind: String):
+	if not trainable(src, prov).has(kind):
+		return "Not trained here"
+	var lw = limit_why(kind)
+	if lw != null:
+		return lw
+	return lack_text(unit_defs[kind].cost)
+
+
+# web: game.js train(kind) with S.selKind = src, S.selBuilding = prov
+func train(src: String, prov: int, kind: String) -> bool:
+	var d: Dictionary = unit_defs.get(kind, {})
+	if not trainable(src, prov).has(kind):
+		return false
+	if limit_why(kind) != null:
+		var L := unit_limit(kind)
+		toast("You can have at most %d %s%s at a time (including any in training%s)." % [L, d.name, "s" if L > 1 else "", " or in armies" if kind == GameData.c("MAGE") else ""], true)
+		return false
+	var short := []
+	for k in d.cost:
+		if stock[k] < d.cost[k]:
+			short.append(k)
+	if not short.is_empty():
+		toast("Not enough %s to train a %s." % [" and ".join(short), d.name], true)
+		return false
+	for k in d.cost:
+		stock[k] -= d.cost[k]
+	var key := "%s:%d" % [src, prov]
+	if not queues.has(key):
+		queues[key] = []
+	queues[key].append({"kind": kind, "paid": d.cost.duplicate(), "t0": null})
+	toast("%s queued at the %s." % [d.name, "capital" if src == "capital" else "barracks"])
+	return true
+
+
+## Take the last unit out of a queue, refunding it (web: the queue's cancel button).
+func cancel_training(key: String, i: int) -> void:
+	var Q: Array = queues.get(key, [])
+	if i < 0 or i >= Q.size():
+		return
+	var q: Dictionary = Q[i]
+	for k in q.paid:
+		stock[k] += q.paid[k]
+	Q.remove_at(i)
+
+
+# web: game.js srcSpot(key)
+func src_spot(key: String) -> Dictionary:
+	var parts := key.split(":")
+	var kind := parts[0]
+	var prov := int(parts[1])
+	var c: Array = G.provs[prov].ic
+	if kind == "capital":
+		return {"prov": prov, "x": c[0], "y": c[1]}
+	var want := kind if kind in ["magetower", "market", "stable"] else "barracks"
+	var slot := 0
+	for e in extras_in(prov):
+		if e.type == want:
+			slot = e.slot
+			break
+	var o := bslot_of(prov, slot)
+	return {"prov": prov, "x": c[0] + o[0], "y": c[1] + o[1]}
+
+
+# web: game.js stepTraining(t) (+ v102.js: an occupied building holds its queue; no wars yet)
+func step_training(now: float) -> void:
+	for key in queues:
+		var Q: Array = queues[key]
+		if Q.is_empty():
+			continue
+		var q: Dictionary = Q[0]
+		if q.t0 == null:
+			q.t0 = now
+		if now - q.t0 < train_time(q.kind):
+			continue
+		Q.pop_front()
+		var spot := src_spot(key)
+		var d: Dictionary = unit_defs[q.kind]
+		var rp = rally.get(key)
+		if military.has(q.kind):
+			var a = null
+			if rp == null:
+				for v in units:
+					if v.kind == "army" and v.owner == ME and v.prov == spot.prov and not v.moving:
+						a = v
+						break
+			if a != null:
+				a.troops[q.kind] = a.troops.get(q.kind, 0) + 1
+				a.grew = now
+				var n := 0
+				for k in a.troops:
+					n += a.troops[k]
+				toast("%s joined %s (%d soldiers)." % [d.name, a.name, n])
+			else:
+				a = new_army(spot.prov, {q.kind: 1})
+				a.born = now
+				toast("%s is ready and marches to the rally point." % d.name if rp != null else "%s is ready and formed %s." % [d.name, a.name])
+				if rp != null:
+					rally_go(a, rp)
+			compute_income()
+			continue
+		var n := 1
+		for v in units:
+			if v.kind == q.kind and v.owner == ME:
+				n += 1
+		var u := mk_unit(next_id, q.kind, d.name + (" %d" % n if n > 1 else ""), spot.prov, 0)
+		next_id += 1
+		u.slot = free_slot(spot.prov, u)
+		var xy := slot_pos(spot.prov, u.slot)
+		u.x = xy[0]
+		u.y = xy[1]
+		u.born = now
+		units.append(u)
+		if rp != null:
+			rally_go(u, rp)
+		compute_income()
+		toast("%s is ready." % u.name)
+
+
+# web: v96.js rallyGo(u, rp)
+func rally_go(u: Dictionary, rp: Dictionary) -> void:
+	if u.kind == "army":
+		u.rallyTo = rp.prov
+	if u.prov == rp.prov and JS.hypot(u.x - rp.x, u.y - rp.y) < 40:
+		return
+	order(u, rp.prov, true, [rp.x, rp.y])
+
+
+## Set (or clear, with prov < 0) the rally point of a training building. web: v96.js rally command
+func set_rally(key: String, prov: int, x := 0.0, y := 0.0) -> void:
+	if prov < 0:
+		rally.erase(key)
+	else:
+		rally[key] = {"prov": prov, "x": x, "y": y}
+
+
+# web: v96.js rallyArrivals() (v106 Army Training Orders come later): an army reaching its rally point joins an
+# army already standing there
+func rally_arrivals() -> void:
+	for a in units.duplicate():
+		if a.get("_gone", false) or a.kind != "army" or a.get("rallyTo") == null or a.owner != ME:
+			continue
+		if a.moving:
+			continue
+		if a.prov != a.rallyTo:
+			a.rallyTo = null
+			continue
+		a.rallyTo = null
+		var host = null
+		for v in units:
+			if not is_same(v, a) and v.kind == "army" and v.owner == ME and v.prov == a.prov and not v.moving and not v.get("exiting", false) \
+					and not (v.troops.get(GameData.c("MAGE"), 0) > 0 and a.troops.get(GameData.c("MAGE"), 0) > 0):
+				host = v
+				break
+		if host == null:
+			continue
+		for k in a.troops:
+			host.troops[k] = host.troops.get(k, 0) + a.troops[k]
+		host.grew = t
+		a._gone = true
+		units = units.filter(func(v): return not is_same(v, a))
+		compute_income()
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# research (web: tech.js techPayday / pickTech / finishTech / drawOptions / topUpOptions, v96.js auto-research,
+# v105.js the leader's school, v78.js grantTech / addResearch)
+
+const TREE_KEYS := ["gov", "mil", "mag"]
+const UPGRADE_TECHS := ["battleforge", "warforge", "sanctum", "arcanum"]
+const REP_LEFT := 5
+
+
+func tech_for(x: Dictionary) -> bool:
+	var r = x.get("race")
+	if r is Array:
+		return r.has("realm")
+	return r == null or r == "realm"
+
+
+# web: game.js levelsOf(type)
+func levels_of(type: String) -> Array:
+	var out := []
+	for p in extras:
+		if owned(p):
+			for e in extras[p]:
+				if e.type == type:
+					out.append(e.get("level", 1))
+	return out
+
+
+# web: tech.js techTier(tree): Government by forts, Military and Magic by the Forge / Mage Tower level
+func tech_tier(tree: String) -> int:
+	if tree == "gov":
+		var forts := 0
+		for p in buildings:
+			if buildings[p].owner == ME and buildings[p].stage == 1:
+				forts += 1
+		return 1 + int(forts >= 1) + int(forts >= 2)
+	var lv := levels_of("forge" if tree == "mil" else "magetower")
+	return lv.max() if not lv.is_empty() else 0
+
+
+# web: tech.js provResearch(p) (+ v105.js: a Mage leader's Mage Towers give +1 Magic each)
+func prov_research(p: int) -> Dictionary:
+	var r := {"gov": 0, "mil": 0, "mag": 0}
+	if not owned(p):
+		return r
+	var b: Dictionary = buildings[p]
+	var LP: Array = GameData.c("LEVEL_POINTS")
+	if not occ.has(p):
+		if b.stage >= 1:
+			r.gov += b.stage + 1
+		for e in extras_in(p):
+			if e.type == "temple":
+				r.gov += 2
+	for e in extras_in(p):
+		if e.type == "forge":
+			r.mil += LP[e.get("level", 1)]
+		elif e.type == "magetower":
+			r.mag += LP[e.get("level", 1)]
+	var L = leader_of()
+	if L != null and L.start == "mage":
+		for e in extras_in(p):
+			if e.type == "magetower":
+				r.mag += 1
+	return r
+
+
+func tech_rate(tree: String) -> int:
+	var n := 0
+	for p in buildings:
+		if buildings[p].owner == ME:
+			n += prov_research(p)[tree]
+	return n
+
+
+func bank_cap(tree: String) -> float:
+	return tech_rate(tree) * GameData.c("BANK_SECONDS") / TICK
+
+
+# web: tech.js techCost(x)
+func tech_cost(x: Dictionary) -> int:
+	var rep_mult := 1.0
+	if x.get("rep", false) and not GameData.c("FLAT_REPS").has(x.id):
+		rep_mult = pow(GameData.c("REP_STEP"), rep_lv(x.id))
+	var tree_mult: float = GameData.c("GOV_COST_MULT") if x.tree == "gov" else GameData.c("MIL_COST_MULT") if x.tree == "mil" else 1.0
+	var n := provs_of().size()
+	var cost_mult := 1 + 0.05 * mini(10, maxi(0, n - 10)) + 0.15 * maxi(0, n - 20)
+	return int(JS.round_js(x.cost * rep_mult * tree_mult * cost_mult))
+
+
+func current_school():
+	for id in tech.mag.done:
+		if id.begins_with("school-"):
+			return id.substr(7)
+	return null
+
+
+func techs_left(tree: String) -> int:
+	var st: Dictionary = tech[tree]
+	var sc = current_school() if tree == "mag" else null
+	var n := 0
+	for x in TECH_BY_ID.values():
+		if x.tree != tree or x.get("rep", false) or not tech_for(x) or st.done.has(x.id) or x.id == "abandon":
+			continue
+		if tree == "mag":
+			if x.id.begins_with("school-"):
+				if sc != null:
+					continue
+			elif sc != null and x.get("school") != "*" and x.get("school") != sc:
+				continue
+		n += 1
+	return n
+
+
+func tier3_done(tree: String) -> bool:
+	for x in TECH_BY_ID.values():
+		if x.tree == tree and x.get("tier") == 3 and not x.get("rep", false) and not x.get("afterT3", false) and tech_for(x) and not tech[tree].done.has(x.id):
+			return false
+	return true
+
+
+func forge_ready(x: Dictionary, st: Dictionary) -> bool:
+	if x.id != "battleforge":
+		return true
+	var n := 0
+	for id in st.done:
+		var y = TECH_BY_ID.get(id)
+		if y != null and y.get("tier") == 1 and not y.get("rep", false) and y.tree == "mil":
+			n += 1
+	return n >= 2
+
+
+# web: tech.js availTechs(tree) + v105.js (a leader locked to a school offers only that school)
+func avail_techs(tree: String) -> Array:
+	var st: Dictionary = tech[tree]
+	var T := tech_tier(tree)
+	var rep_open := techs_left(tree) < REP_LEFT
+	var out := []
+	for x in GameData.c("TECHS"):
+		if x.tree == tree and x.get("tier", 0) <= T and tech_for(x) and not st.done.has(x.id) and x.id != st.cur and req_met(x, st) \
+				and forge_ready(x, st) and (not x.get("rep", false) or rep_open) and (not x.get("afterT3", false) or tier3_done(tree)):
+			out.append(x)
+	if tree == "mag":
+		var sc = current_school()
+		if sc != null:
+			out = out.filter(func(x): return not x.id.begins_with("school-") and (x.get("school") == "*" or x.get("school") == sc))
+		else:
+			out = out.filter(func(x): return x.id.begins_with("school-"))
+		var L = leader_of()
+		if L != null and L.get("school") != null:
+			out = out.filter(func(x): return x.id != "abandon" and (not x.id.begins_with("school-") or x.id == "school-" + L.school))
+	return out
+
+
+func tech_options() -> int:
+	return GameData.c("TECH_OPTIONS") + int(has_tech("retained")) + int(has_tech("retained2"))
+
+
+static func _opt_order(a: Dictionary, b: Dictionary) -> bool:
+	var ra := int(a.get("rep", false))
+	var rb := int(b.get("rep", false))
+	if ra != rb:
+		return ra < rb
+	if a.tier != b.tier:
+		return a.tier < b.tier
+	return a.id < b.id
+
+
+# web: tech.js drawOptions(tree): a fresh random offer (Forge and Mage Tower stay once seen; the next building upgrade
+# always; one of the newest tier)
+func draw_options(tree: String) -> void:
+	var st: Dictionary = tech[tree]
+	var T := tech_tier(tree)
+	var N := tech_options()
+	var has_barracks := false
+	for p in extras:
+		if owned(p) and extras[p].any(func(e): return e.type == "barracks"):
+			has_barracks = true
+	var keyed := []
+	for x in avail_techs(tree):
+		var w := 1.5 if x.id == "forge" and has_barracks else 1.0
+		keyed.append([pow(rng.randf(), 1.0 / w), x])
+	keyed.sort_custom(func(a, b): return a[0] > b[0])
+	var shuffled := keyed.map(func(o): return o[1])
+	var top := shuffled.filter(func(x): return x.tier == T and not x.get("rep", false))
+	var opts := []
+	for x in shuffled:
+		if st.sticky.has(x.id) and opts.size() < N:
+			opts.append(x)
+	for x in shuffled:
+		if UPGRADE_TECHS.has(x.id) and opts.size() < N and not opts.has(x):
+			opts.append(x)
+	if not top.is_empty() and not opts.has(top[0]) and opts.size() < N:
+		opts.append(top[0])
+	for x in shuffled:
+		if opts.size() < N and not opts.has(x):
+			opts.append(x)
+	for x in opts:
+		if GameData.c("STICKY_TECHS").has(x.id) and not st.sticky.has(x.id):
+			st.sticky.append(x.id)
+	opts.sort_custom(_opt_order)
+	st.opts = opts.map(func(x): return x.id)
+
+
+# web: tech.js topUpOptions(tree)
+func top_up_options(tree: String) -> void:
+	var st: Dictionary = tech[tree]
+	if not st.tier:
+		return
+	var N := tech_options()
+	var keyed := []
+	for x in avail_techs(tree):
+		if not st.opts.has(x.id):
+			keyed.append([rng.randf() + (2.0 if st.sticky.has(x.id) else 0.0), x])
+	keyed.sort_custom(func(a, b): return a[0] > b[0])
+	var added := false
+	while st.opts.size() < N and not keyed.is_empty():
+		st.opts.append(keyed.pop_front()[1].id)
+		added = true
+	if added:
+		var xs: Array = st.opts.map(func(id): return TECH_BY_ID[id])
+		xs.sort_custom(_opt_order)
+		st.opts = xs.map(func(x): return x.id)
+
+
+## Start researching `id` (it must be on offer). Points already earned stay in the bank when switching.
+## web: tech.js pickTech(id)
+func pick_tech(id: String) -> bool:
+	var x = TECH_BY_ID.get(id)
+	if x == null:
+		return false
+	var st: Dictionary = tech[x.tree]
+	if not st.opts.has(id):
+		toast("That technology isn’t on offer right now.", true)
+		return false
+	if x.get("gold", 0) and stock.gold < x.gold:
+		toast("%s needs %d gold to begin." % [x.name, x.gold], true)
+		return false
+	if st.cur != null:
+		st.bank += st.prog
+		var old: Dictionary = TECH_BY_ID[st.cur]
+		if old.get("gold", 0):
+			stock.gold += old.gold
+			toast("%s set aside: %d gold refunded." % [old.name, old.gold])
+	if x.get("gold", 0):
+		stock.gold -= x.gold
+	var prev = st.cur
+	st.cur = id
+	st.prog = st.bank
+	st.bank = 0
+	st.opts.erase(id)
+	if prev != null and prev != id and not st.opts.has(prev):
+		st.opts.append(prev)
+	top_up_options(x.tree)
+	if st.prog >= tech_cost(x):
+		finish_tech(x.tree)
+	return true
+
+
+# web: tech.js finishTech(tree)
+func finish_tech(tree: String) -> void:
+	var st: Dictionary = tech[tree]
+	var x: Dictionary = TECH_BY_ID[st.cur]
+	var cost := tech_cost(x)
+	if x.get("rep", false):
+		rep[x.id] = rep_lv(x.id) + 1
+	else:
+		st.done.append(x.id)
+	st.bank = minf(st.prog - cost, bank_cap(tree))
+	st.prog = 0
+	st.cur = null
+	var tree_name: String = GameData.c("TECH_TREES")[tree].name
+	if x.get("rep", false):
+		draw_options(tree)
+		compute_income()
+		clamp_stock()
+		toast("%s research complete: %s. %s" % [tree_name, x.name, x.get("baseBlurb", "")])
+		return
+	if x.id == "retained" or x.id == "retained2":
+		for t2 in TREE_KEYS:
+			if t2 != tree and tech[t2].tier:
+				if tech[t2].cur != null:
+					top_up_options(t2)
+				else:
+					draw_options(t2)
+	if x.id.begins_with("school-"):
+		draw_options(tree)
+		compute_income()
+		toast("You follow the %s. Its spells can now be researched, and your Mages can cast them." % x.name)
+		return
+	draw_options(tree)
+	compute_income()
+	var what: String = x.get("blurb", "")
+	if x.get("gives") != null:
+		var parts := []
+		for k in x.gives:
+			parts.append("+%d %s" % [x.gives[k], k])
+		what = "(" + ", ".join(parts) + " every 10 s)"
+	toast("%s research complete: %s. %s" % [tree_name, x.name, what])
+
+
+# web: tech.js techPayday() + v96.js auto-research before and after
+func tech_payday() -> void:
+	auto_research()
+	for tree in TREE_KEYS:
+		var st: Dictionary = tech[tree]
+		var T := tech_tier(tree)
+		if T != st.tier:
+			if T > st.tier:
+				var nm: String = GameData.c("TECH_TREES")[tree].name
+				toast("%s research unlocked! Open Research (T) to pick a technology." % nm if st.tier == 0 else "%s Tier %s technologies are now available." % [nm, ["", "I", "II", "III"][T]])
+			st.tier = T
+			if st.cur == null or st.opts.is_empty():
+				draw_options(tree)
+		if not T:
+			continue
+		var pts := tech_rate(tree)
+		if st.cur != null:
+			st.prog += pts
+			if st.prog >= tech_cost(TECH_BY_ID[st.cur]):
+				finish_tech(tree)
+		else:
+			st.bank = maxf(st.bank, minf(st.bank + pts, bank_cap(tree)))
+		if st.cur == null and st.opts.is_empty():
+			draw_options(tree)
+		top_up_options(tree)
+	auto_research()
+
+
+# web: v96.js autoResearch(): a tree set to auto picks its cheapest offer (no gold-costing ones, no schools)
+func auto_research() -> void:
+	for tree in TREE_KEYS:
+		var st: Dictionary = tech[tree]
+		if not auto_tech[tree] or not st.tier or st.cur != null:
+			continue
+		if st.opts.is_empty():
+			draw_options(tree)
+		var cands := []
+		for id in st.opts:
+			var x = TECH_BY_ID.get(id)
+			if x != null and not id.begins_with("school-") and id != "abandon" and not x.get("gold", 0):
+				cands.append(x)
+		cands.sort_custom(func(a, b): return tech_cost(a) < tech_cost(b) or (tech_cost(a) == tech_cost(b) and a.tier < b.tier))
+		if not cands.is_empty():
+			pick_tech(cands[0].id)
+
+
+# web: v78.js grantTech(id): a technology for free (Intact Ruins)
+func grant_tech(id: String) -> void:
+	var x: Dictionary = TECH_BY_ID[id]
+	var st: Dictionary = tech[x.tree]
+	if st.done.has(id):
+		return
+	if st.cur == id:
+		st.bank = st.prog
+		st.prog = 0
+		st.cur = null
+	st.done.append(id)
+	st.opts.erase(id)
+	st.sticky.erase(id)
+	top_up_options(x.tree)
+	compute_income()
+
+
+# web: v78.js addResearch(tree, pts): research points out of the blue
+func add_research(tree: String, pts: int) -> void:
+	var st: Dictionary = tech[tree]
+	if st.cur != null:
+		st.prog += pts
+		var cost := tech_cost(TECH_BY_ID[st.cur])
+		if st.prog >= cost:
+			var left: int = st.prog - cost
+			finish_tech(tree)
+			st.bank = maxf(st.bank, left)
+	else:
+		st.bank += pts
+
+
+# --- Forge / Mage Tower levels (web: game.js cmdInfo('xup'), startXup, cancelXup) ---
+
+func xup_why(p: int, e: Dictionary):
+	var d: Dictionary = BUILD_DEFS[e.type]
+	var lv: int = e.get("level", 1)
+	if not d.has("levels") or lv >= d.levels.size():
+		return "Already at the highest level"
+	var need = (["battleforge", "warforge"] if e.type == "forge" else ["sanctum", "arcanum"])[lv - 1]
+	if need != null and not has_tech(need):
+		return "Research " + TECH_BY_ID[need].name + " first"
+	return lack_text(d.ups[lv].cost)
+
+
+func start_xup(p: int, slot: int) -> bool:
+	var e = null
+	for x in extras_in(p):
+		if x.slot == slot:
+			e = x
+	if e == null or xup.has("%d@%d" % [p, slot]):
+		return false
+	var why = xup_why(p, e)
+	if why != null:
+		toast("Upgrade: %s." % why, true)
+		return false
+	var d: Dictionary = BUILD_DEFS[e.type]
+	var up: Dictionary = d.ups[e.get("level", 1)]
+	for k in up.cost:
+		stock[k] -= up.cost[k]
+	xup["%d@%d" % [p, slot]] = {"t0": t, "paid": up.cost.duplicate(), "to": e.get("level", 1) + 1}
+	toast("Upgrading to a %s… (−%s, %d s)" % [d.levels[e.get("level", 1)], cost_text(up.cost), up.time])
+	return true
+
+
+func cancel_xup(p: int, slot: int) -> void:
+	var k := "%d@%d" % [p, slot]
+	if not xup.has(k):
+		return
+	for r in xup[k].paid:
+		stock[r] += xup[k].paid[r]
+	xup.erase(k)
+	toast("Upgrade cancelled. Resources refunded.")
