@@ -129,8 +129,9 @@ func _init() -> void:
 	for k in GameData.c("MILITARY"):
 		military[k] = true
 	# the Realmlings' Armory starts with these designs (web: equip.js; the other races' designs never train here)
-	for d in [["d-spear", "inf"], ["d-sword", "inf"], ["d-club", "inf"], ["d-rider", "cav"]]:
-		designs.append({"id": d[0], "name": unit_defs[d[0]].name, "type": d[1], "race": "realm"})
+	for d in [["d-spear", "inf", "spear"], ["d-sword", "inf", "shortsword"], ["d-club", "inf", "club"], ["d-rider", "cav", "spear"]]:
+		designs.append({"id": d[0], "name": unit_defs[d[0]].name, "type": d[1], "weapon": d[2], "shield": null, "armor": "leather1",
+			"horse": "riding" if d[1] == "cav" else null, "builtin": true, "race": "realm"})
 	stock = GameData.c("START_STOCK").duplicate()
 	dev_rand = rng.randf
 	battle_rand = rng.randf
@@ -147,7 +148,12 @@ static func new_practice(seed: String, leader_id := "", map: Dictionary = {}) ->
 	var ruins := g.place_ruins()
 	if ruins >= 0:
 		skip[ruins] = true
+	g.place_setpieces()
 	g.spawn_lairs(skip)
+	for u in g.units:
+		if u.get("bandit", false):
+			skip[u.prov] = true
+	g.place_travelers(skip)
 	g.assign_leader(leader_id)
 	g.apply_leader_start()
 	g.compute_income()
@@ -459,16 +465,145 @@ func leader_design(d: Dictionary) -> String:
 	for x in designs:
 		if x.name == d.name:
 			return x.id
-	var id := "d%d" % (designs.size() - 3)   # web ids: the built-in designs have names, new ones count from d1
-	designs.append({"id": id, "name": d.name, "type": d.spec.type, "race": d.spec.race, "spec": d.spec})
-	military[id] = true
-	DSTATS[id] = design_stats(d.spec)
-	var def := d.duplicate(true)
-	def.erase("spec")
-	def.erase("speed")
-	unit_defs[id] = def
-	UNIT_SPEED[id] = d.speed
-	return id
+	var spec: Dictionary = d.spec.duplicate()
+	spec.name = d.name
+	return add_design(spec).id
+
+
+# --- the Armory (web: equip.js addDesign / registerDesign / saveDraft / deleteDesign, v78.js nextDesignName) ---
+var design_seq := 0
+
+func add_design(o: Dictionary) -> Dictionary:
+	design_seq += 1
+	var d := {"id": "d%d" % design_seq, "name": o.name, "type": o.type, "weapon": o.weapon, "shield": o.get("shield"),
+		"armor": o.armor, "horse": o.get("horse", "riding") if o.type == "cav" else null, "builtin": false, "race": o.get("race", "realm")}
+	if d.type == "cav" and d.horse == null:
+		d.horse = "riding"
+	designs.append(d)
+	register_design(d)
+	return d
+
+
+func register_design(d: Dictionary) -> void:
+	var st := design_stats(d)
+	DSTATS[d.id] = st
+	var W: Dictionary = GameData.c("WEAPONS")[d.weapon]
+	var Sh = GameData.c("SHIELD_DEFS")[d.shield] if d.get("shield") != null and not W.twoH else null
+	var H = GameData.c("HORSES")[d.horse] if d.get("horse") != null and d.type == "cav" else null
+	var blurb: String = "%s%s, %s armor%s. %s." % [W.name, " and " + Sh.name if Sh else "", GameData.c("ARMORS")[d.armor].name,
+		", " + H.name if H else "", GameData.c("FAMILY")[W.fam].note]
+	if H and H.get("rough", false):
+		blurb += " No cavalry penalty in forest or swamp."
+	unit_defs[d.id] = {"name": d.name, "cost": st.cost, "upkeep": st.upkeep, "blurb": blurb, "design": true}
+	military[d.id] = true
+	UNIT_SPEED[d.id] = st.speed
+
+
+func design_by_id(id: String):
+	for d in designs:
+		if d.id == id:
+			return d
+	return null
+
+
+func design_in_use(id: String) -> bool:
+	if units.any(func(u): return u.kind == "army" and u.troops.get(id, 0) > 0):
+		return true
+	for key in queues:
+		if queues[key].any(func(q): return q.kind == id):
+			return true
+	return false
+
+
+## Why a piece of gear can't be picked yet (null: it can). web: equip.js lockWhy
+func gear_why(kind: String, key: String):
+	var table := {"weapon": "WEAPONS", "shield": "SHIELD_DEFS", "armor": "ARMORS", "horse": "HORSES"}
+	var item = GameData.c(table[kind]).get(key)
+	if item == null:
+		return "Unknown"
+	if item.get("tech") != null and not has_tech(item.tech):
+		return "Research " + TECH_BY_ID[item.tech].name
+	return null
+
+
+## Save the Armory draft: a design not in use is changed in place; a starting design or one in use is saved as a new
+## design (named Footman II, III … when the name is unchanged). Returns the saved design.
+func save_design(draft: Dictionary) -> Dictionary:
+	var name: String = str(draft.name).strip_edges().left(24)
+	if name == "":
+		name = "Design"
+	var cur: Variant = design_by_id(draft.id) if draft.get("id") != null else null
+	if cur != null and not cur.builtin and not design_in_use(cur.id):
+		for k in ["type", "weapon", "shield", "armor", "horse"]:
+			cur[k] = draft.get(k)
+		cur.name = name
+		if GameData.c("WEAPONS")[cur.weapon].twoH:
+			cur.shield = null
+		register_design(cur)
+		toast("%s saved." % cur.name)
+		return cur
+	if cur != null and cur.name == name:
+		name = next_design_name(name)
+	var o := draft.duplicate()
+	o.name = name
+	if GameData.c("WEAPONS")[o.weapon].twoH:
+		o.shield = null
+	var d := add_design(o)
+	if cur != null:
+		toast("%s: saved as a new design, %s." % ["Starting designs can't be changed" if cur.builtin else cur.name + " is in use", d.name])
+	else:
+		toast("%s added to the Armory. Train it at a Barracks%s." % [d.name, " with a Stable" if d.type == "cav" else ""])
+	return d
+
+
+func delete_design(id: String) -> bool:
+	var d = design_by_id(id)
+	if d == null or d.builtin:
+		return false
+	if design_in_use(id):
+		toast("%s can't be deleted while soldiers of that design are alive or in training." % d.name, true)
+		return false
+	designs.erase(d)
+	military.erase(id)
+	toast("%s deleted." % d.name)
+	return true
+
+
+static func _to_roman(n: int) -> String:
+	var out := ""
+	for vr in [[1000, "M"], [900, "CM"], [500, "D"], [400, "CD"], [100, "C"], [90, "XC"], [50, "L"], [40, "XL"], [10, "X"], [9, "IX"], [5, "V"], [4, "IV"], [1, "I"]]:
+		while n >= vr[0]:
+			out += vr[1]
+			n -= vr[0]
+	return out
+
+
+static func _from_roman(t: String) -> int:
+	var V := {"I": 1, "V": 5, "X": 10, "L": 50, "C": 100, "D": 500, "M": 1000}
+	var n := 0
+	for i in t.length():
+		var a: int = V[t[i]]
+		var b: int = V.get(t[i + 1], 0) if i + 1 < t.length() else 0
+		n += -a if a < b else a
+	return n
+
+
+func next_design_name(name: String) -> String:
+	var re := RegEx.create_from_string("^(.*?)((?:\\s+[IVXLCDM]+)+)$")
+	var m := re.search(name)
+	var base := m.get_string(1) if m else name
+	var n := 1
+	if m:
+		for w in m.get_string(2).strip_edges().split(" ", false):
+			n = maxi(n, _from_roman(w))
+	var k := n + 1
+	var out := ""
+	while true:
+		out = (base + " " + _to_roman(k)).left(24)
+		k += 1
+		if not designs.any(func(d): return d.name == out) or k >= 200:
+			break
+	return out
 
 
 # web: v105.js ensureWoodlines(): turn mountain or ruin borders of the capital into tree borders (random order)
@@ -820,6 +955,7 @@ func update(real_t: float) -> void:
 		step_magic(t, dt)
 		step_gpc(t)
 		step_patrols(t, dt)
+		step_travelers(dt)
 	clamp_stock()
 	step_upgrades(t)
 	if not paused:
@@ -832,6 +968,7 @@ func update(real_t: float) -> void:
 		dev_t = t
 		d = minf(d, 1.0)
 		step_develop(d)
+		step_orders()
 	compute_fog()
 	if tutorial != null:
 		tutorial.step()
@@ -1100,6 +1237,8 @@ func step_unit(u: Dictionary, dt: float) -> void:
 				var y: Dictionary = yields[u.prov]
 				toast("Survey complete: %d gold, %d wood, %d food every 10 s.%s" % [y.gold, y.wood, y.food, " Found a Hidden Gold Deposit!" if y.deposit else ""])
 				sp_found[u.prov] = true
+				if setpieces.has(u.prov):
+					setpiece_found(u.prov, u)
 				survey_finds(u)
 				u.survey = null
 				if u.surveyQueue.is_empty() or not (u.surveyQueue[0] is int):
@@ -1764,7 +1903,9 @@ const QUEUE_MAX := 10
 
 
 # web: game.js trainTime()
-static func train_time(kind: String) -> float:
+static func train_time(kind: String, q = null) -> float:
+	if q != null and q.get("retro", false):
+		return q.dur
 	if kind == "mage:A":
 		return 30.0
 	if kind == "pioneer:B" or kind == MASON:
@@ -1882,6 +2023,12 @@ func cancel_training(key: String, i: int) -> void:
 	for k in q.paid:
 		stock[k] += q.paid[k]
 	Q.remove_at(i)
+	if i == 0 and not Q.is_empty():
+		Q[0].t0 = null
+	if q.get("retro", false):
+		for a in units:
+			if a.id == q.army and is_same(a.get("retro"), q):
+				a.retro = null
 
 
 # web: game.js srcSpot(key)
@@ -1911,17 +2058,20 @@ func step_training(now: float) -> void:
 		var q: Dictionary = Q[0]
 		if q.t0 == null:
 			q.t0 = now
-		if now - q.t0 < train_time(q.kind):
+		if now - q.t0 < train_time(q.kind, q):
 			continue
 		Q.pop_front()
+		if q.get("retro", false):
+			finish_retro(q)
+			continue
 		var spot := src_spot(key)
 		var d: Dictionary = unit_defs[q.kind]
-		var rp = rally.get(key)
+		var rp = q.get("rally") if q.get("rally") != null else rally.get(key)   # v106: an Army Training Order's own rally point first
 		if military.has(q.kind):
 			var a = null
 			if rp == null:
 				for v in units:
-					if v.kind == "army" and v.owner == ME and v.prov == spot.prov and not v.moving:
+					if v.kind == "army" and v.owner == ME and v.prov == spot.prov and not v.moving and v.get("battle") == null:
 						a = v
 						break
 			if a != null:
@@ -1934,6 +2084,8 @@ func step_training(now: float) -> void:
 			else:
 				a = new_army(spot.prov, {q.kind: 1})
 				a.born = now
+				if q.get("order") != null:
+					a.trainOrder = q.order
 				toast("%s is ready and marches to the rally point." % d.name if rp != null else "%s is ready and formed %s." % [d.name, a.name])
 				if rp != null:
 					rally_go(a, rp)
@@ -1977,10 +2129,11 @@ func set_rally(key: String, prov: int, x := 0.0, y := 0.0) -> void:
 # web: v96.js rallyArrivals() (v106 Army Training Orders come later): an army reaching its rally point joins an
 # army already standing there
 func rally_arrivals() -> void:
+	order_arrivals()
 	for a in units.duplicate():
 		if a.get("_gone", false) or a.kind != "army" or a.get("rallyTo") == null or a.owner != ME:
 			continue
-		if a.moving:
+		if a.moving or a.get("battle") != null:
 			continue
 		if a.prov != a.rallyTo:
 			a.rallyTo = null
@@ -1989,6 +2142,7 @@ func rally_arrivals() -> void:
 		var host = null
 		for v in units:
 			if not is_same(v, a) and v.kind == "army" and v.owner == ME and v.prov == a.prov and not v.moving and not v.get("exiting", false) \
+					and v.get("battle") == null and v.get("retro") == null and v.get("retroWant") == null \
 					and not (v.troops.get(GameData.c("MAGE"), 0) > 0 and a.troops.get(GameData.c("MAGE"), 0) > 0):
 				host = v
 				break
@@ -2059,6 +2213,8 @@ func prov_research(p: int) -> Dictionary:
 			r.mil += LP[e.get("level", 1)]
 		elif e.type == "magetower":
 			r.mag += LP[e.get("level", 1)]
+	if not occ.has(p) and setpieces.has(p) and setpiece_on(setpieces[p]):
+		r[SETPIECES[setpieces[p]].tree] += SETPIECES[setpieces[p]].pts
 	var L = leader_of()
 	if L != null and L.start == "mage":
 		for e in extras_in(p):
@@ -2641,6 +2797,8 @@ func step_gpc(now: float) -> void:
 		for p in buildings:
 			if explored.has(p) and not surveyed.has(p):
 				surveyed[p] = now
+	step_retrofits()
+	step_rest(now)
 	step_fort_gates()
 
 
@@ -3403,7 +3561,7 @@ const SAVE_FIELDS := ["battles", "bandit_count", "monster_count", "leader", "cap
 	"army_counter", "tech", "rep", "surveyed", "unit_defs", "designs", "exhaust", "exhaust_ok", "harvest", "devel", "upgrades",
 	"xup", "auto_tech", "roads", "walls", "wall_hp", "gate_own", "fort_walled", "gpc_slow_t", "dev_t", "cd", "paths",
 	"harvest_by", "trap", "reveals", "eyes", "haunts", "mana_pool", "mana_prev_t", "mage_gear", "finds", "treasure_rolled",
-	"sp_found", "wf", "known", "explored", "visible", "queues", "rally", "military", "UNIT_SPEED", "open_nbr", "all_nbr",
+	"sp_found", "setpieces", "travelers", "train_orders", "train_order_seq", "design_seq", "prov_rename", "wf", "known", "explored", "visible", "queues", "rally", "military", "UNIT_SPEED", "open_nbr", "all_nbr",
 	"yields", "tree_border", "t", "next_tick", "paused", "last", "started"]
 
 
@@ -3449,11 +3607,16 @@ static func from_save(d: Dictionary, map: Dictionary = {}) -> Game:
 	for f in SAVE_FIELDS:
 		g.set(f, d[f])
 	for x in g.designs:
-		if x.has("spec"):
-			g.DSTATS[x.id] = g.design_stats(x.spec)
+		if not x.get("builtin", false):
+			g.register_design(x)
 	for u in g.units:
 		if u.get("battle") != null:
 			u.battle = g.battles[u.battle]
+		if u.get("retro") != null:   # the job in its building's queue is the same object
+			for key in g.queues:
+				for q in g.queues[key]:
+					if q.get("retro", false) and q.army == u.id:
+						u.retro = q
 	g.mana_prev = {}
 	for id in d.mana_prev:
 		for u in g.units:
@@ -4366,3 +4529,610 @@ func bandit_flee(u: Dictionary) -> bool:
 		u.fleeing = true
 	toast("%s ran into a Bandit Gang and is scurrying back, unharmed. Wayfinders can't go there until the gang is gone." % u.name, true)
 	return true
+
+
+# =================================================================================================================
+# Army Training Orders (web: v106.js 50–54): soldiers ordered at once, trained by every Barracks, gathered in one province
+var train_orders := []
+var train_order_seq := 1
+
+func to_buildings() -> Array:
+	var out := []
+	for p in extras:
+		if not owned(p) or occ.has(p):
+			continue
+		if extras[p].any(func(e): return e.type == "barracks"):
+			out.append({"key": "barracks:%d" % p, "p": p, "kinds": trainable("barracks", p)})
+	return out
+
+
+func to_kinds() -> Array:
+	var out := []
+	for b in to_buildings():
+		for k in b.kinds:
+			if military.has(k) and not out.has(k):
+				out.append(k)
+	return out
+
+
+func to_cost(draft: Dictionary) -> Dictionary:
+	var c := {"gold": 0, "wood": 0, "food": 0}
+	for k in draft:
+		var u = unit_defs.get(k)
+		if u != null:
+			for r in u.cost:
+				c[r] += u.cost[r] * draft[k]
+	for r in c.keys():
+		if not c[r]:
+			c.erase(r)
+	return c
+
+
+func to_why(draft: Dictionary, rally_p: int):
+	var n := 0
+	for k in draft:
+		n += draft[k]
+	if not n:
+		return "Add some soldiers to the order"
+	if to_buildings().is_empty():
+		return "You need a Barracks"
+	if rally_p < 0 or not owned(rally_p):
+		return "Pick a province to gather in"
+	var kinds := to_kinds()
+	for k in draft:
+		if draft[k] and not kinds.has(k):
+			return "None of your buildings can train %s" % unit_defs[k].name
+	return lack_text(to_cost(draft))
+
+
+## Place an order (web: purchaseOrder): paid at once; each soldier goes to the least busy building that trains it,
+## the kinds fewest buildings train first. Returns the order's id, or -1.
+func purchase_order(draft: Dictionary, rally_p: int) -> int:
+	var why = to_why(draft, rally_p)
+	if why != null:
+		toast("Can't place the order: %s." % (why[0].to_lower() + why.substr(1)), true)
+		return -1
+	var c := to_cost(draft)
+	for k in c:
+		stock[k] -= c[k]
+	var id := train_order_seq
+	train_order_seq += 1
+	var P: Dictionary = G.provs[rally_p]
+	var rp := {"prov": rally_p, "x": P.ic[0] + 10, "y": P.ic[1] + 46}
+	var blds := to_buildings()
+	var load := {}
+	for b in blds:
+		load[b.key] = queues.get(b.key, []).size()
+	var kinds := draft.keys().filter(func(k): return draft[k] > 0)
+	var nb := func(k): return blds.filter(func(x): return x.kinds.has(k)).size()
+	kinds = JS.stable_sort(kinds, func(a, b): return nb.call(a) - nb.call(b))
+	var n := 0
+	for k in kinds:
+		for i in draft[k]:
+			var can := blds.filter(func(b): return b.kinds.has(k))
+			if can.is_empty():
+				continue
+			can = JS.stable_sort(can, func(a, b): return load[a.key] - load[b.key])
+			var B: Dictionary = can[0]
+			load[B.key] += 1
+			if not queues.has(B.key):
+				queues[B.key] = []
+			queues[B.key].append({"kind": k, "paid": unit_defs[k].cost.duplicate(), "t0": null, "order": id, "rally": rp.duplicate()})
+			n += 1
+	train_orders.append({"id": id, "rally": rp, "total": n, "mix": draft.duplicate(), "t": t, "done": false})
+	toast("Army Training Order %d placed: %d soldiers, gathering in %s (−%s)." % [id, n, prov_name(rally_p), cost_text(c)])
+	return id
+
+
+# the order's armies only join each other at its rally point (web: v106.js rallyArrivals wrapper)
+func order_arrivals() -> void:
+	for a in units.duplicate():
+		if a.get("_gone", false) or a.kind != "army" or a.owner != ME or a.get("trainOrder") == null or a.get("rallyTo") == null \
+				or a.moving or a.get("battle") != null:
+			continue
+		if a.prov != a.rallyTo:
+			a.rallyTo = null
+			continue
+		a.rallyTo = null
+		var host = null
+		for v in units:
+			if not is_same(v, a) and v.kind == "army" and v.owner == ME and v.get("trainOrder") == a.trainOrder and v.prov == a.prov \
+					and not v.moving and v.get("battle") == null and v.get("rallyTo") == null:
+				host = v
+				break
+		if host == null:
+			continue
+		for k in a.troops:
+			host.troops[k] = host.troops.get(k, 0) + a.troops[k]
+		host.grew = t
+		a._gone = true
+		units = units.filter(func(v): return not is_same(v, a))
+		compute_income()
+
+
+func order_queued(id: int) -> int:
+	var n := 0
+	for key in queues:
+		for q in queues[key]:
+			if q.get("order") == id:
+				n += 1
+	return n
+
+
+func step_orders() -> void:
+	for O in train_orders:
+		if O.done:
+			continue
+		var armies := units.filter(func(a): return a.kind == "army" and a.owner == ME and a.get("trainOrder") == O.id)
+		if order_queued(O.id) or armies.any(func(a): return a.moving or a.get("rallyTo") != null):
+			continue
+		O.done = true
+		O.doneT = t
+		var at := armies.filter(func(a): return a.prov == O.rally.prov)
+		var n := 0
+		for a in at:
+			n += troop_count(a)
+		for a in armies:
+			a.trainOrder = null
+		if n:
+			toast("Army Training Order %d is complete: %s (%d soldiers) stands ready in %s." % [O.id, at[0].name, n, prov_name(O.rally.prov)])
+	if train_orders.size() > 12:
+		train_orders = train_orders.filter(func(O): return not O.done or t - O.doneT < 300)
+
+
+func order_progress(O: Dictionary) -> Dictionary:
+	var queued := order_queued(O.id)
+	var there := 0
+	for a in units:
+		if a.kind == "army" and a.owner == ME and a.get("trainOrder") == O.id and a.prov == O.rally.prov and not a.moving:
+			there += troop_count(a)
+	return {"queued": queued, "made": O.total - queued, "there": there}
+
+
+# =================================================================================================================
+# retrofitting (web: features.js retroPlan / retrofitNow / retrofitArmies, gpc.js GPC14): an army re-equipped with
+# another design of the same kind at a Barracks (cavalry: a Barracks with a Stable), 2 s a soldier, queued like training
+const RETRO_TIME := 2.0
+
+func barracks_ok(p: int, cav: bool) -> bool:
+	if not extras.has(p) or not owned(p) or occ.has(p):
+		return false
+	var l: Array = extras[p]
+	return l.any(func(e): return e.type == "barracks") and (not cav or l.any(func(e): return e.type == "stable"))
+
+
+func retro_cost(from: String, to: String) -> Dictionary:
+	var a: Dictionary = unit_defs[from].get("cost", {})
+	var b: Dictionary = unit_defs[to].get("cost", {})
+	var c := {}
+	for r in RES:
+		var d: float = b.get(r, 0) - a.get(r, 0)
+		if d > 0:
+			c[r] = d
+	return c
+
+
+func retro_plan(a: Dictionary, to: String) -> Dictionary:
+	var cav: bool = DSTATS[to].get("cav", false)
+	var total := {}
+	var n := 0
+	for k in a.troops:
+		var c: int = a.troops[k]
+		if k == to or k == MAGE or not DSTATS.has(k) or DSTATS[k].get("cav", false) != cav or not c:
+			continue
+		n += c
+		var rc := retro_cost(k, to)
+		for r in rc:
+			total[r] = total.get(r, 0) + rc[r] * c
+	return {"n": n, "cost": total}
+
+
+func retrofit_why(a):
+	if a == null or a.kind != "army":
+		return "No army selected"
+	if a.get("battle") != null:
+		return "Not during battle"
+	if a.get("retro") != null:
+		return "Waiting its turn to retrofit" if a.retro.t0 == null else "Retrofitting: %d s left" % ceili(a.retro.dur - (t - a.retro.t0))
+	return null
+
+
+func retrofit_now(a: Dictionary, to: String) -> int:
+	var cav: bool = DSTATS[to].get("cav", false)
+	var n := 0
+	for k in a.troops.keys():
+		if k == to or k == MAGE or not DSTATS.has(k) or DSTATS[k].get("cav", false) != cav:
+			continue
+		n += a.troops[k]
+		a.troops[to] = a.troops.get(to, 0) + a.troops[k]
+		a.troops.erase(k)
+	compute_income()
+	return n
+
+
+func retro_site(a: Dictionary, to: String) -> int:
+	var cav: bool = DSTATS[to].get("cav", false)
+	if barracks_ok(a.prov, cav):
+		return a.prov
+	var best := -1
+	var bd := INF
+	for p in extras:
+		if not barracks_ok(p, cav):
+			continue
+		var h = find_path(a, p)
+		if h != null and h.size() < bd:
+			bd = h.size()
+			best = p
+	return best
+
+
+func retrofit_armies(armies: Array, to: String) -> void:
+	var none := 0
+	var sent := 0
+	for a in armies:
+		if not retro_plan(a, to).n:
+			continue
+		var dest := retro_site(a, to)
+		if dest < 0:
+			none += 1
+			continue
+		if a.get("retro") != null:
+			cancel_retro(a, true)
+		a.retroWant = {"to": to, "prov": dest}
+		if a.prov == dest and not a.moving:
+			begin_retro(a)
+		elif order(a, dest, true):
+			sent += 1
+		else:
+			a.retroWant = null
+			none += 1
+	if none:
+		toast("No Barracks of yours can be reached to retrofit %s." % ("%d armies" % none if none > 1 else "that army"), true)
+	if sent:
+		toast("%s to the nearest Barracks to retrofit." % ("%d armies march" % sent if sent > 1 else "The army marches"))
+
+
+func begin_retro(a: Dictionary) -> bool:
+	var w = a.get("retroWant")
+	a.retroWant = null
+	if w == null:
+		return false
+	var plan := retro_plan(a, w.to)
+	if not plan.n:
+		return false
+	var cav: bool = DSTATS[w.to].get("cav", false)
+	if not barracks_ok(a.prov, cav):
+		return false
+	if lack_text(plan.cost) != null:
+		toast("Retrofitting %s needs %s." % [a.name, cost_text(plan.cost)], true)
+		return false
+	for r in plan.cost:
+		stock[r] -= plan.cost[r]
+	var key := "barracks:%d" % a.prov
+	if not queues.has(key):
+		queues[key] = []
+	var q := {"kind": w.to, "retro": true, "army": a.id, "n": plan.n, "dur": plan.n * RETRO_TIME, "paid": plan.cost, "t0": null, "prov": a.prov, "key": key}
+	queues[key].append(q)
+	a.retro = q
+	toast("%s retrofits %d soldier%s to %s: %d s. Moving or fighting cancels it." % [a.name, plan.n, "s" if plan.n > 1 else "", unit_defs[w.to].name, int(plan.n * RETRO_TIME)])
+	return true
+
+
+func cancel_retro(a: Dictionary, quiet := false) -> void:
+	var q = a.get("retro")
+	if q == null:
+		return
+	a.retro = null
+	var Q: Array = queues.get(q.key, [])
+	var i := -1
+	for j in Q.size():
+		if is_same(Q[j], q):
+			i = j
+	if i < 0:
+		return
+	Q.remove_at(i)
+	if i == 0 and not Q.is_empty():
+		Q[0].t0 = null
+	for r in q.paid:
+		stock[r] += q.paid[r]
+	if not quiet:
+		toast("%s stopped retrofitting. Resources refunded." % a.name, true)
+
+
+func finish_retro(q: Dictionary) -> void:
+	for a in units:
+		if a.id == q.army and is_same(a.get("retro"), q):
+			a.retro = null
+			var n := retrofit_now(a, q.kind)
+			toast("%s: %d soldier%s retrofitted to %s." % [a.name, n, "" if n == 1 else "s", unit_defs[q.kind].name])
+			return
+
+
+func step_retrofits() -> void:
+	for a in units:
+		if a.kind != "army":
+			continue
+		var w = a.get("retroWant")
+		if w != null:
+			if a.get("battle") != null or a.get("exiting", false) or (a.moving and a.get("final") != w.prov):
+				a.retroWant = null
+			elif not a.moving:
+				if a.prov == w.prov:
+					begin_retro(a)
+				else:
+					a.retroWant = null
+		if a.get("retro") == null:
+			continue
+		if not queues.get(a.retro.key, []).any(func(q): return is_same(q, a.retro)):
+			a.retro = null
+			continue
+		if a.moving or a.get("battle") != null or a.prov != a.retro.prov:
+			cancel_retro(a)
+	# an army that is gone leaves its job behind: dropped with a refund
+	for key in queues:
+		var Q: Array = queues[key]
+		for i in range(Q.size() - 1, -1, -1):
+			var q: Dictionary = Q[i]
+			if not q.get("retro", false):
+				continue
+			if units.any(func(v): return v.id == q.army and is_same(v.get("retro"), q)):
+				continue
+			Q.remove_at(i)
+			if i == 0 and not Q.is_empty():
+				Q[0].t0 = null
+			for r in q.paid:
+				stock[r] += q.paid[r]
+
+
+# resting at a Barracks (web: gpc.js GPC15): 5 s for every wounded soldier, back to full health
+const REST_TIME := 5.0
+
+func step_rest(now: float) -> void:
+	for a in units:
+		if a.kind != "army":
+			continue
+		if a.moving or a.get("battle") != null or a.get("heal") != null or not (a.get("wounds", 0.0) > 0.01) or not barracks_ok_for(a):
+			a.rest = null
+			continue
+		if a.get("rest") == null:
+			a.rest = {"t0": now, "w0": a.wounds, "dur": REST_TIME * troop_count(a)}
+		var f := minf(1.0, (now - a.rest.t0) / a.rest.dur)
+		a.wounds = a.rest.w0 * (1 - f)
+		if f >= 1:
+			a.wounds = 0.0
+			a.rest = null
+			if a.owner == ME:
+				toast("%s has rested: back to full health." % a.name)
+
+
+func barracks_ok_for(a: Dictionary) -> bool:
+	# web: barracksOk(p, o, false) checks the province's nation is the army's
+	if not extras.has(a.prov) or occ.has(a.prov) or not buildings.has(a.prov) or buildings[a.prov].owner != a.owner:
+		return false
+	return extras[a.prov].any(func(e): return e.type == "barracks")
+
+
+# =================================================================================================================
+# set pieces (web: content.js SETPIECES / setupContent, gpc.js GPC07): one province in ten may hold a landmark that
+# gives research while you hold it
+const SETPIECE_CHANCE := 0.1
+var SETPIECES: Dictionary = {
+	"battlesite": {"name": "Ancient Battle Site", "tree": "mil", "pts": 1, "terrain": ["desert"], "need": "a Forge", "blurb": "Rusted blades and old bones half-buried in the sand."},
+	"library": {"name": "Forgotten Library", "tree": "gov", "pts": 1, "terrain": ["swamp", "desert"], "need": null, "blurb": "Shelves of crumbling scrolls, still legible to a patient scholar."},
+	"rift": {"name": "Closed Interdimensional Rift", "tree": "mag", "pts": 1, "terrain": ["swamp"], "need": "a Mage Tower", "blurb": "A seam in the air where another world once broke through."},
+}
+const SP_FOUND_TEXT := {
+	"battlesite": "%s has found evidence of a massive battle dating back thousands of years in %s. Our own Forges could learn from this site.",
+	"library": "%s has found the remains of a library forgotten to time in %s. Our scholars will rejoice.",
+	"rift": "%s has found a strange rift of magical origin in %s. Our Mages could learn from the long dead spells of the Archmages of Ages past.",
+}
+var setpieces := {}
+## a pop-up for the player: func(title: String, text: String, choices: Array[{id, label, why}], on_pick: Callable)
+var on_dialog: Callable
+
+func place_setpieces() -> void:
+	setpieces = {}
+	var r := Mulberry32.from_string(str(world.seed) + ":setpieces")
+	for i in world.provinces.size():
+		var roll := r.next()
+		var pick := r.next()
+		var ok := SETPIECES.keys().filter(func(k): return SETPIECES[k].terrain.has(world.provinces[i].terrain))
+		if roll < SETPIECE_CHANCE and not ok.is_empty() and not (buildings.has(i) and buildings[i].stage == 2):
+			setpieces[i] = ok[int(floor(pick * ok.size()))]
+
+
+func setpiece_on(id: String) -> bool:
+	var tr: String = SETPIECES[id].tree
+	return tr == "gov" or extras_in_mine(tr).size() > 0
+
+
+func extras_in_mine(tree: String) -> Array:
+	var want := "forge" if tree == "mil" else "magetower"
+	var out := []
+	for p in extras:
+		if owned(p):
+			for e in extras[p]:
+				if e.type == want:
+					out.append(e)
+	return out
+
+
+func sp_known(p: int) -> bool:
+	return sp_found.has(p) or owned(p)
+
+
+## Why a set piece gives nothing right now (null: it is working)
+func setpiece_why(p: int):
+	if not setpieces.has(p):
+		return null
+	var D: Dictionary = SETPIECES[setpieces[p]]
+	if not owned(p):
+		return "hold the province"
+	if occ.has(p):
+		return "occupied"
+	if not setpiece_on(setpieces[p]):
+		return "needs " + D.need
+	return null
+
+
+func setpiece_found(p: int, u: Dictionary) -> void:
+	var D: Dictionary = SETPIECES[setpieces[p]]
+	var said: String = SP_FOUND_TEXT[setpieces[p]] % [u.name, prov_name(p)]
+	var text := "%s\n\n%s While you hold this province it gives +%d %s research every 10 s%s." % [said, D.blurb, D.pts,
+		{"gov": "Government", "mil": "Military", "mag": "Magic"}[D.tree], " (you also need %s)" % D.need if D.need != null else ""]
+	if on_dialog.is_valid():
+		on_dialog.call("Discovery! %s at %s" % [D.name, prov_name(p)], text, [{"id": "ok", "label": "OK", "why": null}], Callable())
+	else:
+		toast("Discovery! %s at %s." % [D.name, prov_name(p)])
+
+
+# =================================================================================================================
+# lost bands of travelers (web: v78.js SMA01): fed, they join you as Footmen; an army can rob them instead
+const TRAVELERS := {"foodEach": 20, "goldEach": 30, "sizes": [3, 4, 5]}
+var travelers := []
+var travelers_ask := true    # tests turn the question off
+var trav_asking = null
+var trav_paused := false
+
+func place_travelers(skip: Dictionary) -> void:
+	travelers = []
+	var r := Mulberry32.from_string(str(world.seed) + ":travelers")
+	var want := maxi(2, roundi(world.provinces.size() / 40.0))
+	var near := {}
+	for p in buildings:
+		if buildings[p].stage == 2:
+			near[p] = true
+			for q in all_nbr[p]:
+				near[q] = true
+	var ok := []
+	for i in world.provinces.size():
+		if not near.has(i) and not skip.has(i) and not buildings.has(i) and not units.any(func(u): return u.prov == i):
+			ok.append(i)
+	for k in want:
+		if ok.is_empty():
+			break
+		var p: int = ok.pop_at(int(floor(r.next() * ok.size())))
+		var sizes: Array = TRAVELERS.sizes
+		var n: int = sizes[int(floor(r.next() * sizes.size()))]
+		var c: Array = G.provs[p].ic
+		travelers.append({"id": k, "prov": p, "n": n, "x": c[0] - 60, "y": c[1] + 40, "tx": null, "ty": null, "wait": 2 + r.next() * 6, "asked": false, "dir": 1})
+
+
+func step_travelers(dt: float) -> void:
+	for B in travelers:
+		# a slow amble about their province (looks only: the web game rolls Math.random here)
+		if B.tx == null:
+			B.wait -= dt
+			if B.wait <= 0:
+				var P: Dictionary = G.provs[B.prov]
+				var q: Array = P.inner[randi() % P.inner.size()]
+				var f := 0.35 + randf() * 0.3
+				var at = Geo.clamp_into(P, P.ic[0] + (q[0] - P.ic[0]) * f, P.ic[1] + (q[1] - P.ic[1]) * f)
+				B.tx = at[0]
+				B.ty = at[1]
+		else:
+			var dx: float = B.tx - B.x
+			var dy: float = B.ty - B.y
+			var d := JS.hypot(dx, dy)
+			var sp := 9.0 * 0.8 * dt
+			if d <= sp:
+				B.x = B.tx
+				B.y = B.ty
+				B.tx = null
+				B.wait = 6 + randf() * 10
+			else:
+				B.x += dx / d * sp
+				B.y += dy / d * sp
+				B.dir = -1 if dx < 0 else 1
+		var here := units.any(func(u): return u.owner == ME and u.prov == B.prov and not u.moving)
+		if not here:
+			B.asked = false
+			continue
+		if not B.asked and trav_asking == null and travelers_ask:
+			B.asked = true
+			ask_travelers(B)
+
+
+func trav_army_here(B: Dictionary) -> bool:
+	return units.any(func(u): return u.owner == ME and u.kind == "army" and u.prov == B.prov and troop_count(u) > 0 and u.get("battle") == null)
+
+
+func ask_travelers(B: Dictionary) -> void:
+	trav_asking = B
+	if not paused:
+		paused = true
+		trav_paused = true
+	var food: int = B.n * TRAVELERS.foodEach
+	var gold: int = B.n * TRAVELERS.goldEach
+	var choices := [
+		{"id": "feed", "label": "Share %d food\n%d Footmen join you" % [food, B.n], "why": null if stock.food >= food else "Not enough food"},
+		{"id": "rob", "label": "Rob them\n+%d gold" % gold, "why": null if trav_army_here(B) else "You need an army in this province"},
+		{"id": "leave", "label": "Leave them be\nThey ask again next time", "why": null}]
+	var text := "%d weary travelers have lost their way. They are hungry, and ask if you can spare them some food. Fed, they would gladly take up arms for you." % B.n
+	if on_dialog.is_valid():
+		on_dialog.call("A lost band of travelers at %s" % prov_name(B.prov), text, choices, travelers_choose)
+	else:
+		travelers_choose("leave")
+
+
+func travelers_choose(how: String) -> void:
+	var B = trav_asking
+	if B == null:
+		return
+	if how == "feed":
+		var food: int = B.n * TRAVELERS.foodEach
+		if stock.food < food:
+			toast("Not enough food to share.", true)
+			return
+		stock.food -= food
+		var a = null
+		for u in units:
+			if u.owner == ME and u.kind == "army" and u.prov == B.prov and u.get("battle") == null and not u.moving:
+				a = u
+				break
+		if a != null:
+			a.troops["d-sword"] = a.troops.get("d-sword", 0) + B.n
+			a.grew = t
+		else:
+			a = new_army(B.prov, {"d-sword": B.n})
+		travelers.erase(B)
+		compute_income()
+		toast("The travelers eat their fill and swear to serve you: %d Footmen join %s." % [B.n, a.name])
+	elif how == "rob":
+		if not trav_army_here(B):
+			toast("You need an army in this province to rob them.", true)
+			return
+		var gold: int = B.n * TRAVELERS.goldEach
+		stock.gold += gold
+		travelers.erase(B)
+		toast("Your soldiers rob the travelers of %d gold. They flee into the wilds." % gold)
+	trav_asking = null
+	if trav_paused and paused:
+		paused = false
+	trav_paused = false
+
+
+# province names (web: war.js provName; v95's unique provinces come with the full-size world)
+const NAME_A := ["Ash", "Bram", "Cald", "Dun", "Elm", "Fen", "Gal", "Hol", "Iver", "Kel", "Lor", "Mar", "Nor", "Oak", "Pell", "Quen", "Ros", "Stan", "Thorn", "Ul", "Vel", "Wyn", "Yar", "Brin", "Cor", "Del", "Gorm", "Hart", "Lin", "Mor"]
+const NAME_B := {"grassland": ["dale", "field", "ford", "stead", "meadow", "wold", "hill", "ton"], "forest": ["wood", "holt", "shaw", "glen", "hollow", "grove", "thicket", "wald"], "desert": ["sand", "dune", "reach", "mesa", "rock", "waste", "flats", "spire"], "swamp": ["marsh", "mire", "fen", "bog", "moss", "mere", "sump", "wash"]}
+var prov_names := []
+var prov_rename := {}
+
+func prov_name(p: int) -> String:
+	if p < 0:
+		return "?"
+	if prov_names.is_empty():
+		var r := Mulberry32.from_string(str(world.seed) + ":names")
+		var used := {}
+		for P in world.provinces:
+			var B: Array = NAME_B.get(P.terrain, NAME_B.grassland)
+			var n := ""
+			var k := 0
+			while true:
+				n = NAME_A[int(floor(r.next() * NAME_A.size()))] + B[int(floor(r.next() * B.size()))]
+				k += 1
+				if not used.has(n) or k >= 30:
+					break
+			used[n] = true
+			prov_names.append(n)
+	return prov_rename.get(p, prov_names[p])

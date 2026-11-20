@@ -12,3 +12,6 @@ build/
 .DS_Store
 Thumbs.db
 *.tmp
+
+# scratch test runners
+tests/_*

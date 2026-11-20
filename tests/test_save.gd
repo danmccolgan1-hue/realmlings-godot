@@ -3,7 +3,8 @@ extends RefCounted
 ## identical to the game that was never saved (every snapshot), and match the web game too.
 
 const DIR := "res://tests/fixtures/play/"
-const SCENARIOS := ["orders", "train", "roads", "life", "arcane", "death"]
+const SCENARIOS := ["orders", "train", "roads", "life", "arcane", "death", "armory"]
+const CUT := {"armory": 400}   # mid-retrofit, with the Training Order still in the queue
 
 
 func run() -> Array:
@@ -12,7 +13,7 @@ func run() -> Array:
 		var fx: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(DIR + "oak_%s.json" % sc))
 		var map := RealmGen.scale_world(RealmGen.generate_practice(fx.seed))
 		# play the fixture with a save + load in the middle: TestPlay.play takes a hook called after each frame
-		var cut := int(fx.frames) / 2
+		var cut: int = CUT.get(sc, int(fx.frames) / 2)
 		var e := TestPlay.play(fx, map.duplicate(true), func(g: Game, i: int) -> Game:
 			if i != cut:
 				return g

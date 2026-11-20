@@ -18,6 +18,8 @@ func run() -> Array:
 		var fx: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(DIR + f))
 		if not maps.has(fx.seed):
 			maps[fx.seed] = RealmGen.scale_world(RealmGen.generate_practice(fx.seed))
+		if OS.get_environment("PLAY_ONLY") != "":
+			printerr("ran ", f)
 		for m in play(fx, maps[fx.seed].duplicate(true)).slice(0, 6):
 			errs.append("%s/%s: %s" % [fx.seed, fx.scenario, m])
 	return errs
@@ -35,6 +37,16 @@ static func play(fx: Dictionary, map: Dictionary, after_frame := Callable()) -> 
 	if not TestEconomy.eq(fx.plan.ruins, ruins):
 		errs.append("ruins at %s, want %s" % [ruins, fx.plan.ruins])
 	g.finds.clear()
+	if fx.plan.has("travelers"):
+		var tv := g.travelers.map(func(B): return [B.prov, B.n, B.x, B.y, B.wait])
+		if not TestEconomy.eq(fx.plan.travelers, tv):
+			errs.append("travelers %s, want %s" % [tv, fx.plan.travelers])
+		var sp := []
+		for p in sorted_keys(g.setpieces):
+			sp.append([p, g.setpieces[p]])
+		if not TestEconomy.eq(fx.plan.setpieces, sp):
+			errs.append("set pieces %s, want %s" % [sp, fx.plan.setpieces])
+	g.travelers.clear()   # as in the fixture: they would stop the game to ask
 	g.units = g.units.filter(func(u): return u.owner == Game.ME)   # as in the fixture: no Bandit Gangs or monsters
 	if str(fx.scenario).begins_with("battle"):
 		g.battle_rand = func(): return 0.5   # as in the fixture: Math.random pinned to 0.5
@@ -45,7 +57,7 @@ static func play(fx: Dictionary, map: Dictionary, after_frame := Callable()) -> 
 		if n.q != g.capital and not E0.has(n.q):
 			q2 = n.q
 			break
-	if not TestEconomy.eq(fx.plan, {"cap": g.capital, "q1": q1, "q2": q2, "ruins": fx.plan.ruins}):
+	if not TestEconomy.eq([fx.plan.cap, fx.plan.q1, fx.plan.q2], [g.capital, q1, q2]):
 		return errs + ["plan %s, want %s" % [[g.capital, q1, q2], fx.plan]]
 	g.paused = false
 	if fx.scenario == "develop":
@@ -99,6 +111,14 @@ static func play(fx: Dictionary, map: Dictionary, after_frame := Callable()) -> 
 					if int(A.p) >= 0:
 						g.start_link(u, int(A.p), A.type)
 				"develop": g.start_develop(int(A.p))
+				"design": g.add_design(A.spec)
+				"tord":
+					var mix := {}
+					for mk in A.mix:
+						mix[mk] = int(A.mix[mk])
+					g.purchase_order(mix, g.capital if str(A.p) == "cap" else int(A.p))
+				"retrofit": g.retrofit_armies([unit(g, "army")], A.to)
+				"wounds": unit(g, "army").wounds = float(A.n)
 				"split": g.split_army(unit(g, "army"))
 				"combine":
 					var a0 = unit(g, "army")
@@ -198,7 +218,11 @@ static func snapshot(g: Game) -> Dictionary:
 	return {"t": g.t, "battles": bt, "wounds": wd, "mana": g.units.map(func(u): return u.get("mana")), "casts": g.units.map(func(u): return u.cast.spell if u.get("cast") != null else null),
 		"cd": cds, "paths": pth, "eyes": g.eyes.map(func(r): return [r.a, r.b, r.until]), "haunts": g.haunts.map(func(h): return [h.prov, h.until]),
 		"reveals": g.reveals.size(), "harvest": g.harvest_by != null, "queues": qs, "roads": rd, "walls": sorted_keys(g.walls), "devel": dv, "yields": ys, "tech": tch, "rep": g.rep, "xup": g.xup.keys(), "levels": lv, "stock": g.stock, "income": g.income, "units": us, "explored": sorted_keys(g.explored), "visible": sorted_keys(g.visible),
-		"surveyed": sorted_keys(g.surveyed), "wf": sorted_keys(g.wf), "buildings": bl, "extras": ex, "upgrades": g.upgrades.keys(), "techs": techs, "finds": fd}
+		"surveyed": sorted_keys(g.surveyed), "wf": sorted_keys(g.wf), "buildings": bl, "extras": ex, "upgrades": g.upgrades.keys(), "techs": techs, "finds": fd,
+		"orders": g.train_orders.map(func(O): return [O.id, O.done, O.total, O.rally.prov]),
+		"retro": g.units.map(func(u): return [u.retro.kind, u.retro.t0, u.retro.dur] if u.get("retro") != null else (["want", u.retroWant.to, u.retroWant.prov] if u.get("retroWant") != null else null)),
+		"rest": g.units.map(func(u): return [u.rest.t0, u.rest.dur] if u.get("rest") != null else null),
+		"designs": g.designs.map(func(d): return [d.id, d.name, g.DSTATS[d.id].atk, g.DSTATS[d.id].hp, snapped(g.DSTATS[d.id].red, 1e-9), g.DSTATS[d.id].speed])}
 
 
 static func compare(want: Dictionary, got: Dictionary) -> Array:

@@ -45,14 +45,16 @@ SETUP = r"""(() => {
   applyRace('realm'); setupGame(); spawnAINations(menuOpts.slots, menuOpts.races); setupContent(); setupV78(); setupV96(false);
   S.started = true; S.last = 0; S.nextTick = 0; S.paused = false; S.t = 0;
   S.units = S.units.filter(u => u.owner === ME);   // no Bandit Gangs: milestone 1 has no battles
-  S.travelers = [];                                 // travelers come later
+  const travelers = S.travelers.map(B => [B.prov, B.n, B.x, B.y, B.wait]);
+  const setpieces = [...S.setpieces].sort((a, b) => a[0] - b[0]);
+  S.travelers = [];                                 // travelers stop the game to ask: placement is checked, the run goes without them
   const ruins = [...S.finds].filter(([, f]) => f.id === 'ruins').map(([p]) => p);
   S.finds.clear();                                  // the ruins grant a random technology: placement is checked, the run goes without them
   const cap = S.capital, E0 = new Set(S.explored);
   const q1 = openNbr[cap][0].q;
   const q2c = openNbr[q1].map(n => n.q).find(q => q !== cap && !E0.has(q));
   const q2 = q2c === undefined ? -1 : q2c;
-  window.__plan = { cap, q1, q2, ruins };
+  window.__plan = { cap, q1, q2, ruins, travelers, setpieces };
   return JSON.stringify(window.__plan);
 })()"""
 
@@ -166,6 +168,14 @@ ACTIONS = {
     {'t': 100, 'a': 'order', 'u': 'army', 'p': P['q1']},
     {'t': 125, 'a': 'retreat'},
   ],
+  'armory': lambda P: [
+    {'t': 0.5, 'a': 'give', 'gold': 3000, 'wood': 500, 'food': 500},
+    {'t': 1, 'a': 'design', 'spec': {'name': 'Round Spearman', 'type': 'inf', 'weapon': 'spear', 'shield': 'round', 'armor': 'leather1'}},
+    {'t': 2, 'a': 'tord', 'mix': {'d-sword': 2, 'd-spear': 1, 'd2': 2}, 'p': 'cap'},
+    {'t': 3, 'a': 'retrofit', 'to': 'd2'},
+    {'t': 150, 'a': 'wounds', 'n': 40},
+    {'t': 170, 'a': 'tord', 'mix': {'d-club': 1}, 'p': P['q1']},
+  ],
   'battlemagic': lambda P: [
     {'t': 0.5, 'a': 'grant', 'id': 'school-life'}, {'t': 0.5, 'a': 'grant', 'id': 'skin'},
     {'t': 0.5, 'a': 'give', 'gold': 3000, 'wood': 1000, 'food': 1000},
@@ -180,7 +190,7 @@ ACTIONS = {
     {'t': 112, 'a': 'order', 'u': 'army', 'p': P['q1']},
   ],
 }
-LEADER = {'battle': 'cormac', 'battlemagic': 'havva', 'life': 'havva', 'arcane': 'alma', 'death': 'niall', 'orders': 'havva', 'auto': 'aithne', 'train': 'cormac', 'research': 'finn', 'magic': 'havva', 'roads': 'havva', 'develop': 'finn'}
+LEADER = {'armory': 'cormac', 'battle': 'cormac', 'battlemagic': 'havva', 'life': 'havva', 'arcane': 'alma', 'death': 'niall', 'orders': 'havva', 'auto': 'aithne', 'train': 'cormac', 'research': 'finn', 'magic': 'havva', 'roads': 'havva', 'develop': 'finn'}
 FRAMES_OF = {'develop': 6201}
 
 RUN = r"""(() => {
@@ -203,7 +213,11 @@ RUN = r"""(() => {
     eyes: (S.eyes || []).map(r => [r.a, r.b, r.until]), haunts: (S.haunts || []).map(h => [h.prov, h.until]), reveals: (S.reveals || []).length, harvest: !!S.harvest,
     rep: { ...S.rep }, xup: [...S.xup.keys()], roads: [...S.roads].sort(), walls: [...S.walls].sort((a, b) => a - b),
     devel: [...S.devel].map(([p, r]) => [p, r.lv, r.job ? Math.round(r.job.done * 1000) / 1000 : null]), yields: yields.map(y => [y.gold, y.wood, y.food, !!y.deposit]), levels: [...S.extras].map(([p, l]) => [p, l.map(e => e.level || 1)]).sort((a, b) => a[0] - b[0]),
-    finds: [...S.finds].map(([p, f]) => [p, f.id, !!f.done]) });
+    finds: [...S.finds].map(([p, f]) => [p, f.id, !!f.done]),
+    orders: (S.trainOrders || []).map(O => [O.id, O.done, O.total, O.rally.prov]),
+    retro: S.units.map(u => u.retro ? [u.retro.kind, u.retro.t0, u.retro.dur] : u.retroWant ? ['want', u.retroWant.to, u.retroWant.prov] : null),
+    rest: S.units.map(u => u.rest ? [u.rest.t0, u.rest.dur] : null),
+    designs: S.designs.filter(d => (d.race || 'realm') === 'realm').map(d => [d.id, d.name, DSTATS[d.id].atk, DSTATS[d.id].hp, Math.round(DSTATS[d.id].red * 1e9) / 1e9, DSTATS[d.id].speed]) });
   let k = 0;
   for (let i = 0; i < frames; i++) {
     while (k < acts.length && S.t >= acts[k].t) {
@@ -244,6 +258,10 @@ RUN = r"""(() => {
         if (A.p >= 0) startLink(u, A.p, A.type);
       }
       else if (A.a === 'develop') startDevelop(A.p);
+      else if (A.a === 'design') { const d = addDesign({ ...A.spec }); A.id = d.id; }
+      else if (A.a === 'tord') { TO.draft = { ...A.mix }; TO.rally = A.p === 'cap' ? S.capital : A.p; purchaseOrder(); }
+      else if (A.a === 'retrofit') retrofitArmies([U.army()], A.to);
+      else if (A.a === 'wounds') { U.army().wounds = A.n; }
       else if (A.a === 'split') splitArmy(U.army());
       else if (A.a === 'combine') combineArmies(S.units.filter(v => v.kind === 'army' && v.owner === ME && v.prov === U.army().prov));
       else if (A.a === 'destroy') { const e = extrasIn(A.p).find(x => x.type === A.type); S.extras.set(A.p, extrasIn(A.p).filter(x => x !== e)); S.xup.delete(A.p + '@' + e.slot); computeIncome(); }
