@@ -48,3 +48,17 @@ The plan after milestone 1. Each step is tested against the web game, then commi
 - Many shared functions become owner-aware: outpost / building completion, `cancelBuild` refunds, arrowslits and
   moats (`techOf(owner, id)`), Wayfinder deaths, bandit bounties, battle colors, the minimap borders.
 - The web game keeps going after an error; Godot doesn't: test long AI runs headless.
+
+## Step 4 map: ai.js functions and the files that wrap them (port the last wrapper's behaviour)
+
+- spawnAINations: v96 · pickAICapital: v103 (done)
+- Economy: aiGives (swamp, v105), aiProvIncome (v106, swamp), aiUpkeep (v106 upkeepAdjust), aiIncome (v104, v95,
+  swamp, v105), aiStorage (swamp), aiSpells (v105, v98), aiProvResearch (v105)
+- Research: aiTechsLeft (v103), aiDrawOptions (v103, v105), aiTechWeight (v103, v104), aiPick, aiFinishTech,
+  aiTechPayday; aiRedesign (wood, swamp: other races only)
+- Brain: aiPlan (v104, v103), stepAI (v100, v102, v104, v103), aiQueueStep (v101, v102), aiTrain (v103),
+  aiReach (v104), aiBuildWhy (swamp), aiNextBuilding (v104, v103), aiMasons (v103), aiFortUp (v103),
+  aiArmyOrders (v101), aiWarGoal (v100, v101, v103), aiConsiderWar (v103, v104)
+- Also v106 `aiEnemyThink` (Proclaim Enemy, from `stepEnemies`), v100 `aiNoteDefeat` (from warWipe / retreat),
+  v100 counter designs (`aiCounterDesigns`).
+- `aiPayday` runs from `payday` even when the brain is frozen.
