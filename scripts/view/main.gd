@@ -273,7 +273,11 @@ func _maybe_screenshot() -> void:
 		map.selected_unit = mason
 		hud.select_unit(mason)
 	var b := map.bounds()
-	cam.zoom = Vector2(0.55, 0.55)
+	var zoom := 0.55
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--zoom="):
+			zoom = float(a.substr(7))
+	cam.zoom = Vector2(zoom, zoom)
 	cam.position = Vector2(game.G.provs[game.capital].ic[0], game.G.provs[game.capital].ic[1] - 60)
 	for i in 3:
 		await get_tree().process_frame

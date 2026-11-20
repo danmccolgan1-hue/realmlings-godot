@@ -1,0 +1,299 @@
+{
+ "source": "page.html SPR (via assemble_game.py)",
+ "images": {
+  "tree0.png": {
+   "w": 120,
+   "h": 136,
+   "ax": 60,
+   "ay": 124,
+   "scale": 4
+  },
+  "tree1.png": {
+   "w": 120,
+   "h": 136,
+   "ax": 60,
+   "ay": 124,
+   "scale": 4
+  },
+  "tree2.png": {
+   "w": 120,
+   "h": 136,
+   "ax": 60,
+   "ay": 124,
+   "scale": 4
+  },
+  "pine0.png": {
+   "w": 96,
+   "h": 144,
+   "ax": 48,
+   "ay": 132,
+   "scale": 4
+  },
+  "pine1.png": {
+   "w": 96,
+   "h": 144,
+   "ax": 48,
+   "ay": 132,
+   "scale": 4
+  },
+  "mtn0.png": {
+   "w": 160,
+   "h": 144,
+   "ax": 80,
+   "ay": 132,
+   "scale": 4
+  },
+  "mtn1.png": {
+   "w": 160,
+   "h": 144,
+   "ax": 80,
+   "ay": 132,
+   "scale": 4
+  },
+  "mtn2.png": {
+   "w": 160,
+   "h": 144,
+   "ax": 80,
+   "ay": 132,
+   "scale": 4
+  },
+  "pillar.png": {
+   "w": 72,
+   "h": 120,
+   "ax": 36,
+   "ay": 108,
+   "scale": 4
+  },
+  "arch.png": {
+   "w": 120,
+   "h": 120,
+   "ax": 60,
+   "ay": 108,
+   "scale": 4
+  },
+  "rock0.png": {
+   "w": 72,
+   "h": 56,
+   "ax": 36,
+   "ay": 44,
+   "scale": 4
+  },
+  "rock1.png": {
+   "w": 72,
+   "h": 56,
+   "ax": 36,
+   "ay": 44,
+   "scale": 4
+  },
+  "tuft.png": {
+   "w": 48,
+   "h": 36,
+   "ax": 24,
+   "ay": 32,
+   "scale": 4
+  },
+  "flower0.png": {
+   "w": 32,
+   "h": 32,
+   "ax": 16,
+   "ay": 16,
+   "scale": 4
+  },
+  "flower1.png": {
+   "w": 32,
+   "h": 32,
+   "ax": 16,
+   "ay": 16,
+   "scale": 4
+  },
+  "flower2.png": {
+   "w": 32,
+   "h": 32,
+   "ax": 16,
+   "ay": 16,
+   "scale": 4
+  },
+  "dune.png": {
+   "w": 112,
+   "h": 40,
+   "ax": 56,
+   "ay": 28,
+   "scale": 4
+  },
+  "cactus.png": {
+   "w": 64,
+   "h": 88,
+   "ax": 32,
+   "ay": 76,
+   "scale": 4
+  },
+  "puddle.png": {
+   "w": 104,
+   "h": 56,
+   "ax": 52,
+   "ay": 28,
+   "scale": 4
+  },
+  "reeds.png": {
+   "w": 48,
+   "h": 72,
+   "ax": 24,
+   "ay": 64,
+   "scale": 4
+  },
+  "lily.png": {
+   "w": 48,
+   "h": 36,
+   "ax": 24,
+   "ay": 18,
+   "scale": 4
+  },
+  "shroom.png": {
+   "w": 48,
+   "h": 48,
+   "ax": 24,
+   "ay": 40,
+   "scale": 4
+  },
+  "cypress0.png": {
+   "w": 136,
+   "h": 216,
+   "ax": 68,
+   "ay": 200,
+   "scale": 4
+  },
+  "cypress1.png": {
+   "w": 136,
+   "h": 216,
+   "ax": 68,
+   "ay": 200,
+   "scale": 4
+  },
+  "palm0.png": {
+   "w": 160,
+   "h": 184,
+   "ax": 80,
+   "ay": 172,
+   "scale": 4
+  },
+  "palm1.png": {
+   "w": 160,
+   "h": 184,
+   "ax": 80,
+   "ay": 172,
+   "scale": 4
+  },
+  "palm0_L.png": {
+   "w": 320,
+   "h": 368,
+   "ax": 160,
+   "ay": 344,
+   "scale": 4
+  },
+  "palm1_L.png": {
+   "w": 320,
+   "h": 368,
+   "ax": 160,
+   "ay": 344,
+   "scale": 4
+  },
+  "mtn0_L.png": {
+   "w": 320,
+   "h": 288,
+   "ax": 160,
+   "ay": 264,
+   "scale": 4
+  },
+  "mtn1_L.png": {
+   "w": 320,
+   "h": 288,
+   "ax": 160,
+   "ay": 264,
+   "scale": 4
+  },
+  "mtn2_L.png": {
+   "w": 320,
+   "h": 288,
+   "ax": 160,
+   "ay": 264,
+   "scale": 4
+  },
+  "tree0_L.png": {
+   "w": 240,
+   "h": 272,
+   "ax": 120,
+   "ay": 248,
+   "scale": 4
+  },
+  "tree1_L.png": {
+   "w": 240,
+   "h": 272,
+   "ax": 120,
+   "ay": 248,
+   "scale": 4
+  },
+  "tree2_L.png": {
+   "w": 240,
+   "h": 272,
+   "ax": 120,
+   "ay": 248,
+   "scale": 4
+  },
+  "pine0_L.png": {
+   "w": 192,
+   "h": 288,
+   "ax": 96,
+   "ay": 264,
+   "scale": 4
+  },
+  "pine1_L.png": {
+   "w": 192,
+   "h": 288,
+   "ax": 96,
+   "ay": 264,
+   "scale": 4
+  },
+  "cypress0_L.png": {
+   "w": 272,
+   "h": 432,
+   "ax": 136,
+   "ay": 400,
+   "scale": 4
+  },
+  "cypress1_L.png": {
+   "w": 272,
+   "h": 432,
+   "ax": 136,
+   "ay": 400,
+   "scale": 4
+  },
+  "pillar_L.png": {
+   "w": 144,
+   "h": 240,
+   "ax": 72,
+   "ay": 216,
+   "scale": 4
+  },
+  "arch_L.png": {
+   "w": 240,
+   "h": 240,
+   "ax": 120,
+   "ay": 216,
+   "scale": 4
+  },
+  "rock0_L.png": {
+   "w": 144,
+   "h": 112,
+   "ax": 72,
+   "ay": 88,
+   "scale": 4
+  },
+  "rock1_L.png": {
+   "w": 144,
+   "h": 112,
+   "ax": 72,
+   "ay": 88,
+   "scale": 4
+  }
+ }
+}

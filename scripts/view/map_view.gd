@@ -1,8 +1,8 @@
 class_name MapView
 extends Node2D
-## Placeholder map: flat province polygons in the web palette (page.html TER / SEA / OL), barriers as coloured
-## lines, then the game on top: settlements and units with the exported art. Only draws; never changes the game.
-## The real terrain art comes in Phase 4.
+## The map: MapLayers draws the land, sea, nation borders and fog below; this node draws the game on top
+## (roads, walls, the selection, settlements, buildings and units with the exported art). Only draws; never changes
+## the game.
 
 const TER_BASE := {"grassland": Color("#9bd95f"), "forest": Color("#4ba557"), "desert": Color("#f4cd72"), "swamp": Color("#7b9c86")}
 const SEA := Color("#2b7fc4")
@@ -18,6 +18,7 @@ var polys := []        # PackedVector2Array per province
 var font: Font
 var selected_prov := -1
 var selected_unit = null    # a unit Dictionary of the game
+var layers: MapLayers
 const FOG_UNEXPLORED := Color("#10182e", 0.86)
 const FOG_DIM := Color("#10182e", 0.28)
 
@@ -32,7 +33,19 @@ func set_world(w: Dictionary) -> void:
 			pts.append(Vector2(V[vi][0], V[vi][1]))
 		polys.append(pts)
 	font = ThemeDB.fallback_font
+	if layers == null:
+		layers = MapLayers.new()
+		layers.z_as_relative = true
+		add_child(layers)
+	layers.setup(self, w, game.G if game else WorldPrep.prep(w))
 	queue_redraw()
+
+
+## The zoom that fits the whole island on screen.
+func fit_zoom() -> float:
+	var b := bounds()
+	var vs := get_viewport_rect().size
+	return minf(vs.x / b.size.x, vs.y / b.size.y) * 0.9
 
 
 func set_game(g: Game) -> void:
@@ -59,28 +72,13 @@ func province_at(at: Vector2) -> int:
 func _process(_delta: float) -> void:
 	if game:
 		queue_redraw()
+		layers.refresh()
 
 
 func _draw() -> void:
 	if world.is_empty():
 		return
 	var V: Array = world.vertices
-	draw_rect(bounds().grow(4000), SEA)
-	# beach: thick sand stroke along the coast, under the land
-	for p in world.provinces:
-		for c in p.coast:
-			draw_line(_v(V, c[0]), _v(V, c[1]), SAND, 90.0, true)
-			draw_circle(_v(V, c[0]), 45.0, SAND)
-			draw_circle(_v(V, c[1]), 45.0, SAND)
-	for i in polys.size():
-		var terrain: String = game.G.provs[i].terrain if game else world.provinces[i].terrain
-		draw_colored_polygon(polys[i], TER_BASE.get(terrain, Color.MAGENTA))
-		var outline: PackedVector2Array = polys[i].duplicate()
-		outline.append(outline[0])
-		draw_polyline(outline, Color(OL, 0.45), 6.0, true)
-	for e in world.edges:
-		if not e.open:
-			draw_line(_v(V, e.v[0]), _v(V, e.v[1]), STYLE_COL.get(e.style, OL), 34.0, true)
 	if game:
 		for k in game.roads:
 			var ab: PackedStringArray = k.split("_")
@@ -90,7 +88,9 @@ func _draw() -> void:
 			for e in world.edges:
 				if (e.a == int(ab[0]) and e.b == int(ab[1])) or (e.a == int(ab[1]) and e.b == int(ab[0])):
 					m = (_v(V, e.v[0]) + _v(V, e.v[1])) / 2
-			draw_polyline(PackedVector2Array([Vector2(a[0], a[1]), m, Vector2(b[0], b[1])]), ROAD_COL, 22.0, true)
+			var line := PackedVector2Array([Vector2(a[0], a[1]), m, Vector2(b[0], b[1])])
+			draw_polyline(line, OL, 26.0, true)
+			draw_polyline(line, ROAD_COL, 20.0, true)
 		for i in game.walls:
 			var e: Dictionary = world.edges[i]
 			var a := _v(V, e.v[0])
@@ -101,14 +101,9 @@ func _draw() -> void:
 	if selected_prov >= 0:
 		var outline: PackedVector2Array = polys[selected_prov].duplicate()
 		outline.append(outline[0])
-		draw_polyline(outline, Color("#fff6c8"), 14.0, true)
+		draw_polyline(outline, Color("#fff6c8"), 10.0, true)
 	if game:
 		_draw_game()
-		_draw_fog()
-	else:
-		for i in world.provinces.size():
-			var s: Array = world.provinces[i].site
-			draw_string(font, Vector2(s[0], s[1]) + Vector2(-300, 20), "%d %s" % [i, world.provinces[i].terrain], HORIZONTAL_ALIGNMENT_CENTER, 600, 64, OL)
 
 
 const HOSTILE := Color("#d8473a")
@@ -224,15 +219,6 @@ func _building_art(type: String, level: int) -> String:
 static func _dir(th: float) -> String:
 	var k := int(round(th / (PI / 4)))
 	return "d%d" % (((-k) % 8 + 8) % 8)
-
-
-func _draw_fog() -> void:
-	for i in polys.size():
-		var st := game.fog_state(i)
-		if st == "unexplored":
-			draw_colored_polygon(polys[i], FOG_UNEXPLORED)
-		elif st == "explored":
-			draw_colored_polygon(polys[i], FOG_DIM)
 
 
 func _bar(at: Vector2, f: float, col: Color) -> void:
