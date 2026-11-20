@@ -1,0 +1,592 @@
+{
+ "seed": "Practice",
+ "leader": "finn",
+ "frames": 2001,
+ "frame_dt": 0.1,
+ "end_t": 199.99999999999213,
+ "start": {
+  "leader": "finn",
+  "capital": 0,
+  "stock": {
+   "gold": 50,
+   "wood": 50,
+   "food": 50
+  },
+  "income": {
+   "gold": 6,
+   "wood": 4,
+   "food": 0
+  },
+  "gross": {
+   "gold": 6,
+   "wood": 7,
+   "food": 8
+  },
+  "up": {
+   "gold": 0,
+   "wood": 3,
+   "food": 8
+  },
+  "terrain": [
+   "grassland",
+   "grassland",
+   "grassland",
+   "swamp",
+   "forest",
+   "grassland",
+   "forest",
+   "grassland",
+   "forest",
+   "desert"
+  ],
+  "ic": [
+   [
+    8570.077423471563,
+    7733.108562742503
+   ],
+   [
+    9096.44617720147,
+    7644.541990738917
+   ],
+   [
+    8003.7336324003445,
+    7671.326627882113
+   ],
+   [
+    8386.678475333076,
+    8238.785578993195
+   ],
+   [
+    8390.791241056817,
+    7202.27539669973
+   ],
+   [
+    9002.402951734457,
+    8149.926544352705
+   ],
+   [
+    8929.82181390344,
+    7143.343992124954
+   ],
+   [
+    7757.50461692936,
+    7156.995743838017
+   ],
+   [
+    7664.599388325106,
+    8166.983323735995
+   ],
+   [
+    8522.432200075526,
+    8713.73956626703
+   ]
+  ],
+  "coastal": [
+   false,
+   true,
+   true,
+   true,
+   true,
+   true,
+   true,
+   true,
+   true,
+   true
+  ],
+  "lakeside": [
+   false,
+   false,
+   false,
+   false,
+   false,
+   false,
+   false,
+   false,
+   false,
+   false
+  ],
+  "bounds": [
+   7290.7,
+   6826.2,
+   9423.9,
+   9049.3
+  ],
+  "yields": [
+   {
+    "gold": 1,
+    "wood": 2,
+    "food": 3,
+    "bonus": {
+     "gold": 0,
+     "wood": 0,
+     "food": 0
+    },
+    "deposit": false
+   },
+   {
+    "gold": 2,
+    "wood": 2,
+    "food": 3,
+    "bonus": {
+     "gold": 1,
+     "wood": 0,
+     "food": 0
+    },
+    "deposit": false
+   },
+   {
+    "gold": 1,
+    "wood": 2,
+    "food": 3,
+    "bonus": {
+     "gold": 0,
+     "wood": 0,
+     "food": 0
+    },
+    "deposit": false
+   },
+   {
+    "gold": 0,
+    "wood": 2,
+    "food": 1,
+    "bonus": {
+     "gold": 0,
+     "wood": 0,
+     "food": 0
+    },
+    "deposit": false
+   },
+   {
+    "gold": 1,
+    "wood": 3,
+    "food": 3,
+    "bonus": {
+     "gold": 0,
+     "wood": 0,
+     "food": 1
+    },
+    "deposit": false
+   },
+   {
+    "gold": 1,
+    "wood": 2,
+    "food": 3,
+    "bonus": {
+     "gold": 0,
+     "wood": 0,
+     "food": 0
+    },
+    "deposit": false
+   },
+   {
+    "gold": 1,
+    "wood": 4,
+    "food": 2,
+    "bonus": {
+     "gold": 0,
+     "wood": 1,
+     "food": 0
+    },
+    "deposit": false
+   },
+   {
+    "gold": 1,
+    "wood": 2,
+    "food": 4,
+    "bonus": {
+     "gold": 0,
+     "wood": 0,
+     "food": 1
+    },
+    "deposit": false
+   },
+   {
+    "gold": 1,
+    "wood": 3,
+    "food": 3,
+    "bonus": {
+     "gold": 0,
+     "wood": 0,
+     "food": 1
+    },
+    "deposit": false
+   },
+   {
+    "gold": 1,
+    "wood": 0,
+    "food": 0,
+    "bonus": {
+     "gold": 0,
+     "wood": 0,
+     "food": 0
+    },
+    "deposit": true
+   }
+  ],
+  "treeBorder": [
+   1,
+   1,
+   0,
+   1,
+   1,
+   0,
+   2,
+   1,
+   1,
+   0
+  ],
+  "capTrees": 1,
+  "units": [
+   {
+    "id": 1,
+    "owner": 1,
+    "kind": "pioneer:B",
+    "prov": 0,
+    "slot": 3,
+    "x": 8452.077423471563,
+    "y": 7775.108562742503,
+    "troops": null
+   },
+   {
+    "id": 2,
+    "owner": 1,
+    "kind": "mason:A",
+    "prov": 0,
+    "slot": 4,
+    "x": 8688.077423471563,
+    "y": 7775.108562742503,
+    "troops": null
+   },
+   {
+    "id": 3,
+    "owner": 1,
+    "kind": "army",
+    "prov": 0,
+    "slot": 0,
+    "x": 8540.077423471563,
+    "y": 7795.108562742503,
+    "troops": {
+     "d-sword": 3
+    }
+   }
+  ],
+  "extras": [
+   [
+    0,
+    [
+     {
+      "type": "forge",
+      "slot": 0,
+      "freeFor": null
+     }
+    ]
+   ]
+  ],
+  "buildings": [
+   [
+    0,
+    2,
+    1
+   ]
+  ],
+  "techDone": {
+   "gov": [
+    "forge"
+   ],
+   "mil": [],
+   "mag": []
+  },
+  "caps": [
+   2000,
+   2000,
+   2000
+  ]
+ },
+ "paydays": [
+  {
+   "t": 10,
+   "stock": {
+    "gold": 56,
+    "wood": 54,
+    "food": 50
+   },
+   "income": {
+    "gold": 6,
+    "wood": 4,
+    "food": 0
+   },
+   "exhaust": 0,
+   "soldiers": 3
+  },
+  {
+   "t": 20,
+   "stock": {
+    "gold": 62,
+    "wood": 58,
+    "food": 50
+   },
+   "income": {
+    "gold": 6,
+    "wood": 4,
+    "food": 0
+   },
+   "exhaust": 0,
+   "soldiers": 3
+  },
+  {
+   "t": 30,
+   "stock": {
+    "gold": 68,
+    "wood": 62,
+    "food": 50
+   },
+   "income": {
+    "gold": 6,
+    "wood": 4,
+    "food": 0
+   },
+   "exhaust": 0,
+   "soldiers": 3
+  },
+  {
+   "t": 40,
+   "stock": {
+    "gold": 74,
+    "wood": 66,
+    "food": 50
+   },
+   "income": {
+    "gold": 6,
+    "wood": 4,
+    "food": 0
+   },
+   "exhaust": 0,
+   "soldiers": 3
+  },
+  {
+   "t": 50,
+   "stock": {
+    "gold": 80,
+    "wood": 70,
+    "food": 50
+   },
+   "income": {
+    "gold": 6,
+    "wood": 4,
+    "food": 0
+   },
+   "exhaust": 0,
+   "soldiers": 3
+  },
+  {
+   "t": 60,
+   "stock": {
+    "gold": 86,
+    "wood": 74,
+    "food": 50
+   },
+   "income": {
+    "gold": 6,
+    "wood": 4,
+    "food": 0
+   },
+   "exhaust": 0,
+   "soldiers": 3
+  },
+  {
+   "t": 70,
+   "stock": {
+    "gold": 92,
+    "wood": 78,
+    "food": 50
+   },
+   "income": {
+    "gold": 6,
+    "wood": 4,
+    "food": 0
+   },
+   "exhaust": 0,
+   "soldiers": 3
+  },
+  {
+   "t": 80,
+   "stock": {
+    "gold": 98,
+    "wood": 82,
+    "food": 50
+   },
+   "income": {
+    "gold": 6,
+    "wood": 4,
+    "food": 0
+   },
+   "exhaust": 0,
+   "soldiers": 3
+  },
+  {
+   "t": 90,
+   "stock": {
+    "gold": 104,
+    "wood": 86,
+    "food": 50
+   },
+   "income": {
+    "gold": 6,
+    "wood": 4,
+    "food": 0
+   },
+   "exhaust": 0,
+   "soldiers": 3
+  },
+  {
+   "t": 100,
+   "stock": {
+    "gold": 110,
+    "wood": 90,
+    "food": 50
+   },
+   "income": {
+    "gold": 6,
+    "wood": 4,
+    "food": 0
+   },
+   "exhaust": 0,
+   "soldiers": 3
+  },
+  {
+   "t": 110,
+   "stock": {
+    "gold": 116,
+    "wood": 94,
+    "food": 50
+   },
+   "income": {
+    "gold": 6,
+    "wood": 4,
+    "food": 0
+   },
+   "exhaust": 0,
+   "soldiers": 3
+  },
+  {
+   "t": 120,
+   "stock": {
+    "gold": 122,
+    "wood": 98,
+    "food": 50
+   },
+   "income": {
+    "gold": 6,
+    "wood": 4,
+    "food": 0
+   },
+   "exhaust": 0,
+   "soldiers": 3
+  },
+  {
+   "t": 130,
+   "stock": {
+    "gold": 128,
+    "wood": 102,
+    "food": 50
+   },
+   "income": {
+    "gold": 6,
+    "wood": 4,
+    "food": 0
+   },
+   "exhaust": 0,
+   "soldiers": 3
+  },
+  {
+   "t": 140,
+   "stock": {
+    "gold": 134,
+    "wood": 106,
+    "food": 50
+   },
+   "income": {
+    "gold": 6,
+    "wood": 4,
+    "food": 0
+   },
+   "exhaust": 0,
+   "soldiers": 3
+  },
+  {
+   "t": 150,
+   "stock": {
+    "gold": 140,
+    "wood": 110,
+    "food": 50
+   },
+   "income": {
+    "gold": 6,
+    "wood": 4,
+    "food": 0
+   },
+   "exhaust": 0,
+   "soldiers": 3
+  },
+  {
+   "t": 160,
+   "stock": {
+    "gold": 146,
+    "wood": 114,
+    "food": 50
+   },
+   "income": {
+    "gold": 6,
+    "wood": 4,
+    "food": 0
+   },
+   "exhaust": 0,
+   "soldiers": 3
+  },
+  {
+   "t": 170,
+   "stock": {
+    "gold": 152,
+    "wood": 118,
+    "food": 50
+   },
+   "income": {
+    "gold": 6,
+    "wood": 4,
+    "food": 0
+   },
+   "exhaust": 0,
+   "soldiers": 3
+  },
+  {
+   "t": 180,
+   "stock": {
+    "gold": 158,
+    "wood": 122,
+    "food": 50
+   },
+   "income": {
+    "gold": 6,
+    "wood": 4,
+    "food": 0
+   },
+   "exhaust": 0,
+   "soldiers": 3
+  },
+  {
+   "t": 190,
+   "stock": {
+    "gold": 164,
+    "wood": 126,
+    "food": 50
+   },
+   "income": {
+    "gold": 6,
+    "wood": 4,
+    "food": 0
+   },
+   "exhaust": 0,
+   "soldiers": 3
+  }
+ ]
+}

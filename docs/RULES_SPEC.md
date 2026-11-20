@@ -12,9 +12,20 @@ The web game in `reference/web-v106/` is the source of truth. This spec says **w
 
 ## Milestone 1 scope: the Practice island, Realmlings, the player alone
 
-`RealmGen.generatePractice(seed)` (a 10-province island cut from a full world). Checked in a running game (seed `ember`): 10 provinces (5 grassland, 3 forest, 1 swamp, 1 desert), **no other nations, no Bandit Gangs, no Roaming Monsters, no set pieces**; the player starts with a capital in province 0, 250 of each resource, a Wayfinder (`pioneer:B`), a Mason (`mason:A`) and the leader's starting army (varies by leader).
+`RealmGen.generatePractice(seed)` (a 10-province island cut from a full world). Checked in a running game (seed `ember`): 10 provinces (5 grassland, 3 forest, 1 swamp, 1 desert), **no other nations, no Roaming Monsters, no set pieces**. The web game can place Bandit Gangs on it (seed `oak`: two gangs of 2 Footmen); the Godot milestone leaves them out until battles are ported. The player starts with a capital (province 0 on every seed checked), 50 of each resource (`START_STOCK`; Mage leaders get +200), a Wayfinder (`pioneer:B`), a Mason (`mason:A`) and the leader's start (army, building, technologies: `applyLeaderStart`). Reference runs: `tools/gen_econ_fixtures.py`.
 
 **Not needed for milestone 1** (port later): AI nations (`ai.js`, `v103.js`), war and peace (`war.js`), diplomacy (`v105.js`, parts of `v106.js`), Swamplings and Woodlings (`swamp.js`, `wood.js`, `*bld.js`), Bandit Gangs, monsters, set pieces, travelers, ruins (`content.js`, `v78.js`), multiplayer bits. Battles can't happen on the Practice island (no enemies), so combat is ported after milestone 1 unless a test scene needs it.
+
+## Progress
+
+| Step | State | Tested against the web game |
+|---|---|---|
+| 1. Map generator | Done (`scripts/gen/realm_gen.gd`) | 16 seeds, every province, border and vertex (`tests/test_world_gen.gd`) |
+| 2. World setup | Done for Realmlings on the Practice island (`scripts/sim/game.gd`, `world_prep.gd`): capital choice, yields, starting units, all 8 Realmling leader starts | 4 seeds × 8 leaders (`tests/test_economy.gd`) |
+| 3. Economy | Done for what exists at the start: income, upkeep (leader cuts, free buildings, province limit), storage, payday every 10 s, Army Exhaustion and desertion | same, 200 s of play each |
+| 3. Economy, later | Crops and Harvest, Trade Routes, Sawyer Guilds, artifacts, research points and mana at payday, deep gold mines | arrive with the systems that switch them on |
+
+Port from the **assembled** game, not the separate files alone: `assemble_game.py` rewrites parts of `page.html` (for example the province inset distances 6 / 50 / 18 used for `ic`).
 
 ## Port order
 
