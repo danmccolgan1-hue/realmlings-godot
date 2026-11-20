@@ -17,10 +17,8 @@ The plan after milestone 1. Each step is tested against the web game, then commi
    v95: `rollYields` wrapper (Oasis 10/10/10, Heart 6/20/6, Death Mountain neighbors +5 gold), `provName` for the
    three, `canEnter` `bossBlock`, bosses (`BOSSES`, `BOSS_SITES`), artifacts (`ARTIFACTS`, `grantArtifact`).
    Computer nations are Realmlings only for now (`races[i] = 'realm'`).
-3. **Wars** — ported, being verified (`tests/test_war.gd`, fixtures from `tools/gen_war_fixtures.py`; not in
-   `run_tests.gd` yet). It matches the web game up to the first payday; the computer nations' payday (`aiPayday`:
-   income, storage, exhaustion, research, money spells) comes with step 4. The fixture freezes the AI brain
-   (`stepAI`, `aiEnemyThink`) and pre-meets every nation (meeting one pauses the web game).
+3. **Wars** — done (`tests/test_war.gd`, in the suite; fixtures from `tools/gen_war_fixtures.py`, which freeze the
+   AI brain: `g.ai_frozen`). Both fixtures match the web game to the end.
    Ported: declaring (fee, allies joining, the 2-enemy cap, truces, surrender lock), warscore (occupations, wipes by
    army size, the occupation tick once a war is serious), occupation progress (moats, frozen during battles, kept when
    the capturer wins), stalls, the 20-minute timer, peace terms (white, gold, provinces / annexation, surrender),
@@ -30,10 +28,24 @@ The plan after milestone 1. Each step is tested against the web game, then commi
    warscore (`occScore`, `addScore`, wipes), `stepWar` (occupation progress, the time tick, stalls), peace
    (`peaceCheck`, `makePeace`, terms), truces, alliances (`stepAlliances`), AI demands (`checkAIDemands`), AI-vs-AI
    peace (`aiPeace`), `hostile`.
-4. **The computer players** (ai.js + v100, v102, v103, v104, v105 wrappers): `stepAI`, `aiPlan`, `aiMasons`,
-   `aiWayfinders`, `aiTrain`, `aiFortUp`, `aiArmyOrders`, `aiConsiderWar`, `aiPayday`, `aiRedesign`. Fixtures with
-   `Math.random` pinned (as for battles).
-5. **Diplomacy UI**: met nations, declare war, alliance offers, peace terms, the war chip.
+4. **The computer players** — done (`scripts/sim/ai.gd`, class `Ai`: static functions taking the Game and the
+   nation). `tests/test_ai.gd` plays three fixture games from `tools/gen_ai_fixtures.py` (`Math.random` pinned to
+   0.5, the player idle): ember (3 nations, 40 min), river (2 nations, 40 min), crowd (6 nations, 60 min, bandit
+   waves, a war against the player and one between two nations). Every nation's stock, income, research, buildings,
+   units and queues match the web game at every 10 s snapshot, to the end.
+   Ported with it, because the computer nations use them: crops (staple / cash / fiber), `stepScouts` (Wayfinders and
+   Masons running from soldiers), `outpostClaimed`, `evictStrays`, fort gates for every nation, bandit waves (v96),
+   Proclaim Enemy and the v106 opinion parts, owner-aware mana, leader soldier bonuses, plots, development and builds.
+   Not yet: artifacts (boss rewards; their income), `aiQuake` (Earthquake / Shockwave are not ported for anyone),
+   sieges (v104 `aiReach` through walls), gift vaults, Swampling and Woodling nations.
+5. **Diplomacy UI** — done (`scripts/ui/diplomacy_window.gd`, Y): your wars with warscore and the peace terms you can
+   offer (white, gold, provinces / annexation, surrender, each with the reason it is unavailable), every met nation
+   with leader, difficulty, size, army power, opinion (tooltip: its parts) and relation, Declare War, Proclaim /
+   Renounce Enemy. The top-bar button turns into a war chip. AI demands and alliance offers use the dialog box.
+   Start menu: Practice island or a full map with 1–6 opponents (Easy / Moderate / Difficult / Mixed) and a start
+   position. Map: other nations' settlements only where explored, their units in their color (red when hostile).
+   Still to come from the web game's diplomacy panel: the v105 actions (gifts, bribes, flirting, military access,
+   Trade Networks, asking for an alliance).
 
 ## Things to remember
 

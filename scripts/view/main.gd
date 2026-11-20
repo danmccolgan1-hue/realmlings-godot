@@ -349,6 +349,13 @@ func _maybe_screenshot() -> void:
 			zoom = float(a.substr(7))
 	cam.zoom = Vector2(zoom, zoom)
 	cam.position = Vector2(game.G.provs[game.capital].ic[0], game.G.provs[game.capital].ic[1] - 60)
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--look="):   # the n-th computer nation's capital
+			var ids: Array = game.nations.keys()
+			var o: int = ids[mini(int(a.substr(7)), ids.size() - 1)]
+			var c := game.capital_of(o)
+			if c >= 0:
+				cam.position = Vector2(game.G.provs[c].ic[0], game.G.provs[c].ic[1])
 	for i in 3:
 		await get_tree().process_frame
 	await RenderingServer.frame_post_draw
