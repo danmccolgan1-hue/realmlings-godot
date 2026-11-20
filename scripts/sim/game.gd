@@ -522,7 +522,7 @@ func gear_why(kind: String, key: String):
 	if item == null:
 		return "Unknown"
 	if item.get("tech") != null and not has_tech(item.tech):
-		return "Research " + TECH_BY_ID[item.tech].name
+		return "Research " + (TECH_BY_ID[item.tech].name if TECH_BY_ID.has(item.tech) else str(item.tech))
 	return null
 
 
@@ -5136,3 +5136,32 @@ func prov_name(p: int) -> String:
 			used[n] = true
 			prov_names.append(n)
 	return prov_rename.get(p, prov_names[p])
+
+
+# web: gpc.js sendToRest / restSite: march a wounded army to the nearest of your Barracks
+func rest_site(a: Dictionary) -> int:
+	if barracks_ok_for(a):
+		return a.prov
+	var best := -1
+	var bd := INF
+	for p in extras:
+		if not barracks_ok(p, false):
+			continue
+		var h = find_path(a, p)
+		if h != null and h.size() < bd:
+			bd = h.size()
+			best = p
+	return best
+
+
+func send_to_rest(a: Dictionary) -> void:
+	if not (a.get("wounds", 0.0) > 0.01):
+		toast("%s isn’t hurt." % a.name)
+		return
+	var p := rest_site(a)
+	if p < 0:
+		toast("None of your Barracks can be reached.", true)
+	elif p == a.prov and not a.moving:
+		toast("%s is resting at the Barracks." % a.name)
+	elif order(a, p, true):
+		toast("%s marches to the Barracks at %s to rest." % [a.name, prov_name(p)])

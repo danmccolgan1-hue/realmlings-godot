@@ -1,8 +1,8 @@
 class_name Hud
 extends CanvasLayer
-## Placeholder interface for play-testing the rules: resource bar, clock, leader, a panel for the selected
-## province, the command card of the selected unit (the web game's 4×4 grid and keys) and the game's messages.
-## The real interface is Phase 5.
+## The interface: the top bar (resources with storage caps and income, the payday clock, buttons for research, the
+## Armory, pause and the menu), the minimap, your units' roster, the selected province's panel, the selected unit's
+## command card (the web game's 4×4 grid and keys), pop-ups, the Armory window and the game's messages.
 
 const RES := ["gold", "wood", "food"]
 const STAGE_NAME := ["Outpost", "Fort", "Capital"]
@@ -36,6 +36,17 @@ var tut_text: RichTextLabel
 var tut_objs: Label
 var tut_next: Button
 var tut_key := ""
+var main            # the scene's entry node: saving, loading, the main menu
+var map: MapView
+var cam: Camera2D
+var armory: ArmoryWindow
+var dialog: DialogBox
+var minimap: Minimap
+var roster: Roster
+var menu_win: Dictionary
+var tick_bar: ProgressBar
+var mana_label: Label
+var ui_scale := 1.0
 
 
 func _ready() -> void:
@@ -60,8 +71,21 @@ func _ready() -> void:
 		row.add_child(l)
 		res_labels[k] = l
 		bar.add_child(row)
+	mana_label = _label(24)
+	bar.add_child(mana_label)
+	tick_bar = ProgressBar.new()
+	tick_bar.custom_minimum_size = Vector2(90, 14)
+	tick_bar.show_percentage = false
+	tick_bar.max_value = 1.0
+	tick_bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	tick_bar.tooltip_text = "Next payday"
+	bar.add_child(tick_bar)
 	clock = _label(24)
 	bar.add_child(clock)
+	for b in [["Research [T]", func(): toggle_research()], ["Armory [G]", func(): armory.toggle()], ["Pause [Space]", func(): game.paused = not game.paused], ["Menu [Esc]", func(): toggle_menu()]]:
+		var btn := UiKit.button(b[0], 17, b[1])
+		btn.focus_mode = Control.FOCUS_NONE
+		bar.add_child(btn)
 	who = _label(20)
 	who.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	who.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
@@ -127,12 +151,30 @@ func _ready() -> void:
 	add_child(toasts)
 	toasts.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT, Control.PRESET_MODE_MINSIZE, 20)
 	toasts.offset_top = 70
+	roster = Roster.new()
+	add_child(roster)
+	roster.set_anchors_and_offsets_preset(Control.PRESET_CENTER_RIGHT, Control.PRESET_MODE_MINSIZE, 20)
+	roster.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	minimap = Minimap.new()
+	add_child(minimap)
+	minimap.position = Vector2(20, 70)
+	armory = ArmoryWindow.new()
+	add_child(armory)
+	dialog = DialogBox.new()
+	add_child(dialog)
+	_build_menu()
 	hide()
 
 
 func set_game(g: Game) -> void:
 	game = g
 	g.on_toast = add_toast
+	g.on_dialog = func(title: String, text: String, choices: Array, f: Callable):
+		dialog.ask(title, text, choices, f if f.is_valid() else func(_id): pass)
+	armory.setup(g, self)
+	roster.setup(g, self)
+	if map and cam:
+		minimap.setup(g, map, cam)
 	var L = g.leader_of()
 	who.text = "Basic Tutorial" if g.tutorial != null else "%s — Practice island" % (L.full if L else "")
 	show()
@@ -230,6 +272,16 @@ func commands_of(u) -> Array:
 			cmd = {"id": id, "label": label, "why": why}
 		elif id == "split":
 			cmd = {"id": id, "label": "Split", "why": null if game.troop_count(u) >= 2 else "Needs 2 soldiers"}
+		elif id == "rest":
+			# web: features.js extraCmdInfo 'rest'
+			var why = null if u.get("battle") == null else "Not during battle"
+			if why == null and not (u.get("wounds", 0.0) > 0.01):
+				why = "The army isn’t hurt"
+			cmd = {"id": id, "label": "Resting…" if u.get("rest") != null else "Rest at a\nBarracks", "why": why}
+		elif id == "retrofit":
+			cmd = {"id": id, "label": "Retrofit…", "why": game.retrofit_why(u)}
+		elif id == "inspect":
+			cmd = {"id": id, "label": "Inspect", "why": null}
 		elif id == "combine":
 			var n := game.units.filter(func(v): return v.kind == "army" and v.owner == Game.ME and v.prov == u.prov and not v.moving).size()
 			cmd = {"id": id, "label": "Combine", "why": null if n >= 2 else "No other army here"}
@@ -274,6 +326,12 @@ func press(i: int) -> void:
 			game.cast_spell(unit, k)
 	elif id == "retreat":
 		game.retreat(unit)
+	elif id == "rest":
+		game.send_to_rest(unit)
+	elif id == "retrofit":
+		_show_retrofit(unit)
+	elif id == "inspect":
+		_show_inspect(unit)
 	elif id == "split":
 		game.split_army(unit)
 	elif id == "combine":
@@ -294,11 +352,17 @@ func _process(_delta: float) -> void:
 		return
 	for k in RES:
 		var inc: int = game.income[k]
-		res_labels[k].text = "%d %s  (%s%d)" % [game.stock[k], k.capitalize(), "+" if inc >= 0 else "−", absi(inc)]
-		res_labels[k].add_theme_color_override("font_color", Color("#ff8a7a") if inc < 0 else Color.WHITE)
+		var cap := game.storage_cap(k)
+		res_labels[k].text = "%d/%d  (%s%d)" % [game.stock[k], cap, "+" if inc >= 0 else "−", absi(inc)]
+		res_labels[k].add_theme_color_override("font_color", Color("#ff8a7a") if inc < 0 else Color("#ffe08a") if game.stock[k] >= cap else Color.WHITE)
+		res_labels[k].tooltip_text = "%s: %d of %d you can store; %s%d every payday" % [k.capitalize(), game.stock[k], cap, "+" if inc >= 0 else "−", absi(inc)]
+	mana_label.visible = unit != null and game.is_caster(unit)
+	if mana_label.visible:
+		mana_label.text = "✦ %d/%d mana" % [int(Game.mana_of(unit)), game.mana_cap()]
+	tick_bar.value = clampf(1.0 - (game.next_tick - game.t) / game.TICK, 0, 1) if game.next_tick > 0 else 0.0
 	var secs := int(game.t)
 	var next := maxf(0.0, game.next_tick - game.t) if game.next_tick > 0 else game.TICK
-	clock.text = "%d:%02d   next payday %ds" % [secs / 60, secs % 60, ceili(next)]
+	clock.text = "%d:%02d   payday in %ds" % [secs / 60, secs % 60, ceili(next)]
 	if game.exhaust > 0:
 		clock.text += "   Army Exhaustion %d/%d" % [game.exhaust, GameData.c("EXHAUST_MAX")]
 	paused_label.visible = game.paused
@@ -329,9 +393,103 @@ func _process(_delta: float) -> void:
 		toast_list.pop_front().label.queue_free()
 
 
+# web: features.js showRetrofit
+func _show_retrofit(a: Dictionary) -> void:
+	var choices := []
+	for d in game.designs:
+		var plan := game.retro_plan(a, d.id)
+		if not plan.n:
+			continue
+		var lack = game.lack_text(plan.cost)
+		choices.append({"id": d.id, "label": "%s\n%d soldier%s · %s" % [d.name, plan.n, "s" if plan.n > 1 else "", UiKit.cost_line(plan.cost)], "why": lack})
+	if choices.is_empty():
+		add_toast("No other design of the same kind to retrofit to. Make one in the Armory (G).", true)
+		return
+	dialog.ask("Retrofit %s" % a.name, "Re-equip the soldiers with another design of the same kind; you pay the difference in gear cost. It takes %d s per soldier at a Barracks (cavalry: with a Stable); the army marches to the nearest one by itself." % int(Game.RETRO_TIME),
+		choices, func(id):
+			if id != "leave":
+				game.retrofit_armies([a], id))
+
+
+func _show_inspect(a: Dictionary) -> void:
+	var lines := []
+	for k in a.troops:
+		var st: Dictionary = game.stats_of(k, a.owner)
+		var d = game.unit_defs.get(k)
+		lines.append("[b]%s × %d[/b]  attack %s · health %s · blocks %d%% · speed %s" % [d.name if d else k, a.troops[k], st.atk, st.hp, roundi(st.get("red", 0) * 100), game.UNIT_SPEED.get(k, "?")])
+	var w: float = a.get("wounds", 0.0)
+	if w > 0.01:
+		lines.append("Wounds: %d health lost%s" % [roundi(w), " (resting)" if a.get("rest") != null else ""])
+	dialog.ask(a.name, "\n".join(lines), [{"id": "ok", "label": "OK"}], func(_id): pass)
+
+
+## Select a unit and look at it (the roster's buttons).
+func focus_unit(u: Dictionary) -> void:
+	select_unit(u)
+	if map:
+		map.selected_unit = u
+		map.selected_prov = u.prov
+	select_province(u.prov)
+	if cam:
+		cam.position = Vector2(u.x, u.y)
+
+
+# --- the menu (Esc) ---
+
+func _build_menu() -> void:
+	var shade := Control.new()
+	shade.set_anchors_preset(Control.PRESET_FULL_RECT)
+	shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(shade)
+	menu_win = UiKit.window("Menu", 420, func(): toggle_menu())
+	shade.add_child(menu_win.panel)
+	menu_win.panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER, Control.PRESET_MODE_MINSIZE)
+	var b: VBoxContainer = menu_win.body
+	b.add_child(UiKit.button("Resume", 20, func(): toggle_menu()))
+	b.add_child(UiKit.button("Save game (F5)", 20, func():
+		if main and game.tutorial == null:
+			main.save_to(main.QUICKSAVE)))
+	b.add_child(UiKit.button("Load saved game (F9)", 20, func():
+		if main:
+			toggle_menu()
+			main.load_from(main.QUICKSAVE)))
+	var size_row := HBoxContainer.new()
+	var sl := UiKit.ink(20)
+	sl.text = "Interface size"
+	sl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	size_row.add_child(sl)
+	size_row.add_child(UiKit.button("−", 20, func(): set_ui_scale(ui_scale - 0.1)))
+	size_row.add_child(UiKit.button("+", 20, func(): set_ui_scale(ui_scale + 0.1)))
+	b.add_child(size_row)
+	b.add_child(UiKit.button("Main menu", 20, func():
+		if main:
+			toggle_menu()
+			main.to_main_menu()))
+	b.add_child(UiKit.button("Quit", 20, func(): get_tree().quit()))
+	menu_win.panel.hide()
+
+
+func toggle_menu() -> void:
+	var p: Control = menu_win.panel
+	p.visible = not p.visible
+	if p.visible:
+		UiKit.center.call_deferred(p)
+		if game:
+			game.paused = true
+
+
+func set_ui_scale(v: float) -> void:
+	ui_scale = clampf(v, 0.7, 1.6)
+	get_tree().root.content_scale_factor = ui_scale
+
+
 func _province_text(p: int) -> String:
 	var P: Dictionary = game.G.provs[p]
-	var s := "[b]Province %d[/b] · %s\n" % [p, P.terrain.capitalize()]
+	var s := "[b]%s[/b] · %s\n" % [game.prov_name(p), P.terrain.capitalize()]
+	if game.setpieces.has(p) and game.sp_known(p):
+		var why = game.setpiece_why(p)
+		var D: Dictionary = game.SETPIECES[game.setpieces[p]]
+		s += "%s: +%d %s research%s\n" % [D.name, D.pts, {"gov": "Government", "mil": "Military", "mag": "Magic"}[D.tree], "" if why == null else " (%s)" % why]
 	if game.buildings.has(p):
 		var b: Dictionary = game.buildings[p]
 		s += "%s (yours)\n" % STAGE_NAME[b.stage]
