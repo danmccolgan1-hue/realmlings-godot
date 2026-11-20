@@ -13,7 +13,7 @@ func run() -> Array:
 	if files.is_empty():
 		return ["no fixtures in " + DIR]
 	for f in files:
-		if not f.ends_with(".json"):
+		if not f.ends_with(".json") or (OS.get_environment("PLAY_ONLY") != "" and not OS.get_environment("PLAY_ONLY") in f):
 			continue
 		var fx: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(DIR + f))
 		if not maps.has(fx.seed):
@@ -35,6 +35,9 @@ static func play(fx: Dictionary, map: Dictionary, after_frame := Callable()) -> 
 	if not TestEconomy.eq(fx.plan.ruins, ruins):
 		errs.append("ruins at %s, want %s" % [ruins, fx.plan.ruins])
 	g.finds.clear()
+	g.units = g.units.filter(func(u): return u.owner == Game.ME)   # as in the fixture: no Bandit Gangs or monsters
+	if str(fx.scenario).begins_with("battle"):
+		g.battle_rand = func(): return 0.5   # as in the fixture: Math.random pinned to 0.5
 	var E0 := g.explored.duplicate()
 	var q1: int = g.open_nbr[g.capital][0].q
 	var q2 := -1
@@ -74,6 +77,16 @@ static func play(fx: Dictionary, map: Dictionary, after_frame := Callable()) -> 
 						g.pick_tech(A.id)
 				"points": g.add_research(A.tree, int(A.n))
 				"grant": g.grant_tech(A.id)
+				"spawn":
+					var gang := g.spawn_bandit(int(A.p))
+					gang.troops = {}
+					for tk in A.troops:
+						gang.troops[tk] = int(A.troops[tk])
+				"retreat":
+					for a in g.units:
+						if a.kind == "army" and a.owner == Game.ME and a.get("battle") != null:
+							g.retreat(a)
+							break
 				"mana": unit(g, "army").mana = float(A.n)
 				"cast": g.cast_spell(unit(g, "army"), A.k)
 				"aim":
@@ -113,7 +126,7 @@ static func play(fx: Dictionary, map: Dictionary, after_frame := Callable()) -> 
 
 static func unit(g: Game, which: String):
 	for u in g.units:
-		if (which == "wf" and u.kind == g.WAYFINDER) or (which == "mason" and u.kind == Game.MASON) or (which == "army" and u.kind == "army"):
+		if (which == "wf" and u.kind == g.WAYFINDER) or (which == "mason" and u.kind == Game.MASON) or (which == "army" and u.kind == "army" and u.owner == Game.ME):
 			return u
 	return null
 
@@ -127,7 +140,7 @@ static func sorted_keys(d: Dictionary) -> Array:
 static func snapshot(g: Game) -> Dictionary:
 	var us := []
 	for u in g.units:
-		us.append({"kind": u.kind, "prov": u.prov, "x": u.x, "y": u.y, "moving": u.moving, "slot": u.slot, "scouting": u.scouting,
+		us.append({"owner": u.owner, "kind": u.kind, "prov": u.prov, "x": u.x, "y": u.y, "moving": u.moving, "slot": u.slot, "scouting": u.scouting,
 			"survey": u.survey != null, "build": u.build.type if u.build != null else null, "pending": u.pending.type if u.pending != null else null,
 			"queue": u.surveyQueue.size(), "troops": u.get("troops")})
 	var bl := []
@@ -173,7 +186,16 @@ static func snapshot(g: Game) -> Dictionary:
 	var pth := []
 	for k in sorted_keys(g.paths):
 		pth.append([k, g.paths[k]])
-	return {"t": g.t, "mana": g.units.map(func(u): return u.get("mana")), "casts": g.units.map(func(u): return u.cast.spell if u.get("cast") != null else null),
+	var bt := []
+	for b in g.battles:
+		var lost := {}
+		for o in b.lost:
+			lost[str(o)] = b.lost[o]   # JSON object keys are strings
+		bt.append([b.prov, b.defender, lost])
+	var wd := []
+	for u in g.units:
+		wd.append(snapped(u.wounds, 0.000001) if u.has("wounds") else null)
+	return {"t": g.t, "battles": bt, "wounds": wd, "mana": g.units.map(func(u): return u.get("mana")), "casts": g.units.map(func(u): return u.cast.spell if u.get("cast") != null else null),
 		"cd": cds, "paths": pth, "eyes": g.eyes.map(func(r): return [r.a, r.b, r.until]), "haunts": g.haunts.map(func(h): return [h.prov, h.until]),
 		"reveals": g.reveals.size(), "harvest": g.harvest_by != null, "queues": qs, "roads": rd, "walls": sorted_keys(g.walls), "devel": dv, "yields": ys, "tech": tch, "rep": g.rep, "xup": g.xup.keys(), "levels": lv, "stock": g.stock, "income": g.income, "units": us, "explored": sorted_keys(g.explored), "visible": sorted_keys(g.visible),
 		"surveyed": sorted_keys(g.surveyed), "wf": sorted_keys(g.wf), "buildings": bl, "extras": ex, "upgrades": g.upgrades.keys(), "techs": techs, "finds": fd}

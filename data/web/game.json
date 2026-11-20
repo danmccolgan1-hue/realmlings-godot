@@ -30,7 +30,7 @@
  ],
  "BUILD_DEFS": {
   "bank": {
-   "blurb": "Raises the nationâ€™s gold storage by 1000 (it starts at 2000).",
+   "blurb": "Raises the nation’s gold storage by 1000 (it starts at 2000).",
    "cost": {
     "wood": 300
    },
@@ -120,7 +120,7 @@
    "variant": 2
   },
   "granary": {
-   "blurb": "Raises the nationâ€™s food storage by 1000 (it starts at 2000).",
+   "blurb": "Raises the nation’s food storage by 1000 (it starts at 2000).",
    "cost": {
     "gold": 50,
     "wood": 150
@@ -237,7 +237,7 @@
    "variant": 1
   },
   "storehouse": {
-   "blurb": "Raises the nationâ€™s wood storage by 1000 (it starts at 2000).",
+   "blurb": "Raises the nation’s wood storage by 1000 (it starts at 2000).",
    "cost": {
     "gold": 50,
     "wood": 100
@@ -747,7 +747,7 @@
    "upkeep": {}
   },
   "b-skeletonking": {
-   "blurb": "A boss: power 25000. Beating it gives the Kingâ€™s Crown.",
+   "blurb": "A boss: power 25000. Beating it gives the King’s Crown.",
    "cost": {},
    "name": "Skeleton King",
    "upkeep": {}
@@ -901,7 +901,7 @@
    "upkeep": {}
   },
   "m-jackal": {
-   "blurb": "A desert hunter with a jackalâ€™s head, a long curved sword and mail. 30 gold each.",
+   "blurb": "A desert hunter with a jackal’s head, a long curved sword and mail. 30 gold each.",
    "cost": {},
    "name": "Jackal-man",
    "upkeep": {}
@@ -979,7 +979,7 @@
    }
   },
   "thug:A": {
-   "blurb": "Doesnâ€™t fight. Sits in a Thug Den and squeezes 1 gold out of the neighborhood every 10 s.",
+   "blurb": "Doesn’t fight. Sits in a Thug Den and squeezes 1 gold out of the neighborhood every 10 s.",
    "cost": {
     "gold": 40
    },

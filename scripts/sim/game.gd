@@ -9,6 +9,7 @@ extends RefCounted
 const ME := 1
 const RES := ["gold", "wood", "food"]
 const MASON := "mason:A"
+const MAGE := "mage:A"
 const OUTPOST_UPKEEP := {"wood": 1}   # web: govtech.js (declared with OUTPOSTS_PER_FORT; not in the export)
 ## Designs a leader starts with that the Armory would create (web: v105.js leaderDesign → equip.js addDesign).
 ## Cost and upkeep as the web game computes them (tests/fixtures/econ); they move to the Armory port later.
@@ -67,6 +68,13 @@ var mana_pool := []
 var mana_prev := {}
 var mana_prev_t := -1.0
 var mage_gear := {"weapon": "stave", "shield": null}
+# battles and the island's raiders (web: S.battles, content.js / v78.js Bandit Gangs and monsters)
+var battles := []
+var bandit_count := 0
+var monster_count := 0
+## the battles' and patrols' dice (web: Math.random); tests pin it
+var battle_rand: Callable
+var tutorial = null          # a Tutorial while the Basic Tutorial runs
 var dev_t := -1.0            # web: V106.t (development's own clock)
 ## development's lucky finds (web: Math.random); tests replace it
 var dev_rand: Callable
@@ -112,7 +120,7 @@ func _init() -> void:
 	for x in GameData.c("TECHS"):
 		TECH_BY_ID[x.id] = x
 	LEADERS = GameData.c("LEADERS")
-	DSTATS = GameData.c("DSTATS")
+	DSTATS = GameData.c("DSTATS").duplicate()   # this game's designs are added to it
 	SLOTS = GameData.c("SLOTS")
 	UNIT_SPEED = GameData.c("UNIT_SPEED").duplicate()
 	SPEED = GameData.c("SPEED")
@@ -125,6 +133,7 @@ func _init() -> void:
 		designs.append({"id": d[0], "name": unit_defs[d[0]].name, "type": d[1], "race": "realm"})
 	stock = GameData.c("START_STOCK").duplicate()
 	dev_rand = rng.randf
+	battle_rand = rng.randf
 
 
 ## A new Practice-island game, as menu.js startGame() runs it for a Realmling player with every computer slot closed.
@@ -134,7 +143,11 @@ static func new_practice(seed: String, leader_id := "", map: Dictionary = {}) ->
 	g.world = map if not map.is_empty() else RealmGen.scale_world(RealmGen.generate_practice(seed))
 	g.G = WorldPrep.prep(g.world)
 	g.setup_game()
-	g.place_ruins()
+	var skip := {}
+	var ruins := g.place_ruins()
+	if ruins >= 0:
+		skip[ruins] = true
+	g.spawn_lairs(skip)
 	g.assign_leader(leader_id)
 	g.apply_leader_start()
 	g.compute_income()
@@ -419,6 +432,28 @@ func add_start_scouts(total: int) -> void:
 		have += 1
 
 
+# web: equip.js designStats (infantry and cavalry; Woodling Champions, Ogres and dual wielding belong to other races)
+func design_stats(d: Dictionary) -> Dictionary:
+	var B: Dictionary = GameData.c("UNIT_BASE")[d.type]
+	var W: Dictionary = GameData.c("WEAPONS")[d.weapon]
+	var A: Dictionary = GameData.c("ARMORS")[d.armor]
+	var Sh = GameData.c("SHIELD_DEFS")[d.shield] if d.get("shield") != null and not W.twoH else null
+	var H = GameData.c("HORSES")[d.get("horse", "riding") if d.get("horse") != null else "riding"] if d.type == "cav" else null
+	var armor: float = A.armor + (Sh.armor if Sh else 0) + (H.armor if H else 0)
+	var cost := {}
+	for c in [B.cost, W.cost, A.cost, Sh.cost if Sh else {}, H.cost if H else {}]:
+		for k in c:
+			cost[k] = cost.get(k, 0) + c[k]
+	cost.erase("food")
+	var speed: float = float(JS.to_fixed((H.speed if H else B.speed) * A.speed * (Sh.speed if Sh else 1), 2))
+	var lv: int = int(A.level)
+	return {"cav": d.type == "cav", "ogre": false, "race": d.get("race", "realm"), "rough": H != null and H.get("rough", false),
+		"plate": A.type in GameData.c("PLATE_TYPES"), "fam": W.fam, "atk": float(JS.to_fixed(W.atk + (H.get("atk", 0) if H else 0), 1)),
+		"hp": B.hp + (H.get("hp", 0) if H else 0) + GameData.c("ARMOR_HP")[lv], "armor": armor, "shieldArmor": Sh.armor if Sh else 0,
+		"red": armor / (armor + 12), "parry": 0.1 if W.fam == "sword" or W.fam == "thrust" else 0.0, "crit": 0.1 if W.fam == "axe" else 0.0,
+		"speed": speed, "cost": cost, "upkeep": {"food": maxf(0, B.upkeep.food + (H.get("upFood", 0) if H else 0))}}
+
+
 # web: v105.js leaderDesign() for the player: reuse a design of that name, else add it to the Armory
 func leader_design(d: Dictionary) -> String:
 	for x in designs:
@@ -427,6 +462,7 @@ func leader_design(d: Dictionary) -> String:
 	var id := "d%d" % (designs.size() - 3)   # web ids: the built-in designs have names, new ones count from d1
 	designs.append({"id": id, "name": d.name, "type": d.spec.type, "race": d.spec.race, "spec": d.spec})
 	military[id] = true
+	DSTATS[id] = design_stats(d.spec)
 	var def := d.duplicate(true)
 	def.erase("spec")
 	def.erase("speed")
@@ -779,8 +815,11 @@ func update(real_t: float) -> void:
 		payday(nt)
 	step_training(t)
 	if not paused:
+		meet_head_on()
+		step_battles(t)
 		step_magic(t, dt)
 		step_gpc(t)
+		step_patrols(t, dt)
 	clamp_stock()
 	step_upgrades(t)
 	if not paused:
@@ -794,6 +833,8 @@ func update(real_t: float) -> void:
 		d = minf(d, 1.0)
 		step_develop(d)
 	compute_fog()
+	if tutorial != null:
+		tutorial.step()
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -825,11 +866,16 @@ func busy(u: Dictionary) -> bool:
 
 # web: game.js canEnter() — on the Practice island there are no other nations, bandits or bosses to keep out of
 func can_enter(u: Dictionary, q: int, tgt: int) -> bool:
-	if u.owner != ME or u.get("exiting", false) or explored.has(q):
-		return true
-	if u.kind == WAYFINDER:
-		return q == tgt or (u.autoWalk != null and q == u.autoWalk.to)
-	return false
+	var ok: bool = u.owner != ME or u.get("exiting", false) or explored.has(q)
+	if not ok and u.kind == WAYFINDER:
+		ok = q == tgt or (u.autoWalk != null and q == u.autoWalk.to)
+	if not ok:
+		return false
+	if u.kind == WAYFINDER and u.owner == ME and bandits_seen_in(q):
+		return false
+	if u.kind == MASON and mason_danger(u, q):
+		return false
+	return true
 
 
 # web: game.js findPath / findPathVia (no walls yet): border crossings from u.prov to target, or null
@@ -863,6 +909,20 @@ func find_path(u: Dictionary, target: int):
 
 # web: game.js order(u, target, quiet, pt)
 func order(u: Dictionary, target: int, quiet := false, pt = null) -> bool:
+	if u.get("fleeing", false):
+		if not quiet:
+			toast("%s is running from bandits. He takes orders again once he is back." % u.name, true)
+		return false
+	if u.get("stasisUntil", 0.0) > t:
+		return false
+	if u.get("battle") != null and not u.get("retreating", false):
+		if not quiet:
+			toast("%s is in battle. Use Retreat to pull out." % u.name, true)
+		return false
+	if u.get("retreatHome", false):
+		if not quiet:
+			toast("%s is retreating and takes orders again once it gets there." % u.name, true)
+		return false
 	if exploring(u):
 		if not quiet:
 			toast("%s is exploring. Shift-click to queue orders for afterwards." % u.name, true)
@@ -965,7 +1025,18 @@ func step_unit(u: Dictionary, dt: float) -> void:
 				if wp.has("enter"):
 					u.lastProv = u.prov
 					u.prov = wp.enter
+					if u.kind == "army" and not u.get("retreating", false) and not hostiles_in(u.prov, u.owner).is_empty():
+						u.path = []
+						u.moving = false
+						u.slot = -1
+						time = 0
+						continue
+					if u.get("retreating", false) and hostiles_in(u.prov, u.owner).is_empty():
+						u.retreating = false
 					u.scouting = wp.enter if (u.kind == WAYFINDER and u.owner == ME and not explored.has(wp.enter)) else null
+					if u.kind == WAYFINDER and u.owner == ME and bandit_flee(u):
+						time = 0
+						continue
 					if u.scouting != null:
 						# into the fog: paced so that every province takes EXPLORE_TIME to explore
 						var P: Dictionary = G.provs[u.prov]
@@ -999,6 +1070,13 @@ func step_unit(u: Dictionary, dt: float) -> void:
 					u.moving = false
 					u.th = 0.0
 					u.arrived = t
+					if u.get("fleeing", false):
+						u.fleeing = false
+					if u.get("retreating", false):
+						u.retreating = false
+					if u.get("retreatHome", false):
+						u.retreatHome = false
+						toast("%s is back under your command." % u.name)
 			else:
 				u.x += dx / d * sp * time
 				u.y += dy / d * sp * time
@@ -1357,6 +1435,8 @@ func farm_land(p: int) -> bool:
 ## Why the player can't build `type` in province p now, or null. web: game.js buildCheck (+ swamp.js race rules:
 ## none apply to Realmlings)
 func build_check(p: int, type: String):
+	if tutorial != null and tutorial.build_why(type) != null:
+		return tutorial.build_why(type)
 	if type == "outpost":
 		if buildings.has(p):
 			return "Already has a settlement"
@@ -1364,6 +1444,8 @@ func build_check(p: int, type: String):
 			return "Survey it first"
 		if not borders_owned(p):
 			return "Must border your land"
+		if bandits_in(p):
+			return "A Bandit Gang holds it"
 		var lim = outpost_why()
 		if lim != null:
 			return lim
@@ -3289,6 +3371,20 @@ func step_magic(now: float, dt: float) -> void:
 			a.wounds = a.heal.w0 * (1 - f)
 			if f >= 1:
 				a.heal = null
+	if trap != null:
+		for v in units:
+			if v.kind == "army" and hostile(v.owner, ME) and v.prov == trap.prov and troop_count(v) > 0:
+				var n: int = int(JS.round_js(STASIS[maxi(1, lvl("stasis"))] * pow(1.1, rep_lv("rep-stasis"))))
+				v.stasisUntil = now + n
+				v.path = []
+				v.moving = false
+				trap = null
+				toast("%s is caught in the stasis trap for %d s!" % [v.name, n])
+				break
+	for a in units:
+		if a.get("stasisUntil", 0.0) > now and a.moving:
+			a.path = []
+			a.moving = false
 	reveals = reveals.filter(func(r): return r.until > now)
 	cd.erase("stasis")
 	var n0 := eyes.size() + haunts.size()
@@ -3303,7 +3399,7 @@ func step_magic(now: float, dt: float) -> void:
 
 const SAVE_VERSION := 1
 ## Everything a game is, besides the map (which comes back from the seed) and the callbacks.
-const SAVE_FIELDS := ["leader", "capital", "stock", "income", "income_parts", "buildings", "extras", "occ", "units", "next_id",
+const SAVE_FIELDS := ["battles", "bandit_count", "monster_count", "leader", "capital", "stock", "income", "income_parts", "buildings", "extras", "occ", "units", "next_id",
 	"army_counter", "tech", "rep", "surveyed", "unit_defs", "designs", "exhaust", "exhaust_ok", "harvest", "devel", "upgrades",
 	"xup", "auto_tech", "roads", "walls", "wall_hp", "gate_own", "fort_walled", "gpc_slow_t", "dev_t", "cd", "paths",
 	"harvest_by", "trap", "reveals", "eyes", "haunts", "mana_pool", "mana_prev_t", "mage_gear", "finds", "treasure_rolled",
@@ -3321,6 +3417,13 @@ func to_save() -> Dictionary:
 	d.terrain = G.provs.map(func(P): return P.terrain)
 	for f in SAVE_FIELDS:
 		d[f] = get(f)
+	# a unit's battle is saved as the battle's place in the list (and linked up again on loading)
+	d.units = []
+	for u in units:
+		var c: Dictionary = u.duplicate()
+		if c.get("battle") != null:
+			c.battle = battles.find(u.battle)
+		d.units.append(c)
 	d.mana_prev = mana_prev.keys()   # unit ids
 	d.rng = [rng.seed, rng.state]
 	return d
@@ -3345,6 +3448,12 @@ static func from_save(d: Dictionary, map: Dictionary = {}) -> Game:
 		g.G.provs[i].terrain = d.terrain[i]
 	for f in SAVE_FIELDS:
 		g.set(f, d[f])
+	for x in g.designs:
+		if x.has("spec"):
+			g.DSTATS[x.id] = g.design_stats(x.spec)
+	for u in g.units:
+		if u.get("battle") != null:
+			u.battle = g.battles[u.battle]
 	g.mana_prev = {}
 	for id in d.mana_prev:
 		for u in g.units:
@@ -3358,3 +3467,902 @@ static func from_save(d: Dictionary, map: Dictionary = {}) -> Game:
 static func load_text(text: String, map: Dictionary = {}) -> Game:
 	var d = SaveCodec.from_text(text)
 	return from_save(d, map) if d is Dictionary else null
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# battles (web: game.js stepBattles / sideStrength / applyDamage / endBattle / retreat, equip.js sideMix,
+# v97.js front and back rows, v104.js / v106.js ranged soldiers, v98.js battle spells and mana, v102.js meetHeadOn)
+# Not yet: wars between nations, sieges, lone Mages standing alone (v102), Fiery Weapons / Rock Armor (other races).
+
+const RAIDERS := 3
+const ROUND := 0.8
+const DMG_RATE := 0.22
+const RETREAT_LOSS := 0.6
+const RETREAT_LOCK := 10.0
+const MEET_DIST := 60.0
+const ROW_MIN := 6
+const BACK_DEAL := 0.5
+const BACK_TAKE := 0.5
+const RNG_FRONT := 0.4
+const RNG_BACK_DR := 0.8
+const SKIN := [{}, {"pct": 0.05, "cd": 300}, {"pct": 0.10, "cd": 180}, {"pct": 0.15, "cd": 90}]
+const CURSE := [{}, {"pct": 0.05, "cd": 300}, {"pct": 0.10, "cd": 180}, {"pct": 0.15, "cd": 90}]
+const RISEN_N := [0, 5, 7, 10]
+const RISEN_CD := 120.0
+const AUTO_MANA := 50
+const BANDIT := {"troops": {"d-sword": 2}, "bounty": 50}
+const TERRAIN_MOD := {"grassland": "Open ground: cavalry +20%", "forest": "Forest: defenders +25%, cavalry −25%",
+	"swamp": "Swamp: everyone −20%, cavalry −30%", "desert": "Desert: no modifiers"}
+
+
+static func terrain_mod(ter: String, cav: bool, def: bool) -> float:
+	match ter:
+		"grassland":
+			return 1.2 if cav else 1.0
+		"forest":
+			return (1.25 if def else 1.0) * (0.75 if cav else 1.0)
+		"swamp":
+			return 0.8 * (0.7 if cav else 1.0)
+	return 1.0
+
+
+func hostile(a: int, b: int) -> bool:
+	return a != b and (a == RAIDERS or b == RAIDERS)
+
+
+func hostiles_in(p: int, owner: int) -> Array:
+	return units.filter(func(v): return v.kind == "army" and hostile(v.owner, owner) and v.prov == p and not v.get("retreating", false) and troop_count(v) > 0)
+
+
+func bandits_in(p: int) -> bool:
+	return units.any(func(v): return v.get("bandit", false) and v.prov == p and troop_count(v) > 0)
+
+
+func bandits_seen_in(p: int) -> bool:
+	return units.any(func(v): return v.get("bandit", false) and v.get("seen", false) and v.prov == p and troop_count(v) > 0)
+
+
+func mason_danger(u: Dictionary, q: int) -> bool:
+	return units.any(func(v): return v.kind == "army" and v.prov == q and troop_count(v) > 0 and not v.get("retreating", false) \
+		and hostile(v.owner, u.owner) and (v.get("seen", false) if v.get("bandit", false) else visible.has(q)))
+
+
+# web: equip.js statsOf (no artifacts on the Practice island) + content.js boostStats (repeatable research)
+func stats_of(k: String, o: int) -> Dictionary:
+	var st: Dictionary = DSTATS.get(k, GameData.c("STATS0"))
+	if o != ME:
+		return st
+	var out := st.duplicate()
+	var fam_rep = GameData.c("REP_FAM").get(st.get("line") if st.get("fam") == "magic" else st.get("fam"))
+	if fam_rep != null:
+		out.atk = st.atk * (1 + 0.05 * rep_lv(fam_rep))
+	if st.get("armor", 0) > 0 and st.get("red", 0) > 0:
+		var sh: float = st.get("shieldArmor", 0)
+		var ar: float = st.armor - sh
+		out.red = minf(0.85, st.red * (ar / st.armor) * (1 + 0.05 * rep_lv("rep-armor")) + st.red * (sh / st.armor) * (1 + 0.05 * rep_lv("rep-shield")))
+	if st.get("cav", false):
+		out.hp = st.hp * (1 + 0.05 * rep_lv("rep-cavhp"))
+	return art_stats(k, out)
+
+
+# web: v104.js / v105.js artStats wrappers, the player's side (no artifacts, no Grand Elemental on the Practice island):
+# crossbows by the researched tier, then the leader's bonus to health, attack or critical blows
+const RNG_ATK := [6, 9, 12]
+
+func art_stats(k: String, st: Dictionary) -> Dictionary:
+	var out := st
+	var R = GameData.c("RNG_BY_KIND").get(k)
+	if R != null:
+		var tr := (2 if has_tech(R.techs[1]) else 1) if has_tech(R.techs[0]) else 0
+		if tr:
+			out = out.duplicate()
+			out.atk = out.atk + RNG_ATK[tr] - RNG_ATK[0]
+	if k == MAGE or out.get("fam") == "boss" or out.get("fam") == "water":
+		return out
+	var inf: bool = not out.get("cav", false) and not out.get("ranged", false)
+	var r := out
+	match leader:
+		"hisola":
+			if r.get("cav", false) and not r.get("ogre", false) and not r.get("champ", false):
+				out = r.duplicate(); out.hp = r.hp * 1.1
+		"cormac":
+			if inf:
+				out = r.duplicate(); out.hp = r.hp * 1.1
+		"aithne":
+			if r.get("ranged", false) and r.get("race") == "realm":
+				out = r.duplicate(); out.atk = r.atk + 1
+	return out
+
+
+func hp_of(a: Dictionary, k: String) -> float:
+	return stats_of(k, a.owner).hp
+
+
+func is_rng(k: String) -> bool:
+	return GameData.c("RNG_BY_KIND").has(k)
+
+
+func side_mix(armies: Array) -> Dictionary:
+	var n := 0.0
+	var cav := 0.0
+	var red := 0.0
+	var parry := 0.0
+	var blunt := 0.0
+	var atk := 0.0
+	var plate := 0.0
+	for a in armies:
+		for k in a.troops:
+			var c: float = a.troops[k]
+			var st := stats_of(k, a.owner)
+			n += c
+			if st.get("plate", false):
+				plate += c
+			if st.get("cav", false) and not st.get("champ", false):
+				cav += c
+			red += c * st.get("red", 0.0)
+			parry += c * st.get("parry", 0.0)
+			if st.get("fam") == "blunt":
+				blunt += c * st.atk
+			atk += c * st.atk
+	if not n:
+		return {"n": 0, "cavFrac": 0.0, "plateFrac": 0.0, "red": 0.0, "parry": 0.0, "pierce": 0.0}
+	return {"n": n, "cavFrac": cav / n, "plateFrac": plate / n, "red": red / n, "parry": parry / n, "pierce": blunt / atk if atk else 0.0}
+
+
+# --- rows (v97, v104): armies of 6 or more fight in a front and a back row ---
+
+static func row_sum(o: Dictionary) -> int:
+	var n := 0
+	for k in o:
+		n += o[k]
+	return n
+
+
+func row_join_sync(a: Dictionary) -> Array:
+	var j: Array = a.get("rowJoin", []).filter(func(k): return a.troops.get(k, 0) > 0)
+	for k in a.troops:
+		if a.troops[k] > 0 and not j.has(k):
+			j.append(k)
+	a.rowJoin = j
+	return j
+
+
+func row_layout(a: Dictionary) -> Dictionary:
+	var mage: String = GameData.c("MAGE")
+	var N := troop_count(a)
+	var F := ceili(N / 2.0)
+	var f := {}
+	var b := {}
+	var ks: Array = row_join_sync(a).filter(func(k): return k != mage)
+	var none := ks.filter(func(k): return not is_rng(k))
+	var rng_k := ks.filter(func(k): return is_rng(k))
+	var room := F
+	var rng_major := false   # (v104 rngMajor: rows ordered by the player come later)
+	for k in none + rng_k if not rng_major else none + rng_k:
+		var n := mini(room, a.troops[k])
+		if n:
+			f[k] = n
+		room -= n
+		if a.troops[k] - n:
+			b[k] = a.troops[k] - n
+	if a.troops.get(mage, 0):
+		b[mage] = a.troops[mage]
+	return {"f": f, "b": b}
+
+
+func row_reconcile(a: Dictionary, lay: Dictionary) -> void:
+	var mage: String = GameData.c("MAGE")
+	var N := troop_count(a)
+	var F := ceili(N / 2.0)
+	var keys := {}
+	for k in lay.f:
+		keys[k] = true
+	for k in lay.b:
+		keys[k] = true
+	for k in a.troops:
+		keys[k] = true
+	for k in keys:
+		var tt: int = a.troops.get(k, 0)
+		var have: int = lay.f.get(k, 0) + lay.b.get(k, 0)
+		while have > tt:
+			if lay.f.get(k, 0):
+				lay.f[k] -= 1
+			else:
+				lay.b[k] -= 1
+			have -= 1
+		while have < tt:
+			if k != mage and not is_rng(k) and row_sum(lay.f) < F:
+				lay.f[k] = lay.f.get(k, 0) + 1
+			else:
+				lay.b[k] = lay.b.get(k, 0) + 1
+			have += 1
+		if not lay.f.get(k, 0):
+			lay.f.erase(k)
+		if not lay.b.get(k, 0):
+			lay.b.erase(k)
+
+
+func row_sync(a) :
+	if a == null or a.kind != "army" or troop_count(a) < ROW_MIN:
+		if a != null:
+			a.rowLay = null
+		return null
+	if a.get("battle") == null:
+		var key := _row_key(a)
+		if a.get("rowLay") == null or a.get("rowLayKey") != key:
+			a.rowLay = row_layout(a)
+			a.rowLayKey = key
+		return a.rowLay
+	if a.get("rowLay") == null:
+		a.rowLay = row_layout(a)
+	row_reconcile(a, a.rowLay)
+	a.rowLayKey = null
+	return a.rowLay
+
+
+static func _row_key(a: Dictionary) -> String:
+	var ks: Array = a.troops.keys()
+	ks.sort()
+	return ",".join(ks.map(func(k): return "%s%d" % [k, a.troops[k]]))
+
+
+func row_fall(a: Dictionary, lay: Dictionary, k: String, front: bool) -> void:
+	var mage: String = GameData.c("MAGE")
+	if front:
+		if lay.f.get(k, 0):
+			lay.f[k] -= 1
+			if not lay.f[k]:
+				lay.f.erase(k)
+		var all: Array = lay.b.keys().filter(func(kk): return kk != mage and lay.b[kk] > 0)
+		var mel := all.filter(func(kk): return not is_rng(kk))
+		var pool: Array = mel if not mel.is_empty() else all
+		var tot := 0
+		for kk in pool:
+			tot += lay.b[kk]
+		if tot:
+			var r: float = battle_rand.call() * tot
+			var pick = pool[0]
+			for kk in pool:
+				r -= lay.b[kk]
+				if r <= 0:
+					pick = kk
+					break
+			lay.b[pick] -= 1
+			if not lay.b[pick]:
+				lay.b.erase(pick)
+			lay.f[pick] = lay.f.get(pick, 0) + 1
+	elif lay.b.get(k, 0):
+		lay.b[k] -= 1
+		if not lay.b[k]:
+			lay.b.erase(k)
+
+
+func row_deal(a: Dictionary, k: String) -> float:
+	var n: int = a.troops.get(k, 0)
+	var lay = row_sync(a)
+	if is_rng(k):
+		if lay == null:
+			return n * RNG_FRONT
+		return lay.f.get(k, 0) * RNG_FRONT + lay.b.get(k, 0)
+	if lay == null or k == GameData.c("MAGE"):
+		return n
+	return lay.f.get(k, 0) + lay.b.get(k, 0) * BACK_DEAL
+
+
+func side_strength(armies: Array, prov: int, defender: bool, foe: Dictionary) -> float:
+	var ter: String = world.provinces[prov].terrain
+	var s := 0.0
+	for a in armies:
+		for k in a.troops:
+			var st := stats_of(k, a.owner)
+			var blows := row_deal(a, k)
+			if st.get("crit", 0) and blows:
+				var c := 0
+				for i in int(blows):
+					if battle_rand.call() < st.crit:
+						c += 1
+				blows += c
+			s += blows * st.atk * terrain_mod(ter, st.get("cav", false) and not st.get("rough", false), defender) \
+				* ((1 + 0.5 * foe.cavFrac) if st.get("fam") == "pole" else 1.0) * ((1 + 0.5 * foe.plateFrac) if st.get("fam") == "blunt" else 1.0) \
+				* (1 + a.get("curse", 0.0))
+	return s
+
+
+func raw_strength(armies: Array) -> float:
+	var n := 0.0
+	for a in armies:
+		for k in a.troops:
+			var st := stats_of(k, a.owner)
+			n += a.troops[k] * st.atk * (hp_of(a, k) / 30.0) / (1 - st.get("red", 0.0))
+	return n
+
+
+func battle_center(p: int) -> Array:
+	var c: Array = G.provs[p].ic
+	return [c[0], c[1] + (96 if buildings.has(p) else 34)]
+
+
+func place_sides(b: Dictionary, sides: Dictionary) -> void:
+	var bc := battle_center(b.prov)
+	var c := [bc[0], bc[1] - 34]
+	var owners: Array = sides.keys()
+	owners.sort_custom(func(x, y): return x == ME or (y != ME and x < y))
+	for i in owners.size():
+		var dir := -1 if i == 0 else 1
+		var j := 0
+		for a in sides[owners[i]]:
+			a.x = c[0] + dir * 62
+			a.y = c[1] + 34 + j * 14
+			a.th = PI / 2 if dir < 0 else -PI / 2
+			j += 1
+	b.order = owners
+
+
+func step_battles(now: float) -> void:
+	var by_prov := {}
+	for a in units:
+		if a.kind != "army" or a.get("retreating", false) or a.get("exiting", false) or troop_count(a) <= 0:
+			continue
+		if not by_prov.has(a.prov):
+			by_prov[a.prov] = []
+		by_prov[a.prov].append(a)
+	for p in by_prov:
+		var list: Array = by_prov[p]
+		var os := []
+		for a in list:
+			if not os.has(a.owner):
+				os.append(a.owner)
+		var pair = null
+		for x in os:
+			for y in os:
+				if pair == null and hostile(x, y):
+					pair = [x, y]
+		if pair == null:
+			continue
+		var b = null
+		for x in battles:
+			if x.prov == p:
+				b = x
+		if b == null:
+			var first: Dictionary = list[0]
+			var sorted_list := list.duplicate()
+			sorted_list.sort_custom(func(x, y): return x.get("arrived", 0.0) < y.get("arrived", 0.0))
+			first = sorted_list[0]
+			b = {"prov": p, "t0": now, "next": now + ROUND, "defender": buildings[p].owner if buildings.has(p) else first.owner, "start": {}, "lost": {}, "hits": {}}
+			battles.append(b)
+			if list.any(func(a): return a.owner == ME):
+				toast("Battle in the %s! %s." % [world.provinces[p].terrain, TERRAIN_MOD[world.provinces[p].terrain]])
+		for a in list:
+			if a.get("battle") == null and pair.has(a.owner):
+				on_battle_join(a, now)
+				a.battle = b
+				a.path = []
+				a.moving = false
+				a.retreatHome = false
+				b.start[a.owner] = b.start.get(a.owner, 0) + troop_count(a)
+	for b in battles.duplicate():
+		var sides := {}
+		for a in units:
+			if a.kind == "army" and is_same(a.get("battle"), b) and not a.get("retreating", false) and troop_count(a) > 0:
+				if not sides.has(a.owner):
+					sides[a.owner] = []
+				sides[a.owner].append(a)
+		var owners: Array = sides.keys()
+		place_sides(b, sides)
+		if owners.size() < 2:
+			end_battle(b, owners[0] if owners.size() else -1, sides)
+			continue
+		if now < b.next:
+			continue
+		b.next = now + ROUND
+		var A: int = owners[0]
+		var B2: int = owners[1]
+		var mix_a := side_mix(sides[A])
+		var mix_b := side_mix(sides[B2])
+		var dmg_a: float = side_strength(sides[A], b.prov, A == b.defender, mix_b) * DMG_RATE * (0.85 + battle_rand.call() * 0.3)
+		var dmg_b: float = side_strength(sides[B2], b.prov, B2 == b.defender, mix_a) * DMG_RATE * (0.85 + battle_rand.call() * 0.3)
+		apply_damage(b, sides[B2], dmg_a, now, mix_a.pierce)
+		apply_damage(b, sides[A], dmg_b, now, mix_b.pierce)
+		b.hits[A] = now
+		b.hits[B2] = now
+		for o in owners:
+			for a in sides[o]:
+				if troop_count(a) <= 0:
+					if a.get("bandit", false):
+						bandit_slain(a, b)
+					remove_army(a)
+
+
+func remove_army(a: Dictionary) -> void:
+	a._gone = true
+	units = units.filter(func(v): return not is_same(v, a))
+	if a.owner == ME:
+		compute_income()
+
+
+func apply_damage(b: Dictionary, armies: Array, dmg: float, now: float, pierce := 0.0) -> void:
+	var total := 0
+	for a in armies:
+		total += troop_count(a)
+	if not total:
+		return
+	var mix := side_mix(armies)
+	dmg *= (1 - mix.red * (1 - 0.5 * pierce)) * (1 - mix.parry)
+	var owner: int = armies[0].owner
+	for a in armies:
+		var share: float = dmg * troop_count(a) / total / (1 + a.get("skin", 0.0))
+		var lay = row_sync(a)
+		var halved: bool = lay != null and row_sum(lay.f) <= 0
+		a.wounds = a.get("wounds", 0.0) + (share * BACK_TAKE if halved else share)
+		while true:
+			var kinds: Array = a.troops.keys().filter(func(k): return a.troops[k] > 0)
+			if kinds.is_empty():
+				break
+			lay = row_sync(a)
+			var front: bool = lay != null and row_sum(lay.f) > 0
+			if lay != null and not front and not halved:
+				a.wounds *= BACK_TAKE
+				halved = true
+			var pool: Dictionary = a.troops if lay == null else (lay.f if front else lay.b)
+			var tot := 0.0
+			for kk in kinds:
+				tot += pool.get(kk, 0)
+			var r: float = battle_rand.call() * tot
+			var k = null
+			for kk in kinds:
+				if pool.get(kk, 0) > 0:
+					k = kk
+					break
+			if k == null:
+				k = kinds[0]
+			for kk in kinds:
+				r -= pool.get(kk, 0)
+				if r <= 0 and pool.get(kk, 0) > 0:
+					k = kk
+					break
+			var take := (1.0 / (1 - RNG_BACK_DR)) if (not (lay == null or front) and is_rng(k)) else 1.0
+			var hk := hp_of(a, k) * take
+			if a.wounds < hk:
+				break
+			a.wounds -= hk
+			if risen_rise(a, k, b, now):
+				continue
+			ghoul_fall(a, k)
+			if lay != null:
+				row_fall(a, lay, k, front)
+			a.troops[k] -= 1
+			if not a.troops[k]:
+				a.troops.erase(k)
+			if a.get("monster") != null:
+				monster_loot(a, k, b)
+			if a.has("fallen"):
+				a.fallen[k] = a.fallen.get(k, 0) + 1
+			b.lost[owner] = b.lost.get(owner, 0) + 1
+
+
+func end_battle(b: Dictionary, winner: int, sides: Dictionary) -> void:
+	battles = battles.filter(func(x): return not is_same(x, b))
+	for a in units:
+		if is_same(a.get("battle"), b):
+			on_battle_end(a, t)
+	for a in units:
+		if is_same(a.get("battle"), b):
+			a.battle = null
+			if not a.get("retreating", false):
+				a.slot = free_slot(a.prov, a)
+				var xy := slot_pos(a.prov, a.slot)
+				a.path = [{"x": xy[0], "y": xy[1], "slot": true}]
+				a.moving = true
+	if not b.start.has(ME):
+		return
+	var mine: int = b.lost.get(ME, 0)
+	var theirs := 0
+	for o in b.lost:
+		if o != ME:
+			theirs += b.lost[o]
+	var where: String = world.provinces[b.prov].terrain
+	if winner == ME:
+		toast("Victory in the %s! You lost %d, the enemy lost %d.%s" % [where, mine, theirs, " The Bandit Gang is broken: +%d gold bounty." % b.bounty if b.has("bounty") else ""])
+	elif b.get("retreatedMe", false):
+		toast("You withdrew from the %s. You lost %d, the enemy lost %d." % [where, mine, theirs], true)
+	else:
+		toast("Defeat in the %s. You lost %d, the enemy lost %d." % [where, mine, theirs], true)
+	compute_income()
+
+
+func bandit_slain(a: Dictionary, b: Dictionary) -> void:
+	if a.get("monster") != null:
+		return
+	if b.start.has(ME):
+		stock.gold += BANDIT.bounty
+		b.bounty = b.get("bounty", 0) + BANDIT.bounty
+
+
+func monster_loot(a: Dictionary, k: String, b: Dictionary) -> void:
+	var L = GameData.c("MONSTER_LOOT").get(k)
+	if L == null or not b.start.has(ME) or a.owner == ME:
+		return
+	for r in L:
+		stock[r] = stock.get(r, 0) + L[r]
+
+
+# --- battle spells (magic.js onBattleJoin / onBattleEnd + v96 / v98 / v105 wrappers) ---
+
+func on_battle_join(a: Dictionary, now: float) -> void:
+	a.fallen = {}
+	a.skin = 0.0
+	a.curse = 0.0
+	a.risen = 0
+	if a.kind != "army" or mages_in(a) <= 0:
+		a.risenArm = 0
+		return
+	var poor: bool = mana_of(a) < mc(AUTO_MANA)
+	if is_caster(a) and not poor:
+		var sk := lvl("skin")
+		var cu := lvl("curse")
+		var ri := lvl("risen")
+		if sk and _auto_on(a, "skin") and a.get("skinCd", 0.0) <= now:
+			a.skin = SKIN[sk].pct
+			a.skinCd = now + SKIN[sk].cd
+			toast("%s: %s (+%d%% health)." % [a.name, TECH_BY_ID[line_tech("skin")].name, JS.round_js(SKIN[sk].pct * 100)])
+		if cu and _auto_on(a, "curse") and a.get("curseCd", 0.0) <= now:
+			a.curse = CURSE[cu].pct
+			a.curseCd = now + CURSE[cu].cd
+			toast("%s: %s (+%d%% damage)." % [a.name, TECH_BY_ID[line_tech("curse")].name, JS.round_js(CURSE[cu].pct * 100)])
+		if ri and _auto_on(a, "risen") and a.get("risenCd", 0.0) <= now:
+			a.risen = 1
+	if a.owner == ME:
+		if a.skin:
+			a.skin *= 1 + 0.1 * rep_lv("rep-skin")
+		if a.curse:
+			a.curse *= 1 + 0.1 * rep_lv("rep-curse")
+	var fired := int(a.skin > 0) + int(a.curse > 0)
+	if fired:
+		spend_mana(a, AUTO_MANA * fired)
+	if a.skin > 0:
+		a.skinCd = 0.0
+	a.risenArm = RISEN_N[maxi(1, lvl("risen"))] if a.risen else 0
+	a.risen = 0
+	a.risenUsed = false
+	a.risenLeft = 0
+	if leader == "havva" and a.owner == ME and a.skin > 0:
+		a.skin *= 1.2
+
+
+func _auto_on(c: Dictionary, k: String) -> bool:
+	return c.get("auto") == null or not (c.auto is Dictionary) or c.auto.get(k, true) != false
+
+
+func on_battle_end(a: Dictionary, now: float) -> void:
+	if a.get("risenUsed", false):
+		a.risenCd = now + RISEN_CD
+	a.risenArm = 0
+	a.risenUsed = false
+	a.risenLeft = 0
+	a.skin = 0.0
+	a.curse = 0.0
+	a.risen = 0
+
+
+func risen_rise(a: Dictionary, k: String, b: Dictionary, now: float) -> bool:
+	if not a.get("risenArm", 0) or k == GameData.c("MAGE") or mages_in(a) <= 0:
+		return false
+	if not a.get("risenUsed", false):
+		if mana_of(a) < mc(AUTO_MANA):
+			return false
+		spend_mana(a, AUTO_MANA)
+		a.risenUsed = true
+		a.risenLeft = a.risenArm
+		toast("%s: the fallen rise again (%d)." % [a.name, a.risenArm])
+	if a.risenLeft <= 0:
+		return false
+	a.risenLeft -= 1
+	a.ghouls = a.get("ghouls", 0) + 1
+	if a.risenLeft <= 0:
+		a.risenArm = 0
+	return true
+
+
+func ghoul_fall(a: Dictionary, k: String) -> void:
+	if not a.get("ghouls", 0) or k == GameData.c("MAGE"):
+		return
+	var n: int = troop_count(a) - a.troops.get(GameData.c("MAGE"), 0)
+	if n > 0 and battle_rand.call() < float(a.ghouls) / n:
+		a.ghouls -= 1
+
+
+# --- retreat (game.js retreat / retreatLoss / retreatTo, gpc.js retreatHome) ---
+
+func retreat_lock_left(a: Dictionary) -> float:
+	return maxf(0.0, RETREAT_LOCK - (t - a.battle.t0)) if a.get("battle") != null else 0.0
+
+
+func retreat_loss(a: Dictionary) -> int:
+	var b = a.get("battle")
+	if b == null:
+		return 0
+	var enemy := raw_strength(units.filter(func(v): return v.kind == "army" and is_same(v.get("battle"), b) and v.owner != a.owner and not v.get("retreating", false)))
+	var mine := raw_strength([a])
+	return mini(troop_count(a), int(JS.round_js(troop_count(a) * RETREAT_LOSS * enemy / maxf(1, enemy + mine))))
+
+
+func retreat_to(a: Dictionary) -> int:
+	var nb := []
+	for n in path_nbr(a, a.prov):
+		if can_enter(a, n.q, n.q) and hostiles_in(n.q, a.owner).is_empty():
+			nb.append(n.q)
+	if nb.is_empty():
+		return -1
+	if a.has("lastProv") and nb.has(a.lastProv):
+		return a.lastProv
+	nb.sort_custom(func(x, y): return int(owned(x)) > int(owned(y)))
+	return nb[0]
+
+
+func retreat_home(a: Dictionary):
+	var start: int = a.prov
+	var prev := {start: null}
+	var dist := {start: 0}
+	var q := [start]
+	var h := 0
+	while h < q.size():
+		var x: int = q[h]
+		h += 1
+		for n in path_nbr(a, x):
+			var y: int = n.q
+			if prev.has(y) or not can_enter(a, y, y):
+				continue
+			if x == start and not hostiles_in(y, a.owner).is_empty():
+				continue
+			prev[y] = {"a": x, "m": n.m}
+			dist[y] = dist[x] + 1
+			q.append(y)
+	dist.erase(start)
+	if dist.is_empty():
+		return null
+	var to := -1
+	if capital >= 0 and dist.has(capital):
+		to = capital
+	else:
+		var dc := hops_from(capital)
+		var bk = null
+		for p in dist:
+			var k0: int = dc.get(p, 0)
+			if bk == null or k0 < bk[0] or (k0 == bk[0] and dist[p] > bk[1]):
+				bk = [k0, dist[p]]
+				to = p
+	var hops := []
+	var c := to
+	while c != start:
+		var pr: Dictionary = prev[c]
+		hops.push_front({"to": c, "m": pr.m})
+		c = pr.a
+	return {"to": to, "hops": hops}
+
+
+func hops_from(p: int) -> Dictionary:
+	var d := {p: 0}
+	var q := [p]
+	var h := 0
+	while h < q.size():
+		var x: int = q[h]
+		h += 1
+		for y in all_nbr[x]:
+			if not d.has(y):
+				d[y] = d[x] + 1
+				q.append(y)
+	return d
+
+
+## Pull an army out of its battle: it loses soldiers on the way and walks home. web: game.js retreat(a)
+func retreat(a: Dictionary) -> void:
+	if a.get("battle") == null:
+		return
+	if retreat_lock_left(a) > 0:
+		toast("%s can’t pull out yet: the lines are locked for %d s more." % [a.name, ceili(retreat_lock_left(a))], true)
+		return
+	var dest := retreat_to(a)
+	if dest < 0:
+		toast("%s is surrounded and can’t retreat." % a.name, true)
+		return
+	var n := retreat_loss(a)
+	for i in n:
+		var kinds: Array = a.troops.keys().filter(func(k): return a.troops[k] > 0)
+		var k: String = kinds[int(floor(battle_rand.call() * kinds.size()))]
+		a.troops[k] -= 1
+		if not a.troops[k]:
+			a.troops.erase(k)
+	var b: Dictionary = a.battle
+	b.lost[a.owner] = b.lost.get(a.owner, 0) + n
+	b.retreatedMe = true
+	if troop_count(a) <= 0:
+		remove_army(a)
+		toast("%s was cut down while retreating." % a.name, true)
+		return
+	a.retreating = true
+	a.battle = null
+	var home = retreat_home(a)
+	if home != null:
+		if a.get("cast") != null:
+			cancel_cast(a)
+		a.surveyQueue = []
+		walk_hops(a, home.hops, home.to)
+		a.retreatHome = true
+	else:
+		order(a, dest, true)
+	toast("%s retreats, losing %d soldier%s." % [a.name, n, "" if n == 1 else "s"])
+	compute_income()
+
+
+# web: v102.js meetHeadOn(): two hostile armies walking into each other's province meet at the border
+func meet_head_on() -> void:
+	var movers := units.filter(func(a): return a.kind == "army" and a.moving and a.get("battle") == null and not a.get("retreating", false) and not a.get("exiting", false) and troop_count(a) > 0)
+	for x in movers.size():
+		for y in range(x + 1, movers.size()):
+			var A: Dictionary = movers[x]
+			var B: Dictionary = movers[y]
+			if A.prov == B.prov or not hostile(A.owner, B.owner) or not all_nbr[A.prov].has(B.prov):
+				continue
+			if JS.hypot(A.x - B.x, A.y - B.y) > MEET_DIST:
+				continue
+			var mover = A if _next_enter(A) == B.prov else B if _next_enter(B) == A.prov else null
+			if mover == null:
+				continue
+			var other: Dictionary = B if is_same(mover, A) else A
+			mover.lastProv = mover.prov
+			mover.prov = other.prov
+			mover.path = []
+			mover.moving = false
+
+
+static func _next_enter(u: Dictionary):
+	for w in u.path:
+		if w.has("enter"):
+			return w.enter
+	return null
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# Bandit Gangs and monsters (web: v78.js spawnLairs / spawnMonster / stepPatrols / patrolPoint, content.js spawnBandit /
+# banditFlee). Bandit waves (v96) never come to the Practice island.
+
+const LAIR_CHANCE := 1.0 / 7
+
+
+func spawn_lairs(skip: Dictionary) -> void:
+	var r := Mulberry32.from_string(str(world.seed) + ":lairs")
+	monster_count = 0
+	bandit_count = 0
+	var near := {}
+	for p in buildings:
+		if buildings[p].stage == 2:
+			near[p] = true
+			for q in all_nbr[p]:
+				near[q] = true
+	var MOT: Dictionary = GameData.c("MONSTER_OF_TERRAIN")
+	for i in world.provinces.size():
+		var roll := r.next()
+		var coin := r.next()
+		var size := r.next()
+		if roll >= LAIR_CHANCE or near.has(i) or skip.has(i) or buildings.has(i) or units.any(func(u): return u.prov == i):
+			continue
+		var ter: String = world.provinces[i].terrain
+		var kind = MOT.get(ter) if ter != "grassland" and coin < 0.5 else null
+		if kind == null:
+			spawn_bandit(i)
+			continue
+		var M: Dictionary = GameData.c("MONSTERS")[kind]
+		spawn_monster(i, kind, M.sizes[int(floor(size * M.sizes.size()))])
+
+
+func spawn_bandit(p: int) -> Dictionary:
+	var names: Array = GameData.c("GANG_NAMES")
+	var n := bandit_count
+	bandit_count += 1
+	var a := mk_unit(next_id, "army", names[n % names.size()] + (" %d" % (n / names.size() + 1) if n >= names.size() else ""), p, 0)
+	next_id += 1
+	a.owner = RAIDERS
+	a.troops = BANDIT.troops.duplicate()
+	a.bandit = true
+	a.seen = false
+	a.arrived = -100.0
+	a.slot = free_slot(p, a)
+	var xy := slot_pos(p, a.slot)
+	a.x = xy[0]
+	a.y = xy[1]
+	a.th = 0.0
+	units.append(a)
+	return a
+
+
+func spawn_monster(p: int, kind: String, n: int) -> Dictionary:
+	var M: Dictionary = GameData.c("MONSTERS")[kind]
+	var c := monster_count
+	monster_count += 1
+	var a := mk_unit(next_id, "army", M.names[c % M.names.size()], p, 0)
+	next_id += 1
+	a.owner = RAIDERS
+	a.troops = {M.troop: n if n else M.sizes[0]}
+	a.bandit = true
+	a.monster = kind
+	a.seen = false
+	a.arrived = -100.0
+	a.slot = free_slot(p, a)
+	var xy := slot_pos(p, a.slot)
+	a.x = xy[0]
+	a.y = xy[1]
+	a.th = 0.0
+	units.append(a)
+	return a
+
+
+func patrol_point(p: int) -> Array:
+	var P: Dictionary = G.provs[p]
+	var q: Array = P.inner
+	var i := int(floor(battle_rand.call() * q.size()))
+	var j := (i + 1) % q.size()
+	var f: float = battle_rand.call()
+	var ex: float = q[i][0] + (q[j][0] - q[i][0]) * f
+	var ey: float = q[i][1] + (q[j][1] - q[i][1]) * f
+	var pull: float = 0.14 + battle_rand.call() * 0.14
+	return Geo.clamp_into(P, ex + (P.ic[0] - ex) * pull, ey + (P.ic[1] - ey) * pull)
+
+
+func step_patrols(now: float, dt: float) -> void:
+	for u in units:
+		if not u.get("bandit", false) or u.kind != "army" or troop_count(u) <= 0:
+			continue
+		if u.get("battle") != null or u.moving or not hostiles_in(u.prov, u.owner).is_empty():
+			u.patrolling = false
+			u.pt = null
+			continue
+		if u.get("pt") == null:
+			if u.get("ptWait", 0.0) > now:
+				continue
+			u.pt = patrol_point(u.prov)
+		var dx: float = u.pt[0] - u.x
+		var dy: float = u.pt[1] - u.y
+		var d := JS.hypot(dx, dy)
+		var sp := SPEED * unit_speed(u) * 0.45 * dt
+		if d > 0.5:
+			u.th = facing(dx, dy)
+		if d <= sp:
+			u.x = u.pt[0]
+			u.y = u.pt[1]
+			u.pt = null
+			u.patrolling = false
+			u.ptWait = now + 2 + battle_rand.call() * 6
+			u.th = 0.0
+		else:
+			u.x += dx / d * sp
+			u.y += dy / d * sp
+			u.patrolling = true
+
+
+# web: content.js banditFlee(u): a Wayfinder stepping into a gang's province sees them and runs back
+func bandit_flee(u: Dictionary) -> bool:
+	var p: int = u.prov
+	if not bandits_in(p) or not u.has("lastProv"):
+		return false
+	for v in units:
+		if v.get("bandit", false) and v.prov == p:
+			v.seen = true
+	wf[p] = true
+	var back: int = u.lastProv
+	u.path = []
+	u.moving = false
+	u.scouting = null
+	u.survey = null
+	u.surveyQueue = []
+	u.pendingSurvey = -1
+	u.autoWalk = null
+	u.fleeing = false
+	if not order(u, back, true):
+		u.prov = back
+		var xy := slot_pos(back, free_slot(back, u))
+		u.x = xy[0]
+		u.y = xy[1]
+	else:
+		u.fleeing = true
+	toast("%s ran into a Bandit Gang and is scurrying back, unharmed. Wayfinders can't go there until the gang is gone." % u.name, true)
+	return true

@@ -84,7 +84,7 @@
   ],
   "builds": {
    "bank": {
-    "blurb": "Raises the nationâ€™s gold storage by 1000 (it starts at 2000).",
+    "blurb": "Raises the nation’s gold storage by 1000 (it starts at 2000).",
     "name": "Bank",
     "note": "+1000 gold storage"
    },
@@ -108,7 +108,7 @@
     "name": "Gold Mine"
    },
    "granary": {
-    "blurb": "Raises the nationâ€™s food storage by 1000 (it starts at 2000).",
+    "blurb": "Raises the nation’s food storage by 1000 (it starts at 2000).",
     "name": "Granary",
     "note": "+1000 food storage"
    },
@@ -141,7 +141,7 @@
     "note": "with a Barracks: cavalry"
    },
    "storehouse": {
-    "blurb": "Raises the nationâ€™s wood storage by 1000 (it starts at 2000).",
+    "blurb": "Raises the nation’s wood storage by 1000 (it starts at 2000).",
     "name": "Storehouse",
     "note": "+1000 wood storage"
    },
@@ -335,7 +335,7 @@
    ],
    "autoscout": [
     "Automating Wayfinders",
-    "Idle Wayfinders survey explored, unsurveyed provinces on their own. Toggle it on a Wayfinderâ€™s command card."
+    "Idle Wayfinders survey explored, unsurveyed provinces on their own. Toggle it on a Wayfinder’s command card."
    ],
    "bank": [
     "Building: Bank",
@@ -358,7 +358,7 @@
     "Masons can build a bridge across a river border (200 wood, 150 gold, 90 s). It takes no building plot, and only one of the two provinces has to be yours. Needs Stone Walls, Moat, the Forge and Refined Lumber Mills."
    ],
    "charon": [
-    "Charonâ€™s Riches",
+    "Charon’s Riches",
     "Grave Robbing gives 3 gold for every point of mana."
    ],
    "clearthoughts": [
@@ -459,7 +459,7 @@
    ],
    "gelemental": [
     "Grand Elemental",
-    "A Druid summons a towering man of living water for 2 minutes (3 seconds of casting, 100 mana): 500 health, no armor, 50 damage a swing. He joins the Druidâ€™s army (or forms one), fights, and can capture provinces. 5-minute cooldown per Druid."
+    "A Druid summons a towering man of living water for 2 minutes (3 seconds of casting, 100 mana): 500 health, no armor, 50 damage a swing. He joins the Druid’s army (or forms one), fights, and can capture provinces. 5-minute cooldown per Druid."
    ],
    "granary": [
     "Building: Granary",
@@ -471,7 +471,7 @@
    ],
    "graverob": [
     "Grave Robbing",
-    "A 3-second cast that spends all of the Mageâ€™s mana: 1 gold for every point. Then the nation waits 3 minutes."
+    "A 3-second cast that spends all of the Mage’s mana: 1 gold for every point. Then the nation waits 3 minutes."
    ],
    "hallways": [
     "Hallways of Pain",
@@ -519,7 +519,7 @@
    ],
    "mending": [
     "Mending",
-    "A Mage heals an armyâ€™s wounds back to full over 1 minute. 25 mana, no cooldown."
+    "A Mage heals an army’s wounds back to full over 1 minute. 25 mana, no cooldown."
    ],
    "mindread": [
     "Mind Reading",
@@ -563,7 +563,7 @@
    ],
    "portal": [
     "Teleportation Portal",
-    "Teleportation Riftâ€™s cooldown is 15 seconds."
+    "Teleportation Rift’s cooldown is 15 seconds."
    ],
    "prison": [
     "Stasis Prison",
@@ -619,7 +619,7 @@
    ],
    "rockarmor": [
     "Rock Armor",
-    "Autocast (50 mana, no cooldown): when an army with a Druid starts a battle, plates of stone gather round it: a shield worth 10% of the armyâ€™s total health soaks up the damage before any soldier is hurt."
+    "Autocast (50 mana, no cooldown): when an army with a Druid starts a battle, plates of stone gather round it: a shield worth 10% of the army’s total health soaks up the damage before any soldier is hurt."
    ],
    "s-kite": [
     "Kite Shields",
@@ -667,7 +667,7 @@
    ],
    "scoutsight": [
     "Scout Sight",
-    "Your scouts (Wayfinders, Scouts, Swampstriders) learn Scout Sight: after 5 seconds of focus a scout detects every unit in his field of vision, sneaking ones too, for as long as he holds still. He canâ€™t move or sneak meanwhile: ordering him to move ends it."
+    "Your scouts (Wayfinders, Scouts, Swampstriders) learn Scout Sight: after 5 seconds of focus a scout detects every unit in his field of vision, sneaking ones too, for as long as he holds still. He can’t move or sneak meanwhile: ordering him to move ends it."
    ],
    "sealed": [
     "Sealed Gates",
@@ -707,11 +707,11 @@
    ],
    "stasis": [
     "Stasis Trap",
-    "A Mage sets a trap in his province (3 seconds of casting, 50 mana); the next enemy army there canâ€™t leave for 10 seconds (it can still fight). One trap at a time; no cooldown."
+    "A Mage sets a trap in his province (3 seconds of casting, 50 mana); the next enemy army there can’t leave for 10 seconds (it can still fight). One trap at a time; no cooldown."
    ],
    "stealth": [
     "Wayfinder Stealth",
-    "Wayfinders can sneak: three times slower, but enemy armies canâ€™t see them. Without it, an enemy army that finds a Wayfinder kills him."
+    "Wayfinders can sneak: three times slower, but enemy armies can’t see them. Without it, an enemy army that finds a Wayfinder kills him."
    ],
    "stockmarket": [
     "Interdimensional Stockmarket",
@@ -747,7 +747,7 @@
    ],
    "trading": [
     "Interdimensional Trading",
-    "A 3-second cast that spends all of the Mageâ€™s mana: 1 food, 1 gold and 1 wood for every 3 points. Then the nation waits 3 minutes."
+    "A 3-second cast that spends all of the Mage’s mana: 1 food, 1 gold and 1 wood for every 3 points. Then the nation waits 3 minutes."
    ],
    "twohand": [
     "Two-Handed Grip",
@@ -843,7 +843,7 @@
    ],
    "walls": [
     "Wooden Walls",
-    "Masons can close an open border with a wooden palisade (150 wood, 100 gold). Every wall has a gate that only its ownerâ€™s units can pass. Forts raise walls with gates on all their open borders."
+    "Masons can close an open border with a wooden palisade (150 wood, 100 gold). Every wall has a gate that only its owner’s units can pass. Forts raise walls with gates on all their open borders."
    ],
    "walls2": [
     "Stone Walls",
@@ -950,7 +950,7 @@
     "Raises the Druid limit by 1."
    ],
    "rep-masons": [
-    "Architectsâ€™ Guild",
+    "Architects’ Guild",
     "Raises the Architect limit by 1."
    ],
    "rep-sword": [
@@ -962,7 +962,7 @@
     "Community gives 5% more gold."
    ],
    "rep-wayfinders": [
-    "Scoutsâ€™ Lodge",
+    "Scouts’ Lodge",
     "Raises the Scout limit by 1."
    ]
   },

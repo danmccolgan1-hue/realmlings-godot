@@ -97,7 +97,7 @@
  "INK": "#1d1a22",
  "LEADERS": {
   "aarg": {
-   "bonus": "Locked to Arcane. A Stasis Trap deals 100 pure damage to the army it catches. Every Warlock Tower (at any level) gives 1 more Magic research. +4 mana regeneration on top of the towersâ€™.",
+   "bonus": "Locked to Arcane. A Stasis Trap deals 100 pure damage to the army it catches. Every Warlock Tower (at any level) gives 1 more Magic research. +4 mana regeneration on top of the towers’.",
    "emb": "star",
    "full": "Arcanist Aarg",
    "id": "aarg",
@@ -134,7 +134,7 @@
    "title": "Artisan"
   },
   "alma": {
-   "bonus": "Locked to Arcane. Interdimensional Trading gives 30% more. Every Mage Tower (at any level) gives 1 more Magic research. +4 mana regeneration on top of the towersâ€™.",
+   "bonus": "Locked to Arcane. Interdimensional Trading gives 30% more. Every Mage Tower (at any level) gives 1 more Magic research. +4 mana regeneration on top of the towers’.",
    "emb": "star",
    "full": "Arcanist Alma",
    "id": "alma",
@@ -171,7 +171,7 @@
    "title": "Commander"
   },
   "eliwen": {
-   "bonus": "Locked to Arcane. When a Stasis Trap lets go, the army is Weak for 10 seconds: 25% less damage. Every Grove (at any level) gives 1 more Magic research. +4 mana regeneration on top of the towersâ€™.",
+   "bonus": "Locked to Arcane. When a Stasis Trap lets go, the army is Weak for 10 seconds: 25% less damage. Every Grove (at any level) gives 1 more Magic research. +4 mana regeneration on top of the towers’.",
    "emb": "star",
    "full": "Arcanist Eliwen",
    "id": "eliwen",
@@ -208,7 +208,7 @@
    "title": "Weaponsmaster"
   },
   "havva": {
-   "bonus": "Locked to Herbomancy. Harvest gives 5% more food per level (15% / 30% / 45%). Hardened Skin and its upgrades are 20% more effective. Every Mage Tower (at any level) gives 1 more Magic research. +4 mana regeneration on top of the towersâ€™.",
+   "bonus": "Locked to Herbomancy. Harvest gives 5% more food per level (15% / 30% / 45%). Hardened Skin and its upgrades are 20% more effective. Every Mage Tower (at any level) gives 1 more Magic research. +4 mana regeneration on top of the towers’.",
    "emb": "leaf",
    "full": "Herbomancer Havva",
    "id": "havva",
@@ -245,7 +245,7 @@
    "title": "Ragemaster"
   },
   "naobrien": {
-   "bonus": "Locked to Elemental magic. Grand Elementals deal 30% more damage. Every Grove (at any level) gives 1 more Magic research. +4 mana regeneration on top of the towersâ€™.",
+   "bonus": "Locked to Elemental magic. Grand Elementals deal 30% more damage. Every Grove (at any level) gives 1 more Magic research. +4 mana regeneration on top of the towers’.",
    "emb": "drop",
    "full": "Elementalist Naobrien",
    "id": "naobrien",
@@ -258,7 +258,7 @@
    "title": "Elementalist"
   },
   "niall": {
-   "bonus": "Locked to Necromancy. Grave Robbing gives 100 more gold. Every Mage Tower (at any level) gives 1 more Magic research. +4 mana regeneration on top of the towersâ€™.",
+   "bonus": "Locked to Necromancy. Grave Robbing gives 100 more gold. Every Mage Tower (at any level) gives 1 more Magic research. +4 mana regeneration on top of the towers’.",
    "emb": "skull",
    "full": "Necromancer Niall",
    "id": "niall",
@@ -271,7 +271,7 @@
    "title": "Necromancer"
   },
   "nihaarg": {
-   "bonus": "Locked to Necromancy. Cursed Weapons deal 10% more damage. Every Warlock Tower (at any level) gives 1 more Magic research. +4 mana regeneration on top of the towersâ€™.",
+   "bonus": "Locked to Necromancy. Cursed Weapons deal 10% more damage. Every Warlock Tower (at any level) gives 1 more Magic research. +4 mana regeneration on top of the towers’.",
    "emb": "skull",
    "full": "Necromancer Nihaarg",
    "id": "nihaarg",
@@ -284,7 +284,7 @@
    "title": "Necromancer"
   },
   "paladomis": {
-   "bonus": "Protectors fighting two-handed have a 20% chance per blow to cause bleeding: the blowâ€™s damage again over the next 4 rounds (it stops when the battle ends).",
+   "bonus": "Protectors fighting two-handed have a 20% chance per blow to cause bleeding: the blow’s damage again over the next 4 rounds (it stops when the battle ends).",
    "emb": "spear",
    "full": "Protector Paladomis",
    "id": "paladomis",
@@ -296,7 +296,7 @@
    "title": "Protector"
   },
   "phlyo": {
-   "bonus": "Locked to Pyromancy. Raising a Sacred Pyre costs no wood. Every Warlock Tower (at any level) gives 1 more Magic research. +4 mana regeneration on top of the towersâ€™.",
+   "bonus": "Locked to Pyromancy. Raising a Sacred Pyre costs no wood. Every Warlock Tower (at any level) gives 1 more Magic research. +4 mana regeneration on top of the towers’.",
    "emb": "flame",
    "full": "Pyromancer Phlyo",
    "id": "phlyo",
@@ -321,7 +321,7 @@
    "title": "Axewielder"
   },
   "sariel": {
-   "bonus": "Locked to Herbomancy. Mending (and its upgrades) gives the army 10% more health for 30 seconds afterwards. Every Grove (at any level) gives 1 more Magic research. +4 mana regeneration on top of the towersâ€™.",
+   "bonus": "Locked to Herbomancy. Mending (and its upgrades) gives the army 10% more health for 30 seconds afterwards. Every Grove (at any level) gives 1 more Magic research. +4 mana regeneration on top of the towers’.",
    "emb": "leaf",
    "full": "Herbomancer Sariel",
    "id": "sariel",

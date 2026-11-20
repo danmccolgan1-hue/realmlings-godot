@@ -47,7 +47,7 @@
   ],
   "builds": {
    "bank": {
-    "blurb": "Raises the nationâ€™s gold storage by 1000 (it starts at 2000).",
+    "blurb": "Raises the nation’s gold storage by 1000 (it starts at 2000).",
     "cost": {
      "wood": 300
     },
@@ -182,7 +182,7 @@
    ],
    "autoscout": [
     "Automating Wayfinders",
-    "Idle Wayfinders survey explored, unsurveyed provinces on their own. Toggle it on a Wayfinderâ€™s command card."
+    "Idle Wayfinders survey explored, unsurveyed provinces on their own. Toggle it on a Wayfinder’s command card."
    ],
    "bank": [
     "Building: Bank",
@@ -234,7 +234,7 @@
    ],
    "stealth": [
     "Wayfinder Stealth",
-    "Wayfinders can sneak: three times slower, but enemy armies canâ€™t see them. Without it, an enemy army that finds a Wayfinder kills him."
+    "Wayfinders can sneak: three times slower, but enemy armies can’t see them. Without it, an enemy army that finds a Wayfinder kills him."
    ],
    "traderoutes": [
     "Trade Routes",
@@ -349,7 +349,7 @@
  "SW_TEXT": {
   "builds": {
    "bank": {
-    "blurb": "Raises the nationâ€™s gold, wood and food storage by 500 each.",
+    "blurb": "Raises the nation’s gold, wood and food storage by 500 each.",
     "name": "Supply Cache",
     "note": "+500 gold, wood and food storage"
    },
@@ -376,12 +376,12 @@
    "stable": {
     "blurb": "A cave in the mountainside where Ogres lair: trains Ogres (no Barracks needed). Needs a mountain border.",
     "name": "Ogre Cave",
-    "note": "trains Ogres Â· needs a mountain border"
+    "note": "trains Ogres · needs a mountain border"
    },
    "temple": {
     "blurb": "A steaming pool in the bog: adds 2 Government research points every payout. Only in a swamp.",
     "name": "Hot Springs",
-    "note": "+2 Government research Â· swamp only"
+    "note": "+2 Government research · swamp only"
    }
   },
   "reps": {
@@ -398,7 +398,7 @@
     "Raises the Warlock limit by 1."
    ],
    "rep-masons": [
-    "Swampwrightsâ€™ Lodge",
+    "Swampwrights’ Lodge",
     "Raises the Swampwright limit by 1."
    ],
    "rep-shockcast": [
@@ -414,7 +414,7 @@
     "Thug Dens make 5% more gold."
    ],
    "rep-wayfinders": [
-    "Swampstridersâ€™ Pack",
+    "Swampstriders’ Pack",
     "Raises the Swampstrider limit by 1."
    ]
   },
@@ -429,7 +429,7 @@
    ],
    "autoscout": [
     "Automating Swampstriders",
-    "Idle Swampstriders survey explored, unsurveyed provinces on their own. Toggle it on a Swampstriderâ€™s command card."
+    "Idle Swampstriders survey explored, unsurveyed provinces on their own. Toggle it on a Swampstrider’s command card."
    ],
    "bank": [
     "Building: Supply Cache",
@@ -481,7 +481,7 @@
    ],
    "stealth": [
     "Swampstrider Stealth",
-    "Swampstriders can sneak: three times slower (but no slower at all in a swamp), and enemy armies canâ€™t see them. Without it, an enemy army that finds a Swampstrider kills him."
+    "Swampstriders can sneak: three times slower (but no slower at all in a swamp), and enemy armies can’t see them. Without it, an enemy army that finds a Swampstrider kills him."
    ],
    "traderoutes": [
     "Highwaymen",

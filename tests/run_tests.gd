@@ -2,7 +2,7 @@ extends SceneTree
 ## Headless test runner: godot --headless --path . --script res://tests/run_tests.gd
 ## Each test file in TESTS has a run() -> Array[String] returning failure messages (empty = pass).
 
-const TESTS := ["res://tests/test_world_gen.gd", "res://tests/test_economy.gd", "res://tests/test_play.gd", "res://tests/test_save.gd"]
+const TESTS := ["res://tests/test_world_gen.gd", "res://tests/test_economy.gd", "res://tests/test_play.gd", "res://tests/test_save.gd", "res://tests/test_tutorial.gd"]
 
 func _initialize() -> void:
 	var failures := 0
@@ -15,7 +15,12 @@ func _initialize() -> void:
 					failures += 1
 					print("FAIL does not compile: ", dir + f)
 	for path in TESTS:
-		var t = load(path).new()
+		var ts: GDScript = load(path)
+		if ts == null or not ts.can_instantiate():
+			failures += 1
+			print("FAIL does not compile: ", path)
+			continue
+		var t = ts.new()
 		var errs: Array = t.run()
 		if errs.is_empty():
 			print("PASS ", path)

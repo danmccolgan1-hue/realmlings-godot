@@ -19,6 +19,9 @@ Scenarios
           gates), the army walks through its own gate, the Mason builds a wall.
   develop: Finn: the capital developed twice (Math.random fixed at 0.99: no lucky finds), the army split, combined
           and split again, the Forge torn down. 620 s.
+  battle: Cormac: a Bandit Gang of 4 Footmen placed next door, attacked and broken (bounty); soldiers trained, a
+          gang of 12, attacked, then a retreat. battlemagic: Havva's Mage with five soldiers, Hardened Skin, a gang of 7.
+          Math.random is pinned to 0.5 for these (blow strength, who is hit, rows, patrols).
   life / arcane / death: the three Realmling schools' spells (Havva, Alma, Niall): mana set by the script where a
           spell needs more than the Mages have; Harvest, Mending, Eyes of the Forest, a forest path; Interdimensional
           Trading, Clear Thoughts, Teleportation Rift; Grave Robbing, Haunt, a tunnel. '?' and '@path' targets are
@@ -153,16 +156,40 @@ ACTIONS = {
     {'t': 20, 'a': 'mana', 'n': 250}, {'t': 21, 'a': 'path', 'kind': 'tunnel', 'p': '?'},
     {'t': 50, 'a': 'order', 'u': 'army', 'p': '@path'},
   ],
+  'battle': lambda P: [
+    {'t': 0.5, 'a': 'spawn', 'p': P['q1'], 'troops': {'d-sword': 4}},
+    {'t': 1, 'a': 'order', 'u': 'army', 'p': P['q1']},
+    {'t': 40, 'a': 'give', 'gold': 2000, 'wood': 500, 'food': 500},
+    {'t': 40, 'a': 'train', 'src': 'barracks', 'p': P['cap'], 'kind': 'd-sword'},
+    {'t': 40, 'a': 'train', 'src': 'barracks', 'p': P['cap'], 'kind': 'd-spear'},
+    {'t': 41, 'a': 'spawn', 'p': P['q1'], 'troops': {'d-sword': 12}},
+    {'t': 100, 'a': 'order', 'u': 'army', 'p': P['q1']},
+    {'t': 125, 'a': 'retreat'},
+  ],
+  'battlemagic': lambda P: [
+    {'t': 0.5, 'a': 'grant', 'id': 'school-life'}, {'t': 0.5, 'a': 'grant', 'id': 'skin'},
+    {'t': 0.5, 'a': 'give', 'gold': 3000, 'wood': 1000, 'food': 1000},
+    {'t': 0.6, 'a': 'build', 'u': 'mason', 'p': P['cap'], 'type': 'barracks'},
+    {'t': 32, 'a': 'train', 'src': 'barracks', 'p': P['cap'], 'kind': 'd-sword'},
+    {'t': 32, 'a': 'train', 'src': 'barracks', 'p': P['cap'], 'kind': 'd-sword'},
+    {'t': 32, 'a': 'train', 'src': 'barracks', 'p': P['cap'], 'kind': 'd-spear'},
+    {'t': 32, 'a': 'train', 'src': 'barracks', 'p': P['cap'], 'kind': 'd-club'},
+    {'t': 32, 'a': 'train', 'src': 'barracks', 'p': P['cap'], 'kind': 'd-sword'},
+    {'t': 110, 'a': 'spawn', 'p': P['q1'], 'troops': {'d-sword': 7}},
+    {'t': 111, 'a': 'mana', 'n': 100},
+    {'t': 112, 'a': 'order', 'u': 'army', 'p': P['q1']},
+  ],
 }
-LEADER = {'life': 'havva', 'arcane': 'alma', 'death': 'niall', 'orders': 'havva', 'auto': 'aithne', 'train': 'cormac', 'research': 'finn', 'magic': 'havva', 'roads': 'havva', 'develop': 'finn'}
+LEADER = {'battle': 'cormac', 'battlemagic': 'havva', 'life': 'havva', 'arcane': 'alma', 'death': 'niall', 'orders': 'havva', 'auto': 'aithne', 'train': 'cormac', 'research': 'finn', 'magic': 'havva', 'roads': 'havva', 'develop': 'finn'}
 FRAMES_OF = {'develop': 6201}
 
 RUN = r"""(() => {
   const acts = %s, frames = %d, snaps = [];
-  const U = { wf: () => S.units.find(u => u.kind === WAYFINDER), mason: () => S.units.find(u => u.kind === MASON), army: () => S.units.find(u => u.kind === 'army') };
+  const U = { wf: () => S.units.find(u => u.kind === WAYFINDER), mason: () => S.units.find(u => u.kind === MASON), army: () => S.units.find(u => u.kind === 'army' && u.owner === ME) };
   const log = []; const t0 = toast; toast = function (m) { log.push([Math.round(S.t * 10) / 10, String(m).replace(/<[^>]+>/g, '')]); };
   const snap = () => snaps.push({ t: S.t, stock: { ...S.stock }, income: { ...income },
-    units: S.units.map(u => ({ kind: u.kind, prov: u.prov, x: u.x, y: u.y, moving: !!u.moving, slot: u.slot, scouting: u.scouting === undefined ? null : u.scouting,
+    battles: S.battles.map(b => [b.prov, b.defender, { ...b.lost }]), wounds: S.units.map(u => u.wounds === undefined ? null : Math.round(u.wounds * 1e6) / 1e6),
+    units: S.units.map(u => ({ owner: u.owner, kind: u.kind, prov: u.prov, x: u.x, y: u.y, moving: !!u.moving, slot: u.slot, scouting: u.scouting === undefined ? null : u.scouting,
       survey: !!u.survey, build: u.build ? u.build.type : null, pending: u.pending ? u.pending.type : null, queue: u.surveyQueue.length, troops: u.troops ? { ...u.troops } : null })),
     queues: Object.keys(S.queues).sort().map(k => [k, S.queues[k].map(q => [q.kind, q.t0])]),
     explored: [...S.explored].sort((a, b) => a - b), visible: [...S.visible].sort((a, b) => a - b),
@@ -196,6 +223,8 @@ RUN = r"""(() => {
       else if (A.a === 'points') addResearch(A.tree, A.n);
       else if (A.a === 'grant') grantTech(A.id);
       else if (A.a === 'mana') { U.army().mana = A.n; }
+      else if (A.a === 'spawn') { const g = spawnBandit(A.p); g.troops = { ...A.troops }; }
+      else if (A.a === 'retreat') { const a = S.units.find(v => v.kind === 'army' && v.owner === ME && v.battle); if (a) retreat(a); }
       else if (A.a === 'cast') castSpell(U.army(), A.k);
       else if (A.a === 'aim') {
         const c = U.army();
@@ -240,6 +269,8 @@ async def main():
                 acts = ACTIONS[sc](plan)
                 if sc == 'develop':   # development's lucky finds use Math.random: never lucky here
                     await pg.evaluate("s => window.__evalIn(s)", "Math.random = () => 0.99")
+                if sc.startswith('battle'):   # battles roll Math.random: pinned to 0.5 (the Godot test does the same)
+                    await pg.evaluate("s => window.__evalIn(s)", "Math.random = () => 0.5")
                 res = json.loads(await pg.evaluate("s => window.__evalIn(s)", RUN % (json.dumps(acts), FRAMES_OF.get(sc, FRAMES))))
                 res['actions'] = res.pop('applied')   # with the '?' picks filled in
                 out = {'seed': seed, 'scenario': sc, 'leader': LEADER[sc], 'plan': plan, 'frames': FRAMES_OF.get(sc, FRAMES), **res}

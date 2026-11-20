@@ -77,7 +77,7 @@
   {
    "id": "1",
    "lines": [
-    "Welcome to Realmlings! This is what is known as a 4X Game. Explore, expand, exploit, and exterminate. Your goal is to expand as a nation, grow in strength and overcome rival playersâ€™ nations."
+    "Welcome to Realmlings! This is what is known as a 4X Game. Explore, expand, exploit, and exterminate. Your goal is to expand as a nation, grow in strength and overcome rival players’ nations."
    ],
    "obj": {
     "key": "capital",
@@ -92,7 +92,7 @@
    "id": "2",
    "lines": [
     "Every nation starts with a single province with a Capital. The Capital is special, it can support more buildings than any other province and can build Masons and Wayfinders.",
-    "At the top of the screen you can see the research button. Below is a notification indicating that new research is available. There are three trees of research: Government, which improves your nationâ€™s infrastructural capabilities, Military, which improves your nationâ€™s army, and Magic, which improves your nationâ€™s magical abilities. At the start of a game military and magic research are locked until the Forge and Mage Tower buildings are researched and later constructed."
+    "At the top of the screen you can see the research button. Below is a notification indicating that new research is available. There are three trees of research: Government, which improves your nation’s infrastructural capabilities, Military, which improves your nation’s army, and Magic, which improves your nation’s magical abilities. At the start of a game military and magic research are locked until the Forge and Mage Tower buildings are researched and later constructed."
    ],
    "obj": {
     "key": "research",
@@ -124,7 +124,7 @@
   {
    "id": "3.1",
    "lines": [
-    "This is a Wayfinder, this unitâ€™s role is to scout and expand your nationâ€™s vision of the world. He can also survey provinces to reveal their base resources. This is necessary for expansion.",
+    "This is a Wayfinder, this unit’s role is to scout and expand your nation’s vision of the world. He can also survey provinces to reveal their base resources. This is necessary for expansion.",
     "Every game starts with the game paused. You can pause at any time to queue up actions and take the time you need to make decisions."
    ],
    "obj": {
@@ -228,7 +228,7 @@
   {
    "id": "16",
    "lines": [
-    "You have found a band of bandits. They are territorial and wonâ€™t move from their province. To defeat them you will need to train an army.",
+    "You have found a band of bandits. They are territorial and won’t move from their province. To defeat them you will need to train an army.",
     "Have your mason build a barracks."
    ],
    "obj": {

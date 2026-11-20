@@ -31,6 +31,11 @@ var aim = null               # {unit, spell}: the next click picks the spell's p
 var research: PanelContainer
 var research_box: VBoxContainer
 var research_key := ""
+var tut_panel: PanelContainer
+var tut_text: RichTextLabel
+var tut_objs: Label
+var tut_next: Button
+var tut_key := ""
 
 
 func _ready() -> void:
@@ -92,6 +97,7 @@ func _ready() -> void:
 	pcol.add_child(actions)
 	panel.add_child(pcol)
 	_build_research()
+	_build_tutorial()
 	panel.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT, Control.PRESET_MODE_MINSIZE, 20)
 	panel.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	# the command card
@@ -128,17 +134,21 @@ func set_game(g: Game) -> void:
 	game = g
 	g.on_toast = add_toast
 	var L = g.leader_of()
-	who.text = "%s — Practice island" % (L.full if L else "")
+	who.text = "Basic Tutorial" if g.tutorial != null else "%s — Practice island" % (L.full if L else "")
 	show()
 
 
 func select_province(p: int) -> void:
 	prov = p
+	if game != null and game.tutorial != null and p == game.capital and unit == null:
+		game.tutorial.selected.capital = true
 	panel.visible = p >= 0
 
 
 func select_unit(u) -> void:
 	unit = u
+	if game != null and game.tutorial != null and u != null and u.kind == game.WAYFINDER:
+		game.tutorial.selected.wayfinder = true
 	card.get_parent().visible = u != null
 
 
@@ -205,6 +215,19 @@ func commands_of(u) -> Array:
 			cmd = {"id": id, "label": "Road\n25g 75w", "why": why}
 		elif id == "dismiss":
 			cmd = {"id": id, "label": "Dismiss", "why": null}
+		elif id == "retreat":
+			# web: game.js cmdInfo 'retreat'
+			var why = null
+			if u.get("battle") == null or u.get("retreating", false):
+				why = "Not in battle"
+			elif game.retreat_to(u) < 0:
+				why = "No way out: every open border is blocked"
+			elif game.retreat_lock_left(u) > 0:
+				why = "Locked in battle for %d s" % ceili(game.retreat_lock_left(u))
+			var label := "Retreat"
+			if u.get("battle") != null:
+				label += "\nlose ~%d of %d" % [game.retreat_loss(u), game.troop_count(u)]
+			cmd = {"id": id, "label": label, "why": why}
 		elif id == "split":
 			cmd = {"id": id, "label": "Split", "why": null if game.troop_count(u) >= 2 else "Needs 2 soldiers"}
 		elif id == "combine":
@@ -249,6 +272,8 @@ func press(i: int) -> void:
 			add_toast("Click the province to target. Right-click cancels.")
 		else:
 			game.cast_spell(unit, k)
+	elif id == "retreat":
+		game.retreat(unit)
 	elif id == "split":
 		game.split_army(unit)
 	elif id == "combine":
@@ -286,6 +311,7 @@ func _process(_delta: float) -> void:
 			upgrade_btn.text = "Upgrade to Fort (%s, %d s)" % [Game.cost_text(GameData.c("FORT_UPGRADE").cost), GameData.c("FORT_UPGRADE").time] if why == null else str(why)
 			upgrade_btn.disabled = why != null
 	_refresh_actions()
+	_refresh_tutorial()
 	if research.visible:
 		_refresh_research()
 	if unit != null and not game.units.any(func(v): return is_same(v, unit)):
@@ -537,3 +563,71 @@ func _refresh_research() -> void:
 			done.add_theme_font_size_override("font_size", 15)
 			done.add_theme_color_override("font_color", Color("#5a5560"))
 			col.add_child(done)
+
+
+
+# --- the tutorial's lines and objectives (web: tutorial.js tutRender) ---
+
+func _build_tutorial() -> void:
+	tut_panel = PanelContainer.new()
+	tut_panel.add_theme_stylebox_override("panel", _box(Color("#fff8e6", 0.97)))
+	tut_panel.custom_minimum_size = Vector2(760, 0)
+	add_child(tut_panel)
+	tut_panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM, Control.PRESET_MODE_MINSIZE, 20)
+	tut_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	tut_panel.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	var col := VBoxContainer.new()
+	tut_panel.add_child(col)
+	tut_text = RichTextLabel.new()
+	tut_text.bbcode_enabled = true
+	tut_text.fit_content = true
+	tut_text.custom_minimum_size = Vector2(740, 0)
+	tut_text.add_theme_color_override("default_color", Color("#1d1a22"))
+	tut_text.add_theme_font_size_override("normal_font_size", 20)
+	col.add_child(tut_text)
+	var row := HBoxContainer.new()
+	col.add_child(row)
+	var back := Button.new()
+	back.text = "Back"
+	back.pressed.connect(func(): game.tutorial.back_line())
+	row.add_child(back)
+	tut_next = Button.new()
+	tut_next.text = "Next"
+	tut_next.pressed.connect(func(): game.tutorial.next_line())
+	row.add_child(tut_next)
+	tut_objs = Label.new()
+	tut_objs.add_theme_color_override("font_color", Color("#1d1a22"))
+	tut_objs.add_theme_font_size_override("font_size", 18)
+	tut_objs.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tut_objs.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	row.add_child(tut_objs)
+	tut_panel.hide()
+
+
+func _refresh_tutorial() -> void:
+	if tut_panel == null:
+		return
+	var T = game.tutorial
+	if T == null:
+		tut_panel.hide()
+		return
+	var L = T.shown()
+	var objs := []
+	for o in T.objs:
+		objs.append(("✔ " if T.done.has(o.key) else "☐ ") + o.text)
+	var key := "%s|%s|%s" % [L.id + str(L.k) if L != null else "", ",".join(objs), T.ended]
+	if key == tut_key:
+		return
+	tut_key = key
+	tut_objs.text = "   ".join(objs.slice(-3))
+	if L != null:
+		tut_text.text = T.line_text(L.lines[L.k])
+		tut_next.text = "Next" if L.k < L.lines.size() - 1 else "Got it"
+		tut_next.show()
+		tut_panel.show()
+	elif not objs.is_empty() and not T.ended:
+		tut_text.text = "[i]Objective:[/i] " + T.objs[T.objs.size() - 1].text
+		tut_next.hide()
+		tut_panel.show()
+	else:
+		tut_panel.hide()

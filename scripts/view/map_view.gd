@@ -111,6 +111,9 @@ func _draw() -> void:
 			draw_string(font, Vector2(s[0], s[1]) + Vector2(-300, 20), "%d %s" % [i, world.provinces[i].terrain], HORIZONTAL_ALIGNMENT_CENTER, 600, 64, OL)
 
 
+const HOSTILE := Color("#d8473a")
+
+
 func _draw_game() -> void:
 	for p in game.buildings:
 		var b: Dictionary = game.buildings[p]
@@ -128,10 +131,28 @@ func _draw_game() -> void:
 		var ic: Array = game.G.provs[p].ic
 		for e in game.extras[p]:
 			_building(e.type, e.slot, p, ic, 1.0, e.get("level", 1))
+	# battles: a pulsing ring on the province and each side's remaining strength
+	for b in game.battles:
+		var P: Dictionary = game.G.provs[b.prov]
+		var at := Vector2(P.ic[0], P.ic[1])
+		var pulse := 0.5 + 0.5 * sin(game.t * 4.0)
+		draw_arc(at, 150.0 + 12.0 * pulse, 0, TAU, 48, Color(HOSTILE, 0.5 + 0.4 * pulse), 8.0)
+		var mine := 0
+		var theirs := 0
+		for u in game.units:
+			if u.kind == "army" and is_same(u.get("battle"), b):
+				if u.owner == Game.ME:
+					mine += game.troop_count(u)
+				else:
+					theirs += game.troop_count(u)
+		if mine + theirs > 0:
+			_bar(at + Vector2(0, -180), float(mine) / (mine + theirs), Color("#7fc8f0"))
 	# units, back to front
 	var us: Array = game.units.duplicate()
 	us.sort_custom(func(a, b): return a.y < b.y)
 	for u in us:
+		if u.owner != Game.ME and not game.visible.has(u.prov):
+			continue   # raiders under the fog stay hidden
 		if u.build != null and u.build.type != "outpost":
 			var ic: Array = game.G.provs[u.build.prov].ic
 			_building(u.build.type, u.build.slot, u.build.prov, ic, (game.t - u.build.t0) / u.build.dur, 1)
@@ -146,7 +167,13 @@ func _draw_game() -> void:
 		var at := Vector2(u.x, u.y)
 		if is_same(u, selected_unit):
 			draw_arc(at, 30.0, 0, TAU, 32, Color("#fff6c8"), 5.0)
+		if u.owner != Game.ME:
+			draw_arc(at, 26.0, 0, TAU, 32, HOSTILE, 4.0)   # bandits and monsters wear a red ring
 		var sp = Art.get_sprite("units", "realm", Art.unit_file(kind, _dir(u.th)))
+		if sp == null and u.get("monster") != null:
+			# monsters are drawn facing left or right only (web: art.js monster sprites)
+			var side := "d2" if cos(u.th) >= 0 else "d6"
+			sp = Art.get_sprite("units", "common", Art.unit_file("monster-" + kind, side))
 		if sp == null and kind.begins_with("d"):
 			sp = Art.get_sprite("units", "realm", Art.unit_file("d-sword", _dir(u.th)))   # Armory designs without art yet
 		if sp:

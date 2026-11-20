@@ -36,7 +36,7 @@
     ],
     [
      "Diplomacy",
-     "New Proclaim Enemy action (âˆ’300 opinion). Computer nations proclaim enemies too, and a shared enemy gives +50. Military access and Trade Networks give +25 opinion. The Diplomacy page shows each nationâ€™s opinion of you and its enemy. Only computer nations are limited to one ally. No flirting with Swamplings; a Swampling growl at another race is always âˆ’25. Gifted gold always arrives."
+     "New Proclaim Enemy action (−300 opinion). Computer nations proclaim enemies too, and a shared enemy gives +50. Military access and Trade Networks give +25 opinion. The Diplomacy page shows each nation’s opinion of you and its enemy. Only computer nations are limited to one ally. No flirting with Swamplings; a Swampling growl at another race is always −25. Gifted gold always arrives."
     ],
     [
      "Develop Province",

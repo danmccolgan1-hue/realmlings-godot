@@ -19,6 +19,7 @@ func run() -> Array:
 		if not maps.has(fx.seed):
 			maps[fx.seed] = RealmGen.scale_world(RealmGen.generate_practice(fx.seed))
 		var g := Game.new_practice(fx.seed, fx.leader, maps[fx.seed].duplicate(true))
+		g.units = g.units.filter(func(u): return u.owner == Game.ME)   # as in the fixture: no Bandit Gangs or monsters
 		var e := compare_start(fx.start, g)
 		if e.is_empty():
 			e = compare_run(fx, g)

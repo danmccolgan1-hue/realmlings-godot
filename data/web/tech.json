@@ -131,7 +131,7 @@
    "life",
    40,
    "Mending",
-   "Mages heal an armyâ€™s wounds back to full over 1 minute. 3-minute cooldown."
+   "Mages heal an army’s wounds back to full over 1 minute. 3-minute cooldown."
   ],
   [
    "rejuvenation",
@@ -292,7 +292,7 @@
    "deathtax",
    "death",
    200,
-   "Charonâ€™s Riches",
+   "Charon’s Riches",
    "Grave Robbing yields 1000 gold."
   ],
   [
@@ -365,7 +365,7 @@
    "arcane",
    40,
    "Stasis Trap",
-   "A Mage sets a trap in his province; the next enemy army there canâ€™t leave for 10 seconds (it can still fight). One trap at a time; 1-minute cooldown after it springs."
+   "A Mage sets a trap in his province; the next enemy army there can’t leave for 10 seconds (it can still fight). One trap at a time; 1-minute cooldown after it springs."
   ],
   [
    "prison",
@@ -563,7 +563,7 @@
    "elemental",
    40,
    "Rock Armor",
-   "Autocast: when an army with a Druid starts a battle, plates of stone gather round it: a shield worth 10% of the armyâ€™s total health soaks up the damage before any soldier is hurt. 3-minute cooldown per army."
+   "Autocast: when an army with a Druid starts a battle, plates of stone gather round it: a shield worth 10% of the army’s total health soaks up the damage before any soldier is hurt. 3-minute cooldown per army."
   ],
   [
    "wrocks",
@@ -599,7 +599,7 @@
    "elemental",
    200,
    "Grand Elemental",
-   "A Druid summons a towering man of living water for 2 minutes (10 seconds of casting): he hits as hard as a fully upgraded Champion and has twice its health, but no armor. He joins the Druidâ€™s army (or forms one), fights, and can capture provinces. 5-minute cooldown per Druid."
+   "A Druid summons a towering man of living water for 2 minutes (10 seconds of casting): he hits as hard as a fully upgraded Champion and has twice its health, but no armor. He joins the Druid’s army (or forms one), fights, and can capture provinces. 5-minute cooldown per Druid."
   ],
   [
    "skull-cracked",
@@ -969,7 +969,7 @@
    "rep-masons",
    "gov",
    100,
-   "Masonsâ€™ Lodge",
+   "Masons’ Lodge",
    "Raises the Mason limit by 1.",
    null
   ],
@@ -977,7 +977,7 @@
    "rep-wayfinders",
    "gov",
    100,
-   "Wayfindersâ€™ Guild",
+   "Wayfinders’ Guild",
    "Raises the Wayfinder limit by 1.",
    null
   ],
@@ -1131,7 +1131,7 @@
    "mag",
    120,
    "Bedrock",
-   "Rock Armorâ€™s stone shield holds 10% more damage.",
+   "Rock Armor’s stone shield holds 10% more damage.",
    "rockarmor",
    "elemental",
    "wood"
@@ -1214,7 +1214,7 @@
    "tree": "gov"
   },
   {
-   "blurb": "Masons can close an open border with a wooden palisade (150 wood, 100 gold). Every wall has a gate that only its ownerâ€™s units can pass. Forts raise walls with gates on all their open borders.",
+   "blurb": "Masons can close an open border with a wooden palisade (150 wood, 100 gold). Every wall has a gate that only its owner’s units can pass. Forts raise walls with gates on all their open borders.",
    "cost": 60,
    "id": "walls",
    "name": "Wooden Walls",
@@ -1283,7 +1283,7 @@
    "tree": "gov"
   },
   {
-   "blurb": "Idle Wayfinders survey explored, unsurveyed provinces on their own. Toggle it on a Wayfinderâ€™s command card.",
+   "blurb": "Idle Wayfinders survey explored, unsurveyed provinces on their own. Toggle it on a Wayfinder’s command card.",
    "cost": 40,
    "id": "autoscout",
    "name": "Automating Wayfinders",
@@ -1375,7 +1375,7 @@
    "tree": "gov"
   },
   {
-   "blurb": "Wayfinders can sneak: three times slower, but enemy armies canâ€™t see them. Without it, an enemy army that finds a Wayfinder kills him.",
+   "blurb": "Wayfinders can sneak: three times slower, but enemy armies can’t see them. Without it, an enemy army that finds a Wayfinder kills him.",
    "cost": 100,
    "id": "stealth",
    "name": "Wayfinder Stealth",
@@ -2275,7 +2275,7 @@
    "tree": "mag"
   },
   {
-   "blurb": "A Mage heals an armyâ€™s wounds back to full over 1 minute. 25 mana, no cooldown.",
+   "blurb": "A Mage heals an army’s wounds back to full over 1 minute. 25 mana, no cooldown.",
    "cost": 40,
    "gold": 0,
    "id": "mending",
@@ -2515,7 +2515,7 @@
    "tree": "mag"
   },
   {
-   "blurb": "A 3-second cast that spends all of the Mageâ€™s mana: 1 gold for every point. Then the nation waits 3 minutes.",
+   "blurb": "A 3-second cast that spends all of the Mage’s mana: 1 gold for every point. Then the nation waits 3 minutes.",
    "cost": 40,
    "gold": 0,
    "id": "graverob",
@@ -2549,7 +2549,7 @@
    "cost": 200,
    "gold": 0,
    "id": "charon",
-   "name": "Charonâ€™s Riches",
+   "name": "Charon’s Riches",
    "race": [
     "realm",
     "swamp"
@@ -2604,7 +2604,7 @@
    "tree": "mag"
   },
   {
-   "blurb": "A 3-second cast that spends all of the Mageâ€™s mana: 1 food, 1 gold and 1 wood for every 3 points. Then the nation waits 3 minutes.",
+   "blurb": "A 3-second cast that spends all of the Mage’s mana: 1 food, 1 gold and 1 wood for every 3 points. Then the nation waits 3 minutes.",
    "cost": 40,
    "gold": 0,
    "id": "trading",
@@ -2637,7 +2637,7 @@
    "tree": "mag"
   },
   {
-   "blurb": "A Mage sets a trap in his province (3 seconds of casting, 50 mana); the next enemy army there canâ€™t leave for 10 seconds (it can still fight). One trap at a time; no cooldown.",
+   "blurb": "A Mage sets a trap in his province (3 seconds of casting, 50 mana); the next enemy army there can’t leave for 10 seconds (it can still fight). One trap at a time; no cooldown.",
    "cost": 40,
    "gold": 0,
    "id": "stasis",
@@ -2670,7 +2670,7 @@
    "tree": "mag"
   },
   {
-   "blurb": "Teleportation Riftâ€™s cooldown is 15 seconds.",
+   "blurb": "Teleportation Rift’s cooldown is 15 seconds.",
    "cost": 100,
    "gold": 0,
    "id": "portal",
@@ -2900,7 +2900,7 @@
    "tree": "mag"
   },
   {
-   "blurb": "Autocast (50 mana, no cooldown): when an army with a Druid starts a battle, plates of stone gather round it: a shield worth 10% of the armyâ€™s total health soaks up the damage before any soldier is hurt.",
+   "blurb": "Autocast (50 mana, no cooldown): when an army with a Druid starts a battle, plates of stone gather round it: a shield worth 10% of the army’s total health soaks up the damage before any soldier is hurt.",
    "cost": 40,
    "gold": 0,
    "id": "rockarmor",
@@ -2948,7 +2948,7 @@
    "tree": "mag"
   },
   {
-   "blurb": "A Druid summons a towering man of living water for 2 minutes (3 seconds of casting, 100 mana): 500 health, no armor, 50 damage a swing. He joins the Druidâ€™s army (or forms one), fights, and can capture provinces. 5-minute cooldown per Druid.",
+   "blurb": "A Druid summons a towering man of living water for 2 minutes (3 seconds of casting, 100 mana): 500 health, no armor, 50 damage a swing. He joins the Druid’s army (or forms one), fights, and can capture provinces. 5-minute cooldown per Druid.",
    "cost": 200,
    "gold": 0,
    "id": "gelemental",
@@ -3072,35 +3072,35 @@
   },
   {
    "baseBlurb": "Raises the Mason limit by 1.",
-   "baseName": "Masonsâ€™ Lodge",
+   "baseName": "Masons’ Lodge",
    "blurb": "Repeatable. Raises the Mason limit by 1.",
    "cost": 100,
    "id": "rep-masons",
-   "name": "Masonsâ€™ Lodge 1",
+   "name": "Masons’ Lodge 1",
    "rep": true,
    "req": null,
    "swBlurb": "Raises the Swampwright limit by 1.",
-   "swName": "Swampwrightsâ€™ Lodge",
+   "swName": "Swampwrights’ Lodge",
    "tier": 1,
    "tree": "gov",
    "wdBlurb": "Raises the Architect limit by 1.",
-   "wdName": "Architectsâ€™ Guild"
+   "wdName": "Architects’ Guild"
   },
   {
    "baseBlurb": "Raises the Wayfinder limit by 1.",
-   "baseName": "Wayfindersâ€™ Guild",
+   "baseName": "Wayfinders’ Guild",
    "blurb": "Repeatable. Raises the Wayfinder limit by 1.",
    "cost": 100,
    "id": "rep-wayfinders",
-   "name": "Wayfindersâ€™ Guild 1",
+   "name": "Wayfinders’ Guild 1",
    "rep": true,
    "req": null,
    "swBlurb": "Raises the Swampstrider limit by 1.",
-   "swName": "Swampstridersâ€™ Pack",
+   "swName": "Swampstriders’ Pack",
    "tier": 1,
    "tree": "gov",
    "wdBlurb": "Raises the Scout limit by 1.",
-   "wdName": "Scoutsâ€™ Lodge"
+   "wdName": "Scouts’ Lodge"
   },
   {
    "baseBlurb": "Sword soldiers deal 5% more damage.",
@@ -3347,9 +3347,9 @@
    "tree": "mag"
   },
   {
-   "baseBlurb": "Rock Armorâ€™s stone shield holds 10% more damage.",
+   "baseBlurb": "Rock Armor’s stone shield holds 10% more damage.",
    "baseName": "Bedrock",
-   "blurb": "Repeatable. Rock Armorâ€™s stone shield holds 10% more damage.",
+   "blurb": "Repeatable. Rock Armor’s stone shield holds 10% more damage.",
    "cost": 120,
    "id": "rep-rock",
    "name": "Bedrock 1",
@@ -3502,7 +3502,7 @@
    "tree": "gov"
   },
   {
-   "blurb": "Your scouts (Wayfinders, Scouts, Swampstriders) learn Scout Sight: after 5 seconds of focus a scout detects every unit in his field of vision, sneaking ones too, for as long as he holds still. He canâ€™t move or sneak meanwhile: ordering him to move ends it.",
+   "blurb": "Your scouts (Wayfinders, Scouts, Swampstriders) learn Scout Sight: after 5 seconds of focus a scout detects every unit in his field of vision, sneaking ones too, for as long as he holds still. He can’t move or sneak meanwhile: ordering him to move ends it.",
    "cost": 200,
    "id": "scoutsight",
    "name": "Scout Sight",
@@ -4031,7 +4031,7 @@
    "tree": "gov"
   },
   "autoscout": {
-   "blurb": "Idle Wayfinders survey explored, unsurveyed provinces on their own. Toggle it on a Wayfinderâ€™s command card.",
+   "blurb": "Idle Wayfinders survey explored, unsurveyed provinces on their own. Toggle it on a Wayfinder’s command card.",
    "cost": 40,
    "id": "autoscout",
    "name": "Automating Wayfinders",
@@ -4101,7 +4101,7 @@
    "cost": 200,
    "gold": 0,
    "id": "charon",
-   "name": "Charonâ€™s Riches",
+   "name": "Charon’s Riches",
    "race": [
     "realm",
     "swamp"
@@ -4404,7 +4404,7 @@
    "tree": "gov"
   },
   "gelemental": {
-   "blurb": "A Druid summons a towering man of living water for 2 minutes (3 seconds of casting, 100 mana): 500 health, no armor, 50 damage a swing. He joins the Druidâ€™s army (or forms one), fights, and can capture provinces. 5-minute cooldown per Druid.",
+   "blurb": "A Druid summons a towering man of living water for 2 minutes (3 seconds of casting, 100 mana): 500 health, no armor, 50 damage a swing. He joins the Druid’s army (or forms one), fights, and can capture provinces. 5-minute cooldown per Druid.",
    "cost": 200,
    "gold": 0,
    "id": "gelemental",
@@ -4439,7 +4439,7 @@
    "tree": "mag"
   },
   "graverob": {
-   "blurb": "A 3-second cast that spends all of the Mageâ€™s mana: 1 gold for every point. Then the nation waits 3 minutes.",
+   "blurb": "A 3-second cast that spends all of the Mage’s mana: 1 gold for every point. Then the nation waits 3 minutes.",
    "cost": 40,
    "gold": 0,
    "id": "graverob",
@@ -4592,7 +4592,7 @@
    "tree": "gov"
   },
   "mending": {
-   "blurb": "A Mage heals an armyâ€™s wounds back to full over 1 minute. 25 mana, no cooldown.",
+   "blurb": "A Mage heals an army’s wounds back to full over 1 minute. 25 mana, no cooldown.",
    "cost": 40,
    "gold": 0,
    "id": "mending",
@@ -4720,7 +4720,7 @@
    "tree": "mag"
   },
   "portal": {
-   "blurb": "Teleportation Riftâ€™s cooldown is 15 seconds.",
+   "blurb": "Teleportation Rift’s cooldown is 15 seconds.",
    "cost": 100,
    "gold": 0,
    "id": "portal",
@@ -4997,19 +4997,19 @@
   },
   "rep-masons": {
    "baseBlurb": "Raises the Mason limit by 1.",
-   "baseName": "Masonsâ€™ Lodge",
+   "baseName": "Masons’ Lodge",
    "blurb": "Repeatable. Raises the Mason limit by 1.",
    "cost": 100,
    "id": "rep-masons",
-   "name": "Masonsâ€™ Lodge 1",
+   "name": "Masons’ Lodge 1",
    "rep": true,
    "req": null,
    "swBlurb": "Raises the Swampwright limit by 1.",
-   "swName": "Swampwrightsâ€™ Lodge",
+   "swName": "Swampwrights’ Lodge",
    "tier": 1,
    "tree": "gov",
    "wdBlurb": "Raises the Architect limit by 1.",
-   "wdName": "Architectsâ€™ Guild"
+   "wdName": "Architects’ Guild"
   },
   "rep-pole": {
    "baseBlurb": "Polearms (spears, pikes, polearms, halberds) deal 5% more damage.",
@@ -5037,9 +5037,9 @@
    "tree": "mag"
   },
   "rep-rock": {
-   "baseBlurb": "Rock Armorâ€™s stone shield holds 10% more damage.",
+   "baseBlurb": "Rock Armor’s stone shield holds 10% more damage.",
    "baseName": "Bedrock",
-   "blurb": "Repeatable. Rock Armorâ€™s stone shield holds 10% more damage.",
+   "blurb": "Repeatable. Rock Armor’s stone shield holds 10% more damage.",
    "cost": 120,
    "id": "rep-rock",
    "name": "Bedrock 1",
@@ -5198,19 +5198,19 @@
   },
   "rep-wayfinders": {
    "baseBlurb": "Raises the Wayfinder limit by 1.",
-   "baseName": "Wayfindersâ€™ Guild",
+   "baseName": "Wayfinders’ Guild",
    "blurb": "Repeatable. Raises the Wayfinder limit by 1.",
    "cost": 100,
    "id": "rep-wayfinders",
-   "name": "Wayfindersâ€™ Guild 1",
+   "name": "Wayfinders’ Guild 1",
    "rep": true,
    "req": null,
    "swBlurb": "Raises the Swampstrider limit by 1.",
-   "swName": "Swampstridersâ€™ Pack",
+   "swName": "Swampstriders’ Pack",
    "tier": 1,
    "tree": "gov",
    "wdBlurb": "Raises the Scout limit by 1.",
-   "wdName": "Scoutsâ€™ Lodge"
+   "wdName": "Scouts’ Lodge"
   },
   "restoration": {
    "blurb": "Healing is instant.",
@@ -5300,7 +5300,7 @@
    "tree": "gov"
   },
   "rockarmor": {
-   "blurb": "Autocast (50 mana, no cooldown): when an army with a Druid starts a battle, plates of stone gather round it: a shield worth 10% of the armyâ€™s total health soaks up the damage before any soldier is hurt.",
+   "blurb": "Autocast (50 mana, no cooldown): when an army with a Druid starts a battle, plates of stone gather round it: a shield worth 10% of the army’s total health soaks up the damage before any soldier is hurt.",
    "cost": 40,
    "gold": 0,
    "id": "rockarmor",
@@ -5441,7 +5441,7 @@
    "tree": "mag"
   },
   "scoutsight": {
-   "blurb": "Your scouts (Wayfinders, Scouts, Swampstriders) learn Scout Sight: after 5 seconds of focus a scout detects every unit in his field of vision, sneaking ones too, for as long as he holds still. He canâ€™t move or sneak meanwhile: ordering him to move ends it.",
+   "blurb": "Your scouts (Wayfinders, Scouts, Swampstriders) learn Scout Sight: after 5 seconds of focus a scout detects every unit in his field of vision, sneaking ones too, for as long as he holds still. He can’t move or sneak meanwhile: ordering him to move ends it.",
    "cost": 200,
    "id": "scoutsight",
    "name": "Scout Sight",
@@ -5557,7 +5557,7 @@
    "tree": "gov"
   },
   "stasis": {
-   "blurb": "A Mage sets a trap in his province (3 seconds of casting, 50 mana); the next enemy army there canâ€™t leave for 10 seconds (it can still fight). One trap at a time; no cooldown.",
+   "blurb": "A Mage sets a trap in his province (3 seconds of casting, 50 mana); the next enemy army there can’t leave for 10 seconds (it can still fight). One trap at a time; no cooldown.",
    "cost": 40,
    "gold": 0,
    "id": "stasis",
@@ -5568,7 +5568,7 @@
    "tree": "mag"
   },
   "stealth": {
-   "blurb": "Wayfinders can sneak: three times slower, but enemy armies canâ€™t see them. Without it, an enemy army that finds a Wayfinder kills him.",
+   "blurb": "Wayfinders can sneak: three times slower, but enemy armies can’t see them. Without it, an enemy army that finds a Wayfinder kills him.",
    "cost": 100,
    "id": "stealth",
    "name": "Wayfinder Stealth",
@@ -5675,7 +5675,7 @@
    "tree": "gov"
   },
   "trading": {
-   "blurb": "A 3-second cast that spends all of the Mageâ€™s mana: 1 food, 1 gold and 1 wood for every 3 points. Then the nation waits 3 minutes.",
+   "blurb": "A 3-second cast that spends all of the Mage’s mana: 1 food, 1 gold and 1 wood for every 3 points. Then the nation waits 3 minutes.",
    "cost": 40,
    "gold": 0,
    "id": "trading",
@@ -5915,7 +5915,7 @@
    "tree": "mil"
   },
   "walls": {
-   "blurb": "Masons can close an open border with a wooden palisade (150 wood, 100 gold). Every wall has a gate that only its ownerâ€™s units can pass. Forts raise walls with gates on all their open borders.",
+   "blurb": "Masons can close an open border with a wooden palisade (150 wood, 100 gold). Every wall has a gate that only its owner’s units can pass. Forts raise walls with gates on all their open borders.",
    "cost": 60,
    "id": "walls",
    "name": "Wooden Walls",

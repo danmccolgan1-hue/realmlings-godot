@@ -6,7 +6,7 @@
   },
   "crown": {
    "desc": "your upkeep is 20% lower.",
-   "name": "Kingâ€™s Crown"
+   "name": "King’s Crown"
   },
   "eye": {
    "desc": "you always see every army on the map and the province it stands in.",
@@ -29,7 +29,7 @@
    "name": "Red Dragon Skull"
   },
   "slippers": {
-   "desc": "your armies can fly over any border into a neighboring province (an ability on the armyâ€™s card, 1-minute cooldown for your whole nation).",
+   "desc": "your armies can fly over any border into a neighboring province (an ability on the army’s card, 1-minute cooldown for your whole nation).",
    "name": "Winged Slippers"
   },
   "stump": {

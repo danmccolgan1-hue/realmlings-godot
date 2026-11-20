@@ -36,7 +36,9 @@ func _ready() -> void:
 			var i := leader_ids.find(a.substr(9))
 			if i >= 0:
 				leader_pick.selected = i
-		elif a.begins_with("--shot="):
+		elif a == "--tutorial":
+			_on_ready.call_deferred(Tutorial.start(), false)
+		elif a.begins_with("--shot=") and not OS.get_cmdline_user_args().has("--tutorial"):
 			_start.call_deferred()
 
 
@@ -78,6 +80,11 @@ func _build_menu() -> void:
 	start.add_theme_font_size_override("font_size", 28)
 	start.pressed.connect(_start)
 	col.add_child(start)
+	var tut := Button.new()
+	tut.text = "Basic Tutorial"
+	tut.add_theme_font_size_override("font_size", 22)
+	tut.pressed.connect(func(): _on_ready(Tutorial.start(), false))
+	col.add_child(tut)
 	var cont := Button.new()
 	cont.text = "Continue (last autosave)"
 	cont.add_theme_font_size_override("font_size", 22)
@@ -142,6 +149,10 @@ var next_autosave := AUTOSAVE_EVERY
 
 
 func save_to(path: String, quiet := false) -> void:
+	if game.tutorial != null:
+		if not quiet:
+			hud.add_toast("Saving is turned off in the tutorial.", true)
+		return
 	var f := FileAccess.open(path, FileAccess.WRITE)
 	if f == null:
 		hud.add_toast("Couldn't save: %s" % error_string(FileAccess.get_open_error()), true)
@@ -177,8 +188,9 @@ func _process(_delta: float) -> void:
 		game.update(Time.get_ticks_msec() / 1000.0)
 		if game.t >= next_autosave:
 			next_autosave = (floor(game.t / AUTOSAVE_EVERY) + 1) * AUTOSAVE_EVERY
-			save_to(AUTOSAVE, true)
-			hud.add_toast("Autosaved.")
+			if game.tutorial == null:
+				save_to(AUTOSAVE, true)
+				hud.add_toast("Autosaved.")
 
 
 ## For checking the view without a person: godot --path . -- --shot=/tmp/a.png [--seed=ember] [--leader=finn]
@@ -209,7 +221,12 @@ func _maybe_screenshot() -> void:
 	for u in game.units:
 		if u.kind == "army":
 			army = u
-	if play > 0 and spells:   # Havva's Herbomancy, as in tests/fixtures/play/*_life.json
+	var battle := OS.get_cmdline_user_args().has("--battle")
+	if play > 0 and battle:   # Cormac's Shield Footmen against a Bandit Gang next door, as in tests/fixtures/play/*_battle.json
+		var gang := game.spawn_bandit(q1)
+		gang.troops = {"d-sword": 5}
+		game.order(army, q1)
+	elif play > 0 and spells:   # Havva's Herbomancy, as in tests/fixtures/play/*_life.json
 		game.grant_tech("school-life")
 		for id in ["harvest", "mending", "forest", "eyesforest"]:
 			game.grant_tech(id)
@@ -220,7 +237,7 @@ func _maybe_screenshot() -> void:
 		game.grant_tech("roads")
 		game.queue_survey(wfu, q1)
 		game.start_develop(game.capital)
-	elif play > 0:
+	elif play > 0 and game.tutorial == null:
 		game.queue_survey(wfu, game.open_nbr[game.capital][0].q)
 		game.order_build(mason, game.capital, "farm")
 	if play > 0:
@@ -249,7 +266,7 @@ func _maybe_screenshot() -> void:
 		game.update(Time.get_ticks_msec() / 1000.0)
 	if OS.get_cmdline_user_args().has("--research"):
 		hud.toggle_research()
-	elif spells:
+	elif spells or battle:
 		map.selected_unit = army
 		hud.select_unit(army)
 	else:
