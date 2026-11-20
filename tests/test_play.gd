@@ -239,3 +239,11 @@ static func compare(want: Dictionary, got: Dictionary) -> Array:
 		elif not TestEconomy.eq(want[k], got[k]):
 			out.append("%s: got %s, want %s" % [k, JSON.stringify(got[k]).left(200), JSON.stringify(want[k]).left(200)])
 	return out
+
+
+## A dictionary with its keys as text (JSON object keys are strings).
+static func str_keys(d: Dictionary) -> Dictionary:
+	var out := {}
+	for k in d:
+		out[str(k)] = d[k]
+	return out

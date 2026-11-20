@@ -17,7 +17,16 @@ The plan after milestone 1. Each step is tested against the web game, then commi
    v95: `rollYields` wrapper (Oasis 10/10/10, Heart 6/20/6, Death Mountain neighbors +5 gold), `provName` for the
    three, `canEnter` `bossBlock`, bosses (`BOSSES`, `BOSS_SITES`), artifacts (`ARTIFACTS`, `grantArtifact`).
    Computer nations are Realmlings only for now (`races[i] = 'realm'`).
-3. **Wars** (war.js + wrappers in v95, v96, v99, v100, v102, v104, v105, v106): `S.wars`, `declareWhy` / `declareWar`,
+3. **Wars** — ported, being verified (`tests/test_war.gd`, fixtures from `tools/gen_war_fixtures.py`; not in
+   `run_tests.gd` yet). It matches the web game up to the first payday; the computer nations' payday (`aiPayday`:
+   income, storage, exhaustion, research, money spells) comes with step 4. The fixture freezes the AI brain
+   (`stepAI`, `aiEnemyThink`) and pre-meets every nation (meeting one pauses the web game).
+   Ported: declaring (fee, allies joining, the 2-enemy cap, truces, surrender lock), warscore (occupations, wipes by
+   army size, the occupation tick once a war is serious), occupation progress (moats, frozen during battles, kept when
+   the capturer wins), stalls, the 20-minute timer, peace terms (white, gold, provinces / annexation, surrender),
+   Conquered Capitals (v102), evicting armies, killing a nation, AI demands to the player and AI-vs-AI peace,
+   alliances with the v105/v106 rules (opinion, rivals, proclaimed enemies), meeting nations, Proxy War exhaustion.
+   Web: war.js + wrappers in v95, v96, v99, v100, v102, v104, v105, v106): `S.wars`, `declareWhy` / `declareWar`,
    warscore (`occScore`, `addScore`, wipes), `stepWar` (occupation progress, the time tick, stalls), peace
    (`peaceCheck`, `makePeace`, terms), truces, alliances (`stepAlliances`), AI demands (`checkAIDemands`), AI-vs-AI
    peace (`aiPeace`), `hostile`.

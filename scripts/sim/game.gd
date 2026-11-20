@@ -764,10 +764,10 @@ func build_cap(p: int, type: String) -> int:
 	return 4 if type == "farm" else tree_border[p] if type == "lumber" else 1
 
 
-func provs_of() -> Array:
+func provs_of(o := ME) -> Array:
 	var out := []
 	for p in buildings:
-		if buildings[p].owner == ME:
+		if buildings[p].owner == o:
 			out.append(p)
 	return out
 
@@ -969,11 +969,11 @@ func clamp_stock() -> void:
 
 
 # web: govtech.js soldierCount() (Mages don't count)
-func soldier_count() -> int:
+func soldier_count(o := ME) -> int:
 	var n := 0
 	var mage: String = GameData.c("MAGE")
 	for v in units:
-		if v.kind == "army" and v.owner == ME:
+		if v.kind == "army" and v.owner == o:
 			for k in v.troops:
 				if k != mage:
 					n += v.troops[k]
@@ -1044,6 +1044,9 @@ func update(real_t: float) -> void:
 	if not paused:
 		meet_head_on()
 		step_battles(t)
+		if not nations.is_empty():
+			step_war(t)
+			step_ai(t)
 		step_magic(t, dt)
 		step_gpc(t)
 		step_patrols(t, dt)
@@ -1063,7 +1066,12 @@ func update(real_t: float) -> void:
 		d = minf(d, 1.0)
 		step_develop(d)
 		step_orders()
+		if not nations.is_empty():
+			step_war_timers()
 	compute_fog()
+	if not nations.is_empty():
+		step_diplomacy()
+		update_met()
 	if tutorial != null:
 		tutorial.step()
 
@@ -3669,7 +3677,7 @@ const SAVE_FIELDS := ["battles", "bandit_count", "monster_count", "leader", "cap
 	"army_counter", "tech", "rep", "surveyed", "unit_defs", "designs", "exhaust", "exhaust_ok", "harvest", "devel", "upgrades",
 	"xup", "auto_tech", "roads", "walls", "wall_hp", "gate_own", "fort_walled", "gpc_slow_t", "dev_t", "cd", "paths",
 	"harvest_by", "trap", "reveals", "eyes", "haunts", "mana_pool", "mana_prev_t", "mage_gear", "finds", "treasure_rolled",
-	"sp_found", "setpieces", "travelers", "train_orders", "train_order_seq", "design_seq", "prov_rename", "wf", "known", "explored", "visible", "queues", "rally", "military", "UNIT_SPEED", "open_nbr", "all_nbr",
+	"sp_found", "setpieces", "travelers", "train_orders", "train_order_seq", "design_seq", "prov_rename", "nations", "players", "race_of", "wars", "truces", "allies", "war_seq", "met", "occ", "occ_prog", "dipl", "war_log", "war_ever", "war_lock", "ai_met", "fallen", "ally_check", "wf", "known", "explored", "visible", "queues", "rally", "military", "UNIT_SPEED", "open_nbr", "all_nbr",
 	"yields", "tree_border", "t", "next_tick", "paused", "last", "started"]
 
 
@@ -4100,6 +4108,9 @@ func step_battles(now: float) -> void:
 			sorted_list.sort_custom(func(x, y): return x.get("arrived", 0.0) < y.get("arrived", 0.0))
 			first = sorted_list[0]
 			b = {"prov": p, "t0": now, "next": now + ROUND, "defender": buildings[p].owner if buildings.has(p) else first.owner, "start": {}, "lost": {}, "hits": {}}
+			# remember any capture under way: if the capturing side wins this battle, its progress comes back
+			if occ_prog.has(p):
+				b.prog = occ_prog[p].duplicate()
 			battles.append(b)
 			if list.any(func(a): return a.owner == ME):
 				toast("Battle in the %s! %s." % [world.provinces[p].terrain, TERRAIN_MOD[world.provinces[p].terrain]])
@@ -4139,6 +4150,7 @@ func step_battles(now: float) -> void:
 		for o in owners:
 			for a in sides[o]:
 				if troop_count(a) <= 0:
+					war_wipe(b, a)
 					if a.get("bandit", false):
 						bandit_slain(a, b)
 					remove_army(a)
@@ -4213,6 +4225,7 @@ func apply_damage(b: Dictionary, armies: Array, dmg: float, now: float, pierce :
 
 func end_battle(b: Dictionary, winner: int, sides: Dictionary) -> void:
 	battles = battles.filter(func(x): return not is_same(x, b))
+	war_battle_check(b)
 	for a in units:
 		if is_same(a.get("battle"), b):
 			on_battle_end(a, t)
@@ -4224,6 +4237,16 @@ func end_battle(b: Dictionary, winner: int, sides: Dictionary) -> void:
 				var xy := slot_pos(a.prov, a.slot)
 				a.path = [{"x": xy[0], "y": xy[1], "slot": true}]
 				a.moving = true
+	# the capture under way when the battle began comes back if the capturing side won, and is lost if it didn't
+	if b.get("prog") != null:
+		var cur = occ_prog.get(b.prov)
+		if winner == b.prog.by:
+			if cur == null or cur.by != b.prog.by or cur.f < b.prog.f:
+				occ_prog[b.prov] = b.prog.duplicate()
+			if winner == ME:
+				toast("The capture of %s resumes where it left off." % prov_name(b.prov))
+		elif cur != null and cur.by == b.prog.by:
+			occ_prog.erase(b.prov)
 	if not b.start.has(ME):
 		return
 	var mine: int = b.lost.get(ME, 0)
@@ -4260,6 +4283,10 @@ func monster_loot(a: Dictionary, k: String, b: Dictionary) -> void:
 # --- battle spells (magic.js onBattleJoin / onBattleEnd + v96 / v98 / v105 wrappers) ---
 
 func on_battle_join(a: Dictionary, now: float) -> void:
+	# v99: warscore for beating an army depends on its size and its nation's whole army
+	if a.kind == "army":
+		a.wsSize = troop_count(a) - a.troops.get(MAGE, 0)
+		a.wsTotal = soldier_count(a.owner)
 	a.fallen = {}
 	a.skin = 0.0
 	a.curse = 0.0
@@ -4445,8 +4472,10 @@ func retreat(a: Dictionary) -> void:
 			a.troops.erase(k)
 	var b: Dictionary = a.battle
 	b.lost[a.owner] = b.lost.get(a.owner, 0) + n
-	b.retreatedMe = true
+	if a.owner == ME:
+		b.retreatedMe = true
 	if troop_count(a) <= 0:
+		war_wipe(b, a)
 		remove_army(a)
 		toast("%s was cut down while retreating." % a.name, true)
 		return
@@ -5664,3 +5693,1255 @@ func has_access(x: int, n: int) -> bool:
 	if x == n or not is_nation(x) or not is_nation(n):
 		return false
 	return allied(x, n) or dipl.access.any(func(g): return g.from == n and g.to == x)
+
+
+
+# =================================================================================================================
+# the rules of war (web: war.js, with v78 war log, v95 peace rework, v96 timers, v99 meetings and warscore, v102
+# conquered capitals, v105 opinion / access / Proxy Wars, v106 alliances)
+var occ_prog := {}          # province -> {by, f}
+var war_log := []
+var war_ever := {}          # pair keys of nations that have ever been at war
+var war_lock := {}          # nation -> the time it may declare war again (it surrendered)
+var ai_met := {}            # pair keys of computer nations that have met
+var demand = null           # a computer nation's demand to the player, waiting for an answer
+var ally_offer = null
+var ally_ask := {}          # nation -> when it may offer an alliance again
+var fallen := false
+var war_last_t := -1.0
+var met_at := -9.0
+var ai_met_at := -9.0
+var on_game_over: Callable  # the view's "your realm has fallen"
+
+func W(k: String):
+	return GameData.c("WAR")[k]
+
+
+func forts_held(o: int) -> int:
+	var n := 0
+	for p in buildings:
+		if buildings[p].owner == o and buildings[p].stage == 1:
+			n += 1
+	return n
+
+
+func max_take0(o: int) -> int:
+	return maxi(1, 2 * forts_held(o))
+
+
+func max_take(o: int) -> int:
+	return max_take0(o)
+
+
+func war_lock_left(o: int) -> float:
+	return maxf(0.0, war_lock.get(o, 0.0) - t)
+
+
+func alive_nation(o: int) -> bool:
+	return (not fallen) if o == ME else (nations.has(o) and nations[o].alive)
+
+
+func ai_ids() -> Array:
+	return nations.keys()
+
+
+func live_nations() -> Array:
+	return ([ME] + ai_ids()).filter(func(o): return alive_nation(o))
+
+
+func the_name(o: int) -> String:
+	return "you" if o == ME else "the " + player_info(o).name
+
+
+func wars_of(o: int) -> Array:
+	return wars.filter(func(w): return w.a == o or w.b == o)
+
+
+static func foe_of(w: Dictionary, o: int) -> int:
+	return w.b if w.a == o else w.a
+
+
+func enemies_of(o: int) -> Array:
+	return wars_of(o).map(func(w): return foe_of(w, o))
+
+
+func allies_of(o: int) -> Array:
+	var out := []
+	for A in allies:
+		if A.a == o:
+			out.append(A.b)
+		elif A.b == o:
+			out.append(A.a)
+	return out
+
+
+func treaty_count(o: int) -> int:
+	return allies_of(o).size()
+
+
+func capital_of(o: int) -> int:
+	if o == ME and buildings.has(capital) and buildings[capital].owner == ME and buildings[capital].stage == 2:
+		return capital
+	for p in buildings:
+		if buildings[p].owner == o and buildings[p].stage == 2:
+			return p
+	return -1
+
+
+func soldiers_in(o: int, p: int) -> int:
+	var n := 0
+	for v in units:
+		if v.kind == "army" and v.owner == o and v.prov == p and not v.get("retreating", false) and not v.moving and v.get("battle") == null:
+			n += troop_count(v)
+	return n
+
+
+func occ_time_for(n: int, stage: int) -> float:
+	var T: Array = W("occTimes")
+	return (T[2] if n >= 6 else T[1] if n >= 2 else T[0]) * (W("occCapital") if stage == 2 else 1)
+
+
+func knows(o: int) -> bool:
+	return o == ME or met.has(o)
+
+
+func has_met(a: int, b: int) -> bool:
+	return a == b or (met.has(b) if a == ME else met.has(a) if b == ME else ai_met.has(pair_key(a, b)))
+
+
+func tech_of(o: int, id: String) -> bool:
+	return has_tech(id) if o == ME else (ai_has(nations[o], id) if nations.has(o) else false)
+
+
+func moat_delay(b: Dictionary, by: int) -> float:
+	return 10.0 if by != b.owner and b.stage >= 1 and is_nation(b.owner) and tech_of(b.owner, "moat") else 0.0
+
+
+func news(msg: String, warn := false) -> void:
+	toast(msg, warn)
+
+
+# --- v105 opinion: what a computer nation thinks of another ---
+const DIPL := {"ally": 50, "trade": 25, "crime": 25, "war": -200, "race": -200, "fort": -25, "den": -25, "difficult": -25,
+	"like": 50, "dislike": -25, "boss": 25, "threat": -100, "threatProvs": 100, "exhPer": 2, "exhDeclare": 50}
+
+func dipl_state() -> Dictionary:
+	for kv in [["decl", {}], ["boss", {}], ["mods", []], ["access", []], ["trade", []], ["crime", []], ["lost", {}], ["news", []], ["enemy", {}]]:
+		if not dipl.has(kv[0]):
+			dipl[kv[0]] = kv[1].duplicate()
+	return dipl
+
+
+func troop_mix(o: int) -> Dictionary:
+	var m := {"inf": 0, "cav": 0, "rng": 0}
+	for a in units:
+		if a.kind != "army" or a.owner != o:
+			continue
+		for k in a.troops:
+			var c: int = a.troops[k]
+			if not c or k == MAGE:
+				continue
+			var st = DSTATS.get(k)
+			if st == null or st.get("fam") == "boss" or st.get("fam") == "water":
+				continue
+			if st.get("ranged", false):
+				m.rng += c
+			elif st.get("cav", false):
+				m.cav += c
+			else:
+				m.inf += c
+	return m
+
+
+func extras_of_nation(o: int, type: String) -> Array:
+	var per := []
+	for p in buildings:
+		if buildings[p].owner == o:
+			per.append(extras_in(p).filter(func(e): return e.type == type).size())
+	return per
+
+
+func school_of_nation(o: int):
+	return current_school() if o == ME else nations[o].school if nations.has(o) else null
+
+
+func leader_like(L: Dictionary, t2: int) -> int:
+	match L.get("like"):
+		"school":
+			var sc = school_of_nation(t2)
+			return 0 if sc == null else DIPL.like if sc == L.school else DIPL.dislike
+		"cav":
+			var m := troop_mix(t2)
+			return DIPL.like if m.cav > m.inf else DIPL.dislike if m.cav == 0 else 0
+		"nocav":
+			var m := troop_mix(t2)
+			return DIPL.like if m.cav == 0 else DIPL.dislike if m.cav > m.inf else 0
+		"forges":
+			var per := extras_of_nation(t2, "forge")
+			var f := 0
+			for x in per:
+				f += x
+			return DIPL.dislike if f == 0 else DIPL.like if f >= maxi(1, per.size() / 3) else 0
+		"lumber3", "farms3":
+			var per := extras_of_nation(t2, "lumber" if L.like == "lumber3" else "farm")
+			var mx := 0
+			for x in per:
+				mx = maxi(mx, x)
+			return DIPL.like if mx >= 3 else DIPL.dislike if mx <= 1 else 0
+		"scouts":
+			var n := units.filter(func(u): return u.owner == t2 and u.kind == WAYFINDER).size()
+			var need := ["autoscout", "farsight"] + ([] if t2 != ME else ["scoutsight"])
+			var full: int = n if need.all(func(id): return tech_of(t2, id)) else 0
+			return DIPL.like if full >= 3 else DIPL.dislike if n <= 1 else 0
+	return 0
+
+
+func opinion_parts(o: int, t2: int) -> Array:
+	if not nations.has(o) or o == t2 or not alive_nation(t2):
+		return []
+	var D := dipl_state()
+	var out := []
+	var dc: int = D.decl.get("%d>%d" % [t2, o], 0)
+	if dc:
+		out.append(["Declared war on them" + (" (×%d)" % dc if dc > 1 else ""), DIPL.war * dc])
+	var forts := 0
+	for p in buildings:
+		if buildings[p].owner == t2 and buildings[p].stage == 1 and all_nbr[p].any(func(q): return nation_of(q) == o):
+			forts += 1
+	if forts:
+		out.append(["%d fort%s on their border" % [forts, "s" if forts > 1 else ""], DIPL.fort * forts])
+	if t2 == ME and nations[o].diff == "difficult":
+		out.append(["Difficult nation", DIPL.difficult])
+	if provs_of(t2).size() >= DIPL.threatProvs:
+		out.append(["Existential Threat", DIPL.threat])
+	var L = leader_of(o)
+	if L != null:
+		var v := leader_like(L, t2)
+		if v:
+			out.append([L.full, v])
+	var bk: int = D.boss.get(t2, 0)
+	if bk:
+		out.append(["Slew a boss", DIPL.boss * bk])
+	for m in D.mods:
+		if m.o == o and m.t == t2 and m.until > t:
+			out.append([m.kind, m.v])
+	return out
+
+
+func opinion(o: int, t2: int) -> int:
+	var v := 0
+	for part in opinion_parts(o, t2):
+		v += part[1]
+	return v
+
+
+func enemy_of(o: int) -> int:
+	return dipl_state().enemy.get(o, 0)
+
+
+func access_given(from: int, to: int) -> bool:
+	return dipl_state().access.any(func(g): return g.from == from and g.to == to)
+
+
+func end_access(from: int, to: int, why := "") -> void:
+	var D := dipl_state()
+	var had := access_given(from, to)
+	D.access = D.access.filter(func(g): return not (g.from == from and g.to == to))
+	if had and from == ME:
+		toast("The %s may no longer march through your land%s." % [player_info(to).name, ": " + why if why != "" else ""])
+	elif had and to == ME:
+		toast("The %s withdrew your military access%s." % [player_info(from).name, ": " + why if why != "" else ""], true)
+
+
+func troop_value(k: String) -> int:
+	var d = unit_defs.get(k)
+	return 0 if d == null or not d.has("cost") else int(d.cost.get("gold", 0) + d.cost.get("wood", 0))
+
+
+func army_value(o: int) -> int:
+	var n := 0
+	for a in units:
+		if a.kind == "army" and a.owner == o:
+			for k in a.troops:
+				n += a.troops[k] * troop_value(k)
+	return n
+
+
+func parent_war(w):
+	if w == null or w.get("parent") == null:
+		return null
+	for x in wars:
+		if x.id == w.parent:
+			return x
+	return null
+
+
+func proxy_shield(o: int, f: int) -> bool:
+	var w = war_between(o, f)
+	return w != null and w.get("proxy") == o
+
+
+func exhaustion_of(w: Dictionary) -> int:
+	if w.get("proxy") == null:
+		return 0
+	var lost := maxf(0, dipl_state().lost.get(w.proxy, 0) - w.get("lost0", 0))
+	var pct: float = lost / w.cost0 * 100 if w.get("cost0", 0) > 0 else 0.0
+	return mini(100, roundi(pct * DIPL.exhPer + w.get("exhB", 0)))
+
+
+# --- declaring war ---
+func cap_break(pairs: Array) -> bool:
+	var foes := {}
+	for f in enemies_of(ME):
+		foes[f] = true
+	for pr in pairs:
+		if pr[0] == ME:
+			foes[pr[1]] = true
+		if pr[1] == ME:
+			foes[pr[0]] = true
+	return foes.size() > W("maxVsPlayer")
+
+
+func nations_border(a: int, b: int) -> bool:
+	for p in buildings:
+		if buildings[p].owner == a and all_nbr[p].any(func(q): return nation_of(q) == b):
+			return true
+	return false
+
+
+static func fmt_time(s: float) -> String:
+	var n := ceili(s)
+	return "%d:%02d" % [n / 60, n % 60]
+
+
+func declare_why(att: int, def: int) -> String:
+	if att == def or not alive_nation(att) or not alive_nation(def):
+		return "There is no one to declare war on"
+	if at_war(att, def):
+		return "Already at war"
+	if allied(att, def):
+		return "Allies can’t go to war with each other"
+	var wl := war_lock_left(att)
+	if wl > 0:
+		return "You surrendered: no wars for %s" % fmt_time(wl) if att == ME else "They surrendered recently"
+	var tl := truce_left(att, def)
+	if tl > 0:
+		return "Truce: %s left" % fmt_time(tl)
+	if not nations_border(att, def):
+		return "You can only declare war on a nation that borders you" if att == ME else "They don’t border each other"
+	var pairs := [[att, def]]
+	for j in allies_of(def):
+		if j != att and not allied(att, j) and not at_war(att, j):
+			pairs.append([att, j])
+	if cap_break(pairs):
+		return "At most %d nations can be at war with you at once" % W("maxVsPlayer") if att == ME else "%s already faces %d enemies" % [player_info(ME).name, W("maxVsPlayer")]
+	var st := stock_of(att)
+	var short := []
+	for k in W("declareCost"):
+		if st.get(k, 0) < W("declareCost")[k]:
+			short.append("%d %s" % [W("declareCost")[k], k])
+	return "Need " + ", ".join(short) if not short.is_empty() else ""
+
+
+func new_war(att: int, def: int, parent) -> Dictionary:
+	war_seq += 1
+	var w := {"id": war_seq, "a": att, "b": def, "by": att, "base": 0.0, "since": t, "nextTick": t + W("tickEvery"), "battles": 0,
+		"active": false, "winStart": t, "peak": 0.0, "parent": parent, "demandAt": t + 30}
+	wars.append(w)
+	war_ever[pair_key(att, def)] = true
+	# v78: the war log
+	if att == ME or def == ME:
+		var foe := def if att == ME else att
+		war_log.append({"id": w.id, "foe": foe, "foeName": player_info(foe).name, "start": t, "end": null, "result": null, "joined": parent != null})
+	# v105: a war ends military access and agreements between the two; a war joined through an alliance is a Proxy War
+	var D := dipl_state()
+	end_access(att, def, "you are at war")
+	end_access(def, att, "you are at war")
+	for kind in ["trade", "crime"]:
+		D[kind] = D[kind].filter(func(P): return not ((P.a == att and P.b == def) or (P.a == def and P.b == att)))
+	if parent != null:
+		w.proxy = def
+		w.cost0 = army_value(def)
+		w.lost0 = D.lost.get(def, 0)
+		w.exhB = 0
+	else:
+		for c in wars:
+			if not is_same(c, w) and c.get("proxy") == def:
+				c.exhB = c.get("exhB", 0) + DIPL.exhDeclare
+	return w
+
+
+func declare_war(att: int, def: int):
+	var why := declare_why(att, def)
+	if why != "":
+		if att == ME:
+			toast("Can’t declare war: %s." % (why[0].to_lower() + why.substr(1)), true)
+		return null
+	var st := stock_of(att)
+	for k in W("declareCost"):
+		st[k] -= W("declareCost")[k]
+	var w := new_war(att, def, null)
+	var joins := allies_of(def).filter(func(j): return j != att and not allied(att, j) and not at_war(att, j))
+	for j in joins:
+		new_war(att, j, w.id)
+	var jn := " and ".join(joins.map(func(j): return "the " + player_info(j).name))
+	if att == ME:
+		met[def] = true
+		toast("You declared war on the %s!%s (−%s)" % [player_info(def).name, (" Their %s, %s, %s the war against you." % ["allies" if joins.size() > 1 else "ally", jn, "join" if joins.size() > 1 else "joins"]) if not joins.is_empty() else "", cost_text(W("declareCost"))], true)
+	elif def == ME:
+		met[att] = true
+		toast("The %s has declared war on you!" % player_info(att).name, true)
+	elif joins.has(ME):
+		met[att] = true
+		toast("The %s attacked your ally, the %s: you are at war with them too!" % [player_info(att).name, player_info(def).name], true)
+	elif knows(att) or knows(def):
+		news("The %s declared war on the %s." % [player_info(att).name, player_info(def).name])
+	var D := dipl_state()
+	D.decl["%d>%d" % [att, def]] = D.decl.get("%d>%d" % [att, def], 0) + 1
+	return w
+
+
+# --- warscore ---
+func occ_score(w: Dictionary) -> float:
+	if w.get("proxy") != null:
+		return 0.0
+	var s := 0.0
+	var V: Array = W("occVal")
+	for p in occ:
+		if not buildings.has(p):
+			continue
+		var b: Dictionary = buildings[p]
+		if b.owner == w.b and occ[p] == w.a:
+			s += V[b.stage]
+		elif b.owner == w.a and occ[p] == w.b:
+			s -= V[b.stage]
+	var kids := wars.filter(func(c): return c.get("parent") == w.id and c.get("proxy") != null)
+	if not kids.is_empty():
+		for p in occ:
+			if buildings.has(p) and buildings[p].owner == w.a and kids.any(func(c): return c.proxy == occ[p]):
+				s -= V[buildings[p].stage]
+	return s
+
+
+static func clamp_ws(n: float) -> float:
+	return clampf(n, -100, 100)
+
+
+func warscore(w, side: int) -> int:
+	if w == null or w.get("proxy") != null:
+		return 0
+	var s := int(clamp_ws(JS.round_js(w.base + occ_score(w))))
+	return -s if side == w.b else s
+
+
+func add_score(w: Dictionary, side: int, n: float) -> void:
+	w.base = clamp_ws(w.base + (n if side == w.a else -n))
+
+
+func battle_war(b):
+	if b == null or b.get("order") == null or b.order.size() < 2:
+		return null
+	return war_between(b.order[0], b.order[1])
+
+
+func war_wipe(b: Dictionary, a: Dictionary) -> void:
+	if nations.has(a.owner) and has_method("ai_note_defeat"):
+		call("ai_note_defeat", a, b)
+	var w = battle_war(b)
+	if w == null:
+		return
+	if w.get("proxy") != null:
+		if a.owner == w.proxy:
+			return
+		var P = parent_war(w)
+		if P == null:
+			return
+		var n2: int = a.get("wsSize", b.lost.get(a.owner, 0))
+		var all2: int = maxi(n2, a.get("wsTotal", 0))
+		var pts2: int = W("wipe") if n2 > all2 / 2.0 else W("wipeBig") if n2 > W("wipeMin") else 0
+		if pts2:
+			add_score(P, P.b, pts2)
+			P.battles += pts2 if P.b == P.a else -pts2
+		return
+	if a.owner != w.a and a.owner != w.b:
+		return
+	var foe := foe_of(w, a.owner)
+	var n: int = a.wsSize if a.get("wsSize", 0) else b.lost.get(a.owner, 0)
+	var all: int = maxi(n, a.get("wsTotal", 0))
+	var pts: int = W("wipe") if n > all / 2.0 else W("wipeBig") if n > W("wipeMin") else 0
+	if not pts:
+		return
+	add_score(w, foe, pts)
+	w.battles += pts if foe == w.a else -pts
+
+
+func war_battle_check(b: Dictionary) -> void:
+	var w = battle_war(b)
+	if w == null or w.active:
+		return
+	for o in [w.a, w.b]:
+		var lost: int = b.lost.get(o, 0)
+		if lost and lost > W("heavyLoss") * (soldier_count(o) + lost):
+			w.active = true
+			if w.a == ME or w.b == ME:
+				toast("A bloody battle: the war has turned serious, and the side ahead now gains warscore over time.")
+			return
+
+
+# --- occupation, the time tick, AI peace ---
+func step_war(now: float) -> void:
+	var dt := maxf(0.0, minf(0.5, now - (war_last_t if war_last_t >= 0 else now)))
+	war_last_t = now
+	if wars.is_empty() and occ.is_empty():
+		return
+	var stand := {}
+	for v in units:
+		if v.kind == "army" and not v.get("retreating", false) and not v.moving and v.get("battle") == null:
+			var n := troop_count(v)
+			if n > 0:
+				stand[v.prov * 16 + v.owner] = stand.get(v.prov * 16 + v.owner, 0) + n
+	var has := func(o: int, p: int) -> int: return stand.get(p * 16 + o, 0)
+	var near := {}
+	for v in units:
+		if v.kind == "army" and not v.get("retreating", false) and troop_count(v) > 0:
+			near[v.prov * 16 + v.owner] = true
+	var fighting := {}
+	for b in battles:
+		fighting[b.prov] = true
+	var mine_changed := false
+	for p in buildings.keys():
+		if not buildings.has(p):
+			continue
+		var b: Dictionary = buildings[p]
+		if not is_nation(b.owner):
+			continue
+		var O: int = b.owner
+		var occ_by = occ.get(p)
+		if occ_by != null and not at_war(O, occ_by):
+			occ.erase(p)
+			continue
+		var foes := enemies_of(O).filter(func(f): return not proxy_shield(O, f))
+		if foes.is_empty():
+			occ_prog.erase(p)
+			continue
+		var goal = null
+		if not fighting.has(p):
+			if occ_by == null:
+				if not has.call(O, p):
+					for f in foes:
+						if has.call(f, p):
+							goal = f
+							break
+			elif has.call(O, p) and not foes.any(func(f): return has.call(f, p)):
+				goal = O
+		var pr = occ_prog.get(p)
+		if goal == null:
+			if pr != null and (fighting.has(p) or (near.has(p * 16 + pr.by) and not enemies_of(pr.by).any(func(f): return has.call(f, p)))):
+				continue
+			occ_prog.erase(p)
+			continue
+		var cur: Dictionary = pr if pr != null and pr.by == goal else {"by": goal, "f": 0.0}
+		cur.f += dt / (occ_time_for(has.call(goal, p), b.stage) + moat_delay(b, goal))
+		occ_prog[p] = cur
+		if cur.f < 1:
+			continue
+		occ_prog.erase(p)
+		var name := prov_name(p)
+		var what: String = ["outpost", "fort", "capital"][b.stage]
+		var mine: bool = O == ME or goal == ME or occ_by == ME
+		if goal == O:
+			occ.erase(p)
+			if mine:
+				toast("%s liberated!" % name if goal == ME else "The enemy has retaken %s." % name, goal != ME)
+		else:
+			occ[p] = goal
+			var w = war_between(goal, O)
+			if w != null and b.stage >= 1 and not w.active:
+				w.active = true
+				if mine:
+					toast("A %s has fallen: the war has turned serious, and the side ahead now gains warscore over time." % what)
+			if mine:
+				toast("%s occupied! +%d warscore while you hold this %s." % [name, W("occVal")[b.stage], what] if goal == ME else "The %s has occupied your %s at %s! (−%d)" % [player_info(goal).name, what, name, W("occVal")[b.stage]], goal != ME)
+		if mine:
+			mine_changed = true
+	if mine_changed:
+		compute_income()
+	for w in wars.duplicate():
+		if wars.has(w):
+			step_one_war(w, now)
+	check_ai_demands(now)
+
+
+func step_one_war(w: Dictionary, now: float) -> void:
+	if w.get("proxy") != null:
+		# v105: a Proxy War ends when its nation is exhausted
+		if exhaustion_of(w) >= 100:
+			end_war(w)
+			if w.proxy == ME:
+				toast("Your nation is exhausted: you make a white peace with the %s and leave your ally’s war." % player_info(w.a).name, true)
+			elif w.a == ME:
+				toast("The %s is exhausted: it makes a white peace with you and leaves the war." % player_info(w.proxy).name)
+		return
+	for L in [w.a, w.b]:
+		if all_occupied(L, foe_of(w, L)) and not w.get("broken"):
+			w.broken = L
+			var win := foe_of(w, L)
+			add_score(w, win, 200)
+			if w.a == ME or w.b == ME:
+				toast("Every province you hold is occupied: the %s is at 100 warscore." % player_info(win).name if L == ME else "Every province of the %s is occupied: warscore 100%%. Call for peace in Diplomacy." % player_info(L).name, L == ME)
+	var tick: Array = W("occTick")
+	while now >= w.nextTick:
+		for p in occ:
+			if not buildings.has(p):
+				continue
+			var b: Dictionary = buildings[p]
+			if not tick[b.stage]:
+				continue
+			if b.owner == w.b and occ[p] == w.a:
+				add_score(w, w.a, tick[b.stage])
+			elif b.owner == w.a and occ[p] == w.b:
+				add_score(w, w.b, tick[b.stage])
+		w.nextTick += W("tickEvery")
+	w.peak = maxf(w.peak, absi(warscore(w, w.a)))
+	if now - w.winStart >= W("stallWindow"):
+		if w.peak <= W("stallScore"):
+			if w.a == ME or w.b == ME:
+				toast("Neither side got past %d warscore in %d minutes. The war with the %s ends in white peace." % [W("stallScore"), W("stallWindow") / 60, player_info(foe_of(w, ME)).name])
+			make_peace(w, w.a, {"kind": "white"})
+			return
+		w.winStart = now
+		w.peak = absi(warscore(w, w.a))
+	if w.a != ME and w.b != ME:
+		ai_peace(w, now)
+
+
+func all_occupied(o: int, by: int) -> bool:
+	var own := provs_of(o)
+	return not own.is_empty() and own.all(func(p): return occ.get(p) == by)
+
+
+func ai_peace(w: Dictionary, now: float) -> void:
+	var s := warscore(w, w.a)
+	var lead: int = w.a if s > 0 else w.b
+	var loser := foe_of(w, lead)
+	var sc := absi(s)
+	if sc >= W("provs") and now >= w.demandAt:
+		w.demandAt = now + 60
+		var provs: Array = provs_of(loser) if sc >= W("total") and annexable(lead, loser) and provs_of(loser).size() <= demand_max(sc, lead) else connected_pick(lead, loser, demand_max(sc, lead))
+		make_peace(w, lead, {"kind": "provs", "provs": provs} if not provs.is_empty() else {"kind": "gold"})
+
+
+# v96 (v101: 20 minutes): every war ends in white peace after a while unless a deal is made first
+const WAR_TIMER := 1200.0
+
+func step_war_timers() -> void:
+	for w in wars.duplicate():
+		if not wars.has(w) or WAR_TIMER - (t - w.since) > 0:
+			continue
+		if w.a == ME or w.b == ME:
+			toast("The war with the %s has gone on too long: it ends in white peace." % player_info(foe_of(w, ME)).name)
+		make_peace(w, w.a, {"kind": "white"})
+
+
+# --- peace ---
+func takeable(p: int, winner: int) -> bool:
+	var o = occ.get(p)
+	return o == null or o == winner
+
+
+func scouted_by(o: int, p: int) -> bool:
+	if nation_of(p) == o:
+		return true
+	if o == ME:
+		return wf.has(p) or known.has(p)
+	var L = nations[o].get("scouted") if nations.has(o) else null
+	return L == null or L.has(p)
+
+
+func demand_max0(s: int, o := ME) -> int:
+	if s >= W("total"):
+		return maxi(1 + (W("total") - W("provs")) / 5, max_take0(o))
+	return 1 + (s - W("provs")) / 5 if s >= W("provs") else 0
+
+
+func demand_max(s: int, o := ME) -> int:
+	return demand_max0(s, o)
+
+
+func annexable(winner: int, loser: int) -> bool:
+	return provs_of(loser).all(func(p): return takeable(p, winner))
+
+
+func capital_land(o: int) -> Dictionary:
+	var cap := capital_of(o)
+	var set := {}
+	if cap < 0:
+		return set
+	var q := [cap]
+	set[cap] = true
+	var i := 0
+	while i < q.size():
+		for n in all_nbr[q[i]]:
+			if not set.has(n) and nation_of(n) == o:
+				set[n] = true
+				q.append(n)
+		i += 1
+	return set
+
+
+func seize_why(winner: int, loser: int, provs: Array) -> String:
+	var land := capital_land(winner)
+	var left := {}
+	for p in provs:
+		left[p] = true
+	var grew := true
+	while grew and not left.is_empty():
+		grew = false
+		for p in left.keys():
+			if all_nbr[p].any(func(n): return land.has(n)):
+				land[p] = true
+				left.erase(p)
+				grew = true
+	if left.is_empty():
+		return ""
+	return "%s %s connect to your capital" % [", ".join(left.keys().map(func(p): return prov_name(p))), "don’t" if left.size() > 1 else "doesn’t"]
+
+
+func connected_pick(winner: int, loser: int, n := -1) -> Array:
+	if n < 0:
+		n = W("maxProvs")
+	var land := capital_land(winner)
+	var cap := capital_of(loser)
+	var out := []
+	var cand := provs_of(loser).filter(func(p): return p != cap and takeable(p, winner) and scouted_by(winner, p))
+	while out.size() < n:
+		var ok := cand.filter(func(p): return not out.has(p) and all_nbr[p].any(func(q): return land.has(q)))
+		if ok.is_empty():
+			break
+		ok = JS.stable_sort(ok, func(a, b):
+			var d := int(occ.get(b) == winner) - int(occ.get(a) == winner)
+			return d if d != 0 else a - b)
+		out.append(ok[0])
+		land[ok[0]] = true
+	return out
+
+
+func peace_check(w, kind: String, provs := []) -> String:
+	if w == null or not wars.has(w):
+		return "Not at war"
+	var s := warscore(w, ME)
+	var foe := foe_of(w, ME)
+	match kind:
+		"white":
+			if t - w.since < W("whiteAfter"):
+				return "No white peace in the first %d minutes (%s left)" % [W("whiteAfter") / 60, fmt_time(W("whiteAfter") - (t - w.since))]
+			if s < 0:
+				return "Losing: you can only surrender"
+			return ""
+		"surrender":
+			return "" if s < 0 else "Only the losing side can surrender"
+		"gold":
+			return "" if s >= W("gold") else "Needs +%d warscore" % W("gold")
+		"provs":
+			if s < W("provs"):
+				return "Needs +%d warscore" % W("provs")
+			if provs.is_empty():
+				return "Pick at least one province"
+			var un := provs.filter(func(p): return not scouted_by(ME, p))
+			if not un.is_empty():
+				return "%s %s been explored by a scout or an army" % [", ".join(un.map(func(p): return prov_name(p))), "haven’t" if un.size() > 1 else "hasn’t"]
+			var dm := demand_max(s)
+			if provs.size() > dm:
+				return "At most %d province%s at %d warscore (1 at 50, +1 for every 5 more)" % [dm, "s" if dm > 1 else "", s]
+			if provs.any(func(p): return nation_of(p) != foe):
+				return "Only their provinces can be demanded"
+			if provs.any(func(p): return buildings[p].stage == 2) and not (s >= W("total") and provs_of(foe).all(func(p): return provs.has(p))):
+				return "Their capital can only be taken with every other province (annexation)" if s >= W("total") else "Capitals can’t be demanded below 100 warscore"
+			var held := provs.filter(func(p): return not takeable(p, ME))
+			if not held.is_empty():
+				return "%s occupied by another nation" % ", ".join(held.map(func(p): return prov_name(p)))
+			return seize_why(ME, foe, provs)
+	return "Unknown term"
+
+
+func transfer_prov(p: int, to: int) -> void:
+	if not buildings.has(p):
+		return
+	var b: Dictionary = buildings[p]
+	var was_cap: bool = b.stage == 2 or b.get("cc", false)
+	var from: int = b.owner
+	var cc := {"of": b.ccOf if b.get("cc", false) else from}
+	b.stage = 0
+	b.owner = to
+	b.born = t
+	upgrades.erase(p)
+	occ.erase(p)
+	occ_prog.erase(p)
+	for k in xup.keys():
+		if str(k).begins_with("%d@" % p):
+			xup.erase(k)
+	for u in units:
+		if u.build != null and u.build.prov == p:
+			cancel_build(u)
+		if u.get("pending") != null and u.pending.prov == p:
+			u.pending = null
+	if to == ME:
+		surveyed[p] = t
+		known[p] = true
+	if has_method("ai_on_transfer"):
+		call("ai_on_transfer", p, from, to)
+	# v102: a conquered capital stays a Conquered Capital (a fort), and becomes the capital again when won back
+	if was_cap:
+		if cc.of == to and is_nation(to) and capital_of(to) < 0:
+			b.stage = 2
+			b.cc = false
+			if to == ME:
+				capital = p
+		else:
+			b.stage = 1
+			b.cc = true
+			b.ccOf = cc.of
+	else:
+		b.cc = false
+	var list := extras_in(p)
+	var cap := plot_cap(p)
+	if list.size() > cap:
+		list = JS.stable_sort(list.duplicate(), func(x, y): return x.slot - y.slot).slice(0, cap)
+		extras[p] = list
+
+
+# after a peace deal, anyone left in a foreign nation's land marches home
+func evict_armies() -> void:
+	var mine := 0
+	for a in units:
+		if not is_nation(a.owner):
+			continue
+		var n := nation_of(a.prov)
+		if n == 0 or n == a.owner or hostile(a.owner, n) or allied(a.owner, n):
+			continue
+		var own := provs_of(a.owner)
+		if own.is_empty():
+			continue
+		a.exiting = true
+		a.battle = null
+		a.retreating = false
+		a.retreatHome = null
+		a.surveyQueue = []
+		a.survey = null
+		a.scouting = null
+		a.pendingSurvey = -1
+		a.pending = null
+		if a.build != null:
+			cancel_build(a)
+		var d := hops_list(a.prov)
+		own = JS.stable_sort(own, func(x, y): return signf(d[x] - d[y]))
+		var dest: int = own[0]
+		if not order(a, dest, true):
+			a.prov = dest
+			a.slot = free_slot(dest, a)
+			var xy := slot_pos(dest, a.slot)
+			a.x = xy[0]
+			a.y = xy[1]
+			a.path = []
+			a.moving = false
+			a.exiting = false
+		elif a.owner == ME:
+			mine += 1
+	if mine:
+		toast("%d of your unit%s in foreign land and will march home. They can’t be commanded until they reach your territory." % [mine, "s are" if mine > 1 else " is"])
+
+
+func end_war(w: Dictionary) -> void:
+	var rec = null
+	for r in war_log:
+		if r.id == w.id and r.end == null:
+			rec = r
+	wars = wars.filter(func(x): return not is_same(x, w))
+	var pair := func(o) -> bool: return o == w.a or o == w.b
+	for p in occ.keys():
+		if not buildings.has(p) or (pair.call(occ[p]) and pair.call(buildings[p].owner)):
+			occ.erase(p)
+	for p in occ_prog.keys():
+		if not buildings.has(p) or (pair.call(occ_prog[p].by) and pair.call(buildings[p].owner)):
+			occ_prog.erase(p)
+	for b in battles.duplicate():
+		if b.get("order") != null and b.order.size() >= 2 and pair.call(b.order[0]) and pair.call(b.order[1]):
+			b.peace = true
+			end_battle(b, -1, {})
+	truces[pair_key(w.a, w.b)] = t + W("truce")
+	if demand != null and demand.war == w.id:
+		demand = null
+	for c in wars.filter(func(x): return x.get("parent") == w.id):
+		end_war(c)
+		if c.a == ME or c.b == ME:
+			toast("The war that drew you in is over: white peace with the %s." % player_info(foe_of(c, ME)).name)
+	if rec != null:
+		rec.end = t
+		rec.result = rec.get("result_pending", "White peace · the ally’s war ended" if rec.joined else "Ended")
+
+
+func make_peace(w, winner: int, terms: Dictionary) -> void:
+	if w == null or not wars.has(w):
+		return
+	var loser := foe_of(w, winner)
+	var me := winner == ME or loser == ME
+	var lines := []
+	var fell := false
+	var annexed := 0
+	var Wn: String = player_info(winner).name
+	match terms.kind:
+		"gold":
+			var ls := stock_of(loser)
+			var ws := stock_of(winner)
+			var g := mini(W("goldTerm"), int(floor(ls.gold)))
+			ls.gold -= g
+			ws.gold += g
+			lines.append("You take %d gold" % g if winner == ME else "You pay %d gold" % g if loser == ME else "The %s takes %d gold" % [Wn, g])
+		"provs":
+			var provs: Array = terms.provs.filter(func(p): return nation_of(p) == loser and takeable(p, winner))
+			if provs_of(loser).all(func(p): return provs.has(p)):
+				if loser == ME:
+					fell = true
+				else:
+					annexed = loser
+			for p in provs:
+				transfer_prov(p, winner)
+			var lst := ", ".join(provs.map(func(p): return prov_name(p)))
+			lines.append("You gain %d province%s: %s" % [provs.size(), "s" if provs.size() > 1 else "", lst] if winner == ME else "You cede %d province%s: %s" % [provs.size(), "s" if provs.size() > 1 else "", lst] if loser == ME else "The %s takes %d province%s" % [Wn, provs.size(), "s" if provs.size() > 1 else ""])
+		"surrender":
+			var provs := connected_pick(winner, loser, max_take(winner))
+			for p in provs:
+				transfer_prov(p, winner)
+			war_lock[loser] = t + W("surrenderLock")
+			lines.append("The war ends in surrender: %d province%s change hands" % [provs.size(), "" if provs.size() == 1 else "s"])
+		_:
+			lines.append("White peace: no one gains anything")
+	# v78: the war's result for the log
+	for r in war_log:
+		if r.id == w.id and r.end == null:
+			var K := {"gold": "gold", "provs": "provinces", "surrender": "surrender"}
+			r.result_pending = "White peace" if terms.kind == "white" or not K.has(terms.kind) else ("Victory · " if winner == ME else "Defeat · ") + K[terms.kind]
+	end_war(w)
+	if annexed:
+		kill_nation(annexed, winner)
+	evict_armies()
+	compute_income()
+	compute_fog()
+	if fell:
+		game_over(winner)
+		return
+	if me:
+		toast("Peace with the %s! %s. Truce for %d minutes." % [player_info(foe_of(w, ME)).name, ". ".join(lines), W("truce") / 60])
+	elif knows(winner) or knows(loser):
+		news("The %s and the %s made peace. %s." % [Wn, player_info(loser).name, ". ".join(lines)])
+
+
+func kill_nation(o: int, by: int) -> void:
+	if not nations.has(o) or not nations[o].alive:
+		return
+	nations[o].alive = false
+	units = units.filter(func(v): return v.owner != o)
+	for w in wars_of(o):
+		end_war(w)
+	allies = allies.filter(func(A): return A.a != o and A.b != o)
+	for p in provs_of(o):
+		if by:
+			transfer_prov(p, by)
+		else:
+			buildings.erase(p)
+			extras.erase(p)
+	if knows(o):
+		toast("The %s is no more%s." % [player_info(o).name, (": its land now belongs to %s" % the_name(by)) if by and by != o else ""])
+
+
+func game_over(winner: int) -> void:
+	fallen = true
+	units = units.filter(func(v): return v.owner != ME)
+	for w in wars_of(ME):
+		end_war(w)
+	allies = allies.filter(func(A): return A.a != ME and A.b != ME)
+	if on_game_over.is_valid():
+		on_game_over.call(winner)
+
+
+# --- a computer nation's demands to the player ---
+func check_ai_demands(now: float) -> void:
+	if demand != null or fallen:
+		return
+	for w in wars_of(ME):
+		var s := warscore(w, ME)
+		if s <= -W("provs") and now >= w.demandAt:
+			w.demandAt = now + 60
+			ai_demand(w)
+			return
+
+
+func ai_demand(w: Dictionary) -> void:
+	var foe := foe_of(w, ME)
+	var sc := -warscore(w, ME)
+	var mine: Array = provs_of(ME) if sc >= W("total") and annexable(foe, ME) and provs_of(ME).size() <= demand_max(sc, foe) else connected_pick(foe, ME, demand_max(sc, foe))
+	var terms := {"kind": "provs", "provs": mine} if not mine.is_empty() else {"kind": "gold"}
+	demand = terms.duplicate()
+	demand.war = w.id
+	demand.from = foe
+	var what: String = "%d of your provinces: %s" % [mine.size(), ", ".join(mine.map(func(p): return prov_name(p)))] if not mine.is_empty() else "%d gold" % mini(W("goldTerm"), int(stock.gold))
+	toast("The %s demands peace." % player_info(foe).name, true)
+	if on_dialog.is_valid():
+		on_dialog.call("The %s demands peace" % player_info(foe).name, "They are winning the war and demand peace. They want %s." % what,
+			[{"id": "yes", "label": "Accept", "why": null}, {"id": "no", "label": "Refuse", "why": null}], func(id): answer_demand(id == "yes"))
+
+
+func answer_demand(yes: bool) -> void:
+	var d = demand
+	if d == null:
+		return
+	var w = null
+	for x in wars:
+		if x.id == d.war:
+			w = x
+	demand = null
+	if yes and w != null:
+		make_peace(w, d.from, d)
+	elif w != null:
+		toast("You refused. The war goes on.")
+
+
+# --- alliances (v105 rules, v106 for the player) ---
+func ally_why(a: int, b: int) -> String:
+	if (a == ME or b == ME) and alive_nation(a) and alive_nation(b) and a != b:
+		var o := b if a == ME else a
+		if allied(a, b):
+			return "Already allies"
+		if treaty_count(o) >= 1:
+			return "They already have an ally"
+		if at_war(a, b):
+			return "You are at war"
+		if truce_left(a, b) > 0:
+			return "Truce: %s left" % fmt_time(truce_left(a, b))
+		if nations.has(o) and nations[o].get("rival") == ME:
+			return "They see you as their rival"
+		if enemy_of(o) == ME or enemy_of(ME) == o:
+			return "One of you proclaims the other an enemy"
+		if opinion(o, ME) < DIPL.ally:
+			return "Their opinion of you is %d (needs +%d)" % [opinion(o, ME), DIPL.ally]
+		return ""
+	if a != b and not has_met(a, b):
+		return "They haven’t met each other"
+	if not alive_nation(a) or not alive_nation(b) or a == b:
+		return "Not possible"
+	if allied(a, b):
+		return "Already allies"
+	if treaty_count(a) >= 1 or treaty_count(b) >= 1:
+		return "They already have an ally"
+	if at_war(a, b):
+		return "You are at war"
+	if truce_left(a, b) > 0:
+		return "Truce"
+	if (nations.has(a) and nations[a].get("rival") == b) or (nations.has(b) and nations[b].get("rival") == a):
+		return "They are rivals"
+	for xy in [[a, b], [b, a]]:
+		if nations.has(xy[0]) and opinion(xy[0], xy[1]) < DIPL.ally:
+			return "Their opinion is too low"
+	if enemy_of(a) == b or enemy_of(b) == a:
+		return "They proclaim each other enemies"
+	return ""
+
+
+func border_sets() -> Dictionary:
+	var B := {}
+	for p in buildings:
+		var o: int = buildings[p].owner
+		if not is_nation(o):
+			continue
+		for q in all_nbr[p]:
+			if buildings.has(q) and buildings[q].owner != o and is_nation(buildings[q].owner):
+				if not B.has(o):
+					B[o] = {}
+				B[o][buildings[q].owner] = true
+	return B
+
+
+func nation_sizes() -> Dictionary:
+	var n := {}
+	for p in buildings:
+		n[buildings[p].owner] = n.get(buildings[p].owner, 0) + 1
+	return n
+
+
+func common_threat(a: int, b: int, B: Dictionary, N: Dictionary) -> int:
+	var best := 0
+	for c in live_nations():
+		if c == a or c == b:
+			continue
+		var bc = B.get(c)
+		if bc == null or not bc.has(a) or not bc.has(b):
+			continue
+		var n: int = N.get(c, 0)
+		if n < 1.25 * N.get(a, 0) or n < 1.25 * N.get(b, 0):
+			continue
+		if not best or n > N.get(best, 0):
+			best = c
+	return best
+
+
+func form_alliance(a: int, b: int, vs: int) -> void:
+	allies.append({"a": a, "b": b, "vs": vs, "since": t})
+	var against := " against the %s" % player_info(vs).name if vs else ""
+	if a == ME or b == ME:
+		var o := b if a == ME else a
+		met[o] = true
+		toast("You are now allied with the %s%s. If anyone declares war on one of you, the other joins the war." % [player_info(o).name, against])
+		# v99: the player meets everyone his new ally has met, and his ally meets everyone he has
+		for x in met.keys():
+			if x != o and nations.has(x) and alive_nation(x):
+				ai_met[pair_key(o, x)] = true
+		for x in ai_ids():
+			if x != o and alive_nation(x) and not met.has(x) and ai_met.has(pair_key(o, x)):
+				meet_nation(x)
+	elif knows(a) or knows(b):
+		news("The %s and the %s formed an alliance%s." % [player_info(a).name, player_info(b).name, against])
+
+
+func end_alliance(A: Dictionary, why: String) -> void:
+	allies = allies.filter(func(x): return not is_same(x, A))
+	if alive_nation(A.a) and alive_nation(A.b):
+		truces[pair_key(A.a, A.b)] = maxf(truces.get(pair_key(A.a, A.b), 0.0), t + W("allyTruce"))
+	if A.a == ME or A.b == ME:
+		toast("Your alliance with the %s has ended: %s." % [player_info(B_of(A)).name, why])
+	elif knows(A.a) or knows(A.b):
+		news("The alliance of the %s and the %s has ended." % [player_info(A.a).name, player_info(A.b).name])
+
+
+func B_of(A: Dictionary) -> int:
+	return A.b if A.a == ME else A.a
+
+
+func step_ai_met() -> void:
+	if t - ai_met_at < 2:
+		return
+	ai_met_at = t
+	for p in buildings:
+		var a: int = buildings[p].owner
+		if not nations.has(a):
+			continue
+		for q in all_nbr[p]:
+			var o := nation_of(q)
+			if o and o != a and o != ME and nations.has(o):
+				ai_met[pair_key(a, o)] = true
+	for w in wars:
+		if w.a != ME and w.b != ME:
+			ai_met[pair_key(w.a, w.b)] = true
+	for A in allies:
+		if A.a != ME and A.b != ME:
+			ai_met[pair_key(A.a, A.b)] = true
+
+
+func step_alliances() -> void:
+	step_ai_met()
+	var B := border_sets()
+	var N := nation_sizes()
+	for A in allies.duplicate():
+		if not alive_nation(A.a) or not alive_nation(A.b):
+			end_alliance(A, "an ally fell")
+	var live := live_nations()
+	for a in live:
+		for b in live:
+			if a >= b or ally_why(a, b) != "":
+				continue
+			var vs := common_threat(a, b, B, N)
+			if not vs:
+				continue
+			if a == ME or b == ME:
+				var o: int = b if a == ME else a
+				if ally_ask.get(o, 0.0) > t:
+					continue
+				if offer_alliance(o, vs):
+					ally_ask[o] = t + W("allyAskAgain")
+				continue
+			form_alliance(a, b, vs)
+
+
+func offer_alliance(from: int, vs: int) -> bool:
+	if ally_offer != null or demand != null:
+		return false
+	ally_offer = {"from": from, "vs": vs, "t": t}
+	if on_dialog.is_valid():
+		on_dialog.call("The %s proposes an alliance" % player_info(from).name,
+			"They fear the %s (%d provinces) and propose an alliance: if anyone declares war on one of you, the other joins the war." % [player_info(vs).name, provs_of(vs).size()],
+			[{"id": "yes", "label": "Ally", "why": null}, {"id": "no", "label": "Decline", "why": null}], func(id): answer_alliance(id == "yes"))
+	return true
+
+
+func answer_alliance(yes: bool) -> void:
+	var o = ally_offer
+	if o == null:
+		return
+	ally_offer = null
+	if yes and ally_why(ME, o.from) == "":
+		form_alliance(ME, o.from, o.vs)
+	else:
+		ally_ask[o.from] = t + W("allyAskAgain")
+
+
+# --- meeting nations (web: war.js updateMet / meetNation) ---
+func update_met() -> void:
+	if not started or fallen or t - met_at < 1:
+		return
+	met_at = t
+	for p in buildings:
+		var o: int = buildings[p].owner
+		if o != ME and nations.has(o) and not met.has(o) and explored.has(p):
+			meet_nation(o)
+	for u in units:
+		if u.owner == ME and u.kind == WAYFINDER:
+			for q in all_nbr[u.prov]:
+				var o := nation_of(q)
+				if o and o != ME and nations.has(o) and not met.has(o):
+					meet_nation(o)
+
+
+func meet_nation(o: int) -> void:
+	if met.has(o):
+		return
+	met[o] = true
+	if on_dialog.is_valid():
+		var N: Dictionary = nations[o]
+		var al := allies_of(o)
+		on_dialog.call("You have met the %s" % player_info(o).name, "%d province%s · %s%s%s. You can see them now in Diplomacy." % [provs_of(o).size(), "" if provs_of(o).size() == 1 else "s",
+			GameData.c("DIFF_NAME")[N.diff], (" · allied with " + the_name(al[0])) if not al.is_empty() else "", " · at war with you" if at_war(ME, o) else ""],
+			[{"id": "ok", "label": "OK", "why": null}], Callable())
+
+
+# --- every half second (web: v105.js stepDiplomacy, without the player's diplomatic actions yet) ---
+var dx_step_t := -1.0
+
+func step_diplomacy() -> void:
+	if not started or fallen:
+		return
+	if t - dx_step_t < 0.5 and t >= dx_step_t:
+		return
+	dx_step_t = t
+	var D := dipl_state()
+	D.mods = D.mods.filter(func(m): return m.until > t)
+	for A in allies.duplicate():
+		for xy in [[A.a, A.b], [A.b, A.a]]:
+			if nations.has(xy[0]) and alive_nation(xy[0]) and alive_nation(xy[1]) and opinion(xy[0], xy[1]) < 0 and allies.has(A):
+				end_alliance(A, "the %s’s opinion of you fell below zero" % player_info(xy[0]).name if xy[1] == ME else "opinion fell below zero")
+	for kind in ["trade", "crime"]:
+		for P in D[kind].duplicate():
+			if not alive_nation(P.a) or not alive_nation(P.b) or at_war(P.a, P.b) or (kind == "trade" and not nations_border(P.a, P.b)):
+				D[kind].erase(P)
+	D.access = D.access.filter(func(g): return alive_nation(g.from) and alive_nation(g.to) and not at_war(g.from, g.to))
+
+
+
+# =================================================================================================================
+# the computer players (web: ai.js stepAI and its wrappers); the brains are ported in the next step
+var ally_check := 0.0
+
+func step_ai(now: float) -> void:
+	if not started:
+		return
+	if now >= ally_check:
+		ally_check = now + 5
+		step_alliances()
