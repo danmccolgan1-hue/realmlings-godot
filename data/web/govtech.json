@@ -33,16 +33,6 @@
     "food": 1
    }
   ],
-  "goldmine": [
-   [
-    "advmines",
-    "refmines",
-    "sophmines"
-   ],
-   {
-    "gold": 2
-   }
-  ],
   "lumber": [
    [
     "advmills",
@@ -52,6 +42,16 @@
    {
     "wood": 1
    }
+  ],
+  "goldmine": [
+   [
+    "advmines",
+    "refmines",
+    "sophmines"
+   ],
+   {
+    "gold": 2
+   }
   ]
  },
  "WALL_COST": {
@@ -59,7 +59,7 @@
   "wood": 150
  },
  "WALL_HP": {
-  "stone": 1200,
-  "wood": 400
+  "wood": 400,
+  "stone": 1200
  }
 }

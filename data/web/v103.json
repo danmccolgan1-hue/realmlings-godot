@@ -14,13 +14,13 @@
   "market"
  ],
  "AI_TIER_CAP": {
-  "difficult": 9,
   "easy": 2,
-  "moderate": 3
+  "moderate": 3,
+  "difficult": 9
  },
  "SHIELD_TIER": {
-  "s-kite": 2,
   "s-round": 1,
+  "s-kite": 2,
   "s-tower": 3
  }
 }

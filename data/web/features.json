@@ -48,14 +48,14 @@
   "horse"
  ],
  "FLAG_NAMES": {
-  "crown": "Crown",
   "dragon": "Dragon",
   "eagle": "Eagle",
-  "horse": "Rearing horse",
   "lion": "Lion",
-  "shield": "Shield",
   "snake": "Snake",
-  "swords": "Crossed swords"
+  "crown": "Crown",
+  "swords": "Crossed swords",
+  "shield": "Shield",
+  "horse": "Rearing horse"
  },
  "GRID_KEYS": [
   "q",
@@ -77,6 +77,20 @@
  ],
  "NAME_PARTS": {
   "realm": {
+   "titles": [
+    "Kingdom",
+    "Duchy",
+    "Realm",
+    "March",
+    "Principality",
+    "Dominion",
+    "Grand Duchy",
+    "Barony",
+    "Free Cities",
+    "Crown",
+    "County",
+    "Empire"
+   ],
    "places": [
     "Thornwall",
     "Emberreach",
@@ -102,23 +116,18 @@
     "Ambervale",
     "Westmarch",
     "Copperfield"
-   ],
-   "titles": [
-    "Kingdom",
-    "Duchy",
-    "Realm",
-    "March",
-    "Principality",
-    "Dominion",
-    "Grand Duchy",
-    "Barony",
-    "Free Cities",
-    "Crown",
-    "County",
-    "Empire"
    ]
   },
   "swamp": {
+   "titles": [
+    "Clan",
+    "Tribe",
+    "Legion",
+    "Horde",
+    "Warband",
+    "Brood",
+    "Mob"
+   ],
    "places": [
     "Bloodtusk",
     "Gorehide",
@@ -140,27 +149,35 @@
     "Toadbelly",
     "Mirefang",
     "Gobsmack"
-   ],
-   "titles": [
-    "Clan",
-    "Tribe",
-    "Legion",
-    "Horde",
-    "Warband",
-    "Brood",
-    "Mob"
    ]
   },
   "wood": {
-   "adj": [
-    "Ancient",
-    "Eternal",
-    "Silverleaf",
-    "Starlit",
-    "Moonlit",
-    "Leafsworn",
-    "Evergreen",
-    "Twilight"
+   "pre": [
+    "Moon",
+    "Star",
+    "Dawn",
+    "Dusk",
+    "Silver",
+    "Leaf",
+    "Elder",
+    "Mist",
+    "Twilight",
+    "Ever",
+    "Sun",
+    "Glimmer",
+    "Thorn",
+    "Willow"
+   ],
+   "post": [
+    "watchers",
+    "wardens",
+    "singers",
+    "walkers",
+    "keepers",
+    "sworn",
+    "weavers",
+    "seekers",
+    "guards"
    ],
    "groups": [
     "Sentinels",
@@ -187,40 +204,23 @@
     "the Hidden Vale",
     "the Ancient Oak"
    ],
-   "post": [
-    "watchers",
-    "wardens",
-    "singers",
-    "walkers",
-    "keepers",
-    "sworn",
-    "weavers",
-    "seekers",
-    "guards"
-   ],
-   "pre": [
-    "Moon",
-    "Star",
-    "Dawn",
-    "Dusk",
-    "Silver",
-    "Leaf",
-    "Elder",
-    "Mist",
-    "Twilight",
-    "Ever",
-    "Sun",
-    "Glimmer",
-    "Thorn",
-    "Willow"
+   "adj": [
+    "Ancient",
+    "Eternal",
+    "Silverleaf",
+    "Starlit",
+    "Moonlit",
+    "Leafsworn",
+    "Evergreen",
+    "Twilight"
    ]
   }
  },
  "NATION": {
+  "name": "My Realm",
   "color": 0,
   "emblem": "crown",
-  "leader": "niall",
-  "name": "My Realm"
+  "leader": "niall"
  },
  "NATION_COLORS": [
   [

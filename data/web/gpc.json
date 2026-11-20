@@ -19,8 +19,8 @@
  },
  "SPELL_FX_TIME": {
   "fireball": 2.2,
-  "quake": 3,
-  "shock": 1.8
+  "shock": 1.8,
+  "quake": 3
  },
  "SP_FOUND_TEXT": {
   "battlesite": "%%% has found evidence of a massive battle dating back thousands of years in $$$. Our own Forges could learn from this site.",

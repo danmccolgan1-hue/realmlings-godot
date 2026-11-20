@@ -1,17 +1,17 @@
 {
  "ALLY_FORT_GRACE": 60,
  "ARM_TAB_NAME": {
+  "Weapon": "Weapons",
   "Armor": "Armor",
   "Horse": "Horses",
-  "Ogre": "Ogres",
-  "Weapon": "Weapons"
+  "Ogre": "Ogres"
  },
  "BANDIT_WAVE": {
-  "cap": 50,
+  "start": 1800,
   "every": 180,
-  "grow": 300,
   "power": 1000,
-  "start": 1800
+  "grow": 300,
+  "cap": 50
  },
  "DOVE_SVG": "<svg class=\"dp-ico\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M3 13c2-3 5-3.6 7-2.4L15 7l-.6 3.4L17 11l-3 2c-1.4 3-5 4-8 2.6L2.6 17 4 14z\" fill=\"#fff\" stroke=\"#1d1a22\" stroke-width=\"1.4\" stroke-linejoin=\"round\"/><path d=\"M8 11.5C9.6 7.6 12.6 5 15.4 4c-1.4 3.6-3 6-5 8z\" fill=\"#f1ede4\" stroke=\"#1d1a22\" stroke-width=\"1.4\" stroke-linejoin=\"round\"/><path d=\"M17 11l3-.4\" stroke=\"#e8a817\" stroke-width=\"1.8\" stroke-linecap=\"round\"/><path d=\"M19.6 10.4c1.2-1 2.2-.4 1.6.8M19.6 10.6c.6 1.6-.6 2-1.2 1.4\" fill=\"none\" stroke=\"#3f9b4b\" stroke-width=\"1.3\"/></svg>",
  "FORT_SVG": "<svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M3 21V9h3v2h3V6h6v5h3V9h3v12z\" fill=\"#cfc8ba\" stroke=\"#1d1a22\" stroke-width=\"1.7\" stroke-linejoin=\"round\"/><path d=\"M10 21v-5h4v5\" fill=\"#6b4a2a\" stroke=\"#1d1a22\" stroke-width=\"1.5\"/><path d=\"M12 6V2.5l4 1.5-4 1.5\" fill=\"#c7362b\" stroke=\"#1d1a22\" stroke-width=\"1.2\" stroke-linejoin=\"round\"/></svg>",

@@ -8,8 +8,8 @@
   40
  ],
  "MUSIC_TRACKS": {
-  "swamp": "music/tavern_percussion.mp3",
   "tavern": "music/tavern.mp3",
+  "swamp": "music/tavern_percussion.mp3",
   "wood": "music/tavern_harp.mp3"
  },
  "REC_SNAP": 30,
@@ -20,12 +20,12 @@
   "mythicstave": 0.8
  },
  "WALL_MAX": {
+  "wood": 40,
   "spiky": 80,
-  "stone": 120,
-  "wood": 40
+  "stone": 120
  },
  "WALL_SPELL": {
-  "quake": 120,
-  "shock": 40
+  "shock": 40,
+  "quake": 120
  }
 }

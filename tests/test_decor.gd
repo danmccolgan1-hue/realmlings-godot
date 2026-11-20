@@ -1,3 +1,4 @@
+class_name TestDecor
 extends RefCounted
 ## The map's decoration lands exactly where the web game puts it (tests/fixtures/decor, tools/gen_decor_fixtures.py).
 
@@ -33,6 +34,13 @@ static func _close(a, b) -> bool:
 			return false
 		for i in a.size():
 			if not _close(a[i], b[i]):
+				return false
+		return true
+	if a is Dictionary and b is Dictionary:
+		if a.size() != b.size():
+			return false
+		for k in a:
+			if not b.has(k) or not _close(a[k], b[k]):
 				return false
 		return true
 	if (a is float or a is int) and (b is float or b is int):

@@ -5,16 +5,16 @@
  "FIERY": [
   0,
   {
-   "cd": 300,
-   "pct": 0.05
+   "pct": 0.05,
+   "cd": 300
   },
   {
-   "cd": 180,
-   "pct": 0.1
+   "pct": 0.1,
+   "cd": 180
   },
   {
-   "cd": 90,
-   "pct": 0.15
+   "pct": 0.15,
+   "cd": 90
   }
  ],
  "FIRE_TRAP": [
@@ -27,83 +27,84 @@
   "gold": 3
  },
  "ORIG": {
-  "base": {
-   "cav": "Cavalry",
-   "inf": "Infantry"
+  "saved": true,
+  "units": {
+   "pioneer:B": {
+    "name": "Wayfinder",
+    "blurb": "Explores fog and surveys land."
+   },
+   "mason:A": {
+    "name": "Mason",
+    "blurb": "Builds outposts and buildings."
+   },
+   "mage:A": {
+    "name": "Mage",
+    "blurb": "Casts the spells of your school. Joins an army to fight in it and power its battle spells."
+   }
   },
-  "buildOrder": [
-   "farm",
-   "lumber",
-   "goldmine",
-   "barracks",
-   "stable",
-   "market",
-   "granary",
-   "storehouse",
-   "bank",
-   "forge",
-   "magetower",
-   "temple"
-  ],
   "builds": {
+   "stable": {
+    "name": "Stable",
+    "variant": 1,
+    "cost": {
+     "gold": 300,
+     "wood": 400
+    },
+    "upkeep": {
+     "wood": 6
+    },
+    "note": "with a Barracks: cavalry",
+    "tech": "stable"
+   },
+   "market": {
+    "name": "Marketplace",
+    "variant": 0,
+    "cost": {
+     "gold": 50,
+     "wood": 150
+    },
+    "upkeep": {
+     "wood": 1
+    },
+    "gives": {
+     "gold": 3
+    },
+    "tech": "market",
+    "blurb": "A small, steady gold income; can be built in any province."
+   },
    "bank": {
-    "blurb": "Raises the nation’s gold storage by 1000 (it starts at 2000).",
+    "name": "Bank",
+    "variant": 0,
     "cost": {
      "wood": 300
     },
-    "name": "Bank",
-    "note": "+1000 gold storage",
+    "upkeep": {
+     "wood": 1
+    },
     "store": {
      "gold": 1000
     },
     "tech": "bank",
-    "upkeep": {
-     "wood": 1
-    },
-    "variant": 0
-   },
-   "barracks": {
-    "cost": {
-     "gold": 100,
-     "wood": 300
-    },
-    "name": "Barracks",
-    "note": "trains infantry",
-    "upkeep": {
-     "wood": 4
-    },
-    "variant": 2
-   },
-   "farm": {
-    "cost": {
-     "gold": 50,
-     "wood": 100
-    },
-    "gives": {
-     "food": 5
-    },
-    "name": "Farm",
-    "upkeep": {
-     "wood": 2
-    },
-    "variant": 0
+    "note": "+1000 gold storage",
+    "blurb": "Raises the nation’s gold storage by 1000 (it starts at 2000)."
    },
    "magetower": {
-    "blurb": "Unlocks Magic research and adds 2 Magic points every 10 s. Upgrades to a Mage Sanctum, then a Mage Arcanum.",
+    "name": "Mage Tower",
+    "variant": 0,
     "cost": {
      "gold": 200,
      "wood": 150
     },
+    "upkeep": {
+     "wood": 3
+    },
+    "tech": "magetower",
+    "blurb": "Unlocks Magic research and adds 2 Magic points every 10 s. Upgrades to a Mage Sanctum, then a Mage Arcanum.",
     "levels": [
      "Mage Tower",
      "Mage Sanctum",
      "Mage Arcanum"
     ],
-    "name": "Mage Tower",
-    "tech": "magetower",
-    "upkeep": {
-     "wood": 3
-    },
     "ups": [
      null,
      {
@@ -120,66 +121,52 @@
       },
       "time": 30
      }
-    ],
-    "variant": 0
-   },
-   "market": {
-    "blurb": "A small, steady gold income; can be built in any province.",
-    "cost": {
-     "gold": 50,
-     "wood": 150
-    },
-    "gives": {
-     "gold": 3
-    },
-    "name": "Marketplace",
-    "tech": "market",
-    "upkeep": {
-     "wood": 1
-    },
-    "variant": 0
-   },
-   "stable": {
-    "cost": {
-     "gold": 300,
-     "wood": 400
-    },
-    "name": "Stable",
-    "note": "with a Barracks: cavalry",
-    "tech": "stable",
-    "upkeep": {
-     "wood": 6
-    },
-    "variant": 1
+    ]
    },
    "temple": {
-    "blurb": "A marble temple: adds 2 Government research points every payout. No research needed to build it; it never upgrades.",
+    "name": "Temple",
+    "variant": 0,
     "cost": {
      "gold": 150,
      "wood": 200
     },
-    "name": "Temple",
-    "note": "+2 Government research",
-    "research": {
-     "gov": 2
-    },
     "upkeep": {
      "wood": 3
     },
-    "variant": 0
+    "research": {
+     "gov": 2
+    },
+    "note": "+2 Government research",
+    "blurb": "A marble temple: adds 2 Government research points every payout. No research needed to build it; it never upgrades."
+   },
+   "barracks": {
+    "name": "Barracks",
+    "variant": 2,
+    "cost": {
+     "gold": 100,
+     "wood": 300
+    },
+    "upkeep": {
+     "wood": 4
+    },
+    "note": "trains infantry"
+   },
+   "farm": {
+    "name": "Farm",
+    "variant": 0,
+    "cost": {
+     "gold": 50,
+     "wood": 100
+    },
+    "upkeep": {
+     "wood": 2
+    },
+    "gives": {
+     "food": 5
+    }
    }
   },
-  "horde": null,
-  "saved": true,
   "techs": {
-   "apprentice": [
-    "Apprentice",
-    "Your Mage limit rises by 1: you can train a second Mage."
-   ],
-   "arcanum": [
-    "Mage Arcanum",
-    "Lets a Mage Sanctum be upgraded to a Mage Arcanum (Magic Tier III)."
-   ],
    "autoscout": [
     "Automating Wayfinders",
     "Idle Wayfinders survey explored, unsurveyed provinces on their own. Toggle it on a Wayfinder’s command card."
@@ -188,17 +175,33 @@
     "Building: Bank",
     "Unlocks the Bank: +1000 gold storage each (the nation starts able to hold 2000)."
    ],
-   "earthquake": [
-    "Earthquake",
-    "A Mage standing in an enemy province your army occupies can cast an Earthquake (200 mana: it needs Magic Abundance): after 30 seconds every building in that province is destroyed, and every wall on its borders takes 120 wall damage (enough to bring down any wall)."
+   "market": [
+    "Building: Marketplace",
+    "Unlocks the Marketplace: +3 gold every payout, buildable in any province."
+   ],
+   "stable": [
+    "Building: Stable",
+    "Unlocks the Stable, which lets a Barracks in the same province train Cavalry."
+   ],
+   "magetower": [
+    "Building: Mage Tower",
+    "Unlocks the Mage Tower, which trains Mages and opens Magic research. Your first tower lets you choose a school of magic."
+   ],
+   "walls2": [
+    "Stone Walls",
+    "Walls are built of stone, and existing palisades are rebuilt in stone: three times as strong."
+   ],
+   "traderoutes": [
+    "Trade Routes",
+    "Your capital makes +1 gold for every Marketplace it can reach by road, through any number of your provinces."
+   ],
+   "stealth": [
+    "Wayfinder Stealth",
+    "Wayfinders can sneak: three times slower, but enemy armies can’t see them. Without it, an enemy army that finds a Wayfinder kills him."
    ],
    "farsight": [
     "Far-Seeing Wayfinders",
     "Wayfinders see into every province next to the one they stand in, and every unexplored province they look into is explored for good."
-   ],
-   "forge": [
-    "Building: Forge",
-    "Unlocks the Forge, which opens Military research. Owning a Barracks makes this technology 50% more likely to be offered."
    ],
    "horde": [
     "The Horde",
@@ -212,104 +215,101 @@
     "Horse Training",
     "Unlocks Friesians (the hardest charge) and armored Percherons (toughest, but slow and hungry)."
    ],
-   "magetower": [
-    "Building: Mage Tower",
-    "Unlocks the Mage Tower, which trains Mages and opens Magic research. Your first tower lets you choose a school of magic."
-   ],
-   "market": [
-    "Building: Marketplace",
-    "Unlocks the Marketplace: +3 gold every payout, buildable in any province."
-   ],
-   "mushroom": [
-    "Mushroom Farming",
-    "Farms can be built in swamps too: damp, dark beds of mushrooms."
-   ],
    "sanctum": [
     "Mage Sanctum",
     "Lets a Mage Tower be upgraded to a Mage Sanctum (Magic Tier II)."
    ],
-   "stable": [
-    "Building: Stable",
-    "Unlocks the Stable, which lets a Barracks in the same province train Cavalry."
+   "arcanum": [
+    "Mage Arcanum",
+    "Lets a Mage Sanctum be upgraded to a Mage Arcanum (Magic Tier III)."
    ],
-   "stealth": [
-    "Wayfinder Stealth",
-    "Wayfinders can sneak: three times slower, but enemy armies can’t see them. Without it, an enemy army that finds a Wayfinder kills him."
+   "apprentice": [
+    "Apprentice",
+    "Your Mage limit rises by 1: you can train a second Mage."
    ],
-   "traderoutes": [
-    "Trade Routes",
-    "Your capital makes +1 gold for every Marketplace it can reach by road, through any number of your provinces."
+   "forge": [
+    "Building: Forge",
+    "Unlocks the Forge, which opens Military research. Owning a Barracks makes this technology 50% more likely to be offered."
    ],
-   "walls2": [
-    "Stone Walls",
-    "Walls are built of stone, and existing palisades are rebuilt in stone: three times as strong."
+   "earthquake": [
+    "Earthquake",
+    "A Mage standing in an enemy province your army occupies can cast an Earthquake (200 mana: it needs Magic Abundance): after 30 seconds every building in that province is destroyed, and every wall on its borders takes 120 wall damage (enough to bring down any wall)."
+   ],
+   "mushroom": [
+    "Mushroom Farming",
+    "Farms can be built in swamps too: damp, dark beds of mushrooms."
    ]
   },
   "trees": {
-   "gov": {
-    "color": "#3f72d9",
-    "light": "#e3ecff",
-    "locked": "",
-    "name": "Government",
-    "rate": "Forts +2, Capital +3, Temples +2 per payout (outposts give none)",
-    "tiers": [
-     "Start",
-     "Own a Fort",
-     "Own 2 Forts"
-    ]
-   },
    "mag": {
+    "name": "Magic",
     "color": "#7a55c9",
     "light": "#efe8ff",
     "locked": "Research the Mage Tower (Government Tier II), then build one to unlock Magic.",
-    "name": "Magic",
     "rate": "Mage Tower +2, Sanctum +4, Arcanum +6 per payout",
     "tiers": [
      "Mage Tower",
      "Mage Sanctum",
      "Mage Arcanum"
     ]
+   },
+   "gov": {
+    "name": "Government",
+    "color": "#3f72d9",
+    "light": "#e3ecff",
+    "locked": "",
+    "rate": "Forts +2, Capital +3, Temples +2 per payout (outposts give none)",
+    "tiers": [
+     "Start",
+     "Own a Fort",
+     "Own 2 Forts"
+    ]
    }
   },
-  "units": {
-   "mage:A": {
-    "blurb": "Casts the spells of your school. Joins an army to fight in it and power its battle spells.",
-    "name": "Mage"
-   },
-   "mason:A": {
-    "blurb": "Builds outposts and buildings.",
-    "name": "Mason"
-   },
-   "pioneer:B": {
-    "blurb": "Explores fog and surveys land.",
-    "name": "Wayfinder"
-   }
-  }
+  "base": {
+   "inf": "Infantry",
+   "cav": "Cavalry"
+  },
+  "buildOrder": [
+   "farm",
+   "lumber",
+   "goldmine",
+   "barracks",
+   "stable",
+   "market",
+   "granary",
+   "storehouse",
+   "bank",
+   "forge",
+   "magetower",
+   "temple"
+  ],
+  "horde": null
  },
  "PATH_FIRE": [
   null,
   {
-   "dur": 10,
-   "mult": 2
+   "mult": 2,
+   "dur": 10
   },
   {
-   "dur": 15,
-   "mult": 2.25
+   "mult": 2.25,
+   "dur": 15
   },
   {
-   "dur": 20,
-   "mult": 2.5
+   "mult": 2.5,
+   "dur": 20
   }
  ],
  "PYRE": [
   null,
   {
-   "gold": 20,
-   "wood": 10
+   "wood": 10,
+   "gold": 20
   },
   {
-   "gold": 50,
-   "wood": 20
+   "wood": 20,
+   "gold": 50
   }
  ],
  "RACE_NAME": {
@@ -318,115 +318,87 @@
   "wood": "Woodlings"
  },
  "SPYRE": {
-  "cd": 60,
+  "wood": 0,
   "dur": 60,
-  "wood": 0
+  "cd": 60
  },
  "SW_ART": {
-  "mage:A": "sw-mage",
+  "pioneer:B": "sw-pioneer",
   "mason:A": "sw-mason",
-  "pioneer:B": "sw-pioneer"
+  "mage:A": "sw-mage"
  },
  "SW_MAGE0": {
-  "angS": 0.12,
-  "boots": "#26222b",
+  "skin": "#6f9e45",
   "brows": "angry",
-  "cape": "#3a2030",
-  "glowEyes": "#ff3b2f",
-  "left": null,
   "mouth": "flat",
+  "shirt": "#6b5236",
+  "sleeve": "#26222b",
   "pants": "#4d3b28",
-  "right": "stave",
+  "boots": "#26222b",
+  "swamp": true,
+  "underbite": true,
+  "glowEyes": "#ff3b2f",
   "robe": "#26222b",
   "robeTrim": "#7a2a2a",
   "sash": "#5a1f1f",
-  "shirt": "#6b5236",
-  "skin": "#6f9e45",
-  "sleeve": "#26222b",
-  "swamp": true,
-  "underbite": true
+  "cape": "#3a2030",
+  "right": "stave",
+  "left": null,
+  "angS": 0.12
  },
  "SW_TEXT": {
+  "units": {
+   "pioneer:B": [
+    "Swampstrider",
+    "Scurries through fog on all fours and surveys land."
+   ],
+   "mason:A": [
+    "Swampwright",
+    "Raises outposts and mud-and-clay buildings."
+   ],
+   "mage:A": [
+    "Warlock",
+    "Casts the spells of your school. Joins an army to fight in it and power its battle spells."
+   ]
+  },
   "builds": {
+   "stable": {
+    "name": "Ogre Cave",
+    "note": "trains Ogres · needs a mountain border",
+    "blurb": "A cave in the mountainside where Ogres lair: trains Ogres (no Barracks needed). Needs a mountain border."
+   },
+   "market": {
+    "name": "Thug Den",
+    "note": "trains and houses Thugs",
+    "blurb": "Trains Thugs and houses them (2, more with research). Each Thug inside makes 1 gold every 10 s; twice that with Highwaymen if the den borders another nation."
+   },
    "bank": {
-    "blurb": "Raises the nation’s gold, wood and food storage by 500 each.",
     "name": "Supply Cache",
-    "note": "+500 gold, wood and food storage"
+    "note": "+500 gold, wood and food storage",
+    "blurb": "Raises the nation’s gold, wood and food storage by 500 each."
+   },
+   "magetower": {
+    "name": "Warlock Tower",
+    "levels": [
+     "Warlock Tower",
+     "Warlock Spire",
+     "Warlock Grand Spire"
+    ],
+    "blurb": "Trains Warlocks, unlocks Magic research and adds 2 Magic points every 10 s. Upgrades to a Warlock Spire, then a Warlock Grand Spire."
+   },
+   "temple": {
+    "name": "Hot Springs",
+    "note": "+2 Government research · swamp only",
+    "blurb": "A steaming pool in the bog: adds 2 Government research points every payout. Only in a swamp."
    },
    "barracks": {
     "note": "trains Berserkers"
    },
    "farm": {
     "blurb": "Beds of wild mushrooms. Swamplings farm swamps from the start."
-   },
-   "magetower": {
-    "blurb": "Trains Warlocks, unlocks Magic research and adds 2 Magic points every 10 s. Upgrades to a Warlock Spire, then a Warlock Grand Spire.",
-    "levels": [
-     "Warlock Tower",
-     "Warlock Spire",
-     "Warlock Grand Spire"
-    ],
-    "name": "Warlock Tower"
-   },
-   "market": {
-    "blurb": "Trains Thugs and houses them (2, more with research). Each Thug inside makes 1 gold every 10 s; twice that with Highwaymen if the den borders another nation.",
-    "name": "Thug Den",
-    "note": "trains and houses Thugs"
-   },
-   "stable": {
-    "blurb": "A cave in the mountainside where Ogres lair: trains Ogres (no Barracks needed). Needs a mountain border.",
-    "name": "Ogre Cave",
-    "note": "trains Ogres · needs a mountain border"
-   },
-   "temple": {
-    "blurb": "A steaming pool in the bog: adds 2 Government research points every payout. Only in a swamp.",
-    "name": "Hot Springs",
-    "note": "+2 Government research · swamp only"
    }
   },
-  "reps": {
-   "rep-cavhp": [
-    "Hardy Ogres",
-    "Ogres have 5% more health."
-   ],
-   "rep-horsespeed": [
-    "Swift Ogres",
-    "Ogres run 5% faster."
-   ],
-   "rep-magecap": [
-    "Warlock Academy",
-    "Raises the Warlock limit by 1."
-   ],
-   "rep-masons": [
-    "Swampwrights’ Lodge",
-    "Raises the Swampwright limit by 1."
-   ],
-   "rep-shockcast": [
-    "Swift Fireball",
-    "Fireball takes 5% less time to cast."
-   ],
-   "rep-sword": [
-    "Axe Mastery",
-    "Axes deal 5% more damage."
-   ],
-   "rep-trade": [
-    "Thug Guilds",
-    "Thug Dens make 5% more gold."
-   ],
-   "rep-wayfinders": [
-    "Swampstriders’ Pack",
-    "Raises the Swampstrider limit by 1."
-   ]
-  },
   "techs": {
-   "apprentice": [
-    "Apprentice",
-    "Your Warlock limit rises by 1: you can train a second Warlock."
-   ],
-   "arcanum": [
-    "Warlock Grand Spire",
-    "Lets a Warlock Spire be upgraded to a Warlock Grand Spire (Magic Tier III)."
-   ],
    "autoscout": [
     "Automating Swampstriders",
     "Idle Swampstriders survey explored, unsurveyed provinces on their own. Toggle it on a Swampstrider’s command card."
@@ -435,17 +407,33 @@
     "Building: Supply Cache",
     "Unlocks the Supply Cache: +500 gold, wood and food storage each."
    ],
-   "earthquake": [
-    null,
-    "A Warlock standing in an enemy province your army occupies can cast an Earthquake (200 mana: it needs Magic Abundance): after 30 seconds every building in that province is destroyed, and every wall on its borders takes 120 wall damage (enough to bring down any wall)."
+   "market": [
+    "Building: Thug Den",
+    "Unlocks the Thug Den: trains Thugs and houses 2 of them. Each Thug inside makes 1 gold every 10 s."
+   ],
+   "stable": [
+    "Building: Ogre Cave",
+    "Unlocks the Ogre Cave (needs a mountain border), which trains Ogres."
+   ],
+   "magetower": [
+    "Building: Warlock Tower",
+    "Unlocks the Warlock Tower, which trains Warlocks and opens Magic research. Your first tower lets you choose a school of magic."
+   ],
+   "walls2": [
+    "Spiked Walls",
+    "Walls are bristling with spikes, and existing palisades are rebuilt: three times as strong."
+   ],
+   "traderoutes": [
+    "Highwaymen",
+    "Thugs make twice as much gold when their Thug Den borders another nation."
+   ],
+   "stealth": [
+    "Swampstrider Stealth",
+    "Swampstriders can sneak: three times slower (but no slower at all in a swamp), and enemy armies can’t see them. Without it, an enemy army that finds a Swampstrider kills him."
    ],
    "farsight": [
     "Far-Seeing Swampstriders",
     "Swampstriders see into every province next to the one they stand in, and every unexplored province they look into is explored for good."
-   ],
-   "forge": [
-    null,
-    "Unlocks the Forge, which opens Military research. Owning a Barracks makes this technology 50% more likely to be offered."
    ],
    "horde": [
     "The Horde",
@@ -459,43 +447,66 @@
     "Ogre Training",
     "Unlocks Bloodknuckle Ogres (the hardest blows) and Leviathan Ogres (toughest, but slow and hungry)."
    ],
-   "magetower": [
-    "Building: Warlock Tower",
-    "Unlocks the Warlock Tower, which trains Warlocks and opens Magic research. Your first tower lets you choose a school of magic."
-   ],
-   "market": [
-    "Building: Thug Den",
-    "Unlocks the Thug Den: trains Thugs and houses 2 of them. Each Thug inside makes 1 gold every 10 s."
-   ],
-   "mushroom": [
-    null,
-    "Swamplings know this from the start: mushroom beds in swamps."
-   ],
    "sanctum": [
     "Warlock Spire",
     "Lets a Warlock Tower be upgraded to a Warlock Spire (Magic Tier II)."
    ],
-   "stable": [
-    "Building: Ogre Cave",
-    "Unlocks the Ogre Cave (needs a mountain border), which trains Ogres."
+   "arcanum": [
+    "Warlock Grand Spire",
+    "Lets a Warlock Spire be upgraded to a Warlock Grand Spire (Magic Tier III)."
    ],
-   "stealth": [
-    "Swampstrider Stealth",
-    "Swampstriders can sneak: three times slower (but no slower at all in a swamp), and enemy armies can’t see them. Without it, an enemy army that finds a Swampstrider kills him."
+   "apprentice": [
+    "Apprentice",
+    "Your Warlock limit rises by 1: you can train a second Warlock."
    ],
-   "traderoutes": [
-    "Highwaymen",
-    "Thugs make twice as much gold when their Thug Den borders another nation."
+   "forge": [
+    null,
+    "Unlocks the Forge, which opens Military research. Owning a Barracks makes this technology 50% more likely to be offered."
    ],
-   "walls2": [
-    "Spiked Walls",
-    "Walls are bristling with spikes, and existing palisades are rebuilt: three times as strong."
+   "earthquake": [
+    null,
+    "A Warlock standing in an enemy province your army occupies can cast an Earthquake (200 mana: it needs Magic Abundance): after 30 seconds every building in that province is destroyed, and every wall on its borders takes 120 wall damage (enough to bring down any wall)."
+   ],
+   "mushroom": [
+    null,
+    "Swamplings know this from the start: mushroom beds in swamps."
+   ]
+  },
+  "reps": {
+   "rep-trade": [
+    "Thug Guilds",
+    "Thug Dens make 5% more gold."
+   ],
+   "rep-sword": [
+    "Axe Mastery",
+    "Axes deal 5% more damage."
+   ],
+   "rep-horsespeed": [
+    "Swift Ogres",
+    "Ogres run 5% faster."
+   ],
+   "rep-cavhp": [
+    "Hardy Ogres",
+    "Ogres have 5% more health."
+   ],
+   "rep-magecap": [
+    "Warlock Academy",
+    "Raises the Warlock limit by 1."
+   ],
+   "rep-masons": [
+    "Swampwrights’ Lodge",
+    "Raises the Swampwright limit by 1."
+   ],
+   "rep-wayfinders": [
+    "Swampstriders’ Pack",
+    "Raises the Swampstrider limit by 1."
+   ],
+   "rep-shockcast": [
+    "Swift Fireball",
+    "Fireball takes 5% less time to cast."
    ]
   },
   "trees": {
-   "gov": {
-    "rate": "Forts +2, Capital +3, Hot Springs +2 per payout (outposts give none)"
-   },
    "mag": {
     "locked": "Research the Warlock Tower (Government Tier II), then build one to unlock Magic.",
     "rate": "Warlock Tower +2, Spire +4, Grand Spire +6 per payout",
@@ -504,21 +515,10 @@
      "Warlock Spire",
      "Warlock Grand Spire"
     ]
+   },
+   "gov": {
+    "rate": "Forts +2, Capital +3, Hot Springs +2 per payout (outposts give none)"
    }
-  },
-  "units": {
-   "mage:A": [
-    "Warlock",
-    "Casts the spells of your school. Joins an army to fight in it and power its battle spells."
-   ],
-   "mason:A": [
-    "Swampwright",
-    "Raises outposts and mud-and-clay buildings."
-   ],
-   "pioneer:B": [
-    "Swampstrider",
-    "Scurries through fog on all fours and surveys land."
-   ]
   }
  },
  "THUG": "thug:A"

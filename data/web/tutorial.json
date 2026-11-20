@@ -1,70 +1,70 @@
 {
  "TP": {
-  "bandits": 4,
   "capital": 0,
-  "desert": 3,
   "forest": 1,
-  "swamp": 2
+  "swamp": 2,
+  "desert": 3,
+  "bandits": 4
  },
  "TUT_AUDIO": {},
  "TUT_EXPLAIN": [
   {
-   "dx": 170,
-   "dy": 0,
-   "label": "Armory",
    "sel": "#armBtn",
-   "side": "r"
+   "label": "Armory",
+   "side": "r",
+   "dx": 170,
+   "dy": 0
   },
   {
-   "dx": -60,
-   "dy": 150,
-   "fx": 0.25,
-   "label": "Resources",
    "sel": "#res",
-   "side": "b"
+   "label": "Resources",
+   "side": "b",
+   "fx": 0.25,
+   "dx": -60,
+   "dy": 150
   },
   {
-   "dx": 120,
-   "dy": 125,
-   "label": "Research",
    "sel": "#techBtn",
-   "side": "b"
+   "label": "Research",
+   "side": "b",
+   "dx": 120,
+   "dy": 125
   },
   {
-   "dx": -190,
-   "dy": 30,
-   "label": "Outliner",
    "sel": "#roster",
-   "side": "l"
+   "label": "Outliner",
+   "side": "l",
+   "dx": -190,
+   "dy": 30
   },
   {
-   "dx": -200,
-   "dy": -80,
-   "label": "Action Card",
    "sel": "#cmdGrid",
-   "side": "l"
+   "label": "Action Card",
+   "side": "l",
+   "dx": -200,
+   "dy": -80
   },
   {
-   "dx": 190,
-   "dy": -20,
+   "sel": "#prov",
    "ghost": "#tutProvGhost",
    "label": "Province Menu",
-   "sel": "#prov",
-   "side": "r"
+   "side": "r",
+   "dx": 190,
+   "dy": -20
   },
   {
-   "dx": 240,
-   "dy": -40,
-   "label": "Minimap Toggles",
    "sel": "#mini .mini-togs",
-   "side": "r"
+   "label": "Minimap Toggles",
+   "side": "r",
+   "dx": 240,
+   "dy": -40
   },
   {
-   "dx": 170,
-   "dy": 40,
-   "label": "Minimap",
    "sel": "#mini",
-   "side": "r"
+   "label": "Minimap",
+   "side": "r",
+   "dx": 170,
+   "dy": 40
   }
  ],
  "TUT_FINAL": {
@@ -85,14 +85,14 @@
    }
   },
   {
-   "glow": [
-    "#techBtn",
-    "#nflags"
-   ],
    "id": "2",
    "lines": [
     "Every nation starts with a single province with a Capital. The Capital is special, it can support more buildings than any other province and can build Masons and Wayfinders.",
     "At the top of the screen you can see the research button. Below is a notification indicating that new research is available. There are three trees of research: Government, which improves your nation’s infrastructural capabilities, Military, which improves your nation’s army, and Magic, which improves your nation’s magical abilities. At the start of a game military and magic research are locked until the Forge and Mage Tower buildings are researched and later constructed."
+   ],
+   "glow": [
+    "#techBtn",
+    "#nflags"
    ],
    "obj": {
     "key": "research",
@@ -100,25 +100,25 @@
    }
   },
   {
-   "glow": [
-    "#res"
-   ],
    "id": "3",
    "lines": [
     "Above Research is your resources: Gold, Wood, and Food. Units typically require Gold for the upfront purchase and have an upkeep of Food. Buildings typically require Gold and Wood for an upfront purchase and have an upkeep of Wood.",
     "If you do not upkeep your buildings they will break down. If you do not feed your army, they will desert you.",
     {
+     "t": "The number to the right of each resource is your current net income. Every 10 seconds, as seen by the circular timer here, you will get an influx of your net resources.",
      "call": [
       {
-       "dx": 40,
-       "dy": 120,
-       "label": "Cycle Timer",
        "sel": "#res .tick",
-       "side": "b"
+       "label": "Cycle Timer",
+       "side": "b",
+       "dx": 40,
+       "dy": 120
       }
-     ],
-     "t": "The number to the right of each resource is your current net income. Every 10 seconds, as seen by the circular timer here, you will get an influx of your net resources."
+     ]
     }
+   ],
+   "glow": [
+    "#res"
    ]
   },
   {
@@ -186,21 +186,21 @@
    ]
   },
   {
-   "glow": [
-    "#r-provs"
-   ],
    "id": "11",
    "lines": [
     "You can only build 4 outposts before you reach your expansion limit. To expand beyond that you will need to upgrade one of your outposts to a fort."
+   ],
+   "glow": [
+    "#r-provs"
    ]
   },
   {
-   "glow": [
-    "#r-forts"
-   ],
    "id": "12",
    "lines": [
     "You can only upgrade one outpost right now but through technology you can upgrade more and expand even farther."
+   ],
+   "glow": [
+    "#r-forts"
    ]
   },
   {
@@ -247,12 +247,12 @@
    }
   },
   {
-   "glow": [
-    "#armBtn"
-   ],
    "id": "18",
    "lines": [
     "You can customize your troops in the Armory. Building Forges allow for further upgrades."
+   ],
+   "glow": [
+    "#armBtn"
    ]
   },
   {

@@ -1,21 +1,22 @@
 {
  "DEV": {
+  "max": 3,
   "cost": [
    300,
    400,
    500
   ],
+  "time": 300,
   "deep": 0.05,
   "deepGold": 5,
-  "houses": 3,
   "luck": 0.25,
-  "max": 3,
-  "time": 300
+  "houses": 3
  },
  "LEADER_CAP_FOOD": 7,
  "OVER_UPKEEP": 5,
  "PATCH_NOTES": [
   {
+   "v": "v106",
    "date": "November 19, 2026",
    "items": [
     [
@@ -58,20 +59,19 @@
      "Menu",
      "Added Patch Notes."
     ]
-   ],
-   "v": "v106"
+   ]
   }
  ],
  "RNG_BACK_DR": 0.8,
  "TO": {
   "draft": {},
-  "key": "",
-  "rally": -1
+  "rally": -1,
+  "key": ""
  },
  "V106": {
+  "t": 0,
   "caveSites": [],
   "houseSig": "|3",
-  "pmKey": "",
-  "t": 0
+  "pmKey": ""
  }
 }

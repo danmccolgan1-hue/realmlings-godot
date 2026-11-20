@@ -2,13 +2,13 @@
  "AI_ENGAGE": 1.2,
  "AI_RAID_MIN_PUSH": 5,
  "AI_SURGE": {
-  "difficult": {
-   "cost": 0.5,
-   "time": 6
-  },
   "moderate": {
-   "cost": 1,
-   "time": 12
+   "time": 12,
+   "cost": 1
+  },
+  "difficult": {
+   "time": 6,
+   "cost": 0.5
   }
  }
 }

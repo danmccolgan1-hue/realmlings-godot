@@ -1,8 +1,8 @@
 {
  "AI_RNG_SHARE": {
-  "difficult": 0.3,
   "easy": 0.15,
-  "moderate": 0.25
+  "moderate": 0.25,
+  "difficult": 0.3
  },
  "AI_SIEGE_HOPS": 3,
  "CASH_GIVES": {
@@ -10,17 +10,17 @@
   "gold": 1
  },
  "CD_NAMES": {
-  "realm": [
-   "Pikeman",
-   "Maceman"
+  "wood": [
+   "Spear Protector",
+   "Club Protector"
   ],
   "swamp": [
    "Spear Berserker",
    "Club Berserker"
   ],
-  "wood": [
-   "Spear Protector",
-   "Club Protector"
+  "realm": [
+   "Pikeman",
+   "Maceman"
   ]
  },
  "CROPS": [
@@ -31,11 +31,16 @@
  "CROP_DELAY": 10,
  "CROP_ICON": {},
  "CROP_KIND": {
+  "staple": "Staple crop",
   "cash": "Cash crop",
-  "fiber": "Fiber crop",
-  "staple": "Staple crop"
+  "fiber": "Fiber crop"
  },
  "CROP_NAMES": {
+  "staple": {
+   "realm": "Corn",
+   "swamp": "Oyster Mushrooms",
+   "wood": "Apples"
+  },
   "cash": {
    "realm": "Wheat",
    "swamp": "Truffles",
@@ -45,15 +50,12 @@
    "realm": "Straw",
    "swamp": "Fungal Threads",
    "wood": "Willow"
-  },
-  "staple": {
-   "realm": "Corn",
-   "swamp": "Oyster Mushrooms",
-   "wood": "Apples"
   }
  },
  "RANGED": {
   "realm": {
+   "id": "rng-realm",
+   "name": "Crossbowman",
    "gear": [
     "handcrossbow",
     "levercrossbow",
@@ -64,14 +66,14 @@
     "Lever Crossbow",
     "Windlass Crossbow"
    ],
-   "id": "rng-realm",
-   "name": "Crossbowman",
    "techs": [
     "w-levercrossbow",
     "w-windlass"
    ]
   },
   "swamp": {
+   "id": "rng-swamp",
+   "name": "Slinger",
    "gear": [
     "woolsling",
     "braidedsling",
@@ -82,14 +84,14 @@
     "Braided Sling",
     "Leather Sling"
    ],
-   "id": "rng-swamp",
-   "name": "Slinger",
    "techs": [
     "w-braidedsling",
     "w-leathersling"
    ]
   },
   "wood": {
+   "id": "rng-wood",
+   "name": "Archer",
    "gear": [
     "shortbow",
     "compositebow",
@@ -100,8 +102,6 @@
     "Composite Bow",
     "Long Bow"
    ],
-   "id": "rng-wood",
-   "name": "Archer",
    "techs": [
     "w-compositebow",
     "w-longbow"
@@ -110,6 +110,8 @@
  },
  "RNG_BY_KIND": {
   "rng-realm": {
+   "id": "rng-realm",
+   "name": "Crossbowman",
    "gear": [
     "handcrossbow",
     "levercrossbow",
@@ -120,15 +122,15 @@
     "Lever Crossbow",
     "Windlass Crossbow"
    ],
-   "id": "rng-realm",
-   "name": "Crossbowman",
-   "race": "realm",
    "techs": [
     "w-levercrossbow",
     "w-windlass"
-   ]
+   ],
+   "race": "realm"
   },
   "rng-swamp": {
+   "id": "rng-swamp",
+   "name": "Slinger",
    "gear": [
     "woolsling",
     "braidedsling",
@@ -139,15 +141,15 @@
     "Braided Sling",
     "Leather Sling"
    ],
-   "id": "rng-swamp",
-   "name": "Slinger",
-   "race": "swamp",
    "techs": [
     "w-braidedsling",
     "w-leathersling"
-   ]
+   ],
+   "race": "swamp"
   },
   "rng-wood": {
+   "id": "rng-wood",
+   "name": "Archer",
    "gear": [
     "shortbow",
     "compositebow",
@@ -158,13 +160,11 @@
     "Composite Bow",
     "Long Bow"
    ],
-   "id": "rng-wood",
-   "name": "Archer",
-   "race": "wood",
    "techs": [
     "w-compositebow",
     "w-longbow"
-   ]
+   ],
+   "race": "wood"
   }
  },
  "RNG_HP": 20,
@@ -243,9 +243,9 @@
  "V104_PLAYER_THREATENS": false,
  "V104_RIVAL_GOAL": 1.3,
  "V104_RIVAL_RATIO": {
-  "difficult": 1,
   "easy": null,
-  "moderate": 1.3
+  "moderate": 1.3,
+  "difficult": 1
  },
  "V104_THINK": 10,
  "V104_WARY_GOAL": 0.8,

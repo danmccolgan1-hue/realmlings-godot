@@ -1,164 +1,164 @@
 {
  "AUTO": {
+  "skin": {
+   "line": "skin"
+  },
   "curse": {
    "line": "curse"
-  },
-  "fiery": {
-   "line": "fiery"
   },
   "risen": {
    "line": "risen"
   },
+  "fiery": {
+   "line": "fiery"
+  },
   "rock": {
    "line": "rock"
-  },
-  "skin": {
-   "line": "skin"
   }
  },
  "CAST": {
-  "eyes": {
-   "instant": false,
-   "line": "eyes"
+  "harvest": {
+   "line": "harvest"
   },
-  "fspirit": {
-   "instant": false,
-   "line": "fspirit"
-  },
-  "ftrap": {
-   "instant": false,
-   "line": "ftrap"
-  },
-  "gelem": {
-   "line": "gelem"
+  "mending": {
+   "line": "mending",
+   "instant": true
   },
   "graverob": {
    "line": "graverob"
   },
-  "harvest": {
-   "line": "harvest"
-  },
-  "haunt": {
-   "instant": true,
-   "line": "haunt"
-  },
-  "mending": {
-   "instant": true,
-   "line": "mending"
-  },
   "mind": {
-   "instant": false,
-   "line": "mind"
-  },
-  "pfire": {
-   "instant": true,
-   "line": "pfire"
-  },
-  "rift": {
-   "instant": false,
-   "line": "rift"
-  },
-  "sacred": {
-   "instant": false,
-   "line": "sacred"
-  },
-  "spyre": {
-   "instant": false,
-   "line": "spyre"
-  },
-  "stasis": {
-   "instant": false,
-   "line": "stasis"
-  },
-  "tportal": {
-   "line": "tportal"
+   "line": "mind",
+   "instant": false
   },
   "trading": {
    "line": "trading"
   },
+  "stasis": {
+   "line": "stasis",
+   "instant": false
+  },
+  "rift": {
+   "line": "rift",
+   "instant": false
+  },
+  "spyre": {
+   "line": "spyre",
+   "instant": false
+  },
+  "ftrap": {
+   "line": "ftrap",
+   "instant": false
+  },
+  "pfire": {
+   "line": "pfire",
+   "instant": true
+  },
   "wrocks": {
-   "instant": false,
-   "line": "wrocks"
+   "line": "wrocks",
+   "instant": false
+  },
+  "fspirit": {
+   "line": "fspirit",
+   "instant": false
+  },
+  "tportal": {
+   "line": "tportal"
+  },
+  "gelem": {
+   "line": "gelem"
+  },
+  "haunt": {
+   "line": "haunt",
+   "instant": true
+  },
+  "eyes": {
+   "line": "eyes",
+   "instant": false
+  },
+  "sacred": {
+   "line": "sacred",
+   "instant": false
   }
  },
  "CMD_ARMY": [
   {
-   "cell": 0,
    "id": "split",
+   "cell": 0,
    "key": ""
   },
   {
-   "cell": 1,
    "id": "combine",
+   "cell": 1,
    "key": ""
   },
   {
-   "cell": 3,
    "id": "retreat",
+   "cell": 3,
    "key": "R"
   },
   {
-   "cell": 8,
    "id": "rest",
+   "cell": 8,
    "key": ""
   },
   {
-   "cell": 12,
    "id": "inspect",
+   "cell": 12,
    "key": ""
   },
   {
-   "cell": 13,
    "id": "retrofit",
+   "cell": 13,
    "key": ""
   },
   {
-   "cell": 14,
    "id": "xpath",
+   "cell": 14,
    "key": ""
   },
   {
-   "cell": 15,
    "id": "dismiss",
+   "cell": 15,
    "key": ""
   }
  ],
  "CURSE": [
   0,
   {
-   "cd": 300,
-   "pct": 0.05
+   "pct": 0.05,
+   "cd": 300
   },
   {
-   "cd": 180,
-   "pct": 0.1
+   "pct": 0.1,
+   "cd": 180
   },
   {
-   "cd": 90,
-   "pct": 0.15
+   "pct": 0.15,
+   "cd": 90
   }
  ],
  "HARVEST": [
   null,
   {
    "bonus": 0.1,
-   "cd": 360,
    "dur": 180,
+   "cd": 360,
    "food0": 0
   },
   {
    "bonus": 0.2,
-   "cd": 240,
    "dur": 180,
+   "cd": 240,
    "food0": 200
   },
   {
    "bonus": 0.3,
-   "cd": 0,
    "dur": null,
+   "cd": 0,
+   "food0": 0,
    "every": 180,
-   "food": 400,
-   "food0": 0
+   "food": 400
   }
  ],
  "HARVEST_PCT": [
@@ -168,192 +168,192 @@
   0.3
  ],
  "LINES": {
-  "curse": [
-   "curse1",
-   "curse2",
-   "curse3"
-  ],
-  "eyes": [
-   "eyesforest"
-  ],
-  "fiery": [
-   "fiery1",
-   "fiery2",
-   "fiery3"
-  ],
-  "forest": [
-   "forest",
-   "commune",
-   "arboreal"
-  ],
-  "fspirit": [
-   "forestspirit"
-  ],
-  "ftrap": [
-   "firetrap",
-   "blazetrap",
-   "molttrap"
-  ],
-  "gelem": [
-   "gelemental"
-  ],
-  "graverob": [
-   "graverob",
-   "deathtax",
-   "charon"
-  ],
   "harvest": [
    "harvest",
    "bountiful",
    "magnificent"
-  ],
-  "haunt": [
-   "haunt"
-  ],
-  "mending": [
-   "mending",
-   "rejuvenation",
-   "restoration"
-  ],
-  "mind": [
-   "clearthoughts",
-   "mindread"
-  ],
-  "pfire": [
-   "pathfire",
-   "pathflame",
-   "pathinferno"
-  ],
-  "rift": [
-   "rift",
-   "portal"
-  ],
-  "risen": [
-   "risen",
-   "necro",
-   "armyofdeath"
-  ],
-  "rock": [
-   "rockarmor"
-  ],
-  "sacred": [
-   "sacredpyre"
-  ],
-  "scouts": [
-   "arcscouts",
-   "arcvision"
   ],
   "skin": [
    "skin",
    "stoneskin",
    "diamondskin"
   ],
-  "spyre": [
-   "scoutpyre"
+  "mending": [
+   "mending",
+   "rejuvenation",
+   "restoration"
   ],
-  "stasis": [
-   "stasis",
-   "prison"
+  "forest": [
+   "forest",
+   "commune",
+   "arboreal"
   ],
-  "tportal": [
-   "townportal"
-  ],
-  "trading": [
-   "trading",
-   "stockmarket",
-   "planar"
+  "curse": [
+   "curse1",
+   "curse2",
+   "curse3"
   ],
   "tunnel": [
    "underworld",
    "hallways",
    "sealed"
   ],
+  "risen": [
+   "risen",
+   "necro",
+   "armyofdeath"
+  ],
+  "graverob": [
+   "graverob",
+   "deathtax",
+   "charon"
+  ],
+  "scouts": [
+   "arcscouts",
+   "arcvision"
+  ],
+  "mind": [
+   "clearthoughts",
+   "mindread"
+  ],
+  "trading": [
+   "trading",
+   "stockmarket",
+   "planar"
+  ],
+  "stasis": [
+   "stasis",
+   "prison"
+  ],
+  "rift": [
+   "rift",
+   "portal"
+  ],
+  "fiery": [
+   "fiery1",
+   "fiery2",
+   "fiery3"
+  ],
+  "ftrap": [
+   "firetrap",
+   "blazetrap",
+   "molttrap"
+  ],
+  "spyre": [
+   "scoutpyre"
+  ],
+  "pfire": [
+   "pathfire",
+   "pathflame",
+   "pathinferno"
+  ],
+  "sacred": [
+   "sacredpyre"
+  ],
+  "rock": [
+   "rockarmor"
+  ],
   "wrocks": [
    "wrocks"
+  ],
+  "tportal": [
+   "townportal"
+  ],
+  "fspirit": [
+   "forestspirit"
+  ],
+  "gelem": [
+   "gelemental"
+  ],
+  "eyes": [
+   "eyesforest"
+  ],
+  "haunt": [
+   "haunt"
   ]
  },
  "MAGE": "mage:A",
  "MAGE_SPEC0": {
+  "skin": "#f6cba3",
+  "brows": "bushy",
+  "mouth": "smile",
+  "shirt": "#efe6cf",
+  "sleeve": "#3f5fc9",
+  "pants": "#6b5a48",
+  "boots": "#4a3a5a",
+  "browColor": "#f2f2f2",
+  "helm": "wizard",
+  "helmColor": "#3f5fc9",
+  "hairColor": "#f1f1f4",
+  "robe": "#3f5fc9",
+  "robeTrim": "#f4c44f",
+  "sash": "#94603a",
+  "cape": "#6a3fa8",
+  "right": "staff-crystal",
+  "left": null,
   "angS": 0.12,
   "beard": {
    "color": "#f4f4f4",
    "style": "long"
-  },
-  "boots": "#4a3a5a",
-  "browColor": "#f2f2f2",
-  "brows": "bushy",
-  "cape": "#6a3fa8",
-  "hairColor": "#f1f1f4",
-  "helm": "wizard",
-  "helmColor": "#3f5fc9",
-  "left": null,
-  "mouth": "smile",
-  "pants": "#6b5a48",
-  "right": "staff-crystal",
-  "robe": "#3f5fc9",
-  "robeTrim": "#f4c44f",
-  "sash": "#94603a",
-  "shirt": "#efe6cf",
-  "skin": "#f6cba3",
-  "sleeve": "#3f5fc9"
+  }
  },
  "MAGE_WEAPONS": {
-  "crypticwand": {
-   "atk": 3,
-   "line": "wand",
-   "name": "Cryptic Wand",
-   "tech": "crypticwand",
-   "twoH": false
-  },
-  "enigmaticwand": {
-   "atk": 5,
-   "line": "wand",
-   "name": "Enigmatic Wand",
-   "tech": "enigmaticwand",
-   "twoH": false
+  "stave": {
+   "name": "Stave",
+   "line": "stave",
+   "atk": 4,
+   "twoH": true,
+   "tech": null
   },
   "grandstave": {
-   "atk": 6,
-   "line": "stave",
    "name": "Grand Stave",
-   "tech": "grandstave",
-   "twoH": true
+   "line": "stave",
+   "atk": 6,
+   "twoH": true,
+   "tech": "grandstave"
   },
   "mythicstave": {
-   "atk": 9,
-   "line": "stave",
    "name": "Mythic Stave",
-   "tech": "mythicstave",
-   "twoH": true
-  },
-  "stave": {
-   "atk": 4,
    "line": "stave",
-   "name": "Stave",
-   "tech": null,
-   "twoH": true
+   "atk": 9,
+   "twoH": true,
+   "tech": "mythicstave"
   },
   "wand": {
-   "atk": 2,
-   "line": "wand",
    "name": "Wand",
-   "tech": null,
-   "twoH": false
+   "line": "wand",
+   "atk": 2,
+   "twoH": false,
+   "tech": null
+  },
+  "crypticwand": {
+   "name": "Cryptic Wand",
+   "line": "wand",
+   "atk": 3,
+   "twoH": false,
+   "tech": "crypticwand"
+  },
+  "enigmaticwand": {
+   "name": "Enigmatic Wand",
+   "line": "wand",
+   "atk": 5,
+   "twoH": false,
+   "tech": "enigmaticwand"
   }
  },
  "MEND": [
   0,
   {
-   "cd": 180,
-   "dur": 60
+   "dur": 60,
+   "cd": 180
   },
   {
-   "cd": 120,
-   "dur": 30
+   "dur": 30,
+   "cd": 120
   },
   {
-   "cd": 0,
-   "dur": 0
+   "dur": 0,
+   "cd": 0
   }
  ],
  "PATH_OPEN": [
@@ -378,11 +378,43 @@
   2
  ],
  "SCHOOLS": {
+  "life": {
+   "name": "Herbomancy",
+   "color": "#3f9b4b",
+   "light": "#e3f6e0",
+   "blurb": "Harvests, protective skins, healing, and paths through the forest.",
+   "spells": [
+    "Harvest",
+    "Hardened Skin",
+    "Mending",
+    "Speak with the Forest"
+   ],
+   "race": [
+    "realm",
+    "wood"
+   ]
+  },
+  "death": {
+   "name": "Necromancy",
+   "color": "#6b3fa0",
+   "light": "#efe6fb",
+   "blurb": "Cursed weapons, the risen dead, tunnels under mountains, and grave riches.",
+   "spells": [
+    "Cursed Weapons",
+    "Risen Dead",
+    "Underworld Passage",
+    "Grave Robbing"
+   ],
+   "race": [
+    "realm",
+    "swamp"
+   ]
+  },
   "arcane": {
-   "blurb": "Far-seeing towers, reading minds, trading across worlds, traps and rifts.",
+   "name": "Arcane",
    "color": "#2f6fe0",
    "light": "#e3ecff",
-   "name": "Arcane",
+   "blurb": "Far-seeing towers, reading minds, trading across worlds, traps and rifts.",
    "spells": [
     "Arcane Scouts",
     "Clear Thoughts",
@@ -391,80 +423,48 @@
     "Teleportation Rift"
    ]
   },
-  "death": {
-   "blurb": "Cursed weapons, the risen dead, tunnels under mountains, and grave riches.",
-   "color": "#6b3fa0",
-   "light": "#efe6fb",
-   "name": "Necromancy",
-   "race": [
-    "realm",
-    "swamp"
-   ],
-   "spells": [
-    "Cursed Weapons",
-    "Risen Dead",
-    "Underworld Passage",
-    "Grave Robbing"
-   ]
-  },
-  "elemental": {
-   "blurb": "Stone that shields an army, rocks that whisper what they see, forest spirits that enrich the land, portals home, and a towering elemental of living water.",
-   "color": "#3f8fa8",
-   "light": "#ddf1f5",
-   "name": "Elemental",
-   "race": "wood",
-   "spells": [
-    "Rock Armor",
-    "Whispering Rocks",
-    "Town Portal",
-    "Forest Spirit",
-    "Grand Elemental"
-   ]
-  },
-  "life": {
-   "blurb": "Harvests, protective skins, healing, and paths through the forest.",
-   "color": "#3f9b4b",
-   "light": "#e3f6e0",
-   "name": "Herbomancy",
-   "race": [
-    "realm",
-    "wood"
-   ],
-   "spells": [
-    "Harvest",
-    "Hardened Skin",
-    "Mending",
-    "Speak with the Forest"
-   ]
-  },
   "pyro": {
-   "blurb": "Fiery weapons, scouting pyres, fire traps, sacred pyres that burn wood into gold, and paths of fire.",
+   "name": "Pyromancy",
    "color": "#d9542c",
    "light": "#ffe6da",
-   "name": "Pyromancy",
-   "race": "swamp",
+   "blurb": "Fiery weapons, scouting pyres, fire traps, sacred pyres that burn wood into gold, and paths of fire.",
    "spells": [
     "Fiery Weapons",
     "Scouting Pyre",
     "Fire Trap",
     "Sacred Pyre",
     "Path of Fire"
-   ]
+   ],
+   "race": "swamp"
+  },
+  "elemental": {
+   "name": "Elemental",
+   "color": "#3f8fa8",
+   "light": "#ddf1f5",
+   "blurb": "Stone that shields an army, rocks that whisper what they see, forest spirits that enrich the land, portals home, and a towering elemental of living water.",
+   "spells": [
+    "Rock Armor",
+    "Whispering Rocks",
+    "Town Portal",
+    "Forest Spirit",
+    "Grand Elemental"
+   ],
+   "race": "wood"
   }
  },
  "SKIN": [
   0,
   {
-   "cd": 300,
-   "pct": 0.05
+   "pct": 0.05,
+   "cd": 300
   },
   {
-   "cd": 180,
-   "pct": 0.1
+   "pct": 0.1,
+   "cd": 180
   },
   {
-   "cd": 90,
-   "pct": 0.15
+   "pct": 0.15,
+   "cd": 90
   }
  ],
  "SPELL_CELLS": [

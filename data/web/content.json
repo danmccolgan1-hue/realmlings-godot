@@ -1,10 +1,10 @@
 {
  "BANDIT": {
-  "bounty": 50,
   "chance": 0.1,
   "troops": {
    "d-sword": 2
-  }
+  },
+  "bounty": 50
  },
  "CIV_SKIN": [
   "#f2c9a0",
@@ -41,100 +41,100 @@
  "HOUSE_K": 0.4,
  "HOUSE_LOOKS": [
   {
-   "chimney": true,
+   "w": 30,
    "d": 22,
    "h": 20,
    "roof": "#c8473d",
-   "w": 30,
-   "wall": null
+   "wall": null,
+   "chimney": true
   },
   {
-   "chimney": false,
+   "w": 26,
    "d": 20,
    "h": 18,
    "roof": "#3f72d9",
-   "w": 26,
-   "wall": null
+   "wall": null,
+   "chimney": false
   },
   {
-   "chimney": false,
+   "w": 32,
    "d": 22,
    "h": 22,
    "roof": "#d9b45a",
-   "w": 32,
-   "wall": "#e9dcc0"
+   "wall": "#e9dcc0",
+   "chimney": false
   },
   {
-   "chimney": true,
+   "w": 28,
    "d": 22,
    "h": 20,
    "roof": "#7a5a43",
-   "w": 28,
-   "wall": "#c9b48e"
+   "wall": "#c9b48e",
+   "chimney": true
   },
   {
-   "chimney": true,
+   "w": 24,
    "d": 20,
    "h": 18,
    "roof": "#d9b45a",
-   "w": 24,
-   "wall": null
+   "wall": null,
+   "chimney": true
   },
   {
-   "chimney": false,
+   "w": 30,
    "d": 20,
    "h": 20,
    "roof": "#a33a33",
-   "w": 30,
-   "wall": "#ece4d4"
+   "wall": "#ece4d4",
+   "chimney": false
   }
  ],
  "REP_FAM": {
-  "axe": "rep-sword",
+  "sword": "rep-sword",
   "blunt": "rep-blunt",
   "pole": "rep-pole",
+  "axe": "rep-sword",
   "stave": "rep-stave",
-  "sword": "rep-sword",
-  "thrust": "rep-sword",
-  "wand": "rep-wand"
+  "wand": "rep-wand",
+  "thrust": "rep-sword"
  },
  "RP_COL": {
   "gov": "#3f72d9",
-  "mag": "#7a55c9",
-  "mil": "#c8473d"
+  "mil": "#c8473d",
+  "mag": "#7a55c9"
  },
  "RP_STAR": "10.00,6.50 10.91,9.51 13.83,8.34 12.05,10.93 14.78,12.49 11.64,12.71 12.13,15.81 10.00,13.50 7.87,15.81 8.36,12.71 5.22,12.49 7.95,10.93 6.17,8.34 9.09,9.51",
  "SETPIECES": {
   "battlesite": {
-   "blurb": "Rusted blades and old bones half-buried in the sand.",
    "name": "Ancient Battle Site",
-   "need": "a Forge",
+   "tree": "mil",
    "pts": 1,
    "terrain": [
     "desert"
    ],
-   "tree": "mil"
+   "need": "a Forge",
+   "blurb": "Rusted blades and old bones half-buried in the sand."
   },
   "library": {
-   "blurb": "Shelves of crumbling scrolls, still legible to a patient scholar.",
    "name": "Forgotten Library",
-   "need": null,
+   "tree": "gov",
    "pts": 1,
    "terrain": [
     "swamp",
     "desert"
    ],
-   "tree": "gov"
+   "need": null,
+   "blurb": "Shelves of crumbling scrolls, still legible to a patient scholar."
   },
   "rift": {
-   "blurb": "A seam in the air where another world once broke through.",
    "name": "Closed Interdimensional Rift",
-   "need": "a Mage Tower",
+   "tree": "mag",
    "pts": 1,
    "terrain": [
     "swamp"
    ],
-   "tree": "mag"
+   "need": "a Mage Tower",
+   "blurb": "A seam in the air where another world once broke through."
   }
  },
  "SETPIECE_CHANCE": 0.1,
@@ -147,33 +147,33 @@
  ],
  "SW_HUTS": [
   {
-   "h": 20,
    "r": 11,
+   "h": 20,
    "wall": "#8b6a45"
   },
   {
-   "h": 18,
    "r": 9,
+   "h": 18,
    "wall": "#a8794a"
   },
   {
-   "h": 21,
    "r": 12,
+   "h": 21,
    "wall": "#6e5134"
   },
   {
-   "h": 22,
    "r": 10,
+   "h": 22,
    "wall": "#8b6a45"
   },
   {
-   "h": 17,
    "r": 9,
+   "h": 17,
    "wall": "#a8794a"
   },
   {
-   "h": 19,
    "r": 11,
+   "h": 19,
    "wall": "#7a5a3a"
   }
  ],

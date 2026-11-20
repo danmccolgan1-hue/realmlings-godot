@@ -159,3 +159,56 @@ static func js_char_codes(s: String) -> PackedInt32Array:
 		else:
 			out.append(cp)
 	return out
+
+
+## V8's Array.prototype.sort (as in Chromium 157, which the fixtures come from) with a comparator that ignores its
+## arguments (`() => r() - 0.5`), for arrays under 64 items. Up to 15 items: a binary insertion sort from the second
+## item. 16 to 63: TimSort makes one run (the first ascending or strictly descending stretch, reversed if
+## descending), then extends it with a binary insertion sort. Each comparison draws one number from `r`.
+static func sort_random(a: Array, r) -> Array:
+	var n := a.size()
+	assert(n < 64, "sort_random: only short arrays")
+	if n < 2:
+		return a
+	var cmp := func() -> float: return r.next() - 0.5
+	var run := 1
+	if n <= 15:
+		return _bis_random(a, cmp, 1)
+	# CountAndMakeRun(0, n)
+	run = 2
+	var desc: bool = cmp.call() < 0
+	for idx in range(2, n):
+		var order: float = cmp.call()
+		if desc:
+			if order >= 0:
+				break
+		elif order < 0:
+			break
+		run += 1
+	if desc:
+		var part := a.slice(0, run)
+		part.reverse()
+		for i in run:
+			a[i] = part[i]
+	return _bis_random(a, cmp, run)
+
+
+static func _bis_random(a: Array, cmp: Callable, run: int) -> Array:
+	var n := a.size()
+	# BinaryInsertionSort(0, run, n)
+	for start in range(run, n):
+		var pivot = a[start]
+		var left := 0
+		var right := start
+		while left < right:
+			var mid := left + ((right - left) >> 1)
+			if cmp.call() < 0:
+				right = mid
+			else:
+				left = mid + 1
+		var p := start
+		while p > left:
+			a[p] = a[p - 1]
+			p -= 1
+		a[left] = pivot
+	return a

@@ -1,62 +1,62 @@
 {
  "ALL_DESIGNS": {
-  "ai4c1": {
-   "armor": "leather1",
-   "horse": "riding",
-   "id": "ai4c1",
-   "name": "Lancer",
-   "shield": null,
-   "type": "cav",
-   "weapon": "spear"
-  },
   "ai4i1": {
-   "armor": "leather1",
-   "horse": null,
    "id": "ai4i1",
    "name": "Swordsman",
-   "shield": null,
    "type": "inf",
-   "weapon": "shortsword"
-  },
-  "ai5c1": {
-   "armor": "leather1",
-   "horse": "riding",
-   "id": "ai5c1",
-   "name": "Lancer",
+   "weapon": "shortsword",
    "shield": null,
+   "armor": "leather1",
+   "horse": null
+  },
+  "ai4c1": {
+   "id": "ai4c1",
+   "name": "Lancer",
    "type": "cav",
-   "weapon": "spear"
+   "weapon": "spear",
+   "shield": null,
+   "armor": "leather1",
+   "horse": "riding"
   },
   "ai5i1": {
-   "armor": "leather1",
-   "horse": null,
    "id": "ai5i1",
    "name": "Swordsman",
-   "shield": null,
    "type": "inf",
-   "weapon": "shortsword"
-  },
-  "ai6c1": {
-   "armor": "stag1",
-   "horse": "riding",
-   "id": "ai6c1",
-   "name": "Ogre",
-   "off": null,
-   "race": "swamp",
+   "weapon": "shortsword",
    "shield": null,
+   "armor": "leather1",
+   "horse": null
+  },
+  "ai5c1": {
+   "id": "ai5c1",
+   "name": "Lancer",
    "type": "cav",
-   "weapon": "club"
+   "weapon": "spear",
+   "shield": null,
+   "armor": "leather1",
+   "horse": "riding"
   },
   "ai6i1": {
-   "armor": "stag1",
-   "horse": null,
    "id": "ai6i1",
    "name": "Axe Berserker",
-   "off": null,
-   "race": "swamp",
-   "shield": null,
    "type": "inf",
-   "weapon": "handaxe"
+   "weapon": "handaxe",
+   "shield": null,
+   "off": null,
+   "armor": "stag1",
+   "horse": null,
+   "race": "swamp"
+  },
+  "ai6c1": {
+   "id": "ai6c1",
+   "name": "Ogre",
+   "type": "cav",
+   "weapon": "club",
+   "shield": null,
+   "off": null,
+   "armor": "stag1",
+   "horse": "riding",
+   "race": "swamp"
   }
  },
  "GAME_VERSION": "v106"
