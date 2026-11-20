@@ -15,6 +15,13 @@ var menu: PanelContainer
 var seed_edit: LineEdit
 var leader_pick: OptionButton
 var leader_ids := [""]
+var map_pick: OptionButton
+var opp_box: VBoxContainer
+var opp_count: OptionButton
+var opp_diff: OptionButton
+var start_pick: OptionButton
+const DIFFS := ["easy", "moderate", "difficult"]
+var shot_slots := []
 var status: Label
 var thread: Thread
 var game: Game
@@ -40,6 +47,10 @@ func _ready() -> void:
 			var i := leader_ids.find(a.substr(9))
 			if i >= 0:
 				leader_pick.selected = i
+		elif a.begins_with("--world="):   # a full map: --world=moderate,difficult,easy
+			map_pick.selected = 1
+			opp_box.visible = true
+			shot_slots = a.substr(8).split(",")
 		elif a == "--tutorial":
 			_on_ready.call_deferred(Tutorial.start(), false)
 		elif a.begins_with("--shot=") and not OS.get_cmdline_user_args().has("--tutorial"):
@@ -65,7 +76,34 @@ func _build_menu() -> void:
 	title.add_theme_color_override("font_color", Color("#1d1a22"))
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(title)
-	col.add_child(_dark("Practice island: 10 provinces, just you."))
+	col.add_child(_dark("Map"))
+	map_pick = OptionButton.new()
+	map_pick.add_item("Practice island — 10 provinces, just you")
+	map_pick.add_item("Full map — computer nations, wars and diplomacy")
+	map_pick.item_selected.connect(func(i): opp_box.visible = i == 1)
+	col.add_child(map_pick)
+	opp_box = VBoxContainer.new()
+	var orow := HBoxContainer.new()
+	orow.add_theme_constant_override("separation", 10)
+	var ol := _dark("Opponents")
+	orow.add_child(ol)
+	opp_count = OptionButton.new()
+	for n in range(1, 7):
+		opp_count.add_item(str(n))
+	opp_count.selected = 2
+	orow.add_child(opp_count)
+	opp_diff = OptionButton.new()
+	for d in ["Easy", "Moderate", "Difficult", "Mixed"]:
+		opp_diff.add_item(d)
+	opp_diff.selected = 1
+	orow.add_child(opp_diff)
+	start_pick = OptionButton.new()
+	for d in ["Start in the center", "Start at the edge", "Random start"]:
+		start_pick.add_item(d)
+	orow.add_child(start_pick)
+	opp_box.add_child(orow)
+	opp_box.visible = false
+	col.add_child(opp_box)
 	col.add_child(_dark("Seed"))
 	seed_edit = LineEdit.new()
 	seed_edit.text = SEED_WORDS.pick_random()
@@ -131,13 +169,17 @@ func _start() -> void:
 	var seed := seed_edit.text.strip_edges()
 	if seed == "":
 		seed = SEED_WORDS.pick_random()
-	status.text = "Raising the island…"
+	var slots := Array(shot_slots)
+	if map_pick.selected == 1 and slots.is_empty():
+		for i in opp_count.selected + 1:
+			slots.append(DIFFS[i % 3] if opp_diff.selected == 3 else DIFFS[opp_diff.selected])
+	status.text = "Raising the island…" if slots.is_empty() else "Raising the world and its nations…"
 	thread = Thread.new()
-	thread.start(_gen.bind(seed, leader_ids[leader_pick.selected]))
+	thread.start(_gen.bind(seed, leader_ids[leader_pick.selected], slots, ["center", "edge", "random"][start_pick.selected]))
 
 
-func _gen(seed: String, leader_id: String) -> void:
-	var g := Game.new_practice(seed, leader_id)
+func _gen(seed: String, leader_id: String, slots := [], start := "center") -> void:
+	var g := Game.new_practice(seed, leader_id) if slots.is_empty() else Game.new_world(seed, leader_id, slots, start)
 	call_deferred("_on_ready", g)
 
 
@@ -280,6 +322,14 @@ func _maybe_screenshot() -> void:
 		game.paused = true
 		game.last = 0.0
 		game.update(Time.get_ticks_msec() / 1000.0)
+	if OS.get_cmdline_user_args().has("--reveal"):   # see the whole map (for pictures of the other nations)
+		game.reveal_all = true
+		game.compute_fog()
+		for o in game.nations:
+			game.met[o] = true
+		map.layers.refresh()
+	if OS.get_cmdline_user_args().has("--dip"):
+		hud.diplomacy.open()
 	if OS.get_cmdline_user_args().has("--research"):
 		hud.toggle_research()
 	elif spells or battle:
@@ -338,10 +388,16 @@ func _unhandled_input(ev: InputEvent) -> void:
 				hud.dialog.pick("close")
 			elif hud.armory.visible:
 				hud.armory.close()
+			elif hud.diplomacy.win.panel.visible:
+				hud.diplomacy.close()
 			elif hud.aim != null:
 				hud.aim = null
 			else:
 				hud.toggle_menu()
+			get_viewport().set_input_as_handled()
+			return
+		if ev.keycode == KEY_Y and not ev.ctrl_pressed:
+			hud.diplomacy.toggle()
 			get_viewport().set_input_as_handled()
 			return
 		if ev.keycode == KEY_G and not ev.ctrl_pressed:
@@ -396,7 +452,7 @@ func _unhandled_input(ev: InputEvent) -> void:
 		elif ev.button_index == MOUSE_BUTTON_RIGHT and ev.pressed and game and hud.aim != null:
 			hud.aim = null
 			hud.add_toast("Cancelled.")
-		elif ev.button_index == MOUSE_BUTTON_RIGHT and ev.pressed and game and map.selected_unit != null:
+		elif ev.button_index == MOUSE_BUTTON_RIGHT and ev.pressed and game and map.selected_unit != null and map.selected_unit.owner == Game.ME:
 			var at := get_global_mouse_position()
 			var p := map.province_at(at)
 			if p >= 0:

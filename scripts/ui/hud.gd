@@ -40,6 +40,8 @@ var main            # the scene's entry node: saving, loading, the main menu
 var map: MapView
 var cam: Camera2D
 var armory: ArmoryWindow
+var diplomacy: DiplomacyWindow
+var dip_btn: Button
 var dialog: DialogBox
 var minimap: Minimap
 var roster: Roster
@@ -82,10 +84,12 @@ func _ready() -> void:
 	bar.add_child(tick_bar)
 	clock = _label(24)
 	bar.add_child(clock)
-	for b in [["Research [T]", func(): toggle_research()], ["Armory [G]", func(): armory.toggle()], ["Pause [Space]", func(): game.paused = not game.paused], ["Menu [Esc]", func(): toggle_menu()]]:
+	for b in [["Research [T]", func(): toggle_research()], ["Armory [G]", func(): armory.toggle()], ["Diplomacy [Y]", func(): diplomacy.toggle()], ["Pause [Space]", func(): game.paused = not game.paused], ["Menu [Esc]", func(): toggle_menu()]]:
 		var btn := UiKit.button(b[0], 17, b[1])
 		btn.focus_mode = Control.FOCUS_NONE
 		bar.add_child(btn)
+		if b[0].begins_with("Diplomacy"):
+			dip_btn = btn
 	who = _label(20)
 	who.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	who.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
@@ -160,6 +164,8 @@ func _ready() -> void:
 	minimap.position = Vector2(20, 70)
 	armory = ArmoryWindow.new()
 	add_child(armory)
+	diplomacy = DiplomacyWindow.new()
+	add_child(diplomacy)
 	dialog = DialogBox.new()
 	add_child(dialog)
 	_build_menu()
@@ -172,11 +178,16 @@ func set_game(g: Game) -> void:
 	g.on_dialog = func(title: String, text: String, choices: Array, f: Callable):
 		dialog.ask(title, text, choices, f if f.is_valid() else func(_id): pass)
 	armory.setup(g, self)
+	diplomacy.setup(g, self)
+	g.on_game_over = func(_w): dialog.ask("Your realm has fallen", "Every province you held is gone. The other nations play on without you.",
+		[{"id": "menu", "label": "Main menu", "why": null}, {"id": "watch", "label": "Watch", "why": null}],
+		func(id): if id == "menu" and main: main.to_main_menu())
 	roster.setup(g, self)
 	if map and cam:
 		minimap.setup(g, map, cam)
 	var L = g.leader_of()
-	who.text = "Basic Tutorial" if g.tutorial != null else "%s — Practice island" % (L.full if L else "")
+	who.text = "Basic Tutorial" if g.tutorial != null else "%s — %s" % [L.full if L else "", "Practice island" if g.nations.is_empty() else "%d other nations" % g.nations.size()]
+	dip_btn.visible = not g.nations.is_empty()
 	show()
 
 
@@ -191,7 +202,7 @@ func select_unit(u) -> void:
 	unit = u
 	if game != null and game.tutorial != null and u != null and u.kind == game.WAYFINDER:
 		game.tutorial.selected.wayfinder = true
-	card.get_parent().visible = u != null
+	card.get_parent().visible = u != null and u.owner == Game.ME
 
 
 func add_toast(msg: String, warn := false) -> void:
@@ -380,7 +391,11 @@ func _process(_delta: float) -> void:
 		_refresh_research()
 	if unit != null and not game.units.any(func(v): return is_same(v, unit)):
 		select_unit(null)
-	if unit != null:
+	if game != null and not game.nations.is_empty():
+		var n := game.wars_of(Game.ME).size()
+		dip_btn.text = ("⚔ %d war%s [Y]" % [n, "s" if n > 1 else ""]) if n else "Diplomacy [Y]"
+		dip_btn.add_theme_color_override("font_color", Color("#ff8a7a") if n else Color.WHITE)
+	if unit != null and unit.owner == Game.ME:
 		card_cmds = commands_of(unit)
 		for i in 16:
 			var c = card_cmds[i]
@@ -492,7 +507,11 @@ func _province_text(p: int) -> String:
 		s += "%s: +%d %s research%s\n" % [D.name, D.pts, {"gov": "Government", "mil": "Military", "mag": "Magic"}[D.tree], "" if why == null else " (%s)" % why]
 	if game.buildings.has(p):
 		var b: Dictionary = game.buildings[p]
-		s += "%s (yours)\n" % STAGE_NAME[b.stage]
+		var o: int = b.owner
+		var stage_name: String = "Conquered Capital" if b.get("cc", false) else STAGE_NAME[b.stage]
+		s += "%s (%s)\n" % [stage_name, "yours" if o == Game.ME else "the " + game.player_info(o).name]
+		if game.occ.has(p):
+			s += "[color=#b3261e]Occupied by %s[/color]\n" % ("you" if game.occ[p] == Game.ME else "the " + game.player_info(game.occ[p]).name)
 	if game.surveyed.has(p):
 		var y: Dictionary = game.yields[p]
 		s += "Yields every 10 s: %d gold, %d wood, %d food\n" % [y.gold, y.wood, y.food]
@@ -511,15 +530,16 @@ func _province_text(p: int) -> String:
 		s += "Plots: %d of %d used\n" % [ex.size(), game.plot_cap(p)]
 	var here := []
 	for u in game.units:
-		if u.prov == p:
+		if u.prov == p and (u.owner == Game.ME or game.visible.has(p)):
+			var whose := "" if u.owner == Game.ME or u.owner == Game.RAIDERS else " (%s)" % game.player_info(u.owner).name
 			if u.kind == "army":
 				var parts := []
 				for k in u.troops:
 					var d = game.unit_defs.get(k)
 					parts.append("%s × %d" % [d.name if d else k, u.troops[k]])
-				here.append("%s: %s" % [u.name, ", ".join(parts)])
+				here.append("%s%s: %s" % [u.name, whose, ", ".join(parts)])
 			else:
-				here.append("%s the %s" % [u.name, game.unit_defs[u.kind].name])
+				here.append("%s the %s%s" % [u.name, game.unit_defs[u.kind].name, whose])
 	if not here.is_empty():
 		s += "\n" + "\n".join(here)
 	return s.strip_edges()

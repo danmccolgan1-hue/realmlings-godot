@@ -1068,27 +1068,30 @@ func update(real_t: float) -> void:
 	step_upgrades(t)
 	if started and uq() != null:
 		step_boss_halt()
+	# web: v96.js stepV96 (war timers, bandit waves, rally points), then v105.js stepDiplomacy, then v106.js
 	if not paused:
+		if not nations.is_empty():
+			step_war_timers()
+		step_bandit_waves(t)
 		rally_arrivals()
+	if not nations.is_empty():
+		step_diplomacy()
 	var d := 0.0
 	if paused:
 		dev_t = t
-	else:
+	elif not fallen:
 		d = 0.0 if dev_t < 0 or t < dev_t else t - dev_t
 		dev_t = t
 		d = minf(d, 1.0)
 		step_develop(d)
-		if not nations.is_empty() and not fallen:
+		if not nations.is_empty():
 			Ai.step_enemies(self)
 		step_orders()
-		if not nations.is_empty() and not fallen:
+		if not nations.is_empty():
 			for id in nations:
 				Ai.develop(self, nations[id])
-		if not nations.is_empty():
-			step_war_timers()
 	compute_fog()
 	if not nations.is_empty():
-		step_diplomacy()
 		update_met()
 	if tutorial != null:
 		tutorial.step()
@@ -2087,10 +2090,17 @@ func compute_fog() -> void:
 	for h in haunts:
 		if h.until > t:
 			vis[h.prov] = true
+	if reveal_all:
+		for p in G.provs.size():
+			vis[p] = true
 	for p in vis:
 		exp[p] = true
 	visible = vis
 	explored = exp
+
+
+## Debug and pictures only (the view's --reveal): the whole map is seen. Not part of the web game's rules.
+var reveal_all := false
 
 
 func fog_state(i: int) -> String:
@@ -2998,24 +3008,82 @@ func step_gpc(now: float) -> void:
 		for p in buildings:
 			if explored.has(p) and not surveyed.has(p):
 				surveyed[p] = now
+			for id in nations:   # GPC04: a claimed province's resources are known to every other nation
+				var N: Dictionary = nations[id]
+				if N.alive and buildings[p].owner != N.id:
+					N.surveyed[p] = true
+		if not nations.is_empty():
+			evict_strays()
 	step_retrofits()
 	step_rest(now)
 	step_fort_gates()
 
 
+# web: gpc.js evictStrays: units left in land they may no longer be in (a truce ran out, a border moved) march home
+func evict_strays() -> void:
+	var mine := 0
+	for a in units.duplicate():
+		if not is_nation(a.owner) or a.get("exiting", false) or a.moving or a.get("battle") != null or a.get("fleeing", false) or a.get("retreatHome", false):
+			continue
+		if nation_ok(a, a.prov):
+			continue
+		var own := provs_of(a.owner)
+		if own.is_empty():
+			continue
+		a.exiting = true
+		a.retreating = false
+		a.surveyQueue = []
+		a.survey = null
+		a.aiSurvey = null
+		a.scouting = null
+		a.pendingSurvey = -1
+		a.pending = null
+		a.aiJob = null
+		if a.build != null:
+			cancel_build(a)
+		if a.get("cast") != null:
+			cancel_cast(a)
+		var d := hops_list(a.prov)
+		own = JS.stable_sort(own, func(x, y): return d[x] - d[y])
+		var dest: int = own[0]
+		if not order(a, dest, true):
+			a.prov = dest
+			a.slot = free_slot(dest, a)
+			var xy := slot_pos(dest, a.slot)
+			a.x = xy[0]
+			a.y = xy[1]
+			a.path = []
+			a.moving = false
+			a.exiting = false
+		elif a.owner == ME:
+			mine += 1
+	if mine:
+		toast("%d of your unit%s in a nation’s land without a truce or a war and will march home." % [mine, "s are" if mine > 1 else " is"])
+
+
+## a forest path or tunnel runs along the p–q border
+func path_edge(p: int, q: int) -> bool:
+	for i in paths:
+		var e: Dictionary = world.edges[i]
+		if (e.a == p and e.b == q) or (e.a == q and e.b == p):
+			return true
+	return false
+
+
+# web: gpc.js stepFortGates: every nation's forts and capitals wall their borders once Palisades are researched
 func step_fort_gates() -> void:
-	if not has_tech("walls"):
-		return
 	for p in buildings:
 		var b: Dictionary = buildings[p]
-		if b.stage < 1 or b.owner != ME:
+		if b.stage < 1 or not is_nation(b.owner) or not tech_of(b.owner, "walls"):
 			continue
 		for n in open_nbr[p].duplicate():
 			var key := "%d>%d" % [p, n.q]
 			if fort_walled.has(key):
 				continue
+			if path_edge(p, n.q):
+				continue   # forest paths and tunnels stay open
 			fort_walled[key] = true
-			if raise_wall(p, n.q, b.owner, p) and explored.has(p):
+			if raise_wall(p, n.q, b.owner, p) and b.owner == ME and explored.has(p):
 				toast("The %s raised a %s with a gate." % ["capital" if b.stage == 2 else "fort", "stone wall" if wall_kind() == "stone" else "palisade"])
 
 
@@ -3781,13 +3849,13 @@ const SAVE_FIELDS := ["battles", "bandit_count", "monster_count", "leader", "cap
 	"army_counter", "tech", "rep", "surveyed", "unit_defs", "designs", "exhaust", "exhaust_ok", "harvest", "devel", "upgrades",
 	"xup", "auto_tech", "roads", "walls", "wall_hp", "gate_own", "fort_walled", "gpc_slow_t", "dev_t", "cd", "paths",
 	"harvest_by", "trap", "reveals", "eyes", "haunts", "mana_pool", "mana_prev_t", "mage_gear", "finds", "treasure_rolled",
-	"sp_found", "setpieces", "travelers", "train_orders", "train_order_seq", "design_seq", "prov_rename", "nations", "players", "race_of", "wars", "truces", "allies", "war_seq", "met", "occ", "occ_prog", "dipl", "war_log", "war_ever", "war_lock", "ai_met", "fallen", "ally_check", "wf", "known", "explored", "visible", "queues", "rally", "military", "UNIT_SPEED", "open_nbr", "all_nbr",
+	"sp_found", "setpieces", "travelers", "train_orders", "train_order_seq", "design_seq", "prov_rename", "nations", "players", "race_of", "wars", "truces", "allies", "war_seq", "met", "occ", "occ_prog", "dipl", "war_log", "war_ever", "war_lock", "ai_met", "fallen", "ally_check", "bandit_next", "bandit_waves", "ally_ask", "crop_scan_at", "ai_scout_t", "wf", "known", "explored", "visible", "queues", "rally", "military", "UNIT_SPEED", "open_nbr", "all_nbr",
 	"yields", "tree_border", "t", "next_tick", "paused", "last", "started"]
 
 
 ## The whole game as a plain Dictionary (see SaveCodec for the text form).
 func to_save() -> Dictionary:
-	var d := {"version": SAVE_VERSION, "seed": str(world.seed).trim_prefix("practice:"), "practice": world.get("practice", false)}
+	var d := {"version": SAVE_VERSION, "seed": str(world.seed).trim_prefix("practice:"), "practice": world.get("practice", false), "mode": world.get("mode", "practice")}
 	var edges := []
 	for e in world.edges:
 		edges.append([e.open, e.style])
@@ -3817,7 +3885,11 @@ static func from_save(d: Dictionary, map: Dictionary = {}) -> Game:
 		push_error("Unknown save version %s" % d.get("version"))
 		return null
 	var g := Game.new()
-	g.world = map if not map.is_empty() else RealmGen.scale_world(RealmGen.generate_practice(d.seed))
+	if d.get("mode", "practice") == "normal":
+		g.world = map if not map.is_empty() else RealmGen.scale_world(RealmGen.generate_world(d.seed, null, true))
+		g.world.mode = "normal"
+	else:
+		g.world = map if not map.is_empty() else RealmGen.scale_world(RealmGen.generate_practice(d.seed))
 	g.G = WorldPrep.prep(g.world)   # province shapes come from the map as generated, before walls and paths
 	for i in d.edges.size():
 		g.world.edges[i].open = d.edges[i][0]
@@ -3828,6 +3900,9 @@ static func from_save(d: Dictionary, map: Dictionary = {}) -> Game:
 		g.set(f, d[f])
 	for x in g.designs:
 		if not x.get("builtin", false):
+			g.register_design(x)
+	for id in g.nations:   # the computer nations' own designs
+		for x in g.nations[id].get("designs", []):
 			g.register_design(x)
 	for u in g.units:
 		if u.get("battle") != null:
@@ -3907,14 +3982,14 @@ func bandits_seen_in(p: int) -> bool:
 
 func mason_danger(u: Dictionary, q: int) -> bool:
 	return units.any(func(v): return v.kind == "army" and v.prov == q and troop_count(v) > 0 and not v.get("retreating", false) \
-		and hostile(v.owner, u.owner) and (v.get("seen", false) if v.get("bandit", false) else visible.has(q)))
+		and hostile(v.owner, u.owner) and (u.owner != ME or (v.get("seen", false) if v.get("bandit", false) else visible.has(q))))
 
 
 # web: equip.js statsOf (no artifacts on the Practice island) + content.js boostStats (repeatable research)
 func stats_of(k: String, o: int) -> Dictionary:
 	var st: Dictionary = DSTATS.get(k, GameData.c("STATS0"))
 	if o != ME:
-		return st
+		return art_stats(k, st, o)
 	var out := st.duplicate()
 	var fam_rep = GameData.c("REP_FAM").get(st.get("line") if st.get("fam") == "magic" else st.get("fam"))
 	if fam_rep != null:
@@ -3925,26 +4000,31 @@ func stats_of(k: String, o: int) -> Dictionary:
 		out.red = minf(0.85, st.red * (ar / st.armor) * (1 + 0.05 * rep_lv("rep-armor")) + st.red * (sh / st.armor) * (1 + 0.05 * rep_lv("rep-shield")))
 	if st.get("cav", false):
 		out.hp = st.hp * (1 + 0.05 * rep_lv("rep-cavhp"))
-	return art_stats(k, out)
+	return art_stats(k, out, o)
 
 
-# web: v104.js / v105.js artStats wrappers, the player's side (no artifacts, no Grand Elemental on the Practice island):
+# web: v104.js / v105.js artStats wrappers for any owner (artifacts and the Grand Elemental come later):
 # crossbows by the researched tier, then the leader's bonus to health, attack or critical blows
 const RNG_ATK := [6, 9, 12]
 
-func art_stats(k: String, st: Dictionary) -> Dictionary:
+func art_stats(k: String, st: Dictionary, o := ME) -> Dictionary:
 	var out := st
 	var R = GameData.c("RNG_BY_KIND").get(k)
 	if R != null:
-		var tr := (2 if has_tech(R.techs[1]) else 1) if has_tech(R.techs[0]) else 0
+		var tr := (2 if tech_of(o, R.techs[1]) else 1) if tech_of(o, R.techs[0]) else 0
 		if tr:
 			out = out.duplicate()
 			out.atk = out.atk + RNG_ATK[tr] - RNG_ATK[0]
 	if k == MAGE or out.get("fam") == "boss" or out.get("fam") == "water":
 		return out
+	if not o or o == RAIDERS:
+		return out
+	var L = leader_of(o)
+	if L == null:
+		return out
 	var inf: bool = not out.get("cav", false) and not out.get("ranged", false)
 	var r := out
-	match leader:
+	match L.id:
 		"hisola":
 			if r.get("cav", false) and not r.get("ogre", false) and not r.get("champ", false):
 				out = r.duplicate(); out.hp = r.hp * 1.1
@@ -4374,14 +4454,37 @@ func bandit_slain(a: Dictionary, b: Dictionary) -> void:
 	if b.start.has(ME):
 		stock.gold += BANDIT.bounty
 		b.bounty = b.get("bounty", 0) + BANDIT.bounty
+	else:
+		var o := first_nation_in(b.start)
+		if o:
+			nations[o].stock.gold += BANDIT.bounty
 
 
 func monster_loot(a: Dictionary, k: String, b: Dictionary) -> void:
 	var L = GameData.c("MONSTER_LOOT").get(k)
-	if L == null or not b.start.has(ME) or a.owner == ME:
+	if L == null:
 		return
-	for r in L:
-		stock[r] = stock.get(r, 0) + L[r]
+	if b.start.has(ME) and a.owner != ME:
+		if not b.has("loot"):
+			b.loot = {}
+		for r in L:
+			stock[r] = stock.get(r, 0) + L[r]
+			b.loot[r] = b.loot.get(r, 0) + L[r]
+		return
+	var o := first_nation_in(b.start)
+	if o:
+		for r in L:
+			nations[o].stock[r] = nations[o].stock.get(r, 0) + L[r]
+
+
+## the lowest computer nation id among a battle's sides (web: Object.keys(b.start) lists number keys in order)
+func first_nation_in(d: Dictionary) -> int:
+	var ks := d.keys().map(func(x): return int(x))
+	ks.sort()
+	for o in ks:
+		if nations.has(o):
+			return o
+	return 0
 
 
 # --- battle spells (magic.js onBattleJoin / onBattleEnd + v96 / v98 / v105 wrappers) ---
@@ -4679,6 +4782,42 @@ func spawn_bandit(p: int) -> Dictionary:
 	a.th = 0.0
 	units.append(a)
 	return a
+
+
+# web: v96.js stepBanditWaves: from 30 minutes on, a bigger gang turns up in an unclaimed province every 3 minutes
+const BANDIT_WAVE := {"start": 1800.0, "every": 180.0, "power": 1000, "grow": 300, "cap": 50}
+const WAVE_NAMES := ["Marauders", "Brigands", "Reavers", "Cutthroats", "Outlaws", "Raiders", "Freebooters", "Highwaymen"]
+var bandit_next := -1.0
+var bandit_waves := 0
+
+func step_bandit_waves(now: float) -> void:
+	if world.get("mode", "") != "normal":
+		return
+	if bandit_next < 0:
+		bandit_next = BANDIT_WAVE.start
+	if now < bandit_next:
+		return
+	var n := bandit_waves
+	bandit_waves = n + 1
+	bandit_next += BANDIT_WAVE.every
+	var skip := uq_skip()
+	var free := []
+	for i in world.provinces.size():
+		if buildings.has(i) or skip.has(i) or units.any(func(u): return u.prov == i and u.kind == "army"):
+			continue
+		if G.provs[i].has("inner") and not G.provs[i].inner.is_empty():
+			free.append(i)
+	if free.is_empty():
+		return
+	var p: int = free[int(floor(js_rand.call() * free.size()))]
+	var power: int = BANDIT_WAVE.power + BANDIT_WAVE.grow * n
+	var a := spawn_bandit(p)
+	var R := ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"]
+	var k := n / WAVE_NAMES.size() + 1
+	a.name = "The " + WAVE_NAMES[n % WAVE_NAMES.size()] + ((" " + (R[k] if k < R.size() else str(k))) if n >= WAVE_NAMES.size() else "")
+	var fp := maxf(1.0, JS.round_js(raw_strength([{"owner": RAIDERS, "troops": {"d-sword": 1}, "kind": "army"}]) * 10))
+	a.troops = {"d-sword": mini(BANDIT_WAVE.cap, maxi(2, ceili(power / fp)))}
+	a.wave = n + 1
 
 
 func spawn_monster(p: int, kind: String, n: int) -> Dictionary:

@@ -111,6 +111,8 @@ const HOSTILE := Color("#d8473a")
 
 func _draw_game() -> void:
 	for p in game.buildings:
+		if not game.explored.has(p):
+			continue   # other nations' settlements stay hidden under the fog
 		var b: Dictionary = game.buildings[p]
 		var P: Dictionary = game.G.provs[p]
 		var at := Vector2(P.ic[0], P.ic[1])
@@ -123,6 +125,8 @@ func _draw_game() -> void:
 			var f: float = (game.t - game.upgrades[p].t0) / GameData.c("FORT_UPGRADE").time
 			_bar(at + Vector2(0, -150), f, Color("#e8c547"))
 	for p in game.extras:
+		if not game.explored.has(p):
+			continue
 		var ic: Array = game.G.provs[p].ic
 		for e in game.extras[p]:
 			_building(e.type, e.slot, p, ic, 1.0, e.get("level", 1))
@@ -163,7 +167,11 @@ func _draw_game() -> void:
 		if is_same(u, selected_unit):
 			draw_arc(at, 30.0, 0, TAU, 32, Color("#fff6c8"), 5.0)
 		if u.owner != Game.ME:
-			draw_arc(at, 26.0, 0, TAU, 32, HOSTILE, 4.0)   # bandits and monsters wear a red ring
+			# bandits, monsters and nations at war with you wear a red ring; other nations their own color
+			var hostile: bool = game.hostile(Game.ME, u.owner)
+			var ring: Color = HOSTILE if hostile else Color(game.player_info(u.owner).color)
+			draw_arc(at, 26.0, 0, TAU, 32, OL, 8.0)
+			draw_arc(at, 26.0, 0, TAU, 32, ring, 5.0)
 		var sp = Art.get_sprite("units", "realm", Art.unit_file(kind, _dir(u.th)))
 		if sp == null and u.get("monster") != null:
 			# monsters are drawn facing left or right only (web: art.js monster sprites)
