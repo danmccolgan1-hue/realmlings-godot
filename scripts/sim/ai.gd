@@ -1435,8 +1435,31 @@ static func masons(g: Game, N: Dictionary, P: Dictionary) -> void:
 			u.aiJob = null
 
 
-# web: ai.js aiReach: a breadth-first walk over the provinces this unit may enter (province -> hops)
+# web: ai.js aiReach + v104.js: a breadth-first walk over the provinces this unit may enter (province -> hops). An army at
+# war big enough to batter a wall counts a hostile wall as passable at AI_SIEGE_HOPS extra provinces of marching.
 static func reach(g: Game, u: Dictionary, limit := 12) -> Dictionary:
+	if u.kind == "army" and not g.walls.is_empty() and g.is_nation(u.owner) and g.troop_count(u) >= Game.SIEGE_MIN and not g.enemies_of(u.owner).is_empty():
+		var dd := {u.prov: 0}
+		var qq := [[0, u.prov]]
+		while not qq.is_empty():
+			var bi := 0
+			for k in range(1, qq.size()):
+				if qq[k][0] < qq[bi][0]:
+					bi = k
+			var it: Array = qq[bi]
+			qq.remove_at(bi)
+			var da0: int = it[0]
+			var a0: int = it[1]
+			if da0 > dd[a0] or da0 >= limit:
+				continue
+			for nb in g.path_nbr(u, a0, true):
+				if not g.can_enter(u, nb.q, -1):
+					continue
+				var nd: int = da0 + 1 + (AI_SIEGE_HOPS if nb.has("siege") else 0)
+				if not dd.has(nb.q) or nd < dd[nb.q]:
+					dd[nb.q] = nd
+					qq.append([nd, nb.q])
+		return dd
 	var d := {u.prov: 0}
 	var q := [u.prov]
 	var i := 0
@@ -2857,6 +2880,27 @@ static func dev_lv(g: Game, p: int) -> int:
 	return r.lv if r != null else 0
 
 
+# web: gpc.js aiQuake: at war, a still Mage army casts an Earthquake where it occupies buildings, else a Shockwave at
+# a hostile wall next door
+static func quake(g: Game, N: Dictionary, now: float) -> void:
+	if N.get("quakeAt", 0.0) > now or g.enemies_of(N.id).is_empty():
+		return
+	for a in g.units.duplicate():
+		if a.owner != N.id or a.kind != "army" or not a.troops.get(Game.MAGE, 0) > 0 or a.moving or a.get("battle") != null or a.get("exiting", false) or a.get("cast") != null or a.get("quake"):
+			continue
+		if g.tech_of(N.id, "earthquake") and g.quake_why(a) == null and not g.extras_in(a.prov).is_empty():
+			if g.start_spell2(a, "quake"):
+				N.quakeAt = now + 10
+				return
+		for q in g.all_nbr[a.prov]:
+			if g.shock_why(a, q) == null:
+				if g.start_spell2(a, "shock", q):
+					N.quakeAt = now + 10
+					return
+				break
+	N.quakeAt = now + 3
+
+
 # web: v102.js stepAiScouted: where each computer nation's scouts and armies have been
 static func step_scouted(g: Game, now: float) -> void:
 	if now - g.ai_scout_t < 0.5 and now >= g.ai_scout_t:
@@ -2921,6 +2965,7 @@ static func step(g: Game, now: float) -> void:
 		masons(g, N, P)
 		wayfinders(g, N, P)
 		army_orders(g, N, P, now)
+		quake(g, N, now)
 		if N.diff != "easy" and now >= N.warCheck:
 			N.warCheck = now + 15 + g.js_rand.call() * 10
 			consider_war(g, N, P)

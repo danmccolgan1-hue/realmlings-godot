@@ -280,7 +280,27 @@ func _maybe_screenshot() -> void:
 		if u.kind == "army":
 			army = u
 	var battle := OS.get_cmdline_user_args().has("--battle")
-	if play > 0 and battle:   # Cormac's Shield Footmen against a Bandit Gang next door, as in tests/fixtures/play/*_battle.json
+	if play > 0 and OS.get_cmdline_user_args().has("--siege") and not game.nations.is_empty():
+		# as in tests/fixtures/siege/siege.json: a walled capital next door, 20 Footmen battering their way in
+		var foe: int = game.nations.keys()[0]
+		var fc := game.capital_of(foe)
+		var qs: Array = game.open_nbr[fc].map(func(n): return n.q).filter(func(p): return not game.buildings.has(p) and not game.unique_ban(p))
+		game.ai_frozen = true
+		game.nations[foe].tech.gov.done.append("walls")
+		game.buildings[qs[0]] = {"stage": 0, "born": 0, "owner": Game.ME}
+		game.surveyed[qs[0]] = 0
+		game.stock.gold += 500
+		game.stock.food += 3000
+		for o in game.nations:
+			game.met[o] = true
+		game.compute_income()
+		game.compute_fog()
+		game.update(1.0)
+		game.declare_war(Game.ME, foe)
+		army = game.new_army(qs[0], {"d-sword": 20})
+		game.order(army, fc)
+		battle = true
+	if play > 0 and battle and not OS.get_cmdline_user_args().has("--siege"):   # Cormac's Shield Footmen against a Bandit Gang next door, as in tests/fixtures/play/*_battle.json
 		var gang := game.spawn_bandit(q1)
 		gang.troops = {"d-sword": 5}
 		game.order(army, q1)
@@ -349,6 +369,8 @@ func _maybe_screenshot() -> void:
 			zoom = float(a.substr(7))
 	cam.zoom = Vector2(zoom, zoom)
 	cam.position = Vector2(game.G.provs[game.capital].ic[0], game.G.provs[game.capital].ic[1] - 60)
+	if OS.get_cmdline_user_args().has("--siege") and army != null:
+		cam.position = Vector2(army.x, army.y)
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--look="):   # the n-th computer nation's capital
 			var ids: Array = game.nations.keys()
@@ -446,7 +468,12 @@ func _unhandled_input(ev: InputEvent) -> void:
 				if ev.button_index == MOUSE_BUTTON_LEFT and drag_moved < 6.0 and game and hud.aim != null:
 					var tp := map.province_at(get_global_mouse_position())
 					if tp >= 0:
-						game.cast_spell(hud.aim.unit, hud.aim.spell, tp)
+						if hud.aim.spell == "fly":
+							game.fly_army(hud.aim.unit, tp)
+						elif hud.aim.spell == "shock":
+							game.start_spell2(hud.aim.unit, "shock", tp)
+						else:
+							game.cast_spell(hud.aim.unit, hud.aim.spell, tp)
 					hud.aim = null
 				elif ev.button_index == MOUSE_BUTTON_LEFT and drag_moved < 6.0 and game:
 					var at := get_global_mouse_position()

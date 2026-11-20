@@ -93,11 +93,30 @@ func _draw() -> void:
 			draw_polyline(line, ROAD_COL, 20.0, true)
 		for i in game.walls:
 			var e: Dictionary = world.edges[i]
+			if game and not game.explored.has(e.a) and not game.explored.has(e.b):
+				continue
 			var a := _v(V, e.v[0])
 			var b := _v(V, e.v[1])
+			var stone: bool = game != null and game.wall_type(i) == "stone"
 			draw_line(a, b, OL, 46.0, true)
-			draw_line(a, b, STYLE_COL.wall, 34.0, true)
-			draw_rect(Rect2((a + b) / 2 - Vector2(22, 22), Vector2(44, 44)), Color("#e8c547"))   # the gate
+			draw_line(a, b, Color("#a9a294") if stone else STYLE_COL.wall, 34.0, true)
+			if game and game.wall_crack.get(i, false):   # cracked below half health
+				var n := maxi(3, int(a.distance_to(b) / 45))
+				for k in n:
+					var c := a.lerp(b, (k + 0.5) / n)
+					draw_polyline(PackedVector2Array([c + Vector2(-4, -24), c + Vector2(5, -12), c + Vector2(-5, -2), c + Vector2(7, 10)]), Color("#2b2620"), 4.0)
+			# the gate, in the color of the nation that holds it
+			var ctl: int = game.gate_ctl(game.link_key(e.a, e.b)) if game else 0
+			var gate := Color(game.player_info(ctl).color) if game and ctl else Color("#e8c547")
+			draw_rect(Rect2((a + b) / 2 - Vector2(24, 24), Vector2(48, 48)), OL)
+			draw_rect(Rect2((a + b) / 2 - Vector2(20, 20), Vector2(40, 40)), gate)
+			if game and game.wall_hp.has(i) and (game.visible.has(e.a) or game.visible.has(e.b)):
+				var w := game.wall_life(i)
+				if w.hp < w.max - 0.01:   # web: drawWallLife, a health bar over every damaged wall you can see
+					var m := (a + b) / 2 + Vector2(0, -120)
+					draw_rect(Rect2(m - Vector2(32, 2), Vector2(64, 13)), Color("#1d1a22"))
+					draw_rect(Rect2(m - Vector2(30, 0), Vector2(60, 9)), Color("#5a3d2a"))
+					draw_rect(Rect2(m - Vector2(30, 0), Vector2(60 * maxf(0, w.hp / w.max), 9)), Color("#e8c33a") if w.hp / w.max > 0.5 else Color("#e0503a"))
 	if selected_prov >= 0:
 		var outline: PackedVector2Array = polys[selected_prov].duplicate()
 		outline.append(outline[0])
@@ -163,7 +182,9 @@ func _draw_game() -> void:
 					if n == 0:
 						kind = k
 					n += u.troops[k]
-		var at := Vector2(u.x, u.y)
+		var at := Vector2(u.x, u.y - u.get("flyH", 0.0))   # Winged Slippers lift a flying army
+		if u.get("flyH", 0.0) > 0:
+			draw_circle(Vector2(u.x, u.y + 4), 30.0, Color(0, 0, 0, 0.22))
 		if is_same(u, selected_unit):
 			draw_arc(at, 30.0, 0, TAU, 32, Color("#fff6c8"), 5.0)
 		if u.owner != Game.ME:
@@ -191,6 +212,10 @@ func _draw_game() -> void:
 			_bar(at + Vector2(0, -60), minf(1.0, (game.t - u.build.t0) / u.build.dur), Color("#e8c547"))
 		elif u.scouting != null:
 			_bar(at + Vector2(0, -60), minf(1.0, (game.t - u.get("exploreT0", game.t)) / Game.EXPLORE_TIME), Color("#b9e07a"))
+		if u.get("quake"):   # casting an Earthquake or a Shockwave
+			_bar(at + Vector2(0, -100), minf(1.0, (game.t - u.quake.t0) / u.quake.T), Color("#c98bff"))
+		if u.get("sieging") != null:   # battering a wall
+			_badge(at + Vector2(-30, -70), "⚒")
 
 
 ## A building on its plot; `f` < 1 while it is being built (the art rises in quarters).

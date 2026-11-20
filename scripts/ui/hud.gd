@@ -238,6 +238,24 @@ func commands_of(u) -> Array:
 				var label: String = game.TECH_BY_ID[game.line_tech(k)].name
 				out[cell] = {"id": "spell:" + k, "label": "%s\n%s" % [label, "stop" if casting else ("%s mana" % mana if mana is int else str(mana))], "why": game.cast_why(u, k)}
 				cell += 1
+		# Shockwave (every Mage) and Earthquake (Tier III Magic): web gpc.js Z11 / Z12
+		for k in (["shock", "quake"] if game.tech_of(Game.ME, "earthquake") else ["shock"]):
+			if cell >= 15:
+				break
+			var on: bool = u.get("quake") and u.quake.kind == k
+			var left := ""
+			if on:
+				left = "%d s left" % ceili(u.quake.T - (game.t - u.quake.t0))
+			var why = null
+			if not on:
+				why = game.quake_why(u) if k == "quake" else (null if game.mages_in(u) > 0 else "No Mage")
+			out[cell] = {"id": "spell2:" + k, "label": "%s\n%s" % [game.spell2_name(k), left if on else "%d mana" % Game.SPELL2_MANA[k]], "why": why}
+			cell += 1
+	if u.kind == "army" and game.has_art(Game.ME, "slippers"):   # v95: Winged Slippers
+		for cell in [9, 7, 6, 5, 4]:
+			if out[cell] == null and not list.any(func(c): return c.get("cell", -1) == cell):
+				out[cell] = {"id": "fly", "label": "Fly\n(Slippers)", "why": game.fly_why(u)}
+				break
 	for c in list:
 		var id: String = c.id
 		var cmd = null
@@ -328,6 +346,18 @@ func press(i: int) -> void:
 		confirm_key = ""
 		game.dismiss([unit])
 		select_unit(null)
+	elif id == "fly":
+		aim = {"unit": unit, "spell": "fly"}
+		add_toast("Click a province next to the army. Right-click cancels.")
+	elif id.begins_with("spell2:"):
+		var k := id.substr(7)
+		if unit.get("quake") and unit.quake.kind == k:
+			game.end_quake(unit, "%s stopped." % game.spell2_name(k))
+		elif k == "quake":
+			game.start_spell2(unit, "quake")
+		else:
+			aim = {"unit": unit, "spell": "shock"}
+			add_toast("Click a neighboring province behind an enemy wall. Right-click cancels.")
 	elif id.begins_with("spell:"):
 		var k := id.substr(6)
 		if k in ["rift"] or (k == "eyes" and game.see_nbrs(unit).size() > 1):
@@ -598,6 +628,13 @@ func _refresh_actions() -> void:
 		elif dr == null or dr.lv < GameData.c("DEV").max:
 			var lv: int = dr.lv if dr != null else 0
 			rows.append({"btn": "Develop to level %d (%s, 5 min)" % [lv + 1, Game.cost_text(game.dev_cost(lv))], "why": game.dev_why(prov), "do": game.start_develop.bind(prov)})
+		if game.buildings[prov].stage >= 1:
+			var rj = game.rewall_jobs.get(prov)
+			if rj != null:
+				rows.append({"label": "Rebuilding walls: %d s left" % ceili(Game.REWALL_TIME - (game.t - rj.t0))})
+			else:
+				var nw := game.rewalls_at(prov).size()
+				rows.append({"btn": "Rebuild walls (%d wood each%s)" % [Game.REWALL_COST.wood, (", %d broken" % nw) if nw else ""], "why": game.rewalls_why(prov), "do": game.rebuild_walls.bind(prov)})
 		for e in game.extras_in(prov):
 			rows.append({"btn": "Tear down the %s (no refund)" % game.BUILD_DEFS[e.type].name, "why": null, "do": _confirm.bind("destroy:%d@%d" % [prov, e.slot], "Tear down the %s? Press again to confirm." % game.BUILD_DEFS[e.type].name, game.destroy_extra.bind(prov, e.slot))})
 		for e in game.extras_in(prov):

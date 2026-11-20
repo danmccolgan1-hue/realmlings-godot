@@ -67,7 +67,7 @@ func _process(dt: float) -> void:
 
 
 func _state_key() -> String:
-	var parts := [game.fallen, game.wars.size(), game.allies.size()]
+	var parts := [game.fallen, game.wars.size(), game.allies.size(), game.artifacts.get(Game.ME, []).size()]
 	for w in game.wars:
 		parts.append([w.id, game.warscore(w, Game.ME), int(game.t - w.since) / 30])
 	for o in game.live_nations():
@@ -83,6 +83,11 @@ func _refresh() -> void:
 		return
 	key = k
 	UiKit.clear(body)
+	var arts: Array = game.artifacts.get(Game.ME, [])
+	if not arts.is_empty():
+		var al := UiKit.rich(18, 840)
+		al.text = "[b]Your artifacts:[/b] " + "; ".join(arts.map(func(id): return "%s — %s" % [Game.ARTIFACTS[id].name, Game.ARTIFACTS[id].desc]))
+		body.add_child(al)
 	_wars()
 	_nations()
 

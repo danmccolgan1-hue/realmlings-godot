@@ -902,6 +902,9 @@ func upkeep() -> Dictionary:
 		if b.stage == 0:
 			for k in OUTPOST_UPKEEP:
 				u[k] += OUTPOST_UPKEEP[k]
+	if has_art(ME, "crown"):   # v95: the King’s Crown, 20% off
+		for k in u:
+			u[k] = int(JS.round_js(u[k] * 0.8))
 	# v106: leader upkeep cuts, buildings that cost a leader nothing, over the province limit
 	for v in units:
 		if v.owner == ME and v.kind == "army":
@@ -956,11 +959,15 @@ func compute_income() -> void:
 	for k in RES:
 		income[k] = gross[k] - up[k]
 	income_parts = {"gross": gross, "up": up}
+	for kv in [["gold", "goldskull"], ["wood", "stump"]]:   # v95: the Gold Dragon Skull and the Enchanted Stump
+		if has_art(ME, kv[1]):
+			income[kv[0]] += 50
+			gross[kv[0]] += 50
 
 
 # web: govtech.js storageCap()
 func storage_cap(k: String) -> int:
-	var n: int = GameData.c("BASE_CAP") + 500 * rep_lv("rep-storage")
+	var n: int = GameData.c("BASE_CAP") + 500 * rep_lv("rep-storage") + (2000 if k == "gold" and has_art(ME, "goldskull") else 0)
 	for p in extras:
 		if owned(p):
 			for e in extras[p]:
@@ -1061,13 +1068,15 @@ func update(real_t: float) -> void:
 			step_ai(t)
 		step_scouts(t)
 		step_magic(t, dt)
-		step_gpc(t)
+		step_gpc(t, dt)
 		step_patrols(t, dt)
 		step_travelers(dt)
 	clamp_stock()
 	step_upgrades(t)
 	if started and uq() != null:
 		step_boss_halt()
+	if started:
+		step_flights()
 	# web: v96.js stepV96 (war timers, bandit waves, rally points), then v105.js stepDiplomacy, then v106.js
 	if not paused:
 		if not nations.is_empty():
@@ -1152,8 +1161,16 @@ func nation_ok(u: Dictionary, q: int) -> bool:
 	return n == 0 or n == u.owner or hostile(u.owner, n) or truce_left(u.owner, n) > 0 or has_access(u.owner, n)
 
 
-# web: game.js findPath / findPathVia (no walls yet): border crossings from u.prov to target, or null
+# web: game.js findPath: an army that finds no open way tries again through hostile walls it can batter
 func find_path(u: Dictionary, target: int):
+	var p = find_path_via(u, target, false)
+	if p != null or u.kind != "army" or walls.is_empty():
+		return p
+	return find_path_via(u, target, true)
+
+
+# web: game.js findPathVia: border crossings from u.prov to target, or null
+func find_path_via(u: Dictionary, target: int, siege: bool):
 	if target == u.prov:
 		return []
 	if not can_enter(u, target, target):
@@ -1166,9 +1183,9 @@ func find_path(u: Dictionary, target: int):
 		h += 1
 		if a == target:
 			break
-		for n in path_nbr(u, a):
+		for n in path_nbr(u, a, siege):
 			if not prev.has(n.q) and (path_avoid == null or n.q == target or not path_avoid.has(n.q)) and can_enter(u, n.q, target):
-				prev[n.q] = {"a": a, "m": n.m}
+				prev[n.q] = {"a": a, "m": n.m, "siege": n.get("siege", -1)}
 				q.append(n.q)
 	if not prev.has(target):
 		return null
@@ -1176,7 +1193,10 @@ func find_path(u: Dictionary, target: int):
 	var c := target
 	while c != u.prov:
 		var pr: Dictionary = prev[c]
-		hops.push_front({"to": c, "m": pr.m})
+		var hop := {"to": c, "m": pr.m}
+		if pr.siege >= 0:
+			hop.siege = pr.siege
+		hops.push_front(hop)
 		c = pr.a
 	return hops
 
@@ -1244,7 +1264,10 @@ func walk_hops(u: Dictionary, hops: Array, target: int, pt = null) -> void:
 		if not Geo.seg_clear(G.provs[in_prov], at, h.m):
 			for qq in Geo.nav_route(G.provs[in_prov], at, h.m):
 				wps.append({"x": qq[0], "y": qq[1]})
-		wps.append({"x": h.m[0], "y": h.m[1], "enter": h.to})
+		var w := {"x": h.m[0], "y": h.m[1], "enter": h.to}
+		if h.has("siege"):
+			w.siege = h.siege
+		wps.append(w)
 		at = h.m
 		in_prov = h.to
 	if dest != null:
@@ -1277,12 +1300,31 @@ func halt_unit(u: Dictionary) -> void:
 # web: game.js unitSpeed() / content.js troopSpeed() (speedMod: Aithne's sneaking Wayfinders come with stealth)
 func unit_speed(u: Dictionary) -> float:
 	if u.kind != "army":
-		return UNIT_SPEED.get(u.kind, 1.0)
+		return UNIT_SPEED.get(u.kind, 1.0) * speed_mod(u)
 	var m := INF
 	for k in u.troops:
 		if u.troops[k] > 0:
 			m = minf(m, UNIT_SPEED.get(k, 1.0))
-	return m if m < INF else 1.0
+	return (m if m < INF else 1.0) * speed_mod(u)
+
+
+# web: swamp.js speedMod + v95.js (Red Dragon Skull: 25% faster) + v105.js (Cerathon's Champions)
+func speed_mod(u: Dictionary) -> float:
+	var m := 1.0
+	var L = leader_of(u.owner) if is_nation(u.owner) else null
+	if L != null and L.id == "cerathon" and u.kind == "army":
+		var a := INF
+		var b := INF
+		for k in u.troops:
+			if u.troops[k] > 0:
+				var sp: float = UNIT_SPEED.get(k, 1.0)
+				a = minf(a, sp)
+				b = minf(b, sp * (1.2 if DSTATS.has(k) and DSTATS[k].get("champ", false) else 1.0))
+		if a > 0 and a < INF:
+			m *= b / a
+	if has_art(u.owner, "redskull"):
+		m *= 1.25
+	return m
 
 
 static func facing(dx: float, dy: float) -> float:
@@ -1294,6 +1336,9 @@ func step_unit(u: Dictionary, dt: float) -> void:
 	if u.moving:
 		var time := dt
 		while time > 0 and not u.path.is_empty():
+			if siege_hold(u, time):
+				time = 0
+				break
 			var wp: Dictionary = u.path[0]
 			var sp: float
 			if u.scouting != null and u.exploreSp:
@@ -1616,20 +1661,30 @@ func place_ruins(avoid := {}) -> int:
 	return p
 
 
-# web: v78.js surveyFinds(u): Intact Ruins give a Tier I Government technology; a desert may hide treasure
+# web: v78.js surveyFinds(u): Intact Ruins give a random Tier I Government technology (or 3 minutes of Government
+# research when none is left); a desert may hide treasure
+const RUINS_MINUTES := 3
 func survey_finds(u: Dictionary) -> void:
 	var p: int = u.prov
 	var f = finds.get(p)
 	if f != null and f.id == "ruins" and not f.done:
 		f.done = true
 		var pick := []
-		for x in TECH_BY_ID.values():
+		for x in GameData.c("TECHS"):
 			if x.tree == "gov" and x.get("tier") == 1 and not x.get("rep", false) and not tech.gov.done.has(x.id) and req_met(x, tech.gov):
 				pick.append(x)
+		var note := ""
 		if not pick.is_empty():
-			var x: Dictionary = pick[rng.randi() % pick.size()]
+			var x: Dictionary = pick[floori(js_rand.call() * pick.size())]
 			grant_tech(x.id)
-			toast("%s has found intact ruins of an ancient temple! Your nation gains %s." % [u.name, x.name])
+			note = "Your nation has just gained the technology %s." % x.name
+		else:
+			var pts := int(JS.round_js(tech_rate("gov") * RUINS_MINUTES * 60 / TICK))
+			add_research("gov", pts)
+			note = "Your scholars already know every Tier I Government technology, so they gain %d Government research points instead (%d minutes’ worth)." % [pts, RUINS_MINUTES]
+		toast("%s has found intact ruins of an ancient temple in %s! %s" % [u.name, prov_name(p), note])
+		if on_dialog.is_valid():
+			on_dialog.call("Intact Ruins", "%s has found intact ruins of an ancient temple in %s! Our findings here will give us a leap forward!\n\n%s" % [u.name, prov_name(p), note], [{"id": "ok", "label": "Splendid", "why": null}], func(_x): pass)
 	if world.provinces[p].terrain == "desert" and not finds.has(p) and not treasure_rolled.has(p):
 		treasure_rolled[p] = true
 		if Mulberry32.from_string(str(world.seed) + ":treasure:" + str(p)).next() < GameData.c("TREASURE_CHANCE"):
@@ -2090,6 +2145,10 @@ func compute_fog() -> void:
 	for h in haunts:
 		if h.until > t:
 			vis[h.prov] = true
+	if has_art(ME, "eye"):   # v95: the Lidless Eye shows every army
+		for u in units:
+			if u.kind == "army" and troop_count(u) > 0:
+				vis[u.prov] = true
 	if reveal_all:
 		for p in G.provs.size():
 			vis[p] = true
@@ -2842,22 +2901,429 @@ func gate_ctl(k: String) -> int:
 	return g.owner
 
 
-# web: govtech.js pathNbr(u, a): open borders, plus walls whose gate the unit's nation holds
-func path_nbr(u: Dictionary, a: int) -> Array:
+# web: govtech.js pathNbr(u, a, siege): open borders, walls whose gate the unit's nation holds, and (for armies of
+# SIEGE_MIN soldiers or more, when `siege` is set) hostile walls to batter down
+func path_nbr(u: Dictionary, a: int, siege := false) -> Array:
 	if walls.is_empty():
 		return open_nbr[a]
+	var ws := walls_at(a)
+	if ws.is_empty():
+		return open_nbr[a]
 	var out: Array = open_nbr[a].duplicate()
-	var V: Array = world.vertices
-	for i in walls:
-		var e: Dictionary = world.edges[i]
-		if e.a != a and e.b != a:
-			continue
-		var q: int = e.b if e.a == a else e.a
-		if gate_ctl(link_key(e.a, e.b)) == u.owner:
+	for w in ws:
+		var c := gate_ctl(link_key(world.edges[w.i].a, world.edges[w.i].b))
+		if c == u.owner:
+			out.append({"q": w.q, "m": w.m})
+		elif siege and u.kind == "army" and troop_count(u) >= SIEGE_MIN and c and hostile(u.owner, c):
+			out.append({"q": w.q, "m": w.m, "siege": w.i})
+	return out
+
+
+# web: govtech.js wallsAt(a): the walls touching each province, rebuilt whenever a wall goes up or comes down
+var walls_ver := 0
+var _wall_adj := {}
+var _wall_adj_ver := -1
+
+func walls_at(a: int) -> Array:
+	if _wall_adj_ver != walls_ver:
+		_wall_adj = {}
+		_wall_adj_ver = walls_ver
+		var V: Array = world.vertices
+		for i in walls:
+			var e: Dictionary = world.edges[i]
 			var x: Array = V[e.v[0]]
 			var y: Array = V[e.v[1]]
-			out.append({"q": q, "m": [(x[0] + y[0]) / 2, (x[1] + y[1]) / 2]})
-	return out
+			var m := [(x[0] + y[0]) / 2, (x[1] + y[1]) / 2]
+			for so in [[e.a, e.b], [e.b, e.a]]:
+				if not _wall_adj.has(so[0]):
+					_wall_adj[so[0]] = []
+				_wall_adj[so[0]].append({"q": so[1], "m": m, "i": i})
+	return _wall_adj.get(a, [])
+
+
+# =================================================================================================================
+# sieges (web: gpc.js siegeHold / stepSiege / breakWall, v102.js wall health by kind, stepSiege and damageWall)
+const SIEGE_MIN := 10
+const SIEGE_STAND := 34.0
+const WALL_MAX := {"wood": 40.0, "spiky": 80.0, "stone": 120.0}
+const WALL_SPELL := {"shock": 40.0, "quake": 120.0}
+var wall_max := {}          # edge -> the health it was last measured against
+var wall_crack := {}        # edge -> true below half health
+var broken_walls := {}      # "a_b" -> {home, owner} of a wall broken in a siege
+var rewall_jobs := {}       # province -> {t0, qs, paid}
+const REWALL_COST := {"wood": 50}
+const REWALL_TIME := 15.0
+
+func wall_owner(i: int) -> int:
+	var e: Dictionary = world.edges[i]
+	var g = gate_own.get(link_key(e.a, e.b))
+	return g.owner if g != null else ME
+
+
+# web: v102.js wallType: Stone Walls once the builder has researched them, a wooden palisade before
+func wall_type(i: int) -> String:
+	return "stone" if tech_of(wall_owner(i), "walls2") else "wood"
+
+
+func wall_life(i: int) -> Dictionary:
+	var mx: float = WALL_MAX[wall_type(i)]
+	var was = wall_max.get(i)
+	var hp = wall_hp.get(i)
+	if hp == null or was == null:
+		hp = mx if hp == null or hp > mx else hp
+	elif was != mx:
+		hp = hp * mx / was
+	wall_hp[i] = hp
+	wall_max[i] = mx
+	return {"hp": hp, "max": mx}
+
+
+## true when the wall comes down
+func damage_wall(i: int, dmg: float, by = null) -> bool:
+	if not walls.has(i):
+		return false
+	var w := wall_life(i)
+	wall_hp[i] = w.hp - dmg
+	if wall_hp[i] <= 0:
+		wall_crack.erase(i)
+		wall_max.erase(i)
+		break_wall(i, by)
+		return true
+	wall_crack[i] = wall_hp[i] <= w.max / 2
+	return false
+
+
+# web: v96.js spellHitWall (Shockwave 40, Earthquake 120)
+func spell_hit_wall(i: int, by, dmg := 40.0) -> bool:
+	if not walls.has(i):
+		return false
+	var gone := damage_wall(i, dmg, by)
+	if not gone:
+		var e: Dictionary = world.edges[i]
+		var w := wall_life(i)
+		if gate_ctl(link_key(e.a, e.b)) == ME and (by == null or by.owner != ME):
+			toast("The wall between %s and %s was hit by a spell: %d/%d wall health left." % [prov_name(e.a), prov_name(e.b), ceili(w.hp), int(w.max)], true)
+	return gone
+
+
+func break_wall(i: int, by = null) -> void:
+	var e: Dictionary = world.edges[i]
+	var k := link_key(e.a, e.b)
+	var ctl := gate_ctl(k)
+	var g = gate_own.get(k)
+	if g != null:
+		broken_walls[k] = g.duplicate()
+	var V: Array = world.vertices
+	var a: Array = V[e.v[0]]
+	var b: Array = V[e.v[1]]
+	var mid := [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]
+	e.open = true
+	e.style = "open"
+	walls.erase(i)
+	wall_hp.erase(i)
+	gate_own.erase(k)
+	walls_ver += 1
+	open_nbr[e.a].append({"q": e.b, "m": mid})
+	open_nbr[e.b].append({"q": e.a, "m": mid})
+	for u in units:
+		if u.get("sieging") == i:
+			u.sieging = null
+		for w in u.get("path", []):
+			if w.get("siege") == i:
+				w.erase("siege")
+	if by != null and by.owner == ME:
+		toast("%s broke through the wall between %s and %s!" % [by.name, prov_name(e.a), prov_name(e.b)])
+	elif ctl == ME:
+		toast("The wall between %s and %s has fallen to the %s!" % [prov_name(e.a), prov_name(e.b), player_info(by.owner).name if by != null else "enemy"], true)
+
+
+## The movement loop asks first: true while the army stands battering a hostile wall (it walks up to it first).
+func siege_hold(u: Dictionary, time: float) -> bool:
+	var wp = u.path[0] if not u.path.is_empty() else null
+	if u.kind != "army" or wp == null or not wp.has("siege"):
+		if u.get("sieging") != null:
+			u.sieging = null
+		return false
+	var i: int = wp.siege
+	var ctl: int = gate_ctl(link_key(world.edges[i].a, world.edges[i].b)) if walls.has(i) else u.owner
+	if ctl == u.owner:
+		u.sieging = null
+		wp.erase("siege")
+		return false
+	if not ctl or not hostile(u.owner, ctl) or troop_count(u) < SIEGE_MIN:
+		if troop_count(u) < SIEGE_MIN and u.owner == ME and u.get("sieging") != null:
+			toast("%s has too few soldiers to batter the wall (it takes %d)." % [u.name, SIEGE_MIN], true)
+		u.sieging = null
+		var fin = u.get("final")
+		u.path = []
+		u.moving = false
+		if fin == null or not order(u, fin, true):
+			u.slot = free_slot(u.prov, u)
+			var xy := slot_pos(u.prov, u.slot)
+			u.path = [{"x": xy[0], "y": xy[1], "slot": true}]
+			u.moving = true
+		return true
+	var d := JS.hypot(wp.x - u.x, wp.y - u.y)
+	if d > SIEGE_STAND + 1:
+		var step := minf(SPEED * unit_speed(u) * time, d - SIEGE_STAND)
+		u.x += (wp.x - u.x) / d * step
+		u.y += (wp.y - u.y) / d * step
+		u.th = facing(wp.x - u.x, wp.y - u.y)
+		if d - step > SIEGE_STAND + 1:
+			return true
+	if u.get("sieging") != i:
+		u.sieging = i
+		var e: Dictionary = world.edges[i]
+		var other: int = e.b if e.a == u.prov else e.a
+		if u.owner == ME:
+			toast("%s is battering down the %s into %s." % [u.name, "stone wall" if wall_type(i) == "stone" else "palisade", prov_name(other)])
+		elif ctl == ME:
+			toast("The %s is battering down your wall at %s!" % [player_info(u.owner).name, prov_name(other)], true)
+	return true
+
+
+# =================================================================================================================
+# Earthquake and Shockwave (web: gpc.js Z11 / Z12 + v98.js mana + v102.js staves). Shockwave: any Mage, at a wall on
+# the border with a nation at war with the caster, 15 s, 40 wall damage. Earthquake: Tier III Magic, cast in an
+# enemy province your army occupies, 30 s: every building there falls and every wall around takes 120.
+const QUAKE_TIME := 30.0     # v98: 30 s (was 120)
+const SHOCK_TIME := 15.0     # v98: 15 s (was 120)
+const SPELL2_MANA := {"shock": 50, "quake": 200}
+var quakes := []        # the banners: {id, from, to, by, kind} of casts by nations at war with you
+var quake_seq := 0
+
+func spell2_name(k: String) -> String:
+	return "Earthquake" if k == "quake" else "Shockwave"
+
+
+func rep_of(o: int, id: String) -> int:
+	return rep_lv(id) if o == ME else (int(nations[o].rep.get(id, 0)) if nations.has(o) else 0)
+
+
+func spell2_time(k: String, o: int) -> float:
+	var mult: float = STAVE_CAST.get(mage_gear.weapon, 1.0) if o == ME else 1.0
+	return maxf(1.0, (QUAKE_TIME if k == "quake" else SHOCK_TIME) * pow(0.95, rep_of(o, "rep-quakecast" if k == "quake" else "rep-shockcast")) * mult)
+
+
+func cast_len(T: float) -> String:
+	if T >= 60:
+		var m := T / 60.0
+		return "%s minute%s" % [str(snappedf(m, 0.1)) if fmod(T, 60) else str(int(m)), "" if T == 60 else "s"]
+	return "%d seconds" % JS.round_js(T)
+
+
+func quake_why(c):
+	if c == null or mages_in(c) <= 0:
+		return "No Mage selected"
+	if not tech_of(c.owner, "earthquake"):
+		return "Research Earthquake (Magic Tier III) first"
+	if occ.get(c.prov, -1) != c.owner:
+		return "Cast it in an enemy province your army occupies"
+	if c.moving:
+		return "Stop moving first"
+	if c.get("battle") != null:
+		return "Not during battle"
+	if units.any(func(v): return not is_same(v, c) and v.get("quake") and v.quake.kind == "quake" and v.prov == c.prov):
+		return "An Earthquake is already being cast here"
+	var need = mc(SPELL2_MANA.quake, c.owner)
+	if mana_of(c) < need:
+		return "Not enough mana (%d/%d)%s" % [floori(mana_of(c)), need, "" if tech_of(c.owner, "magicabund") else " · it needs Magic Abundance"]
+	return null
+
+
+func shock_why(c, q: int):
+	if c == null or mages_in(c) <= 0:
+		return "No Mage selected"
+	if q == c.prov or not all_nbr[c.prov].has(q):
+		return "The Mage must stand next door"
+	var n := nation_of(q)
+	if not n or not hostile(c.owner, n):
+		return "Only against a province of a nation you are at war with"
+	if wall_between(c.prov, q) == null:
+		return "There is no wall on that border"
+	if c.moving:
+		return "Stop moving first"
+	if c.get("battle") != null:
+		return "Not during battle"
+	var need = mc(SPELL2_MANA.shock, c.owner)
+	if mana_of(c) < need:
+		return "Not enough mana (%d/%d)" % [floori(mana_of(c)), need]
+	return null
+
+
+func start_spell2(c: Dictionary, kind: String, q := -1) -> bool:
+	var why = quake_why(c) if kind == "quake" else shock_why(c, q)
+	if why != null:
+		if c.owner == ME:
+			toast("%s: %s." % [spell2_name(kind), str(why).to_lower()], true)
+		return false
+	if c.get("cast") != null:
+		cancel_cast(c)
+	quake_seq += 1
+	c.quake = {"kind": kind, "t0": t, "to": q, "id": quake_seq, "T": spell2_time(kind, c.owner)}
+	var where := prov_name(c.prov) if kind == "quake" else prov_name(q)
+	if c.owner == ME:
+		toast(("%s begins an Earthquake in %s: %s of casting. Moving or fighting stops it." if kind == "quake" else "%s begins a Shockwave at the wall toward %s: %s of casting. Moving or fighting stops it.") % [c.name, where, cast_len(c.quake.T)])
+	elif at_war(ME, c.owner):
+		quakes.append({"id": c.quake.id, "from": c.prov, "to": q, "by": c.owner, "kind": kind})
+		toast("%s at %s! A Mage of the %s is casting." % [spell2_name(kind), prov_name(c.prov), player_info(c.owner).name], true)
+	spend_mana(c, SPELL2_MANA[kind])
+	return true
+
+
+func end_quake(c: Dictionary, why := "") -> void:
+	if not c.get("quake"):
+		return
+	var id: int = c.quake.id
+	c.quake = null
+	quakes = quakes.filter(func(x): return x.id != id)
+	if why != "" and c.owner == ME:
+		toast(why, true)
+
+
+func quake_strike(c: Dictionary) -> void:
+	var p: int = c.prov
+	var lost := extras_in(p).size()
+	extras.erase(p)
+	for k in xup.keys():
+		if int(str(k).split("@")[0]) == p:
+			xup.erase(k)
+	for v in units:
+		if v.build != null and v.build.prov == p and BUILD_DEFS.has(v.build.type):
+			cancel_build(v)
+	var ws := walls.keys().filter(func(i): return world.edges[i].a == p or world.edges[i].b == p)
+	var broke := 0
+	var cracked := 0
+	for i in ws:
+		if spell_hit_wall(i, c, WALL_SPELL.quake):
+			broke += 1
+		else:
+			cracked += 1
+	compute_income()
+	var o := nation_of(p)
+	if nations.has(o):
+		nations[o].income = Ai.income(self, nations[o])
+	var msg := "The earth splits at %s: %d building%s and %d wall%s destroyed%s." % [prov_name(p), lost, "" if lost == 1 else "s", broke, "" if broke == 1 else "s",
+		("; %d wall%s damaged" % [cracked, "" if cracked == 1 else "s"]) if cracked else ""]
+	if c.owner == ME:
+		toast(msg)
+	elif o == ME or explored.has(p):
+		toast(msg, o == ME)
+
+
+func step_quakes(now: float) -> void:
+	for c in units.duplicate():
+		if not c.get("quake"):
+			continue
+		if mages_in(c) <= 0:
+			end_quake(c)
+			continue
+		var k: String = c.quake.kind
+		if c.moving or c.get("battle") != null:
+			end_quake(c, "%s stopped casting the %s." % [c.name, spell2_name(k)])
+			continue
+		if now - c.quake.t0 < c.quake.get("T", QUAKE_TIME):
+			continue
+		var q: int = c.quake.to
+		end_quake(c)
+		if k == "quake":
+			if occ.get(c.prov, -1) == c.owner:
+				quake_strike(c)
+			continue
+		var e = wall_between(c.prov, q)
+		var i: int = world.edges.find(e) if e != null else -1
+		if i >= 0:
+			var gone := spell_hit_wall(i, c, WALL_SPELL.shock)
+			var w := wall_life(i) if not gone else {}
+			if c.owner == ME:
+				toast(("The Shockwave shatters the wall between %s and %s." % [prov_name(c.prov), prov_name(q)]) if gone else ("The Shockwave hits the wall between %s and %s: %d/%d wall health left." % [prov_name(c.prov), prov_name(q), ceili(w.hp), int(w.max)]))
+	if not quakes.is_empty():
+		quakes = quakes.filter(func(x): return at_war(ME, x.by) and units.any(func(v): return v.get("quake") and v.quake.id == x.id))
+
+
+# web: v102.js stepSiege: ten or more soldiers at a wall take 1 health a second off it (Spiked Walls come with Swamplings)
+func step_siege(dt: float) -> void:
+	if not dt:
+		return
+	var at := {}
+	for a in units:
+		if a.kind != "army" or a.get("sieging") == null or a.get("battle") != null or troop_count(a) < SIEGE_MIN:
+			continue
+		if not walls.has(a.sieging):
+			a.sieging = null
+			continue
+		if not at.has(a.sieging):
+			at[a.sieging] = []
+		at[a.sieging].append(a)
+	for i in at:
+		var alive: Array = at[i].filter(func(a): return units.has(a))
+		var n := 0
+		for a in alive:
+			n += troop_count(a)
+		if n >= SIEGE_MIN:
+			damage_wall(i, dt, alive[0])
+
+
+# web: gpc.js rebuilding broken walls: select the fort (or capital), at peace only, 50 wood a wall, 15 s
+func rewall_rec(p: int, q: int):
+	var r = broken_walls.get(link_key(p, q))
+	if r == null:
+		return null
+	return r if r.owner == ME or (r.home >= 0 and nation_of(r.home) == ME) else null
+
+
+func rewalls_at(p: int) -> Array:
+	return all_nbr[p].filter(func(q): return rewall_rec(p, q) != null and open_between(p, q))
+
+
+func rewalls_why(p: int):
+	var n := rewalls_at(p).size()
+	if not owned(p):
+		return "Not yours"
+	if occ.has(p):
+		return "Occupied by the enemy"
+	if not n:
+		return "No broken walls here"
+	if not wars_of(ME).is_empty():
+		return "Only at peace"
+	return lack_text({"wood": REWALL_COST.wood * n})
+
+
+func rebuild_walls(p: int) -> void:
+	if rewall_jobs.has(p):
+		toast("The walls of %s are already being rebuilt." % prov_name(p))
+		return
+	var why = rewalls_why(p)
+	if why != null:
+		toast("Can’t rebuild the walls: %s." % str(why).to_lower(), true)
+		return
+	var qs := rewalls_at(p)
+	var paid: int = REWALL_COST.wood * qs.size()
+	stock.wood -= paid
+	rewall_jobs[p] = {"t0": t, "qs": qs, "paid": paid}
+	toast("Rebuilding %d wall%s around %s: %d s (−%d wood)." % [qs.size(), "s" if qs.size() > 1 else "", prov_name(p), REWALL_TIME, paid])
+
+
+func step_rewalls(now: float) -> void:
+	for p in rewall_jobs.keys():
+		var j: Dictionary = rewall_jobs[p]
+		var stop := "the province is no longer yours" if not owned(p) else "the province is occupied" if occ.has(p) else "you are at war" if not wars_of(ME).is_empty() else ""
+		if stop != "":
+			rewall_jobs.erase(p)
+			stock.wood += j.paid
+			toast("Wall rebuilding at %s stopped: %s. Wood refunded." % [prov_name(p), stop], true)
+			continue
+		if now - j.t0 < REWALL_TIME:
+			continue
+		rewall_jobs.erase(p)
+		var n := 0
+		for q in j.qs:
+			var r = rewall_rec(p, q)
+			if raise_wall(p, q, ME, r.home if r != null and r.home >= 0 and nation_of(r.home) == ME else p):
+				n += 1
+		if n < j.qs.size():
+			stock.wood += REWALL_COST.wood * (j.qs.size() - n)
+		toast("%d wall%s rebuilt around %s, gates and all." % [n, "" if n == 1 else "s", prov_name(p)])
 
 
 func walled_own(p: int, q: int) -> bool:
@@ -2968,7 +3434,9 @@ func raise_wall(p: int, q: int, owner: int, home: int) -> bool:
 		e.open = false
 		e.style = "wall"
 		walls[i] = true
-		wall_hp[i] = GameData.c("WALL_HP")[wall_kind()]
+		wall_hp[i] = GameData.c("WALL_HP")[wall_kind()]   # wallLife brings it down to its kind's health
+		wall_crack.erase(i)
+		walls_ver += 1
 	open_nbr[p] = open_nbr[p].filter(func(n): return n.q != q)
 	open_nbr[q] = open_nbr[q].filter(func(n): return n.q != p)
 	var np: int = buildings[p].owner if buildings.has(p) else 0
@@ -2976,6 +3444,7 @@ func raise_wall(p: int, q: int, owner: int, home: int) -> bool:
 	if not (np == owner and nq == owner):
 		roads.erase(link_key(p, q))   # v106: a road between two provinces of the wall's own nation goes through the gate
 	gate_own[link_key(p, q)] = {"home": home, "owner": owner}
+	broken_walls.erase(link_key(p, q))
 	# anyone marching through that border finds another way
 	for u in units:
 		if not u.moving:
@@ -3002,7 +3471,7 @@ func raise_wall(p: int, q: int, owner: int, home: int) -> bool:
 
 # web: gpc.js stepGPC: once a second, owned provinces show their resources; forts and capitals wall their open
 # borders once walls are researched (no retrofits, rest, quakes or sieges on the Practice island yet)
-func step_gpc(now: float) -> void:
+func step_gpc(now: float, gpc_dt := 0.0) -> void:
 	if now - gpc_slow_t >= 1 or now < gpc_slow_t:
 		gpc_slow_t = now
 		for p in buildings:
@@ -3016,7 +3485,10 @@ func step_gpc(now: float) -> void:
 			evict_strays()
 	step_retrofits()
 	step_rest(now)
+	step_quakes(now)
 	step_fort_gates()
+	step_siege(gpc_dt)
+	step_rewalls(now)
 
 
 # web: gpc.js evictStrays: units left in land they may no longer be in (a truce ran out, a border moved) march home
@@ -3374,16 +3846,16 @@ static func mana_of(c) -> float:
 	return 0.0 if c == null else c.get("mana", MANA_START)
 
 
-func mana_mult() -> float:
-	return WAND_MANA.get(mage_gear.weapon, 1.0)
+func mana_mult(o := ME) -> float:
+	return WAND_MANA.get(mage_gear.weapon, 1.0) if o == ME else 1.0
 
 
-func mc(n) :
-	return JS.round_js(n * mana_mult()) if (n is int or n is float) else n
+func mc(n, o := ME):
+	return JS.round_js(n * mana_mult(o)) if (n is int or n is float) else n
 
 
 func spend_mana(c: Dictionary, n) -> void:
-	c.mana = maxf(0.0, mana_of(c) - mc(n))
+	c.mana = maxf(0.0, mana_of(c) - mc(n, c.owner))
 
 
 func mana_need(k: String) -> int:
@@ -3847,7 +4319,7 @@ const SAVE_VERSION := 1
 ## Everything a game is, besides the map (which comes back from the seed) and the callbacks.
 const SAVE_FIELDS := ["battles", "bandit_count", "monster_count", "leader", "capital", "stock", "income", "income_parts", "buildings", "extras", "occ", "units", "next_id",
 	"army_counter", "tech", "rep", "surveyed", "unit_defs", "designs", "exhaust", "exhaust_ok", "harvest", "devel", "upgrades",
-	"xup", "auto_tech", "roads", "walls", "wall_hp", "gate_own", "fort_walled", "gpc_slow_t", "dev_t", "cd", "paths",
+	"xup", "auto_tech", "roads", "walls", "wall_hp", "artifacts", "quakes", "quake_seq", "wall_max", "wall_crack", "broken_walls", "rewall_jobs", "gate_own", "fort_walled", "gpc_slow_t", "dev_t", "cd", "paths",
 	"harvest_by", "trap", "reveals", "eyes", "haunts", "mana_pool", "mana_prev_t", "mage_gear", "finds", "treasure_rolled",
 	"sp_found", "setpieces", "travelers", "train_orders", "train_order_seq", "design_seq", "prov_rename", "nations", "players", "race_of", "wars", "truces", "allies", "war_seq", "met", "occ", "occ_prog", "dipl", "war_log", "war_ever", "war_lock", "ai_met", "fallen", "ally_check", "bandit_next", "bandit_waves", "ally_ask", "crop_scan_at", "ai_scout_t", "wf", "known", "explored", "visible", "queues", "rally", "military", "UNIT_SPEED", "open_nbr", "all_nbr",
 	"yields", "tree_border", "t", "next_tick", "paused", "last", "started"]
@@ -4009,6 +4481,16 @@ const RNG_ATK := [6, 9, 12]
 
 func art_stats(k: String, st: Dictionary, o := ME) -> Dictionary:
 	var out := st
+	# v95: the Blue Dragon Skull (+15% health), the Essence of Flame (+10 attack), the Grips of the Beast (+15 for maces)
+	var A = artifacts.get(o)
+	if o and o != RAIDERS and A != null and not A.is_empty() and st.get("fam") != "boss":
+		out = st.duplicate()
+		if A.has("blueskull"):
+			out.hp = st.hp * 1.15
+		if A.has("flame") and st.atk > 0:
+			out.atk += 10
+		if A.has("grips") and st.get("fam") == "blunt":
+			out.atk += 15
 	var R = GameData.c("RNG_BY_KIND").get(k)
 	if R != null:
 		var tr := (2 if tech_of(o, R.techs[1]) else 1) if tech_of(o, R.techs[0]) else 0
@@ -4314,9 +4796,14 @@ func step_battles(now: float) -> void:
 					sides[a.owner] = []
 				sides[a.owner].append(a)
 		var owners: Array = sides.keys()
+		owners.sort()   # web: Object.keys(sides) lists number keys in ascending order
 		place_sides(b, sides)
 		if owners.size() < 2:
 			end_battle(b, owners[0] if owners.size() else -1, sides)
+			continue
+		if not hostile(owners[0], owners[1]):   # a peace was made mid-battle
+			b.peace = true
+			end_battle(b, -1, sides)
 			continue
 		if now < b.next:
 			continue
@@ -4348,6 +4835,10 @@ func remove_army(a: Dictionary) -> void:
 
 
 func apply_damage(b: Dictionary, armies: Array, dmg: float, now: float, pierce := 0.0) -> void:
+	var bd := boss_damage(b, armies, dmg)
+	if bd >= 0:
+		dmg = bd
+		pierce = 0.0
 	var total := 0
 	for a in armies:
 		total += troop_count(a)
@@ -4449,6 +4940,8 @@ func end_battle(b: Dictionary, winner: int, sides: Dictionary) -> void:
 
 
 func bandit_slain(a: Dictionary, b: Dictionary) -> void:
+	if a.get("boss") != null:
+		boss_slain(a, b)
 	if a.get("monster") != null:
 		return
 	if b.start.has(ME):
@@ -5715,6 +6208,164 @@ func spawn_bosses() -> void:
 		a.name = B[id].short + (", " + B[id].sub if B[id].get("sub") != null else "")
 		a.boss = id
 		a.guards = U[site]
+
+
+# =================================================================================================================
+# boss fights and artifacts (web: v95.js applyDamage wrapper, bossFortune, banditSlain, grantArtifact; v105.js opinion)
+const BOSS_K := 0.045
+const ARTIFACTS := {
+	"redskull": {"name": "Red Dragon Skull", "desc": "all your units are 25% faster."},
+	"blueskull": {"name": "Blue Dragon Skull", "desc": "all your soldiers have 15% more health."},
+	"goldskull": {"name": "Gold Dragon Skull", "desc": "+50 gold every payout, and 2000 more gold storage."},
+	"crown": {"name": "King’s Crown", "desc": "your upkeep is 20% lower."},
+	"flame": {"name": "Essence of Flame", "desc": "every weapon you carry has +10 attack."},
+	"eye": {"name": "Lidless Eye", "desc": "you always see every army on the map and the province it stands in."},
+	"stump": {"name": "Enchanted Stump", "desc": "+50 wood every payout."},
+	"grips": {"name": "Grips of the Beast", "desc": "maces of every level (clubs, maces, morning stars, war hammers) deal 15 more damage."},
+	"slippers": {"name": "Winged Slippers", "desc": "your armies can fly over any border into a neighboring province (an ability on the army’s card, 1-minute cooldown for your whole nation)."}}
+var artifacts := {}   # owner -> [artifact ids]
+
+func has_art(o: int, id: String) -> bool:
+	var A = artifacts.get(o)
+	return A != null and A.has(id)
+
+
+func grant_artifact(o: int, id: String, boss: Dictionary) -> void:
+	if not artifacts.has(o):
+		artifacts[o] = []
+	if artifacts[o].has(id):
+		return
+	artifacts[o].append(id)
+	var B: Dictionary = GameData.c("BOSSES")[boss.boss]
+	if o == ME:
+		compute_income()
+		clamp_stock()
+		compute_fog()
+		toast("Artifact! %s has fallen. You claim the %s: %s" % [B.name.capitalize() if B.name.begins_with("the ") else B.name, ARTIFACTS[id].name, ARTIFACTS[id].desc])
+		if on_dialog.is_valid():
+			on_dialog.call("Artifact: " + ARTIFACTS[id].name, "%s has fallen. You claim the %s: %s" % [B.name.substr(4).capitalize() if B.name.begins_with("the ") else B.name, ARTIFACTS[id].name, ARTIFACTS[id].desc], [{"id": "ok", "label": "Splendid", "why": null}], func(_x): pass)
+	else:
+		if nations.has(o):
+			nations[o].income = Ai.income(self, nations[o])
+		if knows(o):
+			toast("The %s slew %s and claimed the %s." % [player_info(o).name, B.name, ARTIFACTS[id].name])
+
+
+func boss_slain(a: Dictionary, b: Dictionary) -> void:
+	var owner := ME if b.start.has(ME) else first_nation_in(b.start)
+	if not owner:
+		return
+	grant_artifact(owner, GameData.c("BOSSES")[a.boss].art, a)
+	var D := dipl_state()
+	D.boss[owner] = D.boss.get(owner, 0) + 1
+	if owner == ME:
+		toast("Word of your victory spreads: every nation thinks better of you (+%d opinion, for good)." % DIPL.boss)
+
+
+func boss_fortune(b: Dictionary) -> float:
+	if not b.has("fortune"):
+		var sm := 0.0
+		for i in 6:
+			sm += battle_rand.call()
+		b.fortune = maxf(0.75, minf(1.25, 1 + (sm - 3) * 0.141))
+	return b.fortune
+
+
+## Damage in a boss fight, or -1 when no boss stands in the battle: decided by power, not by rows and weapons.
+func boss_damage(b: Dictionary, armies: Array, dmg: float) -> float:
+	var boss = null
+	for v in units:
+		if v.get("boss") != null and is_same(v.get("battle"), b) and troop_count(v) > 0:
+			boss = v
+			break
+	if boss == null:
+		return -1.0
+	var foes := units.filter(func(v): return v.kind == "army" and is_same(v.get("battle"), b) and not v.get("retreating", false) and troop_count(v) > 0 and not v.get("bandit", false))
+	var noise: float = 0.85 + battle_rand.call() * 0.3
+	var k: String = boss.troops.keys()[0]
+	var H: float = DSTATS[k].hp
+	var R0: float = H * DSTATS[k].atk / 30.0
+	if armies.has(boss):
+		return BOSS_K * raw_strength(foes) * noise / R0 * H
+	var f := boss_fortune(b)
+	var Rb: float = R0 * maxf(0, 1 - boss.get("wounds", 0.0) / H) * f * f
+	var raw := raw_strength(armies)
+	if raw <= 0:
+		return 0.0
+	var hp := 0.0
+	for a in armies:
+		for kk in a.troops:
+			hp += a.troops[kk] * hp_of(a, kk)
+	var mix := side_mix(armies)
+	var keep := maxf(0.05, (1 - mix.red) * (1 - mix.parry))
+	return BOSS_K * Rb * noise / raw * hp / keep
+
+
+# --- v95: Winged Slippers: an army flies over any border into a neighboring province ---
+const FLY_CD := 60.0
+const FLY_TIME := 1.6
+
+func fly_why(a, q := -2):
+	if not has_art(ME, "slippers"):
+		return "Needs the Winged Slippers"
+	if a == null:
+		return "No army selected"
+	if a.get("battle") != null:
+		return "Not during battle"
+	if a.get("flyT") != null:
+		return "Already flying"
+	var left: float = cd.get("fly", 0.0) - t
+	if left > 0:
+		return "Ready in %d s" % ceili(left)
+	if q == -2:
+		return null
+	if q < 0 or q == a.prov or not all_nbr[a.prov].has(q):
+		return "Pick a province next to the army"
+	if is_death_mtn(q):
+		return "Nothing can land on Death Mountain"
+	if not can_enter(a, q, q):
+		return "Your army may not go there"
+	return null
+
+
+func fly_army(a: Dictionary, q: int) -> bool:
+	var why = fly_why(a, q)
+	if why != null:
+		toast(str(why) + ".", true)
+		return false
+	var x0: float = a.x
+	var y0: float = a.y
+	a.path = []
+	a.moving = false
+	a.surveyQueue = []
+	a.sieging = null
+	a.lastProv = a.prov
+	a.prov = q
+	a.slot = free_slot(q, a)
+	var xy := slot_pos(q, a.slot)
+	a.flyT = {"x0": x0, "y0": y0, "x1": xy[0], "y1": xy[1], "t0": t}
+	a.arrived = t + FLY_TIME
+	cd.fly = t + FLY_CD
+	toast("%s takes wing over the border to %s." % [a.name, prov_name(q)])
+	compute_fog()
+	return true
+
+
+func step_flights() -> void:
+	for a in units:
+		var F = a.get("flyT")
+		if F == null:
+			continue
+		var f := minf(1.0, (t - F.t0) / FLY_TIME)
+		a.x = F.x0 + (F.x1 - F.x0) * f
+		a.y = F.y0 + (F.y1 - F.y0) * f
+		a.th = atan2(F.y1 - F.y0, F.x1 - F.x0)
+		a.flyH = sin(f * PI) * 140
+		if f >= 1:
+			a.flyT = null
+			a.flyH = 0.0
+			a.x = F.x1
+			a.y = F.y1
 
 
 # a moving army that steps into a boss's province is stopped there and has to fight

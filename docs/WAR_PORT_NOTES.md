@@ -36,8 +36,22 @@ The plan after milestone 1. Each step is tested against the web game, then commi
    Ported with it, because the computer nations use them: crops (staple / cash / fiber), `stepScouts` (Wayfinders and
    Masons running from soldiers), `outpostClaimed`, `evictStrays`, fort gates for every nation, bandit waves (v96),
    Proclaim Enemy and the v106 opinion parts, owner-aware mana, leader soldier bonuses, plots, development and builds.
-   Not yet: artifacts (boss rewards; their income), `aiQuake` (Earthquake / Shockwave are not ported for anyone),
-   sieges (v104 `aiReach` through walls), gift vaults, Swampling and Woodling nations.
+   Not yet: gift vaults, Swampling and Woodling nations.
+6. **Batch A: sieges, quakes, artifacts** — done (`tests/test_siege.gd`, fixtures from `tools/gen_siege_fixtures.py`:
+   a siege, a Shockwave then an Earthquake, a boss fight; all match the web game to the end).
+   - Sieges (gpc.js + v102.js): `pathNbr` with `siege`, `findPath` falling back to a route through hostile walls,
+     `siegeHold` in the movement loop (the army walks up to the wall and stands there), `stepSiege` (10+ soldiers take
+     1 wall health a second; palisade 40, stone 120), `breakWall` (the border opens; the wall is remembered),
+     rebuilding broken walls from a fort or capital at peace (50 wood a wall, 15 s), wall health bars and cracks.
+     Computer armies count a hostile wall as passable at 3 extra hops (v104 `aiReach`).
+   - Earthquake and Shockwave (gpc.js Z11/Z12 + v98 times 30 s / 15 s and mana 200 / 50): for you (Mage card;
+     Shockwave aims at a neighboring province) and the computer nations (`aiQuake`).
+   - Bosses and artifacts (v95 + v105): boss fights decided by power (`BOSS_K`, the boss's fortune), the artifact to
+     whoever beat it, +25 opinion with every nation; all nine artifacts' effects (speed, health, attack, maces,
+     income, storage, upkeep, the Lidless Eye, Winged Slippers with their 60 s cooldown).
+   - Intact Ruins: a random Tier I Government technology (Math.random), or 3 minutes of research when none is left.
+   - Fixed on the way: battle sides are taken in owner order like the web game (`Object.keys` sorts number keys),
+     and a battle between sides at peace ends.
 5. **Diplomacy UI** — done (`scripts/ui/diplomacy_window.gd`, Y): your wars with warscore and the peace terms you can
    offer (white, gold, provinces / annexation, surrender, each with the reason it is unavailable), every met nation
    with leader, difficulty, size, army power, opinion (tooltip: its parts) and relation, Declare War, Proclaim /
