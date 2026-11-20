@@ -49,6 +49,15 @@ var harvest = null
 var devel := {}
 var upgrades := {}           # province -> {t0, paid}: outposts becoming forts
 var xup := {}                # "<p>@<slot>" -> {t0, paid, to}: a Forge or Mage Tower going up a level
+var roads := {}              # "a_b" (a < b) -> true
+var walls := {}              # edge index -> true
+var wall_hp := {}
+var gate_own := {}           # "a_b" -> {home, owner}
+var fort_walled := {}        # "p>q" -> true: borders a fort or capital has walled once
+var gpc_slow_t := -9.0
+var dev_t := -1.0            # web: V106.t (development's own clock)
+## development's lucky finds (web: Math.random); tests replace it
+var dev_rand: Callable
 var auto_tech := {"gov": false, "mil": false, "mag": false}
 var queues := {}             # "capital:<p>" / "barracks:<p>" / "magetower:<p>" -> [{kind, paid, t0}]
 var rally := {}              # queue key -> {prov, x, y}
@@ -103,6 +112,7 @@ func _init() -> void:
 	for d in [["d-spear", "inf"], ["d-sword", "inf"], ["d-club", "inf"], ["d-rider", "cav"]]:
 		designs.append({"id": d[0], "name": unit_defs[d[0]].name, "type": d[1], "race": "realm"})
 	stock = GameData.c("START_STOCK").duplicate()
+	dev_rand = rng.randf
 
 
 ## A new Practice-island game, as menu.js startGame() runs it for a Realmling player with every computer slot closed.
@@ -254,7 +264,7 @@ func free_slot(prov: int, u) -> int:
 
 
 # web: game.js newArmy() (without `near`)
-func new_army(prov: int, troops: Dictionary) -> Dictionary:
+func new_army(prov: int, troops: Dictionary, near = null) -> Dictionary:
 	army_counter += 1
 	var a := mk_unit(next_id, "army", ordinal(army_counter) + " Army", prov, 0)
 	next_id += 1
@@ -263,6 +273,10 @@ func new_army(prov: int, troops: Dictionary) -> Dictionary:
 	var xy := slot_pos(prov, a.slot)
 	a.x = xy[0]
 	a.y = xy[1]
+	if near != null:
+		a.x = near.x + 10
+		a.y = near.y + 8
+		order(a, prov, true)
 	units.append(a)
 	return a
 
@@ -272,13 +286,11 @@ func cute_name() -> String:
 	return names[rng.randi() % names.size()]
 
 
+# web: game.js ORD(n): 1st, 2nd, 3rd, 4th, 11th, 21st...
 static func ordinal(n: int) -> String:
-	var w := ["First", "Second", "Third", "Fourth", "Fifth", "Sixth", "Seventh", "Eighth", "Ninth", "Tenth"]
-	if n <= w.size():
-		return w[n - 1]
 	var suf := "th"
-	if n % 100 < 11 or n % 100 > 13:
-		suf = {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
+	if not (n % 100 >= 11 and n % 100 <= 13):
+		suf = ["th", "st", "nd", "rd"][n % 10] if n % 10 < 4 else "th"
 	return str(n) + suf
 
 
@@ -560,6 +572,9 @@ func extras_bonus(p: int) -> Dictionary:
 		var gv := gives_of(e.type)
 		for k in gv:
 			y[k] += gv[k]
+	var r = devel.get(p)
+	if r != null and r.deep and extras_in(p).any(func(e): return e.type == "goldmine"):
+		y.gold += GameData.c("DEV").deepGold   # v106: a Deep Gold Deposit
 	return y
 
 
@@ -749,10 +764,20 @@ func update(real_t: float) -> void:
 		next_tick += TICK
 		payday(nt)
 	step_training(t)
+	if not paused:
+		step_gpc(t)
 	clamp_stock()
 	step_upgrades(t)
 	if not paused:
 		rally_arrivals()
+	var d := 0.0
+	if paused:
+		dev_t = t
+	else:
+		d = 0.0 if dev_t < 0 or t < dev_t else t - dev_t
+		dev_t = t
+		d = minf(d, 1.0)
+		step_develop(d)
 	compute_fog()
 
 
@@ -806,7 +831,7 @@ func find_path(u: Dictionary, target: int):
 		h += 1
 		if a == target:
 			break
-		for n in open_nbr[a]:
+		for n in path_nbr(u, a):
 			if not prev.has(n.q) and can_enter(u, n.q, target):
 				prev[n.q] = {"a": a, "m": n.m}
 				q.append(n.q)
@@ -911,7 +936,7 @@ func step_unit(u: Dictionary, dt: float) -> void:
 			if u.scouting != null and u.exploreSp:
 				sp = u.exploreSp
 			else:
-				sp = SPEED * unit_speed(u) / (SCOUT_SLOW if u.scouting != null else 1.0)
+				sp = SPEED * unit_speed(u) / (SCOUT_SLOW if u.scouting != null else 1.0) * (road_speed() if on_road(u, wp) else 1.0)
 			var dx: float = wp.x - u.x
 			var dy: float = wp.y - u.y
 			var d := JS.hypot(dx, dy)
@@ -1439,7 +1464,9 @@ func cancel_build(u: Dictionary) -> void:
 # the end of a build (web: game.js update(), "if (u.build) ...")
 func finish_build(u: Dictionary) -> void:
 	var b: Dictionary = u.build
-	if b.type != "outpost":
+	if b.type in ["road", "wall"]:
+		finish_link(b)
+	elif b.type != "outpost":
 		if owned(u.prov):
 			if not extras.has(u.prov):
 				extras[u.prov] = []
@@ -2288,3 +2315,450 @@ func cancel_xup(p: int, slot: int) -> void:
 		stock[r] += xup[k].paid[r]
 	xup.erase(k)
 	toast("Upgrade cancelled. Resources refunded.")
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# roads and walls (web: govtech.js linkWhy / startLink / finishLink / raiseWall / gateCtl / pathNbr / onRoad,
+# gpc.js stepFortGates, v106.js roads between two walled provinces of your own)
+
+const ROAD_TIME := 8.0
+const WALL_TIME := 12.0
+
+
+static func link_key(a: int, b: int) -> String:
+	return "%d_%d" % [a, b] if a < b else "%d_%d" % [b, a]
+
+
+func open_between(p: int, q: int) -> bool:
+	return open_nbr[p].any(func(n): return n.q == q)
+
+
+func road_tier() -> int:
+	return 3 if has_tech("roads3") else 2 if has_tech("roads2") else 1
+
+
+func road_speed() -> float:
+	return 1.0 + GameData.c("ROAD_BONUS")[road_tier()]
+
+
+func wall_kind() -> String:
+	return "stone" if has_tech("walls2") else "wood"
+
+
+func on_road(u: Dictionary, wp: Dictionary) -> bool:
+	if roads.is_empty():
+		return false
+	if wp.has("enter"):
+		return roads.has(link_key(u.prov, wp.enter))
+	return u.has("lastProv") and roads.has(link_key(u.lastProv, u.prov))
+
+
+func wall_between(p: int, q: int):
+	for i in walls:
+		var e: Dictionary = world.edges[i]
+		if (e.a == p and e.b == q) or (e.a == q and e.b == p):
+			return e
+	return null
+
+
+# who controls a wall's gate: the nation of its home province (web: gateCtl)
+func gate_ctl(k: String) -> int:
+	var g = gate_own.get(k)
+	if g == null:
+		return 0
+	if g.home >= 0 and buildings.has(g.home):
+		return occ.get(g.home, buildings[g.home].owner)
+	return g.owner
+
+
+# web: govtech.js pathNbr(u, a): open borders, plus walls whose gate the unit's nation holds
+func path_nbr(u: Dictionary, a: int) -> Array:
+	if walls.is_empty():
+		return open_nbr[a]
+	var out: Array = open_nbr[a].duplicate()
+	var V: Array = world.vertices
+	for i in walls:
+		var e: Dictionary = world.edges[i]
+		if e.a != a and e.b != a:
+			continue
+		var q: int = e.b if e.a == a else e.a
+		if gate_ctl(link_key(e.a, e.b)) == u.owner:
+			var x: Array = V[e.v[0]]
+			var y: Array = V[e.v[1]]
+			out.append({"q": q, "m": [(x[0] + y[0]) / 2, (x[1] + y[1]) / 2]})
+	return out
+
+
+func walled_own(p: int, q: int) -> bool:
+	return not open_between(p, q) and wall_between(p, q) != null and owned(p) and owned(q)
+
+
+## Why the Mason can't build a road or wall from his province to q, or null.
+func link_why(type: String, m: Dictionary, q: int):
+	var p: int = m.prov
+	if type == "road" and walled_own(p, q):   # v106: a road through your own gate
+		if not has_tech("roads"):
+			return "Research Dirt Roads first"
+		if not all_nbr[p].has(q):
+			return "The Mason must stand next door"
+		if m.moving:
+			return "He is walking"
+		if m.build != null:
+			return "He is already building"
+		if _link_under_way(p, q, ["road"]):
+			return "Already under way"
+		if roads.has(link_key(p, q)):
+			return "There is already a road"
+		return lack_text(GameData.c("ROAD_COST"))
+	if type == "road" and not has_tech("roads"):
+		return "Research Dirt Roads first"
+	if type == "wall" and not has_tech("walls"):
+		return "Research Wooden Walls first"
+	if p == q:
+		return "Pick a neighboring province"
+	if not all_nbr[p].has(q):
+		return "The Mason must stand next door"
+	if not open_between(p, q):
+		return "That border is already closed"
+	if not explored.has(q):
+		return "Explore it first"
+	if type == "road" and (not owned(p) or not owned(q)):
+		return "A road must join two of your own provinces"
+	if not owned(p) and not owned(q):
+		return "One side must be your land"
+	if m.moving:
+		return "He is walking"
+	if m.build != null:
+		return "He is already building"
+	if _link_under_way(p, q, ["road", "wall", "rewall"]):
+		return "Already under way"
+	if type == "road":
+		if roads.has(link_key(p, q)):
+			return "There is already a road"
+		return lack_text(GameData.c("ROAD_COST"))
+	return lack_text(GameData.c("WALL_COST"))
+
+
+func _link_under_way(p: int, q: int, types: Array) -> bool:
+	for u in units:
+		if u.build != null and types.has(u.build.type) and link_key(u.build.prov, u.build.to) == link_key(p, q):
+			return true
+	return false
+
+
+func start_link(m: Dictionary, q: int, type: String) -> bool:
+	var why = link_why(type, m, q)
+	if why != null:
+		toast("Can’t build a %s there: %s." % [type, str(why).to_lower()], true)
+		return false
+	var cost: Dictionary = GameData.c("ROAD_COST") if type == "road" else GameData.c("WALL_COST")
+	for k in cost:
+		stock[k] -= cost[k]
+	m.surveyQueue = []
+	m.pending = null
+	m.build = {"prov": m.prov, "to": q, "type": type, "t0": t, "paid": cost.duplicate(), "dur": ROAD_TIME if type == "road" else WALL_TIME, "owner": m.owner}
+	toast("Building a %s… (−%s, %d s)" % [type, cost_text(cost), m.build.dur])
+	return true
+
+
+## The open border a Mason stands next to (within ROAD_REACH), or -1. web: features.js masonBorder()
+func mason_border(m: Dictionary) -> int:
+	var best := -1
+	var bd: float = GameData.c("ROAD_REACH")
+	for n in open_nbr[m.prov]:
+		var d := JS.hypot(n.m[0] - m.x, n.m[1] - m.y)
+		if d < bd:
+			bd = d
+			best = n.q
+	return best
+
+
+func finish_link(b: Dictionary) -> void:
+	var p: int = b.prov
+	var q: int = b.to
+	if b.type == "road":
+		roads[link_key(p, q)] = true
+		toast("Road finished. Units move %d%% faster along it." % JS.round_js(GameData.c("ROAD_BONUS")[road_tier()] * 100))
+		return
+	var o: int = b.get("owner", ME)
+	var home := p if (buildings.has(p) and buildings[p].owner == o) else q if (buildings.has(q) and buildings[q].owner == o) else -1
+	if raise_wall(p, q, o, home):
+		toast("%s finished. Its gate lets only your units through." % ("Stone wall" if wall_kind() == "stone" else "Palisade"))
+
+
+# web: govtech.js raiseWall(p, q, owner, home)
+func raise_wall(p: int, q: int, owner: int, home: int) -> bool:
+	if not open_between(p, q):
+		return false
+	for i in world.edges.size():
+		var e: Dictionary = world.edges[i]
+		if not e.open or not ((e.a == p and e.b == q) or (e.a == q and e.b == p)):
+			continue
+		e.open = false
+		e.style = "wall"
+		walls[i] = true
+		wall_hp[i] = GameData.c("WALL_HP")[wall_kind()]
+	open_nbr[p] = open_nbr[p].filter(func(n): return n.q != q)
+	open_nbr[q] = open_nbr[q].filter(func(n): return n.q != p)
+	var np: int = buildings[p].owner if buildings.has(p) else 0
+	var nq: int = buildings[q].owner if buildings.has(q) else 0
+	if not (np == owner and nq == owner):
+		roads.erase(link_key(p, q))   # v106: a road between two provinces of the wall's own nation goes through the gate
+	gate_own[link_key(p, q)] = {"home": home, "owner": owner}
+	# anyone marching through that border finds another way
+	for u in units:
+		if not u.moving:
+			continue
+		var prev: int = u.prov
+		var hit := false
+		for w in u.path:
+			if w.has("enter"):
+				if link_key(prev, w.enter) == link_key(p, q):
+					hit = true
+				prev = w.enter
+		if not hit:
+			continue
+		var fin = u.get("final")
+		u.path = []
+		u.moving = false
+		if fin == null or not order(u, fin, true):
+			u.slot = free_slot(u.prov, u)
+			var xy := slot_pos(u.prov, u.slot)
+			u.path = [{"x": xy[0], "y": xy[1], "slot": true}]
+			u.moving = true
+	return true
+
+
+# web: gpc.js stepGPC: once a second, owned provinces show their resources; forts and capitals wall their open
+# borders once walls are researched (no retrofits, rest, quakes or sieges on the Practice island yet)
+func step_gpc(now: float) -> void:
+	if now - gpc_slow_t >= 1 or now < gpc_slow_t:
+		gpc_slow_t = now
+		for p in buildings:
+			if explored.has(p) and not surveyed.has(p):
+				surveyed[p] = now
+	step_fort_gates()
+
+
+func step_fort_gates() -> void:
+	if not has_tech("walls"):
+		return
+	for p in buildings:
+		var b: Dictionary = buildings[p]
+		if b.stage < 1 or b.owner != ME:
+			continue
+		for n in open_nbr[p].duplicate():
+			var key := "%d>%d" % [p, n.q]
+			if fort_walled.has(key):
+				continue
+			fort_walled[key] = true
+			if raise_wall(p, n.q, b.owner, p) and explored.has(p):
+				toast("The %s raised a %s with a gate." % ["capital" if b.stage == 2 else "fort", "stone wall" if wall_kind() == "stone" else "palisade"])
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# armies and units: split, combine, dismiss; buildings: destroy (web: game.js splitArmy / combineArmies,
+# v102.js one Mage per army, features.js dismiss / destroy)
+
+func troop_count(a: Dictionary) -> int:
+	var n := 0
+	for k in a.troops:
+		n += a.troops[k]
+	return n
+
+
+func split_army(a: Dictionary):
+	if troop_count(a) < 2:
+		toast("An army needs at least two soldiers to split.", true)
+		return null
+	var keep := {}
+	var give := {}
+	var ks: Array = a.troops.keys().filter(func(k): return a.troops[k] > 0)
+	var odd: int = ks.filter(func(k): return a.troops[k] % 2).size()
+	var odd_seen := 0
+	for k in ks:
+		var n: int = a.troops[k]
+		var h := n / 2
+		keep[k] = h
+		give[k] = h
+		if n % 2:
+			if odd_seen < ceili(odd / 2.0):
+				keep[k] += 1
+			else:
+				give[k] += 1
+			odd_seen += 1
+	for side in [keep, give]:
+		for k in side.keys():
+			if not side[k]:
+				side.erase(k)
+	if give.is_empty():
+		var k = null
+		for kk in keep:
+			if keep[kk] > 1:
+				k = kk
+				break
+		if k == null:
+			k = keep.keys()[0]
+		keep[k] -= 1
+		give[k] = 1
+		if not keep[k]:
+			keep.erase(k)
+	a.troops = keep
+	var b := new_army(a.prov, give, a)
+	compute_income()
+	toast("%s split." % a.name)
+	return b
+
+
+func combine_armies(list: Array) -> void:
+	if list.size() < 2:
+		return
+	var prov: int = list[0].prov
+	if list.any(func(a): return a.prov != prov):
+		toast("Armies must be in the same province to combine.", true)
+		return
+	var mage: String = GameData.c("MAGE")
+	var mages := 0
+	for a in list:
+		mages += a.troops.get(mage, 0)
+	if mages > 1:
+		toast("An army can have only one Mage.", true)   # (v102 steps the extra Mages out: comes with magic)
+		return
+	var main: Dictionary = list[0]
+	for a in list.slice(1):
+		for k in a.troops:
+			main.troops[k] = main.troops.get(k, 0) + a.troops[k]
+		a._gone = true
+		units = units.filter(func(v): return not is_same(v, a))
+	main.grew = t
+	compute_income()
+	toast("%d armies combined into %s (%d soldiers)." % [list.size(), main.name, troop_count(main)])
+
+
+func dismiss(list: Array) -> void:
+	for u in list:
+		if u.build != null:
+			cancel_build(u)
+		u._gone = true
+	units = units.filter(func(v): return not list.any(func(u): return is_same(u, v)))
+	compute_income()
+
+
+## Tear a building down: no refund, its upkeep stops, its plot is free.
+func destroy_extra(p: int, slot: int) -> void:
+	var e = null
+	for x in extras_in(p):
+		if x.slot == slot:
+			e = x
+	if e == null or not owned(p):
+		return
+	extras[p] = extras_in(p).filter(func(x): return not is_same(x, e))
+	xup.erase("%d@%d" % [p, slot])
+	compute_income()
+	toast("%s torn down. Plot %d is free." % [BUILD_DEFS[e.type].name, slot + 1])
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# development (web: v106.js devWhy / startDevelop / finishDevelop / stepDevelop / resetDevelop)
+
+func dev_rec(p: int, make := false):
+	if not devel.has(p) and make:
+		devel[p] = {"lv": 0, "add": {"gold": 0, "wood": 0, "food": 0}, "luck": {}, "deep": false, "owner": buildings[p].owner if buildings.has(p) else 0, "job": null}
+	return devel.get(p)
+
+
+func dev_cost(lv: int) -> Dictionary:
+	var c: int = GameData.c("DEV").cost[lv]
+	return {"gold": c, "wood": c, "food": c}
+
+
+func dev_why(p: int):
+	if not buildings.has(p):
+		return "Needs an outpost, fort or capital"
+	if buildings[p].owner != ME:
+		return "Not yours"
+	var r = dev_rec(p)
+	var lv: int = r.lv if r != null else 0
+	var DEV: Dictionary = GameData.c("DEV")
+	if lv >= DEV.max:
+		return "Fully developed (%d/%d)" % [DEV.max, DEV.max]
+	if r != null and r.job != null:
+		return "Already developing"
+	if occ.has(p):
+		return "Occupied by the enemy"
+	return lack_text(dev_cost(lv))
+
+
+func start_develop(p: int) -> bool:
+	var why = dev_why(p)
+	if why != null:
+		toast("Can’t develop: %s." % str(why).to_lower(), true)
+		return false
+	var r: Dictionary = dev_rec(p, true)
+	var c := dev_cost(r.lv)
+	for k in c:
+		stock[k] -= c[k]
+	r.owner = ME
+	r.job = {"done": 0.0, "paid": c, "by": ME}
+	toast("Developing to level %d: %d minutes (−%s)." % [r.lv + 1, GameData.c("DEV").time / 60, cost_text(c)])
+	compute_income()
+	return true
+
+
+func finish_develop(p: int) -> void:
+	var r = dev_rec(p)
+	if r == null:
+		return
+	var DEV: Dictionary = GameData.c("DEV")
+	r.job = null
+	r.lv = mini(DEV.max, r.lv + 1)
+	var y: Dictionary = yields[p]
+	for k in RES:
+		y[k] += 1
+		r.add[k] += 1
+	var L: int = r.lv
+	if not r.luck.has(L):
+		r.luck[L] = RES[int(floor(dev_rand.call() * RES.size()))] if dev_rand.call() < DEV.luck else null
+	if r.luck[L] != null:
+		y[r.luck[L]] += 1
+		r.add[r.luck[L]] += 1
+	var deep := false
+	if not r.deep and dev_rand.call() < DEV.deep:
+		r.deep = true
+		deep = true
+		y.deposit = true
+	if owned(p):
+		if not surveyed.has(p):
+			surveyed[p] = t
+		toast("Developed to level %d: +1 gold, wood and food%s.%s" % [L, (", and a lucky +1 " + r.luck[L]) if r.luck[L] != null else "", " A Deep Gold Deposit was found!" if deep else ""])
+		compute_income()
+
+
+func step_develop(d: float) -> void:
+	var DEV: Dictionary = GameData.c("DEV")
+	for p in devel:
+		var r: Dictionary = devel[p]
+		var o: int = buildings[p].owner if buildings.has(p) else 0
+		if not r.lv and r.job == null:
+			r.owner = o
+			continue
+		if o != r.owner:
+			reset_develop(p, r, true)
+			continue
+		if r.job == null or not d:
+			continue
+		r.job.done += d
+		if r.job.done >= DEV.time:
+			finish_develop(p)
+
+
+func reset_develop(p: int, r: Dictionary, lost: bool) -> void:
+	var y: Dictionary = yields[p]
+	for k in RES:
+		y[k] = maxi(0, y[k] - r.add[k])
+		r.add[k] = 0
+	r.lv = 0
+	if lost:
+		r.job = null
+		r.owner = buildings[p].owner if buildings.has(p) else 0
+	compute_income()

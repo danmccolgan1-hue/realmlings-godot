@@ -8,7 +8,8 @@ const TER_BASE := {"grassland": Color("#9bd95f"), "forest": Color("#4ba557"), "d
 const SEA := Color("#2b7fc4")
 const SAND := Color("#f2dfa2")
 const OL := Color("#1d1a22")
-const STYLE_COL := {"mountains": Color("#7d7a86"), "trees": Color("#2b6b35"), "ruins": Color("#9a7b5a"), "river": Color("#55a6dc")}
+const STYLE_COL := {"mountains": Color("#7d7a86"), "trees": Color("#2b6b35"), "ruins": Color("#9a7b5a"), "river": Color("#55a6dc"), "wall": Color("#8a5a34")}
+const ROAD_COL := Color("#c9a46a")
 const STAGE_ART := ["outpost", "fort", "capital"]
 
 var world: Dictionary
@@ -80,6 +81,23 @@ func _draw() -> void:
 	for e in world.edges:
 		if not e.open:
 			draw_line(_v(V, e.v[0]), _v(V, e.v[1]), STYLE_COL.get(e.style, OL), 34.0, true)
+	if game:
+		for k in game.roads:
+			var ab: PackedStringArray = k.split("_")
+			var a: Array = game.G.provs[int(ab[0])].ic
+			var b: Array = game.G.provs[int(ab[1])].ic
+			var m := Vector2.ZERO
+			for e in world.edges:
+				if (e.a == int(ab[0]) and e.b == int(ab[1])) or (e.a == int(ab[1]) and e.b == int(ab[0])):
+					m = (_v(V, e.v[0]) + _v(V, e.v[1])) / 2
+			draw_polyline(PackedVector2Array([Vector2(a[0], a[1]), m, Vector2(b[0], b[1])]), ROAD_COL, 22.0, true)
+		for i in game.walls:
+			var e: Dictionary = world.edges[i]
+			var a := _v(V, e.v[0])
+			var b := _v(V, e.v[1])
+			draw_line(a, b, OL, 46.0, true)
+			draw_line(a, b, STYLE_COL.wall, 34.0, true)
+			draw_rect(Rect2((a + b) / 2 - Vector2(22, 22), Vector2(44, 44)), Color("#e8c547"))   # the gate
 	if selected_prov >= 0:
 		var outline: PackedVector2Array = polys[selected_prov].duplicate()
 		outline.append(outline[0])

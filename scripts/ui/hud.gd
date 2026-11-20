@@ -26,6 +26,7 @@ var toast_list := []         # [{label, until}]
 var GRID_KEYS: Array
 var actions: VBoxContainer   # train and upgrade buttons of the selected province
 var actions_key := ""
+var confirm_key := ""
 var research: PanelContainer
 var research_box: VBoxContainer
 var research_key := ""
@@ -161,6 +162,8 @@ func commands_of(u) -> Array:
 	if u == null:
 		return out
 	var list: Array = GameData.c("CMD").get(u.kind, [])
+	if u.kind == "mage:A" or game.military.has(u.kind):
+		list = []
 	for c in list:
 		var id: String = c.id
 		var cmd = null
@@ -185,6 +188,17 @@ func commands_of(u) -> Array:
 			cmd = {"id": id, "label": "Auto: %s" % ("off" if u.get("auto", true) == false else "on"), "why": null}
 		elif id == "cancelbuild":
 			cmd = {"id": id, "label": "Cancel build", "why": null if u.build != null else "Not building"}
+		elif id == "road":
+			var q := game.mason_border(u)
+			var why = "Research Dirt Roads first" if not game.has_tech("roads") else "Walk up to an open border first" if q < 0 else game.link_why("road", u, q)
+			cmd = {"id": id, "label": "Road\n25g 75w", "why": why}
+		elif id == "dismiss":
+			cmd = {"id": id, "label": "Dismiss", "why": null}
+		elif id == "split":
+			cmd = {"id": id, "label": "Split", "why": null if game.troop_count(u) >= 2 else "Needs 2 soldiers"}
+		elif id == "combine":
+			var n := game.units.filter(func(v): return v.kind == "army" and v.owner == Game.ME and v.prov == u.prov and not v.moving).size()
+			cmd = {"id": id, "label": "Combine", "why": null if n >= 2 else "No other army here"}
 		if cmd != null:
 			out[int(c.cell)] = cmd
 	return out
@@ -207,6 +221,20 @@ func press(i: int) -> void:
 	elif id == "cancelbuild":
 		game.cancel_build(unit)
 		add_toast("Construction cancelled. Resources refunded.")
+	elif id == "road":
+		game.start_link(unit, game.mason_border(unit), "road")
+	elif id == "dismiss":
+		if confirm_key != "dismiss:%d" % unit.id:
+			confirm_key = "dismiss:%d" % unit.id
+			add_toast("Dismiss %s? Press Dismiss again to confirm." % unit.name, true)
+			return
+		confirm_key = ""
+		game.dismiss([unit])
+		select_unit(null)
+	elif id == "split":
+		game.split_army(unit)
+	elif id == "combine":
+		game.combine_armies(game.units.filter(func(v): return v.kind == "army" and v.owner == Game.ME and v.prov == unit.prov and not v.moving))
 
 
 ## A command-card key (q w e r / a s d f / z x c v / u i o p). Returns true when it was used.
@@ -342,6 +370,14 @@ func _refresh_actions() -> void:
 				var d: Dictionary = game.unit_defs[kind]
 				var why = game.train_why(src, prov, kind)
 				rows.append({"btn": "Train %s (%s)" % [d.name, Game.cost_text(d.cost)], "why": why, "do": game.train.bind(src, prov, kind)})
+		var dr = game.dev_rec(prov)
+		if dr != null and dr.job != null:
+			rows.append({"label": "Developing to level %d: %d%%" % [dr.lv + 1, int(dr.job.done / GameData.c("DEV").time * 100)]})
+		elif dr == null or dr.lv < GameData.c("DEV").max:
+			var lv: int = dr.lv if dr != null else 0
+			rows.append({"btn": "Develop to level %d (%s, 5 min)" % [lv + 1, Game.cost_text(game.dev_cost(lv))], "why": game.dev_why(prov), "do": game.start_develop.bind(prov)})
+		for e in game.extras_in(prov):
+			rows.append({"btn": "Tear down the %s (no refund)" % game.BUILD_DEFS[e.type].name, "why": null, "do": _confirm.bind("destroy:%d@%d" % [prov, e.slot], "Tear down the %s? Press again to confirm." % game.BUILD_DEFS[e.type].name, game.destroy_extra.bind(prov, e.slot))})
 		for e in game.extras_in(prov):
 			if e.type in ["forge", "magetower"]:
 				var d: Dictionary = game.BUILD_DEFS[e.type]
@@ -352,6 +388,15 @@ func _refresh_actions() -> void:
 					rows.append({"btn": "Upgrading to %s… (cancel)" % d.levels[lv], "why": null, "do": game.cancel_xup.bind(prov, e.slot)})
 				elif lv < d.levels.size():
 					rows.append({"btn": "Upgrade %s to %s (%s)" % [d.levels[lv - 1], d.levels[lv], Game.cost_text(d.ups[lv].cost)], "why": game.xup_why(prov, e), "do": game.start_xup.bind(prov, e.slot)})
+	if unit != null and unit.kind == Game.MASON and unit.prov == prov and not unit.moving:
+		rows.append({"label": "Mason: roads and walls to a neighbour"})
+		for q in game.all_nbr[prov]:
+			for type in ["road", "wall"]:
+				var why = game.link_why(type, unit, q)
+				if why != null and not str(why).begins_with("Need"):
+					continue   # only the links he could build now (or with more resources)
+				var cost: Dictionary = GameData.c("ROAD_COST") if type == "road" else GameData.c("WALL_COST")
+				rows.append({"btn": "%s to province %d (%s)" % [type.capitalize(), q, Game.cost_text(cost)], "why": why, "do": game.start_link.bind(unit, q, type)})
 	for r in rows:
 		key += str(r.get("label", "")) + str(r.get("btn", "")) + str(r.get("why", "")) + "|"
 	if key == actions_key:
@@ -375,6 +420,15 @@ func _refresh_actions() -> void:
 			var f: Callable = r.do
 			b.pressed.connect(func(): f.call())
 			actions.add_child(b)
+
+
+func _confirm(key: String, msg: String, f: Callable) -> void:
+	if confirm_key != key:
+		confirm_key = key
+		add_toast(msg, true)
+		return
+	confirm_key = ""
+	f.call()
 
 
 # --- research (T) ---

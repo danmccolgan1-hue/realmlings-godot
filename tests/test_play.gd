@@ -43,6 +43,8 @@ static func play(fx: Dictionary, map: Dictionary) -> Array:
 	if not TestEconomy.eq(fx.plan, {"cap": g.capital, "q1": q1, "q2": q2, "ruins": fx.plan.ruins}):
 		return errs + ["plan %s, want %s" % [[g.capital, q1, q2], fx.plan]]
 	g.paused = false
+	if fx.scenario == "develop":
+		g.dev_rand = func(): return 0.99   # as in the fixture: no lucky finds
 	var acts: Array = fx.actions
 	var k := 0
 	var snaps: Array = fx.snaps
@@ -67,6 +69,20 @@ static func play(fx: Dictionary, map: Dictionary) -> Array:
 							g.tech[A.tree].opts.append(A.id)
 						g.pick_tech(A.id)
 				"points": g.add_research(A.tree, int(A.n))
+				"grant": g.grant_tech(A.id)
+				"link":
+					if int(A.p) >= 0:
+						g.start_link(u, int(A.p), A.type)
+				"develop": g.start_develop(int(A.p))
+				"split": g.split_army(unit(g, "army"))
+				"combine":
+					var a0 = unit(g, "army")
+					g.combine_armies(g.units.filter(func(v): return v.kind == "army" and v.owner == Game.ME and v.prov == a0.prov))
+				"destroy":
+					for e in g.extras_in(int(A.p)):
+						if e.type == A.type:
+							g.destroy_extra(int(A.p), e.slot)
+							break
 				"xup":
 					for e in g.extras_in(int(A.p)):
 						if e.type == A.type:
@@ -128,7 +144,16 @@ static func snapshot(g: Game) -> Dictionary:
 	var lv := []
 	for p in sorted_keys(g.extras):
 		lv.append([p, g.extras[p].map(func(e): return e.get("level", 1))])
-	return {"t": g.t, "queues": qs, "tech": tch, "rep": g.rep, "xup": g.xup.keys(), "levels": lv, "stock": g.stock, "income": g.income, "units": us, "explored": sorted_keys(g.explored), "visible": sorted_keys(g.visible),
+	var dv := []
+	for p in g.devel:
+		var r: Dictionary = g.devel[p]
+		dv.append([p, r.lv, snapped(r.job.done, 0.001) if r.job != null else null])
+	var ys := []
+	for y in g.yields:
+		ys.append([y.gold, y.wood, y.food, y.deposit])
+	var rd := g.roads.keys()
+	rd.sort()
+	return {"t": g.t, "queues": qs, "roads": rd, "walls": sorted_keys(g.walls), "devel": dv, "yields": ys, "tech": tch, "rep": g.rep, "xup": g.xup.keys(), "levels": lv, "stock": g.stock, "income": g.income, "units": us, "explored": sorted_keys(g.explored), "visible": sorted_keys(g.visible),
 		"surveyed": sorted_keys(g.surveyed), "wf": sorted_keys(g.wf), "buildings": bl, "extras": ex, "upgrades": g.upgrades.keys(), "techs": techs, "finds": fd}
 
 

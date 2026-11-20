@@ -146,13 +146,35 @@ func _maybe_screenshot() -> void:
 			mason = u
 		elif u.kind == game.WAYFINDER and wfu == null:
 			wfu = u
-	if play > 0:
+	var demo := OS.get_cmdline_user_args().has("--demo")
+	var q1: int = game.open_nbr[game.capital][0].q
+	if play > 0 and demo:   # roads, walls and development: the scripted game of tests/fixtures/play/*_roads.json
+		for k in Game.RES:
+			game.stock[k] += 3000
+		game.grant_tech("roads")
+		game.queue_survey(wfu, q1)
+		game.start_develop(game.capital)
+	elif play > 0:
 		game.queue_survey(wfu, game.open_nbr[game.capital][0].q)
 		game.order_build(mason, game.capital, "farm")
+	if play > 0:
 		game.paused = false
 		var real := 1.0
+		var step := 0
 		while game.t < play:
 			real += 0.1
+			if demo:
+				if step == 400:
+					game.order_build(mason, q1, "outpost")
+				elif step == 900:
+					game.start_link(mason, game.capital, "road")
+				elif step == 1010:
+					game.grant_tech("walls")
+				elif step == 1020:
+					for u in game.units:
+						if u.kind == "army":
+							game.order(u, q1)
+			step += 1
 			game.update(real)
 		game.paused = true
 		game.last = 0.0
