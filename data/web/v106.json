@@ -1,0 +1,77 @@
+{
+ "DEV": {
+  "cost": [
+   300,
+   400,
+   500
+  ],
+  "deep": 0.05,
+  "deepGold": 5,
+  "houses": 3,
+  "luck": 0.25,
+  "max": 3,
+  "time": 300
+ },
+ "LEADER_CAP_FOOD": 7,
+ "OVER_UPKEEP": 5,
+ "PATCH_NOTES": [
+  {
+   "date": "November 19, 2026",
+   "items": [
+    [
+     "Walls and roads",
+     "Forts and capitals can rebuild torn-down walls, and capitals always offer Rebuild walls. Roads can cross a wall between two of your own provinces. Fixed walls showing two health bars."
+    ],
+    [
+     "Exploring",
+     "Lakes and the ocean come out of the fog once every province on their shores is explored."
+    ],
+    [
+     "Battle",
+     "Ranged soldiers take 80% less damage in the back row."
+    ],
+    [
+     "Province limit",
+     "Wars can take you over your province limit. Each extra province costs 5 gold, 5 wood and 5 food upkeep, and a flag warns you."
+    ],
+    [
+     "Diplomacy",
+     "New Proclaim Enemy action (âˆ’300 opinion). Computer nations proclaim enemies too, and a shared enemy gives +50. Military access and Trade Networks give +25 opinion. The Diplomacy page shows each nationâ€™s opinion of you and its enemy. Only computer nations are limited to one ally. No flirting with Swamplings; a Swampling growl at another race is always âˆ’25. Gifted gold always arrives."
+    ],
+    [
+     "Develop Province",
+     "Outposts, forts and capitals can be developed up to level 3 for more resources and houses; in forts and capitals each level also raises the province limit. Occupation resets it."
+    ],
+    [
+     "Building",
+     "A Build Outpost button on unclaimed provinces. Ogre Caves sit against the mountains and can be ordered from the Armies tab."
+    ],
+    [
+     "Leaders",
+     "Hisola and Taal start with 4 Riders / Ogres and a Stable / Ogre Cave with no upkeep; their cavalry and Ogres cost 3 food, and their capital province gives 7 more food."
+    ],
+    [
+     "Armory",
+     "New Army Training Order tab: order a whole army from every Barracks and have it gather in one province."
+    ],
+    [
+     "Menu",
+     "Added Patch Notes."
+    ]
+   ],
+   "v": "v106"
+  }
+ ],
+ "RNG_BACK_DR": 0.8,
+ "TO": {
+  "draft": {},
+  "key": "",
+  "rally": -1
+ },
+ "V106": {
+  "caveSites": [],
+  "houseSig": "|3",
+  "pmKey": "",
+  "t": 0
+ }
+}

@@ -1,0 +1,30 @@
+{
+ "QUAKE_TIME": 120,
+ "REST_TIME": 5,
+ "RETRO_TIME": 2,
+ "REWALL_COST": {
+  "wood": 50
+ },
+ "REWALL_TIME": 15,
+ "SIEGE_TIME": 120,
+ "SPELL2": {
+  "quake": {
+   "name": "Earthquake",
+   "time": 30
+  },
+  "shock": {
+   "name": "Shockwave",
+   "time": 15
+  }
+ },
+ "SPELL_FX_TIME": {
+  "fireball": 2.2,
+  "quake": 3,
+  "shock": 1.8
+ },
+ "SP_FOUND_TEXT": {
+  "battlesite": "%%% has found evidence of a massive battle dating back thousands of years in $$$. Our own Forges could learn from this site.",
+  "library": "%%% has found the remains of a library forgotten to time in $$$. Our scholars will rejoice.",
+  "rift": "%%% has found a strange rift of magical origin in $$$. Our Mages could learn from the long dead spells of the Archmages of Ages past."
+ }
+}

@@ -1,0 +1,95 @@
+{
+ "note": "ax, ay: the anchor pixel (where the game places the art: province center, plot, feet). scale: image pixels per world unit.",
+ "images": {
+  "cmd_bridge.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "bridge"
+  },
+  "cmd_demolish.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "demolish"
+  },
+  "cmd_destroy.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "destroy"
+  },
+  "cmd_dismiss.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "dismiss"
+  },
+  "cmd_gate.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "gate"
+  },
+  "cmd_rally.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "rally"
+  },
+  "cmd_rewalls.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "rewalls"
+  },
+  "cmd_road.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "road"
+  },
+  "cmd_survey.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "survey"
+  },
+  "cmd_upgrade.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "upgrade"
+  },
+  "cmd_wall.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "wall"
+  },
+  "res_food.png": {
+   "w": 80,
+   "h": 80,
+   "ax": 40,
+   "ay": 40,
+   "scale": 1,
+   "res": "food"
+  },
+  "res_gold.png": {
+   "w": 80,
+   "h": 80,
+   "ax": 40,
+   "ay": 40,
+   "scale": 1,
+   "res": "gold"
+  },
+  "res_wood.png": {
+   "w": 80,
+   "h": 80,
+   "ax": 40,
+   "ay": 40,
+   "scale": 1,
+   "res": "wood"
+  }
+ }
+}

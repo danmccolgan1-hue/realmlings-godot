@@ -1,0 +1,31 @@
+{
+ "FLAG_INST": {},
+ "MEET_DIST": 60,
+ "MS_PROV": [
+  10,
+  20,
+  30,
+  40
+ ],
+ "MUSIC_TRACKS": {
+  "swamp": "music/tavern_percussion.mp3",
+  "tavern": "music/tavern.mp3",
+  "wood": "music/tavern_harp.mp3"
+ },
+ "REC_SNAP": 30,
+ "SIGHT_CAST": 5,
+ "SPIKE_DPS": 5,
+ "STAVE_CAST": {
+  "grandstave": 0.9,
+  "mythicstave": 0.8
+ },
+ "WALL_MAX": {
+  "spiky": 80,
+  "stone": 120,
+  "wood": 40
+ },
+ "WALL_SPELL": {
+  "quake": 120,
+  "shock": 40
+ }
+}

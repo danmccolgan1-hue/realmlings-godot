@@ -1,0 +1,972 @@
+<title>Realmlings Playtest</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700;900&family=Cinzel:wght@400;500;600;700;800;900&family=Grenze+Gotisch:wght@500;600;700&display=swap">
+<style>
+/* Layout: the map fills the screen; a small help chip, a selection chip and a toast float over the sea. */
+:root {
+  --sea: #2b7fc4; --ink: #1d1a22; --chip: #efdcb3; --chip-hi: #faf1dc; --chip-text: #1d1a22; --muted: #5a6475; --sun: #ffc93c; --bad: #d64545;
+  --font-display: "Cinzel Decorative", "Cinzel", "Trajan Pro", Georgia, serif;
+  --font-ui: "Cinzel", "Cinzel Decorative", "Trajan Pro", Georgia, serif;
+  color-scheme: light;
+}
+html, body { height: 100%; }
+[hidden] { display: none !important; }
+body { background: var(--sea); color: var(--chip-text); font-family: var(--font-ui); overflow: hidden; }
+#map { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: default; }
+#map.dragging { cursor: grabbing; }
+.chip { background: var(--chip); color: var(--chip-text); border: 3px solid var(--ink); border-radius: 14px; box-shadow: 0 4px 0 var(--ink); }
+.help { position: fixed; z-index: 5; top: calc(env(safe-area-inset-top, 0px) + 12px); left: max(16px, env(safe-area-inset-left, 0px)); padding: 6px 12px 8px; max-width: min(360px, calc(100vw - 32px)); font-size: 13px; line-height: 1.35; }
+.help h1 { margin: 0 0 4px; font-family: var(--font-display); font-weight: 400; font-size: 24px; color: var(--sun); -webkit-text-stroke: 2px var(--ink); paint-order: stroke fill; text-shadow: 0 3px 0 var(--ink); }
+.help kbd { font: 800 12px var(--font-ui); border: 2px solid var(--ink); border-radius: 6px; padding: 0 5px; background: var(--chip-hi); box-shadow: 0 2px 0 var(--ink); }
+.help ul { margin: 0; padding-left: 16px; }
+.help-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.help .mini { flex: none; width: 28px; height: 26px; margin-top: 2px; padding: 0; font: 800 18px/1 var(--font-ui); border: 2.5px solid var(--ink); border-radius: 8px; background: var(--chip-hi); color: var(--chip-text); box-shadow: 0 2.5px 0 var(--ink); cursor: pointer; }
+.help .mini:active { transform: translateY(2.5px); box-shadow: none; }
+.help .mini:focus-visible { outline: 3px solid #e8a817; outline-offset: 2px; }
+.help.min { padding-bottom: 6px; }
+.help.min h1 { margin-bottom: 0; }
+.legend { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 6px; font-weight: 700; font-size: 12px; }
+.legend span { display: inline-flex; align-items: center; gap: 4px; }
+.legend i { width: 14px; height: 10px; border: 2px solid var(--ink); border-radius: 3px; display: inline-block; }
+.prov { position: fixed; z-index: 5; left: max(16px, env(safe-area-inset-left, 0px)); bottom: calc(env(safe-area-inset-bottom, 0px) + 194px); width: 232px; max-height: calc(100vh - 290px); overflow-y: auto; padding: 7px 8px 8px; font-size: 12px; display: flex; flex-direction: column; gap: 5px; }
+.pm-head { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.pm-head b { font-family: var(--font-display); font-weight: 400; font-size: 18px; line-height: 1; }
+.pm-sw { width: 14px; height: 14px; border: 2px solid var(--ink); border-radius: 4px; flex: none; }
+.pm-own { display: inline-flex; align-items: center; gap: 4px; font-weight: 700; font-size: 11px; color: var(--muted); }
+.pm-own i { width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--ink); }
+.pm-own.none { font-weight: 600; }
+.pm-x { margin-left: auto; width: 22px; height: 22px; padding: 0; font: 800 15px/1 var(--font-ui); border: 2px solid var(--ink); border-radius: 6px; background: var(--chip-hi); color: var(--chip-text); cursor: pointer; }
+.pm-res { display: flex; gap: 10px; font-weight: 800; font-size: 14px; font-variant-numeric: tabular-nums; }
+.pm-res .cst img { width: 18px; height: 18px; }
+.pm-res b { font-weight: 800; }
+.pm-res b.bonus { color: #1f7a2e; }
+.pm-res em { font-style: normal; font-size: 11px; color: #1f7a2e; margin-left: 1px; }
+.pm-res.none, .pm-none { font-weight: 600; color: var(--muted); font-size: 12px; }
+.pm-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.pm-tag { font: 700 10px var(--font-ui); border: 1.5px solid var(--ink); border-radius: 999px; padding: 0 6px; background: #eef2f7; }
+.pm-tag.gold { background: #fff1c2; }
+.pm-sec { font: 800 10px var(--font-ui); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-top: 1px; }
+.pm-sec span { letter-spacing: 0; }
+.pm-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px; }
+.pm-b { display: flex; align-items: center; gap: 4px; min-width: 0; height: 36px; padding: 0 4px 0 1px; font: 700 11px var(--font-ui); color: var(--chip-text); text-align: left; background: var(--chip-hi); border: 2px solid var(--ink); border-radius: 8px; cursor: pointer; }
+.pm-b img { width: 32px; height: 32px; flex: none; }
+.pm-b span { display: flex; flex-direction: column; line-height: 1.1; min-width: 0; overflow: hidden; }
+.pm-b small { font-size: 9px; font-weight: 600; color: var(--muted); }
+button.pm-b:hover { background: #fff7d9; }
+button.pm-b:focus-visible { outline: 3px solid #e8a817; outline-offset: 1px; }
+.pm-b.on { background: var(--sun); box-shadow: 0 0 0 2px var(--sun); }
+.pm-b.empty { border-style: dashed; border-color: rgba(29,26,34,0.3); background: #eef2f7; cursor: default; justify-content: center; color: var(--muted); font-weight: 600; }
+.pm-b.building { cursor: default; background: #fff7d9; border-style: dashed; }
+button.pm-b.empty.open { cursor: pointer; border-color: rgba(29,26,34,0.55); background: #f4e6c8; color: var(--chip-text); }
+button.pm-b.empty.open small { color: var(--muted); }
+button.pm-b.empty.open:hover, button.pm-b.empty.open.on { background: #fff7d9; border-style: solid; border-color: var(--ink); }
+.pm-b.empty span { align-items: center; text-align: center; }
+.pm-sel { font-size: 11px; font-weight: 600; color: var(--muted); border-top: 2px dashed rgba(29,26,34,0.15); padding-top: 4px; }
+.pm-sel b { color: var(--chip-text); }
+.minimap { position: fixed; z-index: 5; bottom: calc(env(safe-area-inset-bottom, 0px) + 14px); left: max(16px, env(safe-area-inset-left, 0px)); padding: 4px; line-height: 0; }
+.minimap canvas { width: 224px; height: 160px; border-radius: 9px; display: block; cursor: pointer; touch-action: none; }
+.sel { position: fixed; z-index: 5; bottom: calc(env(safe-area-inset-bottom, 0px) + 14px); left: calc(max(16px, env(safe-area-inset-left, 0px)) + 244px); padding: 6px 12px; font-weight: 700; font-size: 14px; }
+.sel b { font-family: var(--font-display); font-weight: 400; font-size: 18px; }
+#toast { position: fixed; z-index: 6; bottom: calc(env(safe-area-inset-bottom, 0px) + 62px); left: 50%; transform: translateX(-50%); padding: 6px 14px; font-weight: 700; font-size: 14px; max-width: calc(100vw - 32px); }
+#toast.bad { background: #ffe1e1; }
+.zoom { position: fixed; z-index: 4; right: max(16px, env(safe-area-inset-right, 0px)); top: calc(env(safe-area-inset-top, 0px) + 12px); display: flex; flex-direction: column; gap: 8px; }
+.zoom #fsBtn { margin-bottom: 6px; display: grid; place-items: center; }
+.zoom #fsBtn[aria-pressed="true"] { background: var(--sun); }
+.zoom #pauseBtn { margin-bottom: 6px; display: grid; place-items: center; }
+.zoom #pauseBtn[aria-pressed="true"] { background: var(--sun); }
+.zoom button { width: 40px; height: 40px; padding: 0; font: 800 20px var(--font-ui); line-height: 1; border: 2.5px solid var(--ink); border-radius: 10px; background: var(--chip-hi); box-shadow: 0 3px 0 var(--ink); cursor: pointer; color: var(--chip-text); }
+.zoom button:focus-visible { outline: 3px solid #e8a817; outline-offset: 2px; }
+#box { position: fixed; z-index: 4; pointer-events: none; border: 2px dashed #fff; background: rgba(255,201,60,0.18); box-shadow: 0 0 0 1px rgba(29,26,34,0.6); border-radius: 4px; }
+.res { position: fixed; z-index: 5; top: calc(env(safe-area-inset-top, 0px) + 12px); left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 14px; padding: 4px 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.res .r { display: inline-flex; align-items: center; gap: 5px; }
+.res img { width: 24px; height: 24px; }
+.res b { font-family: var(--font-display); font-weight: 400; font-size: 21px; min-width: 2ch; }
+.res small { font-weight: 800; font-size: 13px; color: #1f7a2e; }
+.res em.rcap { font-style: normal; font-weight: 700; font-size: 11px; color: var(--muted); margin-left: -3px; }
+.res em.rcap.full { color: #b3261e; font-weight: 800; }
+.res .r.tyr b { background: #7a3db8 !important; }
+.res .r.exh b { font-family: inherit; font-size: 13px; font-weight: 800; color: #fff; background: #b3261e; border-radius: 99px; padding: 2px 8px; }
+.res .tick { width: 18px; height: 18px; border: 2.5px solid var(--ink); border-radius: 50%; overflow: hidden; display: inline-block; }
+.res .tick i { display: block; width: 100%; height: 100%; }
+.res .r.bump b { animation: bump .45s cubic-bezier(.3,1.8,.5,1); display: inline-block; }
+@keyframes bump { 0% { transform: scale(1); } 35% { transform: scale(1.35); color: #1f7a2e; } 100% { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .res .r.bump b { animation: none; } }
+@media (max-width: 760px) { .res { top: auto; bottom: calc(env(safe-area-inset-bottom, 0px) + 60px); gap: 10px; } .res b { font-size: 18px; } }
+#paused { position: fixed; z-index: 6; top: calc(env(safe-area-inset-top, 0px) + 150px); left: 50%; transform: translateX(-50%); padding: 8px 18px 10px; text-align: center; font-family: var(--font-display); font-size: 28px; color: var(--sun); -webkit-text-stroke: 2px var(--ink); paint-order: stroke fill; pointer-events: none; }
+#paused span { display: block; font: 700 13px var(--font-ui); color: var(--muted); -webkit-text-stroke: 0; }
+#paused kbd { font: 800 12px var(--font-ui); border: 2px solid var(--ink); border-radius: 6px; padding: 0 5px; background: var(--chip-hi); color: var(--chip-text); }
+.cap { position: fixed; z-index: 5; bottom: calc(env(safe-area-inset-bottom, 0px) + 14px); left: 50%; transform: translateX(-50%); padding: 8px 12px 10px; width: min(560px, calc(100vw - 540px)); }
+.cap.wide { width: min(820px, calc(100vw - 540px)); }
+.roster { position: fixed; z-index: 5; right: max(16px, env(safe-area-inset-right, 0px)); top: calc(env(safe-area-inset-top, 0px) + 170px); width: 214px; max-height: calc(100vh - 170px - 250px); overflow-y: auto; padding: 6px; display: flex; flex-direction: column; gap: 3px; }
+.ro-sec { font: 800 10px var(--font-ui); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); padding: 2px 4px 0; }
+.ro-sec span { letter-spacing: 0; }
+.ro-u { display: flex; align-items: center; gap: 5px; width: 100%; padding: 1px 6px 1px 1px; text-align: left; font: inherit; color: var(--chip-text); background: var(--chip-hi); border: 2px solid transparent; border-radius: 9px; cursor: pointer; }
+.ro-u:hover { border-color: var(--ink); background: #fff7d9; }
+.ro-u.on { border-color: var(--ink); background: var(--sun); }
+.ro-u:focus-visible { outline: 3px solid #e8a817; outline-offset: 1px; }
+.ro-u img { width: 34px; height: 34px; flex: none; }
+.ro-u span { display: flex; flex-direction: column; min-width: 0; line-height: 1.15; }
+.ro-u b { font-family: var(--font-display); font-weight: 400; font-size: 14px; }
+.ro-u small { font-size: 11px; font-weight: 600; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 4px; }
+.ro-u.on small { color: var(--chip-text); }
+.ro-u i { width: 7px; height: 7px; border-radius: 50%; flex: none; background: #3e9b4f; }
+.ro-u i.idle { background: #e8a817; }
+.ro-none { font-size: 12px; font-weight: 600; color: var(--muted); padding: 0 6px 4px; }
+.bm-sec { font: 800 10px var(--font-ui); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); padding: 4px 6px 0; }
+.debug { position: fixed; z-index: 5; top: calc(env(safe-area-inset-top, 0px) + 12px); right: calc(max(16px, env(safe-area-inset-right, 0px)) + 54px); display: flex; flex-direction: column; align-items: stretch; gap: 4px; padding: 4px 6px 6px; border-style: dashed; }
+.debug b { text-align: center; }
+.debug b { font: 800 10px var(--font-ui); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.debug button { font: 800 12px var(--font-ui); border: 2px solid var(--ink); border-radius: 8px; padding: 2px 8px; background: var(--chip-hi); color: var(--chip-text); cursor: pointer; box-shadow: 0 2px 0 var(--ink); }
+.debug button:active { transform: translateY(2px); box-shadow: none; }
+.debug button:focus-visible { outline: 3px solid #e8a817; outline-offset: 1px; }
+#dbgEnemy { background: #ffe1e1; }
+/* command card: bottom right, same size as the minimap, a 4×4 grid of ability buttons with unit-type tabs above */
+.cmd { position: fixed; z-index: 5; bottom: calc(env(safe-area-inset-bottom, 0px) + 14px); right: max(16px, env(safe-area-inset-right, 0px)); width: 232px; }
+.cmd-tabs { display: flex; gap: 4px; padding-left: 10px; margin-bottom: -3px; position: relative; z-index: 1; }
+.cmd-tab { display: inline-flex; align-items: center; gap: 3px; height: 30px; padding: 0 8px 0 2px; font: 800 12px var(--font-ui); color: var(--chip-text); background: #dcc493; border: 3px solid var(--ink); border-bottom: 0; border-radius: 10px 10px 0 0; cursor: pointer; }
+.cmd-tab img { width: 26px; height: 26px; }
+.cmd-tab[aria-selected="true"] { background: var(--chip); height: 33px; }
+.cmd-tab:focus-visible { outline: 3px solid #e8a817; outline-offset: 1px; }
+.cmd-grid { display: grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(4, 1fr); gap: 4px; padding: 4px; height: 168px; box-sizing: border-box; }
+.cmd-cell { border: 2px dashed rgba(29,26,34,0.18); border-radius: 8px; background: #eef2f7; }
+.cmd-btn { position: relative; display: grid; place-items: center; padding: 0; border: 2.5px solid var(--ink); border-radius: 8px; background: var(--chip-hi); box-shadow: 0 2.5px 0 var(--ink); cursor: pointer; overflow: hidden; }
+.cmd-btn img { width: 48px; height: 48px; margin-top: -6px; pointer-events: none; }
+.cmd-btn kbd { position: absolute; left: 2px; top: 1px; font: 800 9px var(--font-ui); background: var(--sun); border: 1.5px solid var(--ink); border-radius: 4px; padding: 0 2px; line-height: 1.2; }
+.cmd-btn:hover { background: #fff7d9; }
+.cmd-btn:active { transform: translateY(2.5px); box-shadow: none; }
+.cmd-btn:focus-visible { outline: 3px solid #e8a817; outline-offset: 1px; }
+.cmd-btn.off { background: repeating-linear-gradient(135deg, #d9dee6 0 6px, #cdd3dc 6px 12px); box-shadow: 0 1px 0 var(--ink); }
+.cmd-btn.off img { opacity: 0.4; filter: grayscale(0.85); }
+.cmd-btn.off kbd { background: #e3e6ec; }
+.cmd-q { border-style: dashed; background: #eef7fd; }
+.cmd-q img { width: 40px; height: 40px; margin-top: -8px; }
+.cmd-q em { position: absolute; right: 3px; top: 1px; font: 800 10px var(--font-ui); font-style: normal; color: var(--muted); }
+.cmd-prog { position: absolute; left: 4px; right: 4px; bottom: 3px; height: 7px; border: 1.5px solid var(--ink); border-radius: 999px; background: var(--chip-hi); overflow: hidden; }
+.cmd-prog s { display: block; height: 100%; width: 0; background: #7fb0ff; text-decoration: none; }
+/* v95: cooldown bar: drains as the cooldown runs out */
+.cmd-cd { position: absolute; left: 4px; right: 4px; bottom: 3px; height: 7px; border: 1.5px solid var(--ink); border-radius: 999px; background: var(--chip-hi); overflow: hidden; pointer-events: none; }
+.cmd-cd s { display: block; height: 100%; width: 100%; background: #ff9a3c; text-decoration: none; transition: width 0.1s linear; }
+.cmd-btn.cooling img { filter: grayscale(0.5) brightness(0.85); }
+.cw-artlist { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 6px; }
+.cw-art { display: flex; gap: 8px; align-items: center; background: var(--chip-hi); border: 1px solid var(--ink); padding: 4px 8px; }
+.cw-art img { width: 40px; height: 40px; flex: none; }
+.cw-art b { display: block; font: 400 16px var(--font-display); }
+.cw-art small { display: block; font-size: 11.5px; font-weight: 600; color: var(--muted); }
+.cw-none { margin: 2px 0; font-size: 12.5px; font-weight: 600; color: var(--muted); }
+.cmd-more { display: grid; place-items: center; font: 800 13px var(--font-ui); color: var(--muted); border-style: solid; }
+span.cmd-tab { cursor: default; }
+.cmd-empty { grid-column: 1 / -1; grid-row: 2 / 4; align-self: center; text-align: center; font-size: 12px; font-weight: 700; color: var(--muted); }
+#cmdTip { position: fixed; z-index: 7; right: max(16px, env(safe-area-inset-right, 0px)); bottom: calc(env(safe-area-inset-bottom, 0px) + 230px); width: 232px; padding: 6px 10px 8px; font-size: 12px; line-height: 1.3; pointer-events: none; }
+#cmdTip b { font-family: var(--font-display); font-weight: 400; font-size: 16px; display: block; }
+#cmdTip .why { color: #b3261e; font-weight: 700; }
+#cmdTip .ok { color: #1f7a2e; font-weight: 700; }
+#cmdTip .cst img { width: 15px; height: 15px; }
+#cmdTip .costs { display: flex; gap: 8px; font-weight: 800; margin-top: 2px; }
+.cap-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
+.cap-head b { font-family: var(--font-display); font-weight: 400; font-size: 22px; }
+.cap-head span { font-size: 13px; font-weight: 700; color: var(--muted); }
+.cap-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.cap-card { display: flex; gap: 6px; align-items: stretch; border: 2.5px solid var(--ink); border-radius: 12px; padding: 4px 8px 6px 2px; background: #eef7fd; min-width: 0; }
+.cap-card canvas { width: 64px; height: 75px; flex: none; align-self: center; }
+.cap-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.cap-info b { font-family: var(--font-display); font-weight: 400; font-size: 18px; line-height: 1.1; }
+.cap-info small { font-size: 12px; font-weight: 600; color: var(--muted); line-height: 1.2; }
+.cap-cost, .cap-up { display: flex; flex-wrap: wrap; gap: 2px 8px; align-items: center; font-weight: 800; font-size: 13px; font-variant-numeric: tabular-nums; }
+.cap-up { font-size: 12px; color: var(--muted); }
+.cap-up em { font-style: normal; font-weight: 600; }
+.cst { display: inline-flex; align-items: center; gap: 2px; }
+.cst img { width: 17px; height: 17px; }
+.cap-info button, .qi button { align-self: flex-start; margin-top: 3px; font: 800 13px var(--font-ui); border: 2.5px solid var(--ink); border-radius: 9px; padding: 1px 12px; background: var(--sun); color: var(--chip-text); box-shadow: 0 3px 0 var(--ink); cursor: pointer; }
+.cap-info button:active { transform: translateY(3px); box-shadow: none; }
+.cap-info button:disabled { background: #e3e6ec; color: var(--muted); cursor: not-allowed; box-shadow: 0 3px 0 var(--ink); transform: none; }
+.cap-info button:focus-visible, .qi button:focus-visible { outline: 3px solid #e8a817; outline-offset: 2px; }
+.cap-queue { margin-top: 6px; font-size: 13px; font-weight: 700; color: var(--muted); display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.qi { display: inline-flex; align-items: center; gap: 5px; background: var(--chip-hi); border: 2px solid var(--ink); border-radius: 999px; padding: 0 3px 0 9px; color: var(--chip-text); }
+.qi i { display: inline-block; width: 44px; height: 8px; border: 2px solid var(--ink); border-radius: 999px; overflow: hidden; background: var(--chip-hi); }
+.qi s { display: block; height: 100%; width: 0; background: #7fb0ff; text-decoration: none; }
+.qi button { margin: 0; padding: 0 6px; font-size: 12px; line-height: 1.2; box-shadow: none; background: var(--chip-hi); }
+#cap:not([hidden]) ~ #toast { bottom: calc(env(safe-area-inset-bottom, 0px) + 232px); }
+@media (max-width: 760px) { .minimap, .cmd, #cmdTip, .roster { display: none !important; } .debug { top: auto; bottom: calc(env(safe-area-inset-bottom, 0px) + 60px); right: max(16px, env(safe-area-inset-right, 0px)); } .prov { bottom: calc(env(safe-area-inset-bottom, 0px) + 64px); } .sel { left: max(16px, env(safe-area-inset-left, 0px)); } .cap .cap-cards { grid-template-columns: 1fr !important; } .cap { left: 50%; width: calc(100vw - 32px); bottom: calc(env(safe-area-inset-bottom, 0px) + 104px); } .cap-cards { grid-template-columns: 1fr; } }
+#bmenu { position: fixed; z-index: 7; width: 290px; max-width: calc(100vw - 16px); padding: 6px; display: flex; flex-direction: column; gap: 3px; max-height: calc(100vh - 16px); overflow-y: auto; }
+.bm-head { display: flex; align-items: baseline; gap: 8px; padding: 2px 6px 4px; flex-wrap: wrap; }
+.bm-head b { font-family: var(--font-display); font-weight: 400; font-size: 19px; }
+.bm-head span { font-size: 12px; font-weight: 700; color: var(--muted); }
+.bm-item { display: grid; grid-template-columns: 38px 1fr auto; align-items: center; gap: 6px; width: 100%; text-align: left; font: 700 14px var(--font-ui); color: var(--chip-text); background: var(--chip-hi); border: 2px solid transparent; border-radius: 10px; padding: 2px 6px 2px 2px; cursor: pointer; }
+.bm-item:hover, .bm-item:focus-visible { border-color: var(--ink); background: #fff7d9; outline: none; }
+.bm-item[aria-disabled="true"] { opacity: 0.55; cursor: not-allowed; }
+.bm-item[aria-disabled="true"]:hover { background: var(--chip-hi); }
+.bm-item img { width: 38px; height: 38px; }
+.bm-ico { width: 38px; text-align: center; font-size: 18px; }
+.bm-move { grid-template-columns: 38px 1fr; }
+.bm-name { display: flex; flex-direction: column; line-height: 1.15; min-width: 0; }
+.bm-name small { font-size: 11px; font-weight: 600; color: var(--muted); }
+.bm-cost img { width: 16px; height: 16px; }
+.bm-cost .cst { gap: 1px; }
+.bm-cost { display: flex; gap: 5px; font-weight: 800; font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.bm-note { margin: 2px 6px 4px; font-size: 12px; font-weight: 600; color: var(--muted); }
+#tip { position: fixed; z-index: 6; pointer-events: none; padding: 5px 10px 6px; font-size: 13px; line-height: 1.25; transform: translate(14px, 14px); }
+#tip strong { font-family: var(--font-display); font-weight: 400; font-size: 15px; display: block; }
+#tip .row { color: var(--muted); font-weight: 600; }
+@media (max-width: 560px) { .help { font-size: 12px; } }
+
+/* ---------- war & diplomacy ---------- */
+.dip { position: fixed; z-index: 5; top: calc(env(safe-area-inset-top, 0px) + 104px); left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; padding: 3px 6px 3px 12px; font-size: 13px; font-weight: 700; white-space: nowrap; cursor: pointer; }
+.dip:hover { background: var(--chip-hi); }
+.dip:focus-visible { outline: 3px solid #e8a817; outline-offset: 2px; }
+.dip.war { background: #fff1ec; }
+.dip.flash { animation: dipflash 1s ease 3; }
+@keyframes dipflash { 50% { background: #ffb4a3; } }
+@media (prefers-reduced-motion: reduce) { .dip.flash { animation: none; } }
+.dp-l { display: inline-flex; align-items: center; gap: 5px; }
+.dp-l i, .dp-head i, .dm-head i { width: 11px; height: 11px; border-radius: 50%; border: 2px solid var(--ink); display: inline-block; flex: none; }
+.dp-btn { font: 800 12px var(--font-ui); border: 2px solid var(--ink); border-radius: 8px; padding: 1px 8px; background: var(--sun); box-shadow: 0 2px 0 var(--ink); }
+.dp-truce { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.dp-s { font-family: var(--font-display); font-weight: 400; font-size: 19px; min-width: 3ch; text-align: right; font-variant-numeric: tabular-nums; }
+.dp-s.up { color: #2f6fe0; } .dp-s.down { color: #c42f2f; }
+.ws { position: relative; width: 150px; height: 14px; border: 2.5px solid var(--ink); border-radius: 8px; background: #e9edf3; overflow: hidden; flex: none; }
+.ws i { position: absolute; top: 0; bottom: 0; }
+.ws .ws-me { left: 50%; background: #2f6fe0; }
+.ws .ws-them { right: 50%; background: #d23b3b; }
+.ws s { position: absolute; top: -2px; bottom: -2px; width: 3px; margin-left: -1.5px; background: var(--ink); }
+.ws em { position: absolute; top: 0; bottom: 0; width: 1px; background: rgba(29,26,34,.35); }
+.ws::after { content: ""; position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--ink); }
+.dip-panel { position: fixed; z-index: 7; top: calc(env(safe-area-inset-top, 0px) + 142px); left: 50%; transform: translateX(-50%); width: min(380px, calc(100vw - 32px)); max-height: calc(100vh - 300px); overflow-y: auto; padding: 8px 10px 10px; font-size: 13px; display: flex; flex-direction: column; gap: 6px; }
+.dp-head { display: flex; align-items: center; gap: 6px; }
+.dp-head b { font-family: var(--font-display); font-weight: 400; font-size: 20px; }
+.dp-head span { color: var(--muted); font-size: 12px; font-weight: 700; flex: 1; }
+.dp-x { width: 26px; height: 24px; padding: 0; font: 800 17px/1 var(--font-ui); border: 2.5px solid var(--ink); border-radius: 8px; background: var(--chip-hi); color: var(--chip-text); box-shadow: 0 2px 0 var(--ink); cursor: pointer; }
+.dp-p { margin: 0; }
+.dp-rules { margin: 0; padding-left: 18px; color: var(--muted); font-size: 12px; }
+.dp-ws { display: flex; align-items: center; gap: 8px; justify-content: center; }
+.dp-ws .ws { width: 260px; height: 18px; }
+.dp-break { display: flex; justify-content: space-between; gap: 6px; font-size: 11.5px; color: var(--muted); font-weight: 700; }
+.dp-break b { color: var(--chip-text); }
+.dp-sec { font: 800 10px var(--font-ui); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-top: 2px; }
+.dp-term { display: flex; align-items: center; gap: 8px; padding: 5px 8px; border: 2px solid var(--ink); border-radius: 10px; background: var(--chip-hi); cursor: pointer; }
+.dp-term.on { background: #fff6d6; box-shadow: 0 2px 0 var(--ink); }
+.dp-term.locked { opacity: .5; cursor: not-allowed; }
+.dp-term span { flex: 1; display: flex; flex-direction: column; line-height: 1.2; }
+.dp-term small { color: var(--muted); font-size: 11.5px; }
+.dp-term em { font-style: normal; font-weight: 800; font-size: 12px; border: 2px solid var(--ink); border-radius: 7px; padding: 0 6px; background: #e9f0ff; }
+.dp-pick { border: 2px dashed var(--ink); border-radius: 10px; padding: 4px 6px; display: flex; flex-direction: column; gap: 2px; max-height: 190px; overflow-y: auto; }
+.dp-pick-h { font-weight: 800; font-size: 12px; display: flex; justify-content: space-between; }
+.dp-prov { display: flex; align-items: center; gap: 6px; padding: 1px 4px; border-radius: 6px; cursor: pointer; font-weight: 700; }
+.dp-prov:hover, .dp-prov.on { background: #fff1b8; }
+.dp-prov i { width: 12px; height: 12px; border: 2px solid var(--ink); border-radius: 3px; flex: none; }
+.dp-prov span { flex: 1; } .dp-prov small { color: var(--muted); }
+.dp-go { font: 800 14px var(--font-ui); border: 2.5px solid var(--ink); border-radius: 10px; padding: 5px 10px; background: var(--sun); color: var(--chip-text); box-shadow: 0 3px 0 var(--ink); cursor: pointer; display: flex; flex-direction: column; align-items: center; line-height: 1.15; }
+.dp-go.war { background: #ff8a72; }
+.dp-go small { font-size: 11px; font-weight: 700; color: #4b3a2a; }
+.dp-go:disabled { opacity: .55; cursor: not-allowed; box-shadow: 0 1px 0 var(--ink); }
+.dp-go:not(:disabled):active { transform: translateY(2px); box-shadow: 0 1px 0 var(--ink); }
+.demand { position: fixed; z-index: 8; top: calc(env(safe-area-inset-top, 0px) + 142px); left: 50%; transform: translateX(-50%); width: min(360px, calc(100vw - 32px)); padding: 10px 12px; background: #fff1ec; font-size: 13.5px; }
+.demand p { margin: 6px 0 8px; }
+.dm-head { display: flex; align-items: center; gap: 6px; }
+.dm-head b { font-family: var(--font-display); font-weight: 400; font-size: 20px; }
+.dm-btns { display: flex; gap: 8px; justify-content: flex-end; }
+.dm-btns button, #gameover button { font: 800 14px var(--font-ui); border: 2.5px solid var(--ink); border-radius: 10px; padding: 3px 14px; background: var(--chip-hi); color: var(--chip-text); box-shadow: 0 3px 0 var(--ink); cursor: pointer; }
+.dm-btns button[data-dm="yes"] { background: var(--sun); }
+/* "Bandits!" popup when a Wayfinder runs into a gang */
+.bandit-pop { position: fixed; z-index: 8; top: calc(env(safe-area-inset-top, 0px) + 142px); left: 50%; transform: translateX(-50%); width: min(340px, calc(100vw - 32px)); padding: 10px 14px 12px; background: #fff1ec; text-align: center; border-radius: 0 !important; }
+.bandit-pop h2 { margin: 0; font-family: var(--font-display); font-weight: 400; font-size: 30px; line-height: 1.1; color: #c7362b; -webkit-text-stroke: 1.5px var(--ink); paint-order: stroke fill; }
+.bandit-pop h2 span { display: block; font-size: 20px; color: var(--chip-text); -webkit-text-stroke: 0; }
+.bandit-pop p { margin: 6px 0 10px; font-size: 13px; font-weight: 600; color: var(--muted); }
+.bandit-pop .dm-btns { justify-content: center; }
+body.in-menu .bandit-pop { display: none !important; }
+.meet-pop { background: var(--chip); z-index: 9; }
+.sp-pop { background: #f6efdc; }
+.sp-pop h2 { color: #e8a817; }
+.sp-pop .sp-ico { width: 30px; height: 36px; vertical-align: -8px; margin-right: 6px; }
+.meet-pop .mp-flag { width: 72px; height: 51px; display: block; margin: 2px auto 4px; }
+.meet-pop h2 { color: var(--chip-text); -webkit-text-stroke: 0; font-size: 24px; }
+.meet-pop h2 span { font-size: 14px; color: var(--muted); }
+#gameover { position: fixed; z-index: 9; top: 40%; left: 50%; transform: translate(-50%, -50%); padding: 16px 22px; text-align: center; }
+#gameover b { font-family: var(--font-display); font-weight: 400; font-size: 28px; color: #d23b3b; -webkit-text-stroke: 1.5px var(--ink); paint-order: stroke fill; }
+#gameover p { margin: 6px 0 12px; }
+.pm-head .pm-own { order: 5; flex-basis: 100%; }
+.pm-head .pm-x { margin-left: auto; }
+.pm-ter { font-size: 11px; font-weight: 700; color: var(--muted); }
+.pm-occ { font-weight: 800; font-size: 11.5px; padding: 2px 6px; border: 2px solid var(--ink); border-radius: 7px; background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--oc) 25%, #fff) 0 6px, #fff 6px 12px); }
+@media (max-width: 760px) { .ws { width: 90px; } .dip .dp-l { display: none; } }
+
+/* ---------- research ---------- */
+.tech-btn { display: inline-flex; align-items: center; gap: 5px; font: 800 13px var(--font-ui); border: 2.5px solid var(--ink); border-radius: 9px; padding: 2px 8px; background: #fff6d6; color: var(--chip-text); box-shadow: 0 2.5px 0 var(--ink); cursor: pointer; }
+.tech-btn:hover { background: #ffeeb0; }
+.mus { display: inline-flex; align-items: center; gap: 6px; }
+.mus-btn { font-size: 15px; min-width: 30px; justify-content: center; }
+.mus-btn[aria-pressed="false"] { background: #e9e4d6; color: #8a8478; text-decoration: line-through; }
+.mus input, .menu-mus input { width: 78px; accent-color: #c8902a; cursor: pointer; }
+.menu-row.off { opacity: 0.45; }
+.menu-slide { display: flex; align-items: center; gap: 10px; }
+.menu-slide input { flex: 1; accent-color: #e8a817; height: 22px; cursor: pointer; }
+.menu-slide b { min-width: 64px; font: 800 14px var(--font-ui); color: var(--chip-text); }
+#mShape { flex-wrap: wrap; }
+.menu-mus { display: inline-flex; align-items: center; gap: 10px; }
+.tech-btn:focus-visible { outline: 3px solid #e8a817; outline-offset: 2px; }
+.tb-pip { width: 13px; height: 13px; border-radius: 50%; border: 2px solid var(--ink); background: conic-gradient(var(--c) var(--f), #fff 0); display: inline-block; }
+.tb-pip.locked { background: repeating-linear-gradient(45deg, #c9ced8 0 2px, #eef0f4 2px 4px); }
+.tb-pip.idle { animation: pipidle 1.2s ease-in-out infinite; }
+@keyframes pipidle { 50% { box-shadow: 0 0 0 3px var(--c); } }
+@media (prefers-reduced-motion: reduce) { .tb-pip.idle { animation: none; box-shadow: 0 0 0 2px var(--c); } }
+.tech-panel { position: fixed; z-index: 7; top: calc(env(safe-area-inset-top, 0px) + 100px); left: 50%; transform: translateX(-50%); width: min(920px, calc(100vw - 32px)); max-height: calc(100vh - 290px); overflow-y: auto; padding: 8px 10px 10px; font-size: 13px; }
+.tp-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 6px; }
+.tp-head b { font-family: var(--font-display); font-weight: 400; font-size: 22px; }
+.tp-head span { color: var(--muted); font-size: 12px; font-weight: 700; flex: 1; }
+.tp-x { width: 26px; height: 24px; padding: 0; font: 800 17px/1 var(--font-ui); border: 2.5px solid var(--ink); border-radius: 8px; background: var(--chip-hi); color: var(--chip-text); box-shadow: 0 2px 0 var(--ink); cursor: pointer; align-self: center; }
+.tp-cols { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+@media (max-width: 760px) { .tp-cols { grid-template-columns: 1fr; } }
+.tp-tree { border: 2.5px solid var(--ink); border-radius: 12px; background: var(--l); padding: 6px 8px 8px; display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.tp-th { display: flex; align-items: center; justify-content: space-between; border-bottom: 3px solid var(--c); padding-bottom: 3px; }
+.tp-th b { font-family: var(--font-display); font-weight: 400; font-size: 19px; color: var(--c); -webkit-text-stroke: 0.6px var(--ink); }
+.tp-tiers { display: flex; gap: 3px; }
+.tp-tiers i { font: 800 10px/1 var(--font-ui); font-style: normal; border: 2px solid var(--ink); border-radius: 6px; padding: 2px 4px; background: var(--chip-hi); color: var(--muted); }
+.tp-tiers i.on { background: var(--c); color: #fff; }
+.tp-rate { font-weight: 800; font-size: 12.5px; display: flex; flex-direction: column; }
+.tp-rate small { font-weight: 700; color: var(--muted); font-size: 11px; }
+/* research points per 10 s: small banners (blue column, red swords, purple star) */
+.tp-rpi { width: 14px; height: 17px; vertical-align: -3px; margin-right: 4px; }
+.tb-rates { display: inline-flex; gap: 5px; margin-left: 3px; padding-left: 6px; border-left: 1.5px solid rgba(29,26,34,0.25); }
+.rp { display: inline-flex; align-items: center; gap: 1px; font: 800 12px var(--font-ui); color: var(--chip-text); }
+.rp img { width: 13px; height: 16px; display: block; }
+.rp.off { color: var(--muted); opacity: 0.75; }
+.pm-rp { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 3px 2px 1px; font: 800 12px var(--font-ui); }
+.pm-rp > small { font: 800 10px var(--font-ui); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.pm-rp .rp img { width: 14px; height: 17px; }
+.pm-tag.sp { display: inline-flex; align-items: center; gap: 4px; }
+.pm-tag.sp img { width: 12px; height: 15px; }
+.pm-tag.sp.off { opacity: 0.6; filter: grayscale(1); }
+.pm-tag.bandit { background: #f4d6cf; color: #7a2018; border-color: #7a2018; }
+.pm-note { font: 600 11.5px var(--font-ui); color: var(--muted); padding: 2px 2px 0; line-height: 1.35; }
+.tp-opt.rep { background: #eef8f0; }
+.ro-sec span.full { color: #b8321f; }
+.tp-lock { border: 2px dashed var(--ink); border-radius: 10px; padding: 14px 8px; text-align: center; font-weight: 800; background: rgba(255,255,255,0.6); }
+.tp-cur { background: var(--chip-hi); border: 2px solid var(--ink); border-radius: 10px; padding: 5px 7px; }
+.tp-cur.none { font-weight: 700; color: var(--muted); font-size: 12px; }
+.tp-cn { display: flex; justify-content: space-between; gap: 6px; }
+.tp-cn em, .tp-opt em { font-style: normal; font: 800 11px var(--font-ui); color: var(--c); }
+.tp-bar { height: 10px; border: 2px solid var(--ink); border-radius: 6px; background: #e9edf3; overflow: hidden; margin: 4px 0 2px; }
+.tp-bar s { display: block; height: 100%; background: var(--c); }
+.tp-cs { font-size: 11px; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; }
+.tp-sec { font: 800 10px var(--font-ui); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.tp-opt { display: flex; align-items: center; gap: 6px; text-align: left; font: 700 12px var(--font-ui); color: var(--chip-text); border: 2px solid var(--ink); border-radius: 10px; padding: 4px 7px; background: var(--chip-hi); box-shadow: 0 2px 0 var(--ink); cursor: pointer; }
+.tp-opt:hover { background: #fff6d6; }
+.tp-opt:active { transform: translateY(2px); box-shadow: none; }
+.tp-opt:focus-visible { outline: 3px solid #e8a817; outline-offset: 1px; }
+.tp-opt span { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.tp-opt small { color: var(--muted); font-size: 11px; }
+.tp-opt em { text-align: right; line-height: 1.15; }
+.tp-next { font-size: 11px; font-weight: 700; color: var(--muted); }
+.tp-done { display: flex; flex-wrap: wrap; gap: 3px; font-size: 11px; }
+.tp-done span { width: 100%; font: 800 10px var(--font-ui); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.tp-done i { font-style: normal; font-weight: 700; border: 1.5px solid var(--ink); border-radius: 6px; padding: 0 4px; background: var(--chip-hi); }
+
+/* ---------- main menu ---------- */
+body.in-menu .help, body.in-menu .res, body.in-menu .prov, body.in-menu .minimap, body.in-menu .sel, body.in-menu .roster, body.in-menu .cmd, body.in-menu #cmdTip, body.in-menu .debug, body.in-menu .zoom, body.in-menu #toast, body.in-menu .dip, body.in-menu #paused { display: none !important; }
+.menu { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); background: radial-gradient(ellipse at center, rgba(29,26,34,0.15), rgba(29,26,34,0.55)); overflow-y: auto; }
+.menu-card { width: min(460px, 100%); padding: 18px 22px 16px; display: flex; flex-direction: column; gap: 12px; text-align: center; }
+.menu-logo { margin: 0; font-family: var(--font-display); font-weight: 400; font-size: clamp(46px, 9vw, 68px); line-height: 1; color: var(--sun); -webkit-text-stroke: 3px var(--ink); paint-order: stroke fill; text-shadow: 0 5px 0 var(--ink); letter-spacing: 0.01em; }
+.menu-tag { margin: -2px 0 0; font-weight: 700; color: var(--muted); font-size: 14px; }
+#mParade { width: 100%; height: 96px; display: block; }
+.menu-start.menu-mp { background: #8a6fc9; font-size: 22px; }   /* Multiplayer: a second, quieter button under New Game */
+.menu-soon { margin: 18px 0 22px; font-family: var(--font-display); font-size: 34px; color: var(--sun); -webkit-text-stroke: 2px var(--ink); paint-order: stroke fill; text-shadow: 0 3px 0 var(--ink); }
+/* the New Game screen: no title or parade, and 50% wider so the opponents and flags fit */
+.menu-card.setup { width: min(690px, 100%); }
+.menu-card.setup .menu-logo, .menu-card.setup .menu-tag, .menu-card.setup #mParade { display: none; }
+.menu-row { display: grid; grid-template-columns: 112px 1fr; align-items: center; gap: 8px; text-align: left; }
+.menu-row label, .menu-row .lbl { font: 800 11px var(--font-ui); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.menu-seed { display: flex; gap: 6px; min-width: 0; }
+.menu-seed input { flex: 1; min-width: 0; font: 700 15px var(--font-ui); color: var(--chip-text); border: 2.5px solid var(--ink); border-radius: 10px; padding: 5px 9px; background: var(--chip-hi); box-shadow: inset 0 2px 0 rgba(0,0,0,0.08); }
+.menu-seed input:focus-visible, .menu-btn:focus-visible, .menu-tog:focus-visible, .menu-start:focus-visible, .menu-how:focus-visible { outline: 3px solid #e8a817; outline-offset: 2px; }
+.menu-btn, .menu-tog { font: 800 14px var(--font-ui); color: var(--chip-text); border: 2.5px solid var(--ink); border-radius: 10px; padding: 4px 10px; background: var(--chip-hi); box-shadow: 0 3px 0 var(--ink); cursor: pointer; }
+.menu-btn:active, .menu-tog:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--ink); }
+.menu-tog { text-align: left; display: flex; align-items: center; gap: 8px; }
+.menu-tog::before { content: ""; width: 30px; height: 16px; border: 2.5px solid var(--ink); border-radius: 10px; background: #d7dce4 radial-gradient(circle at 8px 50%, #fff 5px, transparent 5.5px); flex: none; }
+.menu-tog[aria-pressed="true"]::before { background: #4caf50 radial-gradient(circle at 20px 50%, #fff 5px, transparent 5.5px); }
+.menu-start { font-family: var(--font-display); font-weight: 400; font-size: 26px; color: #fff; -webkit-text-stroke: 1.5px var(--ink); paint-order: stroke fill; border: 3px solid var(--ink); border-radius: 14px; padding: 8px 14px 10px; background: #4c9be8; box-shadow: 0 5px 0 var(--ink); cursor: pointer; }
+.menu-start:hover { background: #5aa8f2; }
+.menu-start:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--ink); }
+.menu-start:disabled { background: #9aa6b5; cursor: progress; }
+.menu-how { align-self: center; font: 800 13px var(--font-ui); color: var(--muted); background: none; border: 0; text-decoration: underline; cursor: pointer; }
+.menu-howtext { text-align: left; font-size: 13px; line-height: 1.4; margin: 0; padding-left: 18px; }
+.menu-screen { display: flex; flex-direction: column; gap: 12px; }
+.menu-screen[hidden] { display: none; }
+.menu-sub { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; }
+.menu-sub h2 { margin: 0; font-family: var(--font-display); font-weight: 400; font-size: 26px; color: #ffc93c; -webkit-text-stroke: 1.5px var(--ink); paint-order: stroke fill; }
+.menu-back { justify-self: start; font: 800 13px var(--font-ui); color: var(--ink); background: var(--chip-hi); border: 2px solid var(--ink); border-radius: 10px; padding: 4px 10px; cursor: pointer; }
+.menu-back:hover { background: #fff6e0; }
+.menu-back:focus-visible { outline: 3px solid #e8a817; outline-offset: 2px; }
+.menu-foot { font-size: 11px; font-weight: 700; color: var(--muted); }
+@media (max-width: 420px) { .menu-row { grid-template-columns: 1fr; gap: 4px; } }
+
+/* ---------- armory ---------- */
+.hudbtns { position: fixed; z-index: 5; top: calc(env(safe-area-inset-top, 0px) + 60px); left: 50%; transform: translateX(-50%); display: flex; gap: 6px; padding: 3px 5px; }
+body.in-menu .hudbtns { display: none !important; }
+.arm-btn { background: #e6f0ff; }
+.arm-btn:hover { background: #d3e4ff; }
+.tech-btn.idle { animation: techidle 1.1s ease-in-out infinite; }
+@keyframes techidle { 50% { transform: scale(1.08); box-shadow: 0 2.5px 0 var(--ink), 0 0 0 4px #ffc93c; } }
+@media (prefers-reduced-motion: reduce) { .tech-btn.idle { animation: none; box-shadow: 0 2.5px 0 var(--ink), 0 0 0 3px #ffc93c; } }
+.tp-ico { width: 34px; height: 34px; flex: none; border: 2px solid var(--ink); border-radius: 8px; background: var(--chip-hi); }
+.tp-cn { align-items: center; }
+.tp-cn b { flex: 1; }
+.tp-done i { display: inline-flex; align-items: center; gap: 2px; }
+.tp-done i img { width: 16px; height: 16px; }
+.armory { position: fixed; z-index: 7; top: calc(env(safe-area-inset-top, 0px) + 100px); left: 50%; transform: translateX(-50%); width: min(1000px, calc(100vw - 32px)); max-height: calc(100vh - 116px); overflow-y: auto; padding: 8px 10px 10px; font-size: 13px; }
+.ar-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 6px; }
+.ar-head b { font-family: var(--font-display); font-weight: 400; font-size: 22px; }
+.ar-head span { color: var(--muted); font-size: 12px; font-weight: 700; flex: 1; }
+.ar-body { display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: 10px; }
+@media (max-width: 760px) { .ar-body { grid-template-columns: 1fr; } }
+.ar-list { display: flex; flex-direction: column; gap: 8px; }
+.ar-group { display: flex; flex-direction: column; gap: 4px; }
+.ar-gh, .ar-sec { font: 800 10px var(--font-ui); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.ar-sec { margin-top: 6px; border-bottom: 2px solid #e3e7ee; padding-bottom: 2px; }
+.ar-d { display: flex; align-items: center; gap: 6px; text-align: left; border: 2px solid var(--ink); border-radius: 10px; padding: 2px 6px 2px 2px; background: var(--chip-hi); color: var(--chip-text); cursor: pointer; font: 700 12px var(--font-ui); }
+.ar-d img { width: 38px; height: 38px; }
+.ar-d span { display: flex; flex-direction: column; min-width: 0; }
+.ar-d small { color: var(--muted); font-size: 10.5px; white-space: nowrap; }
+.ar-d.on { background: #fff6d6; box-shadow: 0 2px 0 var(--ink); }
+.ar-new { border: 2px dashed var(--ink); border-radius: 10px; padding: 5px; background: transparent; font: 800 12px var(--font-ui); color: var(--chip-text); cursor: pointer; }
+.ar-new:hover, .ar-d:hover { background: #fff6d6; }
+.ar-edit { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.ar-top { display: flex; gap: 10px; align-items: stretch; flex-wrap: wrap; }
+#armPrev { width: 160px; height: 160px; border: 2.5px solid var(--ink); border-radius: 12px; background: #e9f6d8; flex: none; }
+.ar-sum { flex: 1; min-width: 220px; display: flex; flex-direction: column; gap: 3px; }
+.ar-name { display: flex; align-items: center; gap: 6px; font: 800 11px var(--font-ui); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.ar-name input { flex: 1; min-width: 0; font: 700 15px var(--font-ui); color: var(--chip-text); border: 2.5px solid var(--ink); border-radius: 9px; padding: 3px 8px; }
+.ar-kind { font-size: 11.5px; font-weight: 700; color: var(--muted); }
+.ar-stat { display: grid; grid-template-columns: 56px 1fr 44px; align-items: center; gap: 6px; font-weight: 700; font-size: 12px; }
+.ar-stat i { height: 10px; border: 2px solid var(--ink); border-radius: 6px; background: #e9edf3; overflow: hidden; }
+.ar-stat s { display: block; height: 100%; background: #4c9be8; }
+.ar-stat b { text-align: right; font-variant-numeric: tabular-nums; }
+.ar-cost { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; font-size: 12px; font-weight: 700; }
+.ar-cost > span { font: 800 10px var(--font-ui); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.ar-note { font-size: 11.5px; color: var(--muted); font-weight: 700; }
+.ar-btns { display: flex; gap: 6px; }
+.ar-save, .ar-del { font: 800 13px var(--font-ui); border: 2.5px solid var(--ink); border-radius: 10px; padding: 4px 12px; box-shadow: 0 3px 0 var(--ink); cursor: pointer; color: var(--chip-text); }
+.ar-save { background: var(--sun); } .ar-del { background: var(--chip-hi); }
+.ar-save:active, .ar-del:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--ink); }
+.ar-row { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 8px; align-items: center; }
+@media (max-width: 760px) { .ar-row { grid-template-columns: 1fr; } }
+.ar-rl { font-weight: 800; display: flex; flex-direction: column; line-height: 1.15; }
+.ar-rl small { font-weight: 700; color: var(--muted); font-size: 10.5px; }
+.ar-eqs { display: flex; flex-wrap: wrap; gap: 4px; }
+.ar-eq { position: relative; width: 74px; display: flex; flex-direction: column; align-items: center; gap: 1px; border: 2px solid var(--ink); border-radius: 9px; padding: 2px 2px 3px; background: var(--chip-hi); cursor: pointer; font: 700 10.5px/1.1 var(--font-ui); color: var(--chip-text); text-align: center; }
+.ar-eq img { width: 40px; height: 40px; }
+.ar-eq .ar-none { width: 40px; height: 40px; display: grid; place-items: center; font-size: 20px; color: var(--muted); }
+.ar-eq.on { background: #fff6d6; box-shadow: 0 0 0 2px #ffc93c; }
+.ar-eq.locked { opacity: .5; cursor: not-allowed; }
+.ar-eq em { position: absolute; top: 1px; right: 3px; font-style: normal; font-size: 11px; }
+.ar-eq:focus-visible, .ar-d:focus-visible, .ar-new:focus-visible, .ar-save:focus-visible { outline: 3px solid #e8a817; outline-offset: 1px; }
+
+/* ---------- school of magic ---------- */
+.school-pick { position: fixed; z-index: 9; top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(820px, calc(100vw - 32px)); max-height: calc(100vh - 40px); overflow-y: auto; padding: 12px 14px 12px; display: flex; flex-direction: column; gap: 10px; }
+.sp-head b { display: block; font-family: var(--font-display); font-weight: 400; font-size: 26px; }
+.sp-head span { color: var(--muted); font-size: 13px; font-weight: 700; }
+.sp-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+@media (max-width: 700px) { .sp-cards { grid-template-columns: 1fr; } }
+.sp-card { display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; border: 3px solid var(--ink); border-radius: 14px; padding: 10px 10px 12px; background: var(--l); color: var(--chip-text); font: 600 12.5px var(--font-ui); cursor: pointer; box-shadow: 0 4px 0 var(--ink); }
+.sp-card:hover { transform: translateY(-2px); }
+.sp-card:active { transform: translateY(2px); box-shadow: 0 2px 0 var(--ink); }
+.sp-card:focus-visible, .sp-later:focus-visible { outline: 3px solid #e8a817; outline-offset: 2px; }
+.sp-card.on { box-shadow: 0 0 0 4px var(--c), 0 4px 0 var(--ink); }
+.sp-card img { width: 84px; height: 84px; }
+.sp-card b { font-family: var(--font-display); font-weight: 400; font-size: 24px; color: var(--c); -webkit-text-stroke: 0.6px var(--ink); }
+.sp-card ul { margin: 2px 0; padding: 0; list-style: none; font-weight: 800; font-size: 12px; }
+.sp-card em { font-style: normal; font-weight: 800; border: 2px solid var(--ink); border-radius: 9px; padding: 2px 12px; background: var(--chip-hi); margin-top: auto; }
+.sp-later { align-self: center; font: 800 13px var(--font-ui); color: var(--muted); background: none; border: 0; text-decoration: underline; cursor: pointer; }
+body.in-menu .school-pick { display: none !important; }
+
+/* settings: gear top-left opens a paused dialog with volume and the How to Play guide */
+.gear { position: fixed; z-index: 6; top: calc(env(safe-area-inset-top, 0px) + 12px); left: max(16px, env(safe-area-inset-left, 0px)); width: 46px; height: 46px; padding: 0; display: grid; place-items: center; cursor: pointer; color: var(--chip-text); }
+.gear:hover svg { transform: rotate(40deg); }
+.gear svg { transition: transform .3s; }
+.gear[aria-expanded="true"] { background: var(--sun); }
+.gear:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--ink); }
+.gear:focus-visible { outline: 3px solid #e8a817; outline-offset: 2px; }
+body.in-menu .gear, body.in-menu .settings-wrap, body.in-menu .rcol { display: none !important; }
+.settings-wrap { position: fixed; inset: 0; z-index: 15; display: grid; place-items: center; padding: 16px max(16px, env(safe-area-inset-right, 0px)) 16px max(16px, env(safe-area-inset-left, 0px)); background: rgba(29,26,34,0.45); }
+.settings { width: min(504px, 100%); max-height: calc(100vh - 32px); overflow-y: auto; padding: 10px 16px 16px; display: flex; flex-direction: column; gap: 10px; box-sizing: border-box; }
+.settings.how { width: min(640px, 100%); }
+.st-head { display: flex; align-items: center; gap: 10px; }
+.st-head h2 { margin: 0; font-family: var(--font-display); font-weight: 400; font-size: 28px; color: var(--sun); -webkit-text-stroke: 2px var(--ink); paint-order: stroke fill; text-shadow: 0 3px 0 var(--ink); }
+.st-pz { font: 800 11px var(--font-ui); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.st-head .pm-x { width: 28px; height: 28px; font-size: 18px; }
+.st-main { display: flex; flex-direction: column; gap: 12px; }
+.st-main .menu-mus input { width: 140px; }
+.st-dbg { display: flex; flex-wrap: nowrap; justify-content: flex-end; gap: 10px; }
+.st-dbg label { display: inline-flex; align-items: center; gap: 4px; font: 800 12.5px var(--font-ui); text-transform: none; letter-spacing: 0; color: var(--chip-text); cursor: pointer; white-space: nowrap; }
+.st-dbg input { width: 16px; height: 16px; margin: 0; accent-color: #c8902a; cursor: pointer; }
+.st-save { display: flex; gap: 6px; }
+.st-save .menu-btn { padding: 3px 10px; font-size: 13px; }
+.st-saveinfo { margin-top: 4px; text-align: right; font: 700 11px var(--font-ui); color: var(--muted); }
+.menu-start.menu-cont { background: #3faa5a; display: flex; flex-direction: column; align-items: center; line-height: 1.05; }
+.menu-start.menu-cont[hidden] { display: none; }
+.menu-start.menu-cont small { font: 700 12px var(--font-ui); -webkit-text-stroke: 0; color: #eafbe9; margin-top: 3px; }
+.st-seed { font: 800 14px var(--font-ui); color: var(--chip-text); user-select: all; }
+.st-btn { font: 800 16px var(--font-ui); color: var(--chip-text); border: 2.5px solid var(--ink); border-radius: 12px; padding: 6px 12px; background: var(--chip-hi); box-shadow: 0 3px 0 var(--ink); cursor: pointer; }
+.st-btn:hover, .st-back:hover { background: #fff7d9; }
+.st-btn:active, .st-back:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--ink); }
+.st-btn:focus-visible, .st-back:focus-visible, .gear:focus-visible { outline: 3px solid #e8a817; outline-offset: 2px; }
+.st-how { display: flex; flex-direction: column; gap: 8px; font-size: 13px; line-height: 1.4; }
+.st-how ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 3px; }
+.st-how kbd { font: 800 12px var(--font-ui); border: 2px solid var(--ink); border-radius: 6px; padding: 0 5px; background: var(--chip-hi); box-shadow: 0 2px 0 var(--ink); }
+.st-back { align-self: flex-start; font: 800 13px var(--font-ui); color: var(--chip-text); border: 2px solid var(--ink); border-radius: 9px; padding: 2px 10px; background: var(--chip-hi); box-shadow: 0 2px 0 var(--ink); cursor: pointer; }
+/* right column: roster on top, province menu right above the command card */
+.rcol { position: fixed; z-index: 5; right: max(16px, env(safe-area-inset-right, 0px)); top: calc(env(safe-area-inset-top, 0px) + 66px); bottom: calc(env(safe-area-inset-bottom, 0px) + 216px); width: 232px; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
+.rcol > * { pointer-events: auto; }
+.rcol .roster, .rcol .prov { position: static; width: auto; max-height: none; box-sizing: border-box; min-height: 0; }
+.rcol .roster { flex: 0 3 auto; min-height: 0; }
+.rcol .prov { flex: 0 1 auto; margin-top: auto; max-height: 70%; }
+.ro-tabs { display: flex; gap: 4px; padding: 0 0 3px; border-bottom: 2px dashed rgba(29,26,34,0.15); margin-bottom: 2px; position: sticky; top: -6px; background: var(--chip); z-index: 1; padding-top: 2px; }
+.ro-tab { flex: 1; font: 800 12px var(--font-ui); color: var(--chip-text); background: #dcc493; border: 2px solid var(--ink); border-radius: 8px; padding: 2px 6px; cursor: pointer; }
+.ro-tab span { font-weight: 700; color: var(--muted); }
+.ro-tab[aria-selected="true"] { background: var(--sun); }
+.ro-tab:focus-visible, .ro-p:focus-visible { outline: 3px solid #e8a817; outline-offset: 1px; }
+.ro-p { display: flex; align-items: center; gap: 6px; width: 100%; padding: 3px 8px; font: inherit; text-align: left; background: var(--chip-hi); border: 2px solid transparent; border-radius: 8px; cursor: pointer; }
+.ro-p:hover { border-color: var(--ink); background: #fff7d9; }
+.ro-p.on { border-color: var(--ink); }
+.ro-p b { font-family: var(--font-display); font-weight: 400; font-size: 15px; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ro-p em { font-style: normal; font-weight: 800; font-size: 14px; font-variant-numeric: tabular-nums; }
+.ro-p em.full { color: #1f7a2e; }
+.ro-p em.miss { color: #b3261e; }
+.ro-p small { font: 800 9px var(--font-ui); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+/* top-right buttons in a row */
+.zoom { flex-direction: row; }
+.zoom #pauseBtn, .zoom #fsBtn { margin-bottom: 0; }
+.zoom #fsBtn { margin-right: 6px; }
+/* notification flags (from the flag design pass): a row above the command card, newest at the right */
+.nflags { display: flex; flex-direction: row-reverse; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; padding: 0 2px; }
+body.in-menu .nflags { display: none !important; }
+/* Realmlings notification flags: hang above .cmd (bottom-right). One flag = one grid cell wide. */
+.nf { position: relative; width: 52px; height: 65px; padding: 0; border: 0; background: none; cursor: pointer; transform-origin: 50% 8%; animation: nfsway 2.6s ease-in-out infinite; }
+.nf img { width: 100%; height: 100%; display: block; animation: nfglow 1.3s ease-in-out infinite; }
+.nf b { position: absolute; right: -3px; bottom: 9px; min-width: 19px; height: 19px; padding: 0 4px; font: 800 12px/15px var(--font-ui); color: var(--ink); background: var(--sun); border: 2px solid var(--ink); border-radius: 999px; } /* counter, e.g. exhaustion 4 */
+.nf.warn img { animation-name: nfglowbad; }
+.nf em { position: absolute; left: 50%; top: 100%; transform: translateX(-50%); margin-top: 2px; white-space: nowrap; font: 700 11px/1.2 var(--font-ui); font-style: normal; color: var(--ink); background: #faf1dc; border: 1px solid var(--ink); padding: 1px 5px; pointer-events: none; } /* a label under a flag, e.g. Earthquake at Ashdale */
+.nf em { white-space: normal; width: max-content; max-width: 86px; text-align: center; } .nf:has(em) { margin: 0 17px; } /* labeled flags make room so neighboring labels don't overlap */
+.nf:hover { animation-play-state: paused; }
+.nf:active { transform: translateY(2px); }
+.nf:focus-visible { outline: 3px solid #e8a817; outline-offset: 2px; border-radius: 6px; }
+@keyframes nfsway { 0%, 100% { transform: rotate(-4deg); } 50% { transform: rotate(4deg); } }
+@keyframes nfglow { 0%, 100% { filter: drop-shadow(0 0 0 rgba(255,201,60,0)); } 50% { filter: drop-shadow(0 0 5px #ffc93c) drop-shadow(0 0 2px #ffc93c); } }
+@keyframes nfglowbad { 0%, 100% { filter: drop-shadow(0 0 0 rgba(255,107,91,0)); } 50% { filter: drop-shadow(0 0 6px #ff6b5b) drop-shadow(0 0 2px #ff6b5b); } }
+@media (prefers-reduced-motion: reduce) { .nf, .nf img { animation: none; } .nf img { filter: drop-shadow(0 0 3px #ffc93c); } }
+/* research panel: foldable options and researched list */
+.tp-click { cursor: pointer; }
+.tp-click:hover { background: #fff7d9; }
+.tp-tog { align-self: flex-start; font: 800 11px var(--font-ui); color: var(--chip-text); background: var(--chip-hi); border: 2px solid var(--ink); border-radius: 8px; padding: 1px 8px; cursor: pointer; box-shadow: 0 2px 0 var(--ink); }
+.tp-tog:hover { background: #fff7d9; }
+.tp-tog:focus-visible { outline: 3px solid #e8a817; outline-offset: 1px; }
+.tp-done .tp-tog { width: auto; letter-spacing: 0; text-transform: none; }
+/* nation: picked on the title card, shown top-left beside the gear */
+.nation { position: fixed; z-index: 5; top: calc(env(safe-area-inset-top, 0px) + 12px); left: calc(max(16px, env(safe-area-inset-left, 0px)) + 58px); display: flex; align-items: center; gap: 8px; height: 46px; box-sizing: border-box; padding: 0 12px 0 6px; max-width: min(300px, calc(100vw - 120px)); }
+.nation img { width: 48px; height: 34px; flex: none; }
+.nation b { font-family: var(--font-display); font-weight: 400; font-size: 19px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body.in-menu .nation { display: none !important; }
+.nat-name { font: 700 15px var(--font-ui); color: var(--chip-text); border: 2.5px solid var(--ink); border-radius: 10px; padding: 4px 10px; background: var(--chip-hi); min-width: 0; }
+.nat-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.nat-col { width: 28px; height: 28px; border-radius: 50%; border: 2.5px solid var(--ink); cursor: pointer; padding: 0; box-shadow: 0 2px 0 var(--ink); }
+.nat-col.on { outline: 3px solid var(--sun); outline-offset: 2px; }
+.nat-flag { padding: 2px; border: 2px solid transparent; border-radius: 8px; background: none; cursor: pointer; line-height: 0; }
+.nat-flag img { width: 54px; height: 38px; }
+.nat-flag.on { border-color: var(--ink); background: var(--sun); }
+.nat-col:focus-visible, .nat-flag:focus-visible, .nat-name:focus-visible { outline: 3px solid #e8a817; outline-offset: 2px; }
+/* notification flags hang under the Research / Armory bar */
+.nflags { position: fixed; z-index: 5; top: calc(env(safe-area-inset-top, 0px) + 100px); left: 50%; transform: translateX(-50%); flex-direction: row; justify-content: center; margin: 0; max-width: calc(100vw - 32px); }
+
+.bm-item.insp { cursor: default; }
+.ar-retro { background: #dcecc9; }
+/* ---------- lobby: the 7 opponent slots ---------- */
+.menu-opp { align-items: start; }
+.menu-opp .lbl small { display: block; letter-spacing: 0; text-transform: none; font-size: 11px; color: var(--chip-text); margin-top: 2px; }
+.opp-box { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.opp-slots { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; }
+/* each opponent slot has a small race button beside it: R = Realmlings, S = Swamplings, ? = Random */
+.opp-wrap { display: flex; gap: 2px; min-width: 0; }
+.opp-wrap .opp-slot { flex: 1; }
+.opp-race { flex: none; width: 22px; padding: 0; font: 800 11px var(--font-ui); color: var(--chip-text); border: 1px solid var(--ink); background: #efe6cf; cursor: pointer; }
+.opp-race.swamp { background: #b9d89a; }
+.opp-race.random { background: #e3d7f2; }
+.opp-race:disabled { cursor: not-allowed; opacity: 0.6; }
+.menu-race { display: flex; gap: 6px; }
+.menu-race .menu-tog[aria-pressed="false"] { opacity: 0.6; }
+.opp-slot { display: flex; align-items: center; gap: 4px; min-width: 0; padding: 3px 5px; font: 800 11.5px var(--font-ui); color: var(--chip-text); border: 1px solid var(--ink); background: var(--chip-hi); cursor: pointer; box-shadow: 0 1px 2px rgba(20,16,28,0.25); white-space: nowrap; overflow: hidden; }
+.opp-slot i { font-style: normal; flex: none; width: 15px; height: 15px; display: grid; place-items: center; font-size: 10px; border: 1px solid var(--ink); background: #fff; }
+.opp-slot.closed { background: repeating-linear-gradient(135deg, #e6e0d2 0 5px, #ddd6c6 5px 10px); color: var(--muted); font-weight: 700; }
+.opp-slot.easy { background: #dff1d8; }
+.opp-slot.moderate { background: #fff0c2; }
+.opp-slot.difficult { background: #ffd9d2; }
+.opp-slot:hover:not(:disabled) { filter: brightness(1.04); outline: 2px solid var(--sun); outline-offset: -1px; }
+.opp-slot:focus-visible, .opp-quick button:focus-visible { outline: 3px solid #e8a817; outline-offset: 1px; }
+.opp-slot:disabled, .opp-quick button:disabled { cursor: not-allowed; }
+.opp-quick { display: flex; flex-wrap: wrap; gap: 4px; }
+.opp-quick button { font: 700 10.5px var(--font-ui); color: var(--muted); background: none; border: 1px solid rgba(29,26,34,0.35); padding: 1px 6px; cursor: pointer; }
+.opp-quick button:hover:not(:disabled) { color: var(--chip-text); border-color: var(--ink); background: var(--chip-hi); }
+/* ---------- diplomacy: several nations and wars ---------- */
+.dip .dp-w { display: inline-flex; align-items: center; gap: 4px; }
+.dip .dp-w i { width: 11px; height: 11px; border: 1px solid var(--ink); display: inline-block; flex: none; }
+.dip .dp-w .ws { width: 70px; height: 12px; }
+.dip .dp-w .dp-s { font-size: 15px; min-width: 2.6ch; }
+.dp-flag { width: 30px; height: 21px; flex: none; }
+.dp-ttl { display: flex; flex-direction: column; flex: 1; min-width: 0; color: var(--chip-text) !important; }
+.dp-ttl b { font-family: var(--font-display); font-weight: 400; font-size: 19px; line-height: 1.1; }
+.dp-ttl small { font-size: 11.5px; font-weight: 700; color: var(--muted); }
+.dp-back { font-size: 20px !important; }
+.dp-row { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; font: 700 12px var(--font-ui); color: var(--chip-text); border: 1px solid var(--ink); background: var(--chip-hi); padding: 4px 8px 4px 4px; cursor: pointer; box-shadow: 0 1px 2px rgba(20,16,28,0.2); }
+.dp-row:hover { background: #fff6d6; }
+.dp-row:focus-visible { outline: 3px solid #e8a817; outline-offset: 1px; }
+.dp-row img { width: 34px; height: 24px; flex: none; }
+.dp-row span { flex: 1; display: flex; flex-direction: column; min-width: 0; line-height: 1.2; }
+.dp-row span b { font-family: var(--font-display); font-weight: 400; font-size: 15px; }
+.dp-row small { color: var(--muted); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dp-row em { font-style: normal; font-weight: 800; font-size: 12px; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px; }
+.dp-row em .dp-s { font-size: 16px; min-width: 0; }
+.dp-row.war { background: #fff1ec; }
+.dp-row.ally { background: #e8f6e4; }
+.dp-row.gone { opacity: 0.55; }
+.dp-note { margin: 0; font-size: 11.5px; color: var(--muted); font-weight: 700; }
+.dp-aw { display: flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 700; flex-wrap: wrap; }
+.dp-aw i { width: 10px; height: 10px; border: 1px solid var(--ink); display: inline-block; flex: none; }
+.dp-aw span { color: var(--muted); margin: 0 2px; }
+.dp-aw b { margin-left: auto; font-variant-numeric: tabular-nums; }
+.dp-go.ally { background: #bfe5b5; }
+.dp-p i, .dm-head i { width: 10px; height: 10px; border: 1px solid var(--ink); display: inline-block; vertical-align: -1px; margin-right: 3px; }
+/* ---------- left column: Armory and Diplomacy, under your nation's name ---------- */
+.lcol { position: fixed; z-index: 5; top: calc(env(safe-area-inset-top, 0px) + 66px); left: max(16px, env(safe-area-inset-left, 0px)); width: 214px; display: flex; flex-direction: column; gap: 6px; pointer-events: none; }
+.lcol > * { pointer-events: auto; }
+body.in-menu .lcol { display: none !important; }
+.lcol-btn { justify-content: space-between; width: 100%; box-sizing: border-box; font-size: 14px; padding: 6px 10px; }
+.lcol-btn kbd { font: 800 10px var(--font-ui); border: 1px solid var(--ink); padding: 0 4px; background: var(--chip-hi); }
+.lcol .dip { position: static; transform: none; top: auto; left: auto; flex-direction: column; align-items: stretch; gap: 4px; padding: 6px 8px; white-space: normal; }
+.lcol .dip .dp-l { font-size: 13px; }
+.lcol .dip .dp-w { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 2px 6px; }
+.lcol .dip .dp-w .ws { grid-column: 1 / -1; width: auto; }
+.dp-wn { font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lcol .dip .dp-btn { text-align: center; }
+.dip-panel { left: calc(max(16px, env(safe-area-inset-left, 0px)) + 226px) !important; top: calc(env(safe-area-inset-top, 0px) + 66px) !important; transform: none !important; max-height: calc(100vh - 290px) !important; }
+@media (max-width: 760px) { .lcol { top: calc(env(safe-area-inset-top, 0px) + 66px); width: 170px; } .dip-panel { left: 16px !important; top: 230px !important; } }
+.ui-val { min-width: 4ch; font-variant-numeric: tabular-nums; }
+.ui-reset { padding: 1px 8px !important; font-size: 12px !important; }
+/* UI size (Settings): every panel, button and window scales; the map itself does not */
+.gear, .nation, .res, .hudbtns, .nflags, .lcol, .rcol, .cmd, #cmdTip, .minimap, .sel, #toast, .zoom, .tech-panel, .armory, .dip-panel, .demand, .bandit-pop, .school-pick, #gameover, .settings, #paused, .cap, #bmenu, #tip, .menu-card { zoom: var(--ui, 1); }
+/* square corners everywhere: windows, panels, buttons, tabs and cards. Only small status dots, pips and switches stay round. */
+*, *::before, *::after { border-radius: 0 !important; }
+.pm-own i, .res .tick, .ro-u i, .qi i, .dp-l i, .dp-head i, .dm-head i, .tb-pip, .nf b, .nat-col, .dip .dp-w i, .dp-aw i, .dp-p i { border-radius: 50% !important; }
+.menu-tog::before { border-radius: 999px !important; }
+/* thin outlines: every window, panel and button gets a 1px ink line instead of the heavy cartoon outline and solid drop shadow */
+.chip, .help kbd, .pm-sw, .pm-own i, .pm-x, .pm-b, .zoom button, .res .tick, .cmd-tab, .cmd-btn, .cap-card, .cap-info button, .qi button, .qi, .dp-btn, .ws, .dp-x, .dp-term, .dp-go, .dm-btns button, #gameover button, .pm-occ, .tech-btn, .tb-pip, .tp-x, .tp-tree, .tp-tiers i, .tp-cur, .tp-bar, .tp-opt, .menu-seed input, .menu-btn, .menu-tog, .menu-tog::before, .menu-start, .ar-d, .ar-name input, .ar-stat i, .ar-save, .ar-del, .ar-eq, .sp-card, .st-btn, .st-how kbd, .st-back, .ro-tab, .tp-tog, .nat-name, .nat-col, .bm-item, .ro-u, .ro-p, .cmd-prog, .pm-tag, .nflags .nf b, .cmd-btn kbd, .nat-flag { border-width: 1px !important; }
+.cmd-tab { border-bottom-width: 0 !important; }
+.chip { box-shadow: 0 2px 8px rgba(20,16,28,0.28) !important; }
+.cmd-btn, .pm-b, .zoom button, .tech-btn, .menu-btn, .menu-tog, .menu-start, .st-btn, .st-back, .tp-tog, .dp-btn, .dp-go, .dm-btns button, #gameover button, .ar-save, .ar-del, .ar-eq, .cap-info button, .qi button, .nat-col, .help kbd, .st-how kbd { box-shadow: 0 1px 2px rgba(20,16,28,0.25) !important; }
+.tp-opt, .tp-cur, .tp-tree, .bm-item, .ro-tab, .pm-x, .tp-x, .ar-d, .sp-card, .cmd-tab, .dp-x, .dp-term, .qi, .cap-card, .nat-name, .menu-seed input, .ar-name input { box-shadow: 0 1px 2px rgba(20,16,28,0.2) !important; }
+.pm-b.on { box-shadow: 0 0 0 2px var(--sun) !important; }
+.cmd-btn:active, .zoom button:active, .menu-start:active, .st-btn:active { box-shadow: none !important; }
+/* outliner names in blackletter */
+.ro-u b, .ro-p b { font-family: "Grenze Gotisch", "Cinzel Decorative", Georgia, serif !important; font-weight: 600; font-size: 17px; line-height: 1.05; }
+.st-quit { background: #f4d6cf; }
+
+/* ================= v78 ================= */
+/* GC03: in a game, the pointer is a disembodied, torn leather glove */
+body:not(.in-menu), body:not(.in-menu) #map, body:not(.in-menu) button, body:not(.in-menu) [role="button"], body:not(.in-menu) canvas, body:not(.in-menu) .chip, body:not(.in-menu) label { cursor: url("data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%2232%22%20height%3D%2232%22%20viewBox%3D%220%200%2032%2032%22%3E%3Cg%20transform%3D%22rotate%28-25%2016%2016%29%22%20stroke%3D%22%231d1a22%22%20stroke-width%3D%221.6%22%20stroke-linejoin%3D%22round%22%20stroke-linecap%3D%22round%22%3E%3Cpath%20d%3D%22M10.5%2024.5%20L10.5%2030.2%20L12.4%2028.4%20L14%2031%20L15.8%2028.6%20L17.6%2031%20L19.3%2028.5%20L21%2030.6%20L22.6%2028.6%20L22.6%2024.5%20Z%22%20fill%3D%22%236d4426%22/%3E%3Cpath%20d%3D%22M13.4%2015.5%20L13.4%204%20Q15.6%201%2017.8%204%20L17.8%2013.6%20Q20.4%2012%2022%2014.2%20Q24.4%2013.6%2024.6%2016.4%20L24.4%2021.6%20Q23.8%2025.4%2020%2025.4%20L13.4%2025.4%20Q10.2%2025%209.6%2022%20L7.4%2017.6%20Q6.6%2015.2%209%2015.4%20Q10.6%2015.8%2012%2018.2%20Z%22%20fill%3D%22%23a36a3c%22/%3E%3Cpath%20d%3D%22M17.8%2013.6%20L17.8%2017.6%20M22%2014.2%20L21.8%2017.8%22%20fill%3D%22none%22%20stroke-width%3D%221.2%22/%3E%3Cpath%20d%3D%22M15.6%205.5%20L15.6%2013%22%20fill%3D%22none%22%20stroke%3D%22%23e2b98a%22%20stroke-width%3D%220.9%22%20stroke-dasharray%3D%221.2%201.4%22/%3E%3Cpath%20d%3D%22M12.2%2023.4%20L21.6%2023.4%22%20fill%3D%22none%22%20stroke%3D%22%23e2b98a%22%20stroke-width%3D%220.9%22%20stroke-dasharray%3D%221.2%201.4%22/%3E%3Cpath%20d%3D%22M14.4%204.2%20Q15.4%203%2016.4%203.6%22%20fill%3D%22none%22%20stroke%3D%22%23e8c49a%22%20stroke-width%3D%221%22%20/%3E%3C/g%3E%3C/svg%3E") 12 5, default; }
+body:not(.in-menu) #map.dragging { cursor: grabbing; }
+body:not(.in-menu) input[type="text"] { cursor: text; }
+/* GC09: building colors in the action card and the build menus */
+.cmd-btn[style*="--bbg"] { background: var(--bbg); }
+.cmd-btn.off[style*="--bbg"] { background: linear-gradient(rgba(214,219,227,0.72), rgba(214,219,227,0.72)), var(--bbg); }
+.bm-item img[style*="--bbg"] { background: var(--bbg); outline: 1px solid var(--ink); }
+/* GC13: an autocast that is on glows around its button's edges */
+.cmd-btn.glow { box-shadow: 0 0 0 2px #ffe27a, 0 0 10px 3px rgba(255,211,77,0.95), inset 0 0 10px 2px rgba(255,226,122,0.9) !important; animation: v78glow 1.6s ease-in-out infinite; }
+@keyframes v78glow { 50% { box-shadow: 0 0 0 2px #fff3b8, 0 0 16px 6px rgba(255,211,77,1), inset 0 0 14px 4px rgba(255,236,160,1); } }
+@media (prefers-reduced-motion: reduce) { .cmd-btn.glow { animation: none; } }
+/* GC04 / GC05: map toggles above the minimap */
+.mini-togs { position: absolute; left: -3px; bottom: calc(100% + 6px); display: flex; gap: 6px; line-height: normal; }
+.mini-togs button { width: 32px; height: 32px; padding: 3px; display: grid; place-items: center; border: 1px solid var(--ink); background: var(--chip-hi); box-shadow: 0 1px 2px rgba(20,16,28,0.25); cursor: pointer; }
+.mini-togs button svg, .mini-togs button img { width: 24px; height: 24px; display: block; }
+.mini-togs button img { height: 18px; object-fit: contain; }
+.mini-togs button[aria-pressed="false"] svg, .mini-togs button[aria-pressed="false"] img { opacity: 0.35; filter: grayscale(1); }
+.mini-togs button[aria-pressed="true"] { background: var(--sun); }
+/* IC07: game clock */
+.gtime { display: grid; place-items: center; height: 40px; min-width: 64px; box-sizing: border-box; padding: 0 10px; font: 400 19px var(--font-display); font-variant-numeric: tabular-nums; background: var(--chip-hi); border: 1px solid var(--ink); box-shadow: 0 1px 2px rgba(20,16,28,0.25); color: var(--chip-text); margin-right: 6px; }
+.gtime.paused { color: var(--muted); background: #e9e3d4; }
+body.in-menu .gtime { display: none; }
+/* GC10: army power in the outliner */
+.ro-pow { margin-left: auto; flex: none; font: 800 12px var(--font-ui); font-style: normal; padding: 1px 6px; background: #f3e4c4; border: 1px solid var(--ink); white-space: nowrap; }
+/* IC08: hide full provinces */
+.ro-bar { display: flex; justify-content: flex-end; padding: 2px 2px 4px; }
+.ro-hide { font: 800 11px var(--font-ui); padding: 1px 7px; border: 1px solid var(--ink); background: var(--chip-hi); color: var(--chip-text); cursor: pointer; }
+.ro-hide[aria-pressed="true"] { background: var(--sun); }
+.ro-hide span { color: var(--muted); }
+/* T03: rename buttons and box */
+.rn-btn { margin-left: 4px; width: 20px; height: 20px; padding: 0; font: 700 12px/1 var(--font-ui); border: 1px solid var(--ink); background: var(--chip-hi); color: var(--chip-text); cursor: pointer; vertical-align: 2px; }
+.rn-btn:hover { background: var(--sun); }
+.pm-head .rn-btn { margin-left: 0; }
+.rename-pop { position: fixed; z-index: 12; top: calc(env(safe-area-inset-top, 0px) + 120px); left: 50%; transform: translateX(-50%); width: min(320px, calc(100vw - 32px)); padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+.rename-pop b { font: 400 18px var(--font-display); }
+.rename-pop input { font: 700 16px var(--font-ui); padding: 4px 8px; border: 1px solid var(--ink); background: #fffaf0; color: var(--chip-text); }
+.sel .rn-btn { pointer-events: auto; }
+/* IC01: Inspect window */
+.insp-win { position: fixed; z-index: 9; right: calc(max(16px, env(safe-area-inset-right, 0px)) + 250px); bottom: calc(env(safe-area-inset-bottom, 0px) + 14px); width: min(460px, calc(100vw - 300px)); max-height: calc(100vh - 120px); overflow: auto; padding: 8px 10px 10px; }
+.iw-head { display: flex; align-items: center; gap: 6px; }
+.iw-head b { font: 400 24px var(--font-display); line-height: 1.1; }
+.iw-sub { font-size: 12.5px; font-weight: 700; color: var(--muted); margin: 2px 0 8px; }
+.iw-cards { display: flex; flex-direction: column; gap: 8px; }
+.iw-card { background: var(--chip-hi); border: 1px solid var(--ink); padding: 6px 8px 8px; }
+.iw-ch { display: flex; align-items: center; gap: 8px; }
+.iw-ch img { width: 48px; height: 48px; flex: none; }
+.iw-ch b { font: 400 17px var(--font-display); display: block; }
+.iw-ch small { font-size: 11.5px; font-weight: 600; color: var(--muted); }
+.iw-slots { display: grid; grid-template-columns: repeat(auto-fit, minmax(92px, 1fr)); gap: 6px; margin-top: 6px; }
+.iw-slot { display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center; }
+.iw-sl { font: 800 9.5px var(--font-ui); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.iw-ico { width: 54px; height: 54px; display: grid; place-items: center; background: #efe3c6; border: 1px solid var(--ink); }
+.iw-ico img { width: 48px; height: 48px; }
+.iw-ico i { font-style: normal; color: var(--muted); font-weight: 800; }
+.iw-slot b { font-size: 11.5px; font-weight: 700; line-height: 1.15; }
+/* IC02: Country Breakdown */
+.country-win { position: fixed; z-index: 11; top: calc(env(safe-area-inset-top, 0px) + 70px); left: 50%; transform: translateX(-50%); width: min(660px, calc(100vw - 32px)); max-height: calc(100vh - 100px); overflow: auto; padding: 10px 14px 14px; }
+.cw-head { display: flex; align-items: center; gap: 10px; }
+.cw-head img { width: 48px; height: 34px; }
+.cw-head b { font: 400 26px var(--font-display); }
+.cw-head span { font: 800 11px var(--font-ui); letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.cw-body { display: flex; gap: 14px; margin-top: 10px; }
+.cw-left { flex: none; width: 150px; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.cw-portrait { width: 140px; height: 164px; background: repeating-linear-gradient(135deg, #efe3c6 0 8px, #e8dabb 8px 16px); border: 1px dashed var(--ink); display: grid; place-items: center; }
+.cw-portrait svg { width: 100px; opacity: 0.55; }
+.cw-leader { text-align: center; } .cw-leader b { font: 400 18px var(--font-display); display: block; } .cw-leader small { font-size: 11px; color: var(--muted); font-weight: 600; }
+.cw-right { flex: 1; min-width: 0; }
+.cw-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.cw-stats div { background: var(--chip-hi); border: 1px solid var(--ink); padding: 4px 8px; }
+.cw-stats span { display: block; font: 800 9.5px var(--font-ui); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.cw-stats b { font: 400 22px var(--font-display); }
+.cw-sec { font: 800 10.5px var(--font-ui); letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin: 10px 0 4px; border-bottom: 1px solid rgba(29,26,34,0.25); padding-bottom: 2px; }
+.cw-terr { display: flex; flex-wrap: wrap; gap: 6px; }
+.cw-t { display: inline-flex; align-items: center; gap: 5px; background: var(--chip-hi); border: 1px solid var(--ink); padding: 2px 8px; font-weight: 700; font-size: 13px; }
+.cw-t i { width: 12px; height: 12px; border: 1px solid var(--ink); display: inline-block; }
+.cw-t b { font: 400 16px var(--font-display); }
+.cw-tab { width: 100%; border-collapse: collapse; font-size: 13px; background: var(--chip-hi); border: 1px solid var(--ink); }
+.cw-tab th, .cw-tab td { padding: 3px 8px; border-bottom: 1px solid rgba(29,26,34,0.15); text-align: left; }
+.cw-tab thead td, .cw-tab thead th { font: 800 10px var(--font-ui); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.cw-tab tr.net { background: #f3e4c4; font-weight: 800; }
+.cw-tab .cst img { width: 16px; height: 16px; vertical-align: -3px; margin-right: 2px; }
+.cw-wars td.win { color: #1f7a2e; font-weight: 800; } .cw-wars td.loss { color: #b3261e; font-weight: 800; }
+.cw-wars th small { font-weight: 600; color: var(--muted); }
+.cw-dot { display: inline-block; width: 10px; height: 10px; border: 1px solid var(--ink); margin-right: 6px; border-radius: 50% !important; }
+.cw-none { margin: 4px 0 0; color: var(--muted); font-weight: 600; font-size: 13px; }
+.nation { cursor: pointer; } .nation:hover { background: var(--chip-hi); }
+.sp-pop .sp-said { color: var(--chip-text); font-size: 14px; }
+/* every popup has an X in its corner */
+.pop-x { position: absolute; top: 6px; right: 6px; width: 26px; height: 26px; padding: 0; display: grid; place-items: center; font: 700 18px/1 var(--font-ui); border: 1px solid var(--ink); background: var(--chip-hi); color: var(--chip-text); cursor: pointer; z-index: 1; }
+.pop-x:hover { background: #f3c1b8; }
+.demand .dm-head { padding-right: 30px; }
+#gameover .dm-btns { margin: 6px 0; }
+.school-pick .dm-btns { justify-content: center; }
+/* SMA01: the travelers' three choices */
+.trav-pop h2 { color: #6d4426; }
+.trav-btns { flex-wrap: wrap; }
+.trav-btns button { display: flex; flex-direction: column; align-items: center; line-height: 1.15; }
+.trav-btns button small { font-size: 11px; font-weight: 600; color: var(--muted); }
+.trav-btns button:disabled { opacity: 0.5; cursor: not-allowed; }
+body.in-menu .insp-win, body.in-menu .country-win, body.in-menu .rename-pop { display: none !important; }
+.insp-win, .country-win, .rename-pop { zoom: var(--ui, 1); }
+
+/* the tutorial (tutorial.js) */
+#mTutScreen .menu-start small, #mTutScreen .menu-start small { display: block; font: 700 12px var(--font-ui); opacity: 0.8; }
+#mTutCombat[disabled] { opacity: 0.55; cursor: default; }
+.tut-glow { position: relative; z-index: 30; animation: tutGlow 1.2s ease-in-out infinite; }
+@keyframes tutGlow { 0%, 100% { box-shadow: 0 0 0 3px var(--sun), 0 0 14px 6px rgba(255, 201, 60, 0.75); } 50% { box-shadow: 0 0 0 3px var(--sun), 0 0 26px 12px rgba(255, 201, 60, 0.95); } }
+.tut-obj { margin-top: 8px; padding: 8px 10px 9px; max-width: 260px; pointer-events: auto; }
+.tut-obj h3 { margin: 0 0 4px; font: 800 13px var(--font-ui); text-transform: uppercase; letter-spacing: 0.04em; }
+.tut-obj ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.tut-obj li { display: flex; align-items: center; gap: 6px; font: 700 13px var(--font-ui); }
+.tut-obj li::before { content: ''; flex: none; width: 12px; height: 12px; border: 2.5px solid var(--ink); border-radius: 4px; background: var(--chip-hi); }
+.tut-obj li span { flex: 1; }
+.tut-obj li.done { color: var(--muted); }
+.tut-obj li.done span { text-decoration: line-through; }
+.tut-obj li.done::before { background: #6bbf59; }
+.tut-play { flex: none; width: 24px; height: 22px; padding: 0; font: 800 11px/1 var(--font-ui); border: 2px solid var(--ink); border-radius: 6px; background: var(--chip-hi); color: var(--chip-text); cursor: pointer; }
+.tut-play:hover { background: var(--sun); }
+.tut-explain-btn { margin-top: 8px; padding: 6px 12px; font: 800 13px var(--font-ui); cursor: pointer; pointer-events: auto; }
+.tut-explain-btn[aria-pressed="true"] { background: var(--sun); }
+.tut-say { position: fixed; z-index: 40; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 200px); transform: translateX(-50%); width: min(620px, calc(100vw - 40px)); padding: 10px 14px 10px; }
+.tut-say-h { display: flex; justify-content: space-between; align-items: baseline; font: 800 13px var(--font-ui); text-transform: uppercase; letter-spacing: 0.04em; }
+.tut-say-h span { text-transform: none; letter-spacing: 0; font-weight: 700; color: var(--muted); }
+.tut-say p { margin: 6px 0 8px; font: 600 16px/1.4 var(--font-ui); }
+.tut-say-b { display: flex; justify-content: flex-end; gap: 8px; }
+.tut-skip, .tut-stay { padding: 5px 14px; font: 800 14px var(--font-ui); border: 2.5px solid var(--ink); border-radius: 10px; background: var(--chip-hi); color: var(--chip-text); cursor: pointer; box-shadow: 0 3px 0 var(--ink); }
+.tut-skip:hover:not(:disabled), .tut-stay:hover { background: var(--sun); }
+.tut-skip:disabled { opacity: 0.45; cursor: default; }
+.tut-end { position: fixed; z-index: 45; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(420px, calc(100vw - 40px)); padding: 16px 20px; text-align: center; }
+.tut-end h2 { margin: 0 0 6px; font-family: var(--font-display); font-weight: 400; font-size: 28px; color: var(--sun); -webkit-text-stroke: 2px var(--ink); paint-order: stroke fill; }
+.tut-end p { margin: 0 0 12px; font: 600 15px/1.4 var(--font-ui); }
+.tut-end-b { display: flex; justify-content: center; gap: 10px; }
+.tut-block { position: fixed; inset: 0; z-index: 35; background: rgba(20, 16, 28, 0.35); cursor: default; }
+.tut-ghost { position: fixed; z-index: 36; left: 12px; bottom: 210px; padding: 18px 16px; max-width: 220px; font: 700 13px var(--font-ui); color: var(--chip-hi); border: 3px dashed var(--chip-hi); border-radius: 14px; background: rgba(29, 26, 34, 0.55); }
+.tut-call { position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: 37; pointer-events: none; overflow: visible; }
+.tut-call .ta-o, .tut-call .ta-ho { fill: none; stroke: var(--ink); stroke-width: 9; stroke-linecap: round; stroke-linejoin: round; }
+.tut-call .ta-i, .tut-call .ta-hi { fill: none; stroke: var(--sun); stroke-width: 4.5; stroke-linecap: round; stroke-linejoin: round; }
+.tut-ctext { font-family: var(--font-display); fill: var(--sun); stroke: var(--ink); stroke-width: 5px; paint-order: stroke fill; text-anchor: middle; }
+body.tut-explain .tut-explain-btn { position: relative; z-index: 38; }
+</style>
+
+<canvas id="map" aria-label="Realmlings playtest map"></canvas>
+<button type="button" class="gear chip" id="gearBtn" aria-label="Settings" aria-haspopup="dialog" aria-expanded="false" title="Settings (Esc)"><svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M10.3 1.8h3.4l.5 2.7a7.9 7.9 0 0 1 2 1.15l2.6-.9 1.7 2.95-2.1 1.8a8 8 0 0 1 0 2.3l2.1 1.8-1.7 2.95-2.6-.9a7.9 7.9 0 0 1-2 1.15l-.5 2.7h-3.4l-.5-2.7a7.9 7.9 0 0 1-2-1.15l-2.6.9-1.7-2.95 2.1-1.8a8 8 0 0 1 0-2.3l-2.1-1.8 1.7-2.95 2.6.9a7.9 7.9 0 0 1 2-1.15zM12 8.6a3.4 3.4 0 1 0 0 6.8 3.4 3.4 0 0 0 0-6.8z"/></svg></button>
+<div class="nation chip" id="nation" aria-label="Your nation"></div>
+<div class="settings-wrap" id="settings" role="dialog" aria-modal="true" aria-labelledby="stTitle" hidden>
+  <div class="settings chip">
+    <div class="st-head"><h2 id="stTitle">Settings</h2><span class="st-pz">Game paused</span><button type="button" class="pm-x" id="stClose" aria-label="Close settings" title="Close and resume (Esc)">×</button></div>
+    <div class="st-main" id="stMain">
+      <div class="menu-row"><span class="lbl">Music</span><div class="menu-mus"><button type="button" class="menu-tog" id="musBtn" aria-pressed="true" aria-label="Music" title="Music on/off (M)"><span>On</span></button><input type="range" id="musVol" min="0" max="100" value="35" aria-label="Music volume"></div></div>
+      <div class="menu-row"><span class="lbl">Sound effects</span><div class="menu-mus"><button type="button" class="menu-tog" id="sfxBtn" aria-pressed="true" aria-label="Sound effects"><span>On</span></button><input type="range" id="sfxVol" min="0" max="100" value="70" aria-label="Sound effects volume"></div></div>
+      <div class="menu-row"><span class="lbl">UI size</span><div class="menu-mus"><input type="range" id="uiSize" min="70" max="150" step="5" value="100" aria-label="UI size"><b class="ui-val" id="uiVal">100%</b><button type="button" class="menu-btn ui-reset" id="uiReset" title="Back to 100%">Reset</button></div></div>
+      <div class="menu-row"><span class="lbl" title="Right-click opens the survey / build menu for Wayfinders and Masons, no Ctrl needed">Quick queue</span><div class="menu-mus"><button type="button" class="menu-tog" id="qqBtn" aria-pressed="false" aria-label="Quick queue" title="When on, right-clicking a province with only Wayfinders and Masons selected opens their survey / build menu without holding Ctrl"><span>Off</span></button></div></div>
+      <div class="menu-row"><span class="lbl" title="Hides the villagers walking in towns and on roads, and stops the trees from swaying, so the game runs faster late on">Calm map</span><div class="menu-mus"><button type="button" class="menu-tog" id="calmBtn" aria-pressed="false" aria-label="Hide villagers and stop trees swaying" title="Hide villagers and stop trees swaying, to reduce lag later in the game"><span>Off</span></button></div></div>
+      <div class="st-saverow"><div class="menu-row"><span class="lbl" title="One save slot in this browser. The game also autosaves every 5 minutes of play.">Saved game</span><div class="st-save"><button type="button" class="menu-btn" id="stSave" title="Save now (replaces the saved game)">Save</button><button type="button" class="menu-btn" id="stExport" title="Download this game as a file: load it on another computer, or send it with a bug report">Export</button><button type="button" class="menu-btn" id="stImport" title="Load a game from a .realmsave file (this game is left without saving)">Import</button></div></div><div class="st-saveinfo" id="stSaveInfo"></div></div>
+      <div class="menu-row"><span class="lbl" title="The seed this island was made from: type it on the New Game screen to play the same map again">Map seed</span><b class="st-seed" id="stSeed">-</b></div>
+      <div class="menu-row"><span class="lbl" title="For testing: these will be removed later">Debug</span><div class="st-dbg">
+        <label title="Lift the fog over the whole map (untick to put it back)"><input type="checkbox" id="dbgReveal"> Reveal Map</label>
+        <label title="Adds 2000 gold, wood and food (and 2000 storage of each so it fits); tick again for more"><input type="checkbox" id="dbgRes"> +Resources</label>
+        <label title="Every technology of your race in all three trees (Magic: your school, or the first one open to your race if you haven't chosen)"><input type="checkbox" id="dbgTech"> All Tech</label>
+      </div></div>
+      <button type="button" class="st-btn" id="stHow">How to Play</button>
+      <button type="button" class="menu-start" id="stResume">Resume</button>
+      <button type="button" class="st-btn st-quit" id="stQuit">Return to main menu</button>
+    </div>
+    <div class="st-how" id="stHowBody" hidden>
+      <button type="button" class="st-back" id="stBack">← Back</button>
+      <ul>
+    <li>Click a unit, or drag a box to select several. <kbd>Shift</kbd> adds to the selection. <kbd>Ctrl</kbd>+<kbd>0</kbd>–<kbd>9</kbd> (or <kbd>Alt</kbd>+number) saves the selected units as a group; press the number to select the group, twice to look at it.</li><li>Grid hotkeys: every command-card button has a key matching its place in the grid: <kbd>Q</kbd><kbd>W</kbd><kbd>E</kbd><kbd>R</kbd> / <kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><kbd>F</kbd> / <kbd>Z</kbd><kbd>X</kbd><kbd>C</kbd><kbd>V</kbd> / <kbd>U</kbd><kbd>I</kbd><kbd>O</kbd><kbd>P</kbd>. A key only acts when its cell has a button. Dismissing a unit or destroying a building is on <kbd>Delete</kbd> (press it twice).</li>
+    <li>Hold <kbd>Shift</kbd> while giving orders to queue them; units carry them out in order. Each unit can queue up to 10 actions.</li>
+    <li>Right-click anywhere to move there. <kbd>Ctrl</kbd>+right-click a province with a Wayfinder or Mason selected for the survey and build menu. With Quick queue on (Settings), a plain right-click opens that menu whenever only Wayfinders and Masons are selected; pick Explore / Move there to just walk. Left-clicking empty ground deselects your units (and opens that province’s menu).</li>
+    <li>Pan by moving the mouse to the edge of the screen, with the arrow keys, or with right-drag / middle-drag. Scroll to zoom.</li>
+    <li>Wayfinders move 4× slower through unexplored land and reveal it on arrival.</li>
+    <li>The Mason walks at half speed.</li>
+    <li><kbd>F2</kbd>, <kbd>F3</kbd> and <kbd>F4</kbd> center the view on a saved province without changing the zoom (your capital at first); <kbd>Shift</kbd>+<kbd>F2</kbd>/<kbd>F3</kbd>/<kbd>F4</kbd> saves the selected unit’s or province’s spot to that key.</li>
+    <li>A building that trains units (Capital, Barracks, Mage Tower, Ogre Cave, Thug Den) has a rally point on <kbd>Q</kbd>: click it, then click the map. New units walk there, and new soldiers join the army waiting there. Set it on the building itself to clear it. The outliner’s − / + buttons fold a list away.</li>
+    <li>Owned provinces pay gold, wood and food every 10 s. Surveyed provinces show their yield; green numbers include a bonus.</li>
+    <li>The command card (bottom right) shows the selected unit’s abilities. With several unit types selected, use its tabs to switch.</li>
+    <li><kbd>Ctrl</kbd>+right-click a province with the Wayfinder selected and pick Survey (or Explore to just walk there). Hold <kbd>Shift</kbd> to queue more surveys. <kbd>Q</kbd> surveys the province he’s in.</li>
+    <li>The list on the right shows every Wayfinder and Mason: click to select, double-click to jump to them. Its Provinces tab lists your provinces as buildings built / plots: green when every plot is used, red when plots are empty. Names are colored by terrain. Tick Hide full to list only provinces with empty plots.</li>
+    <li>Click your flag (top left) for the Country Breakdown: your provinces and land, income and upkeep, and the record of your wars. The clock at the top right is game time; it stops while the game is paused. The buttons above the minimap toggle (coin) province resources, (hexagon) province names under their resources, (your coat of arms) the names of your nation and every nation you have met over their land, and (striped square) nation colors on the minimap. The ✎ button next to a unit’s, army’s or province’s name renames it.</li>
+    <li>Trained soldiers join the army already standing in that province. Select armies to Split or Combine them from the command card; an army with more than one kind of soldier can split off one kind (its cavalry, say) into a new army. Armies show up to 10 soldiers in ranks, a health bar above them, their nation’s flag and their power (⚔) below. Inspect shows each kind of soldier with its weapon, shield and armor.</li>
+    <li><kbd>Q</kbd> with the Mason: build an outpost (25 wood, 30 s, 1 wood upkeep) in a surveyed province that borders one you own. You can hold 4 outposts per fort (the capital counts as one); Efficient Administration (Government Tier III) adds 2 per fort and every Expand Administration 1 more. The resource bar shows your forts and provinces against their limits. A fort can be dismantled back into an outpost (its buildings are lost). Master Builders (Tier III+, once every other Tier III Government technology is done) lets a Mason build one kind of building on his own wherever there is room. Each research tree has an Auto button that always starts the cheapest technology on offer. From 30 minutes on, a bandit gang (power 1000, +300 each time) appears in unclaimed land every 3 minutes. Stone walls need two Shockwaves or Earthquakes to fall: the first one cracks them. The Calm map setting hides villagers and stops trees swaying for speed.</li>
+    <li>Army Exhaustion rises each payout you can’t feed your army; at 10 the whole army deserts. It falls by 1 every 10 s you have food to spare.</li><li>Command card extras: Dismiss a unit (bottom-right button, click twice or press <kbd>Delete</kbd> twice); select a building and Destroy it (the same way); a Mason standing at an open border can build a road from his card; armies can be Inspected and Retrofitted to another Armory design (you pay the gear difference; the Armory can retrofit every army in your land at once); a Mage can Open a path, then click the neighboring province. Ctrl+right-click a walled border with a Mason to tear the wall down.</li><li>Building takes 30 s (Forges and Mage Towers 60 s). Temples add 2 Government research. Forge and Mage Tower upgrades need their research first (Battle Forge, War Forge, Mage Sanctum, Mage Arcanum).</li><li>Harvest is cast continuously: while the Mage stands still, Farms give 10 / 20 / 30% more food.</li><li>Upkeep: units eat food, buildings use wood; nothing costs gold upkeep. Units cost no food to train. You can have at most 3 Wayfinders and 3 Masons at a time (repeatable Government research raises each limit). Training takes 12 s for Wayfinders and Masons, 18 s for soldiers and 30 s for Mages.</li>
+    <li><kbd>Ctrl</kbd>+right-click a province with the Mason selected for the build menu. Building plots: Outpost 2, Fort 4, Capital 6; one of each kind except farms and lumber mills. Select an Outpost to upgrade it to a Fort. Buildings have upkeep. Farms (up to 4) need grassland or forest (Mushroom Farming adds swamps). Select a Farm to pick its crop: a Staple crop (+5 food, farm research adds to it), a Cash crop (+3 food, +1 gold) or a Fiber crop (+2 wood and no upkeep, one per province); a new crop takes 10 s. Apply to all (the circling arrows) sets every Farm to that crop after you confirm; Lumber Mills (+4 wood, no upkeep) need tree borders, one per tree border; Gold Mines (+10 gold) need a Hidden Gold Deposit found by surveying.</li>
+    <li>Click a Barracks to train infantry; with a Stable in the same province it trains cavalry too.</li>
+    <li>Click a province to open its province menu above the command card (terrain, owner, resources, buildings). Click a building there or on the map to select it.</li>
+    <li>Select your capital or a Barracks to train units from the command card; hover any button for details. Queued units show on its bottom row; click one to cancel.</li>
+    <li>Your capital trains Wayfinders and Masons. Units cost upkeep; the capital adds +5 of each resource.</li>
+    <li>Front and back rows: an army of 6 or more fights in two rows of equal size (the front gets the odd one). Blows land on the front row; whenever a front-row soldier falls, a random back-row soldier steps forward. Back-row soldiers deal half damage, and take half damage only once nobody is left in front. The Mage (Druid, Warlock) always stands in the back and deals full damage; an army can have only one. With the army’s Rows button, order the smaller unit types to the front or the back; the biggest type fills the places left over. An army of 5 or fewer fights as one line.</li>
+    <li>Battles start automatically when hostile armies share a province and are fought to the last soldier. Armor soaks damage; polearms do +50% against cavalry; blunt weapons ignore half of the armor and deal 150% damage to soldiers in plate. Neither side can pull out during a battle’s first 10 seconds; after that, select your army and press Retreat (<kbd>R</kbd>). Losses depend on how big the enemy is, and the army falls back all the way to your capital (or as close as it can get) and takes no orders until it arrives.</li><li>Armies: each shows an estimated power number (⚔). An army standing still at one of your Barracks rests and gets its health back (5 s for every soldier in it: 10 soldiers take 50 s); Rest on the command card marches it to the nearest one. Retrofitting takes 10 s per soldier at a Barracks (with a Stable for cavalry); the army marches there by itself.</li>
+    <li>Terrain: grassland gives cavalry +20%; forest gives defenders +25% and cavalry −25%; swamp weakens everyone.</li>
+    <li>Music (<kbd>M</kbd> turns it on or off) and sound effects: set both in Settings.</li>
+    <li>Research (<kbd>T</kbd>, or the button in the resource bar): Government research runs from the start, earning points from your forts (+2), capital (+3) and temples (+2); outposts give none. The bar shows each tree’s points per 10 s next to its banner (blue column: Government, red swords: Military, purple star: Magic), and each province’s menu shows what it adds. Past 10 provinces every technology costs 5% more per province, and past 20 another 15% per province. Research the Forge (Government Tier I; a Barracks makes it more likely to be offered) and build one to open Military research, and a Mage Tower to open Magic; once offered, both stay on offer until researched. Select either building to upgrade it (Forge → Battle Forge → War Forge; Mage Tower → Mage Sanctum → Mage Arcanum), which unlocks the next tier. Retained Knowledge adds a fourth and fifth choice. When a tree has fewer than 5 technologies left, repeatable technologies appear (marked ↻); each costs 30% more every time.</li>
+    <li>Set pieces: some deserts and swamps hold an Ancient Battle Site (+1 Military research, needs a Forge), a Forgotten Library (+1 Government) or a Closed Interdimensional Rift (+1 Magic, needs a Mage Tower). They stay hidden until a Wayfinder surveys the province, and then stand there as a landmark. Claim the province to use it; the badge under the province is gray until you can.</li>
+    <li>Bandit Gangs hide in some provinces (never a capital). They are hostile to everyone and patrol the edges of their own province, never leaving it. Roaming Monsters do the same: Walking Ents in forests (1–3, each as strong as two Riders, 100 wood each when killed), Roaming Zombies in swamps (2, 4 or 6, half a Footman each, 20 gold each) and Packs of Jackal-men in deserts (3 or 6, each like a Long Sword infantryman in Chain I, 30 gold each). One province in seven holds bandits or monsters, never next to a starting capital: grassland always bandits, elsewhere bandits or monsters half and half.</li>
+    <li>Every island has three unique provinces. <b>Death Mountain</b> is a black mountain the size of a province, walled in by mountains: nobody can enter it, it shows as soon as you see any province beside it, and every province around it makes +5 gold. A dragon (Red, Blue or Gold) circles one of those provinces. The <b>Desert Oasis</b> (+10 gold, wood and food) is ringed by palm trees that even Woodling Scouts can’t pass, and the <b>Heart of the Forest</b> (+6 gold, +20 wood, +6 food) by trees; each has one way in, held by a boss (the Skeleton King, the Walking Inferno or the Scarab Army; General Sherman, Ursa Major or the Winged Serpent). Both can be settled once the boss is beaten. Bosses fight by power: an army 10–20% stronger usually wins, 50% stronger almost surely. Armies that march into a boss’s province are stopped there and must fight. Each boss leaves an artifact, listed in your Country Breakdown (click your nation’s badge).</li>
+    <li>Lost bands of travelers wander some provinces. When your unit stops beside them, share food and they join you as Footmen, or rob them for gold with an army. Surveying a desert has a 1 in 8 chance to turn up Forgotten Treasure (+200 gold). One swamp on each map holds the Intact Ruins of an ancient temple: survey it and your nation gains a Tier I Government technology (or 3 minutes of Government research if you already know them all). A province where your Wayfinder found bandits or monsters glows burgundy until they are beaten. A Wayfinder who finds them scurries back unharmed, and can’t go back in until they are beaten. Beat them with an army for a 50 gold bounty; you can’t build an outpost where they are.</li>
+    <li>Other nations: up to 7 computer nations (set each slot on the title card to Easy, Moderate, Difficult or Closed) live on the island and play by your rules. Easy nations stay small and peaceful; Moderate ones grow to 10 provinces, research Mages and grow to 20; Difficult ones grow, research and build as fast as they can. Moderate and Difficult nations whose armies are twice as strong (by power, not head count) as a bordering nation’s take a minute to think it over, then declare war. They treat you like any other nation, and no more than 2 nations can be at war with you at once.</li>
+    <li>Diplomacy (the chip under the research bar): see every nation you have met, declare war (50 gold, only on a nation that borders you), make peace, or propose an alliance. Each war has its own warscore. A nation may have one ally, of its own race only. Two nations can only ally once they have met each other, and they can’t ally if either has a fort on their shared border, if they have ever been at war with each other, or if one has been at war with an ally of the other. If anyone declares war on one ally, the other joins in. Building a fort on an ally’s border ends the alliance after a minute (a flag counts down: dismantle the fort in time to keep it). When you ally a nation, you meet every nation it has met, and it meets every nation you have. Either side may end an alliance at any time; a 10-minute truce follows, and they can’t ally again until it ends. Masons can build roads and walls across borders, and with Bridge Building (Government Tier III) a bridge across a river border, if one side is yours (Ctrl+right-click the province across the river with a Mason next to it). Units can only cross their own land, unclaimed land, the land of a nation they are at war with, or the land of a nation they have a truce with. A peace deal starts an 8-minute truce; a red flag with a dove warns you 30 s before one ends (click it to look at that nation).</li>
+    <li>Meeting nations: you meet a nation when you explore its land or when one of your Wayfinders stands next to one of its provinces. The game pauses to introduce it.</li>
+    <li>At war: any of your units may march into the enemy’s land even where you haven’t explored it. A capture that is interrupted by a battle picks up where it left off if the capturing army wins. At 100 warscore a white-flag notification tells you to call for peace (there is no Total Victory). Every war ends in white peace after 20 minutes unless a deal is made first; an hourglass flag counts down the last 30 seconds (click it to open Diplomacy). Warscore: beating an army of more than 10 soldiers is +1, and +5 if it was more than half of that nation’s whole army (smaller ones give nothing). Occupying an outpost is +2, a fort +10 and a capital +25 while you hold them, and every 10 s each occupied fort adds +1 and an occupied capital +5. Occupying every province of a nation puts you at 100 at once. No peace deal can take a province another nation occupies: the winner takes what it can, never the capital. Both the occupier and the owner keep sight of an occupied province.</li>
+    <li>Peace deals: from +50 warscore the winner may take 1 province, and one more for every 5 warscore above that (10 at +95). At +100 it may take up to 2 provinces for every fort it holds, if that is more than 11, and the capital too if that takes the whole country. Tick the provinces you want in Diplomacy (All / None help). White peace is only for a side that isn’t losing, and not in the first 3 minutes of a war. A side with negative warscore can only surrender: the enemy takes as many provinces as it may, and the side that surrendered can’t declare war on anyone for 10 minutes.</li>
+    <li>Wayfinders and Masons at war: Masons won’t walk into a province where they can see enemy soldiers. A Wayfinder or Mason who meets enemy soldiers runs back to the province he came from. For 15 seconds after that, if he meets enemy soldiers again, an army of yours has 5 seconds to reach him before he is caught. Sneaking Wayfinders can’t be seen at all. A Wayfinder standing where another nation finishes an outpost withdraws to the province he came from (if it is yours or an enemy’s), or else all the way to your capital.</li>
+    <li>Armory (<kbd>G</kbd>): design your infantry and cavalry by choosing a weapon (polearms beat cavalry, blunt weapons crush armor, swords parry, axes land critical strikes), a shield for one-handed weapons, armor (leather is fast, plate is tough but slow) and, for cavalry, a horse. Military research unlocks better gear. Barracks train your designs.</li>
+    <li>Every Mage knows Shockwave (50 mana): Ctrl+right-click (or use the command card on) a neighboring province of a nation you are at war with, and after 15 seconds of casting the wall on that border is destroyed. Earthquake (Magic Tier III research, 200 mana, so it needs Magic Abundance) is cast in an enemy province your army occupies: after 30 seconds every building there and every wall on its borders is destroyed. Terrascaping (Herbomancy Tier III, 100 mana) grows trees along an open border, leaving a forest path in the middle (5 minutes).</li>
+    <li>Mana: every Mage, Warlock and Druid carries mana, shown as a blue bar over him (or over the army he is in). A new one starts with 25 and holds up to 100 (Magic Well: 150, Magic Abundance: 200). Every 10 s each of them regains 1 mana for every Tier I Magic Barracks you own (Mage Tower, Warlock Tower, Grove), 2 for every Tier II and 3 for every Tier III, but nothing while he is casting; the blue star in the resource bar shows how much. Spells cost mana: most are a 3-second cast, battle spells (skins, curses, the risen dead, fiery weapons, rock armor) cost 50 when they fire, and channeled spells (Harvest, Forest Spirit) drain 1 mana a second. Grave Robbing and Interdimensional Trading turn all of a Magic User’s mana into resources; a flag appears when they (or a Sacred Pyre) are ready to cast.</li>
+    <li>Magic: research the Mage Tower (Government Tier II) and build one, then choose a school: Herbomancy, Necromancy or Arcane. Train Mages at the tower (you can have 1 at first; Apprentice and Mage Academy raise the limit, and the Armies tab shows how many you have); select a Mage to cast spells from the command card, or have him join an army so its battle spells (skins, curses, the risen dead) fire on their own. Ctrl+right-click a neighboring province with a Mage to open forest paths or mountain tunnels. Every Mage knows Earthquake: 30 s of casting from land you control (or unclaimed land) raise a wall with your gate on the border with a neighbor. Nations at war with the caster get an “Earthquake at …” banner.</li>
+    <li>Storage: the nation holds at most 2000 of each resource; Granaries, Storehouses and Banks add 1000 each. You start allowed a single fort; each Fort Charter adds 2, and the repeatable Garrison Charters (+1) never gets dearer and stays on offer once it appears.</li>
+    <li>With road or wall research, select a Mason and Ctrl+right-click a neighboring province to build a road (dirt, then gravel, then cobblestone: 25%, 35%, 50% faster) or a wall (palisade, then stone) on that border. Roads must join two of your own provinces. Every wall has a gate that only its owner’s units can pass; once walls are researched, forts raise walls with gates on their open borders. A captured fort’s gates open for the occupier and shut out the owner. Armies at war with a wall’s owner batter it down when there is no other way through: that takes 2 minutes, and the army needs at least 6 soldiers. At peace, select a fort (or your capital) and press Rebuild walls to put its broken walls back for 50 wood each; it takes 15 s.</li>
+    <li>An enemy army that finds a Wayfinder kills him. With Wayfinder Stealth he can sneak (three times slower, unseen).</li>
+    <li><kbd>Space</kbd> pauses and resumes. The gear (top left, or <kbd>Esc</kbd>) pauses and opens Settings. Pausing mutes the game.</li><li>Hover a unit’s status, a button or a province detail to see tips. Notification flags: left-click to act on them, right-click to dismiss. The green building flag only shows when a Mason is free and a plot is open.</li>
+  </ul>
+      <div class="legend"><span><i style="background:#9bd95f"></i>Visible</span><span><i style="background:#6e8a63"></i>Explored</span><span><i style="background:#2f3b55"></i>Unexplored</span><span><i style="background:#fff;border-color:#2f6fe0;border-width:3px"></i>Player 1 (you)</span></div>
+    </div>
+  </div>
+</div>
+<div class="menu" id="menu" role="dialog" aria-label="Main menu">
+  <div class="menu-card chip">
+    <h1 class="menu-logo">Realmlings</h1>
+    <p class="menu-tag">Explore, settle, research and defend a little fantasy realm.</p>
+    <canvas id="mParade" width="840" height="192" aria-hidden="true"></canvas>
+    <div class="menu-screen" id="mMain">
+    <div class="menu-row"><span class="lbl">Music</span><div class="menu-mus"><button type="button" class="menu-tog" id="mMusic" aria-pressed="true"><span>On</span></button><input type="range" id="mMusVol" min="0" max="100" value="35" aria-label="Music volume"></div></div>
+    <div class="menu-row"><span class="lbl">Sound effects</span><div class="menu-mus"><button type="button" class="menu-tog" id="mSfx" aria-pressed="true"><span>On</span></button><input type="range" id="mSfxVol" min="0" max="100" value="70" aria-label="Sound effects volume"></div></div>
+    <button type="button" class="menu-start menu-cont" id="mCont" hidden>Continue<small id="mContInfo"></small></button>
+    <button type="button" class="menu-start" id="mNew">New Game</button>
+    <button type="button" class="menu-start menu-mp" id="mTut">Tutorial</button>
+    <button type="button" class="menu-start menu-mp" id="mMulti">Multiplayer</button>
+    <button type="button" class="menu-how" id="mImport" title="Load a game exported from Settings (a .realmsave file)">Load a save file</button>
+    <button type="button" class="menu-how" id="mHow" aria-expanded="false" aria-controls="mHowText">How to play</button>
+    <ul class="menu-howtext" id="mHowText" hidden>
+      <li>Send your Wayfinder into the fog to explore, and have him survey land to find its resources.</li>
+      <li>Your Mason claims surveyed land next to yours with outposts, then fills their plots with farms, mills, mines and more.</li>
+      <li>Research (<kbd>T</kbd>) unlocks new buildings and abilities. Forges and Mage Towers open Military and Magic research. Watch out for Bandit Gangs, and look for set pieces that boost research.</li>
+      <li>Train soldiers at a Barracks; battles start when hostile armies meet. A new game starts paused: press <kbd>Space</kbd> to begin, and again to pause.</li>
+      <li>Pick your race: Realmlings, or Swamplings, who start in a swamp, are faster and fiercer in swamps, train Berserkers and Ogres, run Thug Dens and learn Pyromancy.</li>
+      <li>The gear in the top-left corner opens Settings, with the full How to Play guide.</li>
+    </ul>
+    </div>
+    <div class="menu-screen" id="mTutScreen" hidden>
+    <div class="menu-sub"><button type="button" class="menu-back" id="mTutBack" aria-label="Back to the main menu">← Back</button><h2>Tutorial</h2><span></span></div>
+    <button type="button" class="menu-start" id="mTutBasic">Basic Tutorial<small>Explore, expand and train your first army</small></button>
+    <button type="button" class="menu-start menu-mp" id="mTutCombat" disabled>Combat Tutorial<small>Coming later</small></button>
+    </div>
+    <div class="menu-screen" id="mMultiScreen" hidden>
+    <div class="menu-sub"><button type="button" class="menu-back" id="mMultiBack" aria-label="Back to the main menu">← Back</button><h2>Multiplayer</h2><span></span></div>
+    <p class="menu-soon">Coming Soon</p>
+    </div>
+    <div class="menu-screen" id="mSetup" hidden>
+    <div class="menu-sub"><button type="button" class="menu-back" id="mBack" aria-label="Back to the main menu">← Back</button><h2>New Game</h2><span></span></div>
+    <div class="menu-row"><label for="mSeed">Map seed</label><div class="menu-seed"><input id="mSeed" type="text" spellcheck="false" autocomplete="off" aria-label="Map seed"><button type="button" class="menu-btn" id="mDice" title="Random seed" aria-label="Random seed">🎲</button></div></div>
+    <div class="menu-row"><label for="mNation">Nation</label><div class="menu-seed"><input id="mNation" class="nat-name" type="text" maxlength="24" spellcheck="false" autocomplete="off" placeholder="My Realm"><button type="button" class="menu-btn" id="mNatDice" title="Random nation name" aria-label="Random nation name">🎲</button></div></div>
+    <div class="menu-row"><span class="lbl">Race</span><div class="menu-race" id="mRace" role="group" aria-label="Your race"><button type="button" class="menu-tog" data-race="realm" aria-pressed="true"><span>Realmlings</span></button><button type="button" class="menu-tog" data-race="swamp" aria-pressed="false"><span>Swamplings</span></button><button type="button" class="menu-tog" data-race="wood" aria-pressed="false"><span>Woodlings</span></button></div></div>
+    <div class="menu-row"><span class="lbl">Start position</span><div class="menu-race" id="mStartPos" role="group" aria-label="Where your capital starts" title="Realmlings always start on grassland, Swamplings in a swamp"><button type="button" class="menu-tog" data-start="center" aria-pressed="true"><span>Center</span></button><button type="button" class="menu-tog" data-start="edge" aria-pressed="false"><span>Edge</span></button><button type="button" class="menu-tog" data-start="random" aria-pressed="false"><span>Random</span></button></div></div>
+    <div class="menu-row"><span class="lbl">Color</span><div class="nat-row" id="mColors"></div></div>
+    <div class="menu-row"><span class="lbl">Flag</span><div class="nat-row" id="mFlags"></div></div>
+    <div class="menu-row"><span class="lbl">Island</span><div class="menu-race" id="mShape" role="group" aria-label="Island shape"><button type="button" class="menu-tog" data-shape="classic" aria-pressed="true" title="The island you know"><span>Classic</span></button><button type="button" class="menu-tog" data-shape="crescent" aria-pressed="false" title="A half-moon arch"><span>Half-moon</span></button><button type="button" class="menu-tog" data-shape="ring" aria-pressed="false" title="A ring of land around a great lake"><span>Ring</span></button><button type="button" class="menu-tog" data-shape="random" aria-pressed="false" title="Any outline, with forests, deserts and swamps scattered anywhere"><span>Random</span></button></div></div>
+    <div class="menu-row"><label for="mPens">Peninsulas</label><div class="menu-slide"><input type="range" id="mPens" min="0" max="5" step="1" value="2"><b id="mPensV">2</b></div></div>
+    <div class="menu-row"><label for="mCoves">Coves</label><div class="menu-slide"><input type="range" id="mCoves" min="0" max="5" step="1" value="2"><b id="mCovesV">2</b></div></div>
+    <div class="menu-row"><label for="mTrees">Trees</label><div class="menu-slide"><input type="range" id="mTrees" min="0" max="4" step="1" value="0"><b id="mTreesV">Classic</b></div></div>
+    <div class="menu-row menu-opp"><span class="lbl">Opponents <small id="mOppN"></small></span><div class="opp-box"><div class="opp-slots" id="mSlots" role="group" aria-label="Computer opponents: click a slot to change it"></div><div class="opp-quick" id="mQuick"><button type="button" data-q="easy">All Easy</button><button type="button" data-q="moderate">All Moderate</button><button type="button" data-q="difficult">All Difficult</button><button type="button" data-q="closed">Close all</button></div></div></div>
+    <button type="button" class="menu-start" id="mStart">Start game</button>
+    </div>
+    <div class="menu-foot">Playtest build <b id="mVer">v90</b> · the same seed always makes the same island</div>
+    <input type="file" id="saveFile" accept=".realmsave,.json,application/json" hidden>
+  </div>
+</div>
+<div class="res chip" id="res" aria-label="Your resources"></div>
+<div class="hudbtns chip" id="hudBtns"><button type="button" class="tech-btn" id="techBtn" title="Research (T)">Research</button></div>
+<div class="lcol" id="lcol"><button type="button" class="tech-btn arm-btn lcol-btn chip" id="armBtn" title="Armory (G)" aria-label="Armory"><svg class="lc-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9h13c0 2.4 2 3.4 5 3.4V14c-3 0-4.4 1.2-5 3H8c-.6-1.8-2-3-5-3z" fill="#7b8494" stroke="#1d1a22" stroke-width="1.6" stroke-linejoin="round"/><path d="M8 17l-1.5 4h10L15 17" fill="#5b6270" stroke="#1d1a22" stroke-width="1.6" stroke-linejoin="round"/><path d="M15 3.5l3 3M18 3.5l-3 3" stroke="#ff7a2c" stroke-width="1.8" stroke-linecap="round"/></svg></button><div class="dip chip" id="dip" role="button" tabindex="0" aria-label="Diplomacy" hidden></div></div>
+<div class="nflags" id="nflags" hidden aria-label="Notifications"></div>
+<div class="school-pick chip" id="schoolPick" role="dialog" aria-label="Choose a school of magic" hidden></div>
+<div class="armory chip" id="armory" role="dialog" aria-label="Armory" hidden></div>
+<div class="tech-panel chip" id="techPanel" role="dialog" aria-label="Research" hidden></div>
+
+<div class="dip-panel chip" id="dipPanel" role="dialog" aria-label="Diplomacy" hidden></div>
+<div class="demand chip" id="demand" role="alertdialog" aria-label="Enemy demand" hidden></div>
+<div class="bandit-pop meet-pop chip" id="metPop" role="alertdialog" aria-label="A new nation" hidden></div>
+<div class="bandit-pop chip" id="banditPop" role="alertdialog" aria-labelledby="banditPopT" hidden></div>
+<div class="bandit-pop sp-pop chip" id="spPop" role="alertdialog" aria-labelledby="spPopT" hidden></div>
+<div class="insp-win chip" id="inspWin" role="dialog" aria-label="Inspect army" hidden></div>
+<div class="bandit-pop sp-pop chip" id="findPop" role="alertdialog" aria-labelledby="findPopT" hidden></div>
+<div class="bandit-pop chip trav-pop" id="travPop" role="alertdialog" aria-labelledby="travPopT" hidden></div>
+<div class="country-win chip" id="countryWin" role="dialog" aria-label="Country Breakdown" hidden></div>
+<div class="rename-pop chip" id="renamePop" role="dialog" aria-label="Rename" hidden></div>
+<div class="chip" id="gameover" role="alertdialog" hidden></div>
+<div class="minimap chip" id="mini"><canvas id="miniCv" aria-label="Minimap. Click to move the view."></canvas></div>
+<div class="sel chip" id="sel"></div>
+<div class="rcol" id="rcol"><div class="roster chip" id="roster" aria-label="Your units and provinces"></div><div class="prov chip" id="prov" hidden aria-label="Province menu"></div></div>
+<div class="cmd" id="cmd"><div class="cmd-tabs" id="cmdTabs" role="tablist" aria-label="Selected unit types"></div><div class="cmd-grid chip" id="cmdGrid"></div></div>
+<div id="cmdTip" class="chip" hidden></div>
+<div class="cap chip" id="cap" hidden></div>
+<div class="debug chip" id="debug" hidden><b>Debug</b><button type="button" id="dbgEnemy">Spawn raiders</button><button type="button" id="dbgMine">Spawn my army</button></div>
+<div class="zoom"><button id="pauseBtn" type="button" aria-label="Pause" aria-pressed="false" title="Pause (Space)"><svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><rect x="4.5" y="3.5" width="4" height="13" rx="1" fill="currentColor"/><rect x="11.5" y="3.5" width="4" height="13" rx="1" fill="currentColor"/></svg></button><button id="fsBtn" type="button" aria-label="Full screen" aria-pressed="false" title="Full screen (F11 also works)"><svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M3 7.5V3h4.5M12.5 3H17v4.5M17 12.5V17h-4.5M7.5 17H3v-4.5"/></svg></button><button id="zin" type="button" aria-label="Zoom in">+</button><button id="zout" type="button" aria-label="Zoom out">−</button><button id="zhome" type="button" aria-label="Center on capital" style="font-size:16px">⌂</button></div>
+<div id="tip" class="chip" hidden></div>
+<div id="box" hidden></div>
+<div id="toast" class="chip" hidden></div>
+<div id="bmenu" class="chip" role="menu" hidden></div>
+<div id="paused" class="chip" hidden title="Press Space to resume">Paused</div>
+

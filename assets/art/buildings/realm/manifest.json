@@ -1,0 +1,629 @@
+{
+ "note": "ax, ay: the anchor pixel (where the game places the art: province center, plot, feet). scale: image pixels per world unit.",
+ "images": {
+  "bank_v0.png": {
+   "w": 200,
+   "h": 132,
+   "ax": 100,
+   "ay": 80,
+   "scale": 3,
+   "type": "bank",
+   "variant": "v0"
+  },
+  "bank_v0_rise25.png": {
+   "w": 200,
+   "h": 104,
+   "ax": 100,
+   "ay": 52,
+   "scale": 3,
+   "type": "bank",
+   "variant": "v0",
+   "rise": 0.25
+  },
+  "bank_v0_rise50.png": {
+   "w": 200,
+   "h": 132,
+   "ax": 100,
+   "ay": 80,
+   "scale": 3,
+   "type": "bank",
+   "variant": "v0",
+   "rise": 0.5
+  },
+  "bank_v0_rise75.png": {
+   "w": 200,
+   "h": 132,
+   "ax": 100,
+   "ay": 80,
+   "scale": 3,
+   "type": "bank",
+   "variant": "v0",
+   "rise": 0.75
+  },
+  "barracks_v2.png": {
+   "w": 200,
+   "h": 124,
+   "ax": 100,
+   "ay": 65,
+   "scale": 3,
+   "type": "barracks",
+   "variant": "v2"
+  },
+  "barracks_v2_rise25.png": {
+   "w": 200,
+   "h": 111,
+   "ax": 100,
+   "ay": 52,
+   "scale": 3,
+   "type": "barracks",
+   "variant": "v2",
+   "rise": 0.25
+  },
+  "barracks_v2_rise50.png": {
+   "w": 200,
+   "h": 124,
+   "ax": 100,
+   "ay": 65,
+   "scale": 3,
+   "type": "barracks",
+   "variant": "v2",
+   "rise": 0.5
+  },
+  "barracks_v2_rise75.png": {
+   "w": 200,
+   "h": 124,
+   "ax": 100,
+   "ay": 65,
+   "scale": 3,
+   "type": "barracks",
+   "variant": "v2",
+   "rise": 0.75
+  },
+  "farm_v0.png": {
+   "w": 200,
+   "h": 173,
+   "ax": 100,
+   "ay": 121,
+   "scale": 3,
+   "type": "farm",
+   "variant": "v0"
+  },
+  "farm_v0_rise25.png": {
+   "w": 200,
+   "h": 104,
+   "ax": 100,
+   "ay": 52,
+   "scale": 3,
+   "type": "farm",
+   "variant": "v0",
+   "rise": 0.25
+  },
+  "farm_v0_rise50.png": {
+   "w": 200,
+   "h": 138,
+   "ax": 100,
+   "ay": 86,
+   "scale": 3,
+   "type": "farm",
+   "variant": "v0",
+   "rise": 0.5
+  },
+  "farm_v0_rise75.png": {
+   "w": 200,
+   "h": 173,
+   "ax": 100,
+   "ay": 121,
+   "scale": 3,
+   "type": "farm",
+   "variant": "v0",
+   "rise": 0.75
+  },
+  "forge_lv1.png": {
+   "w": 200,
+   "h": 160,
+   "ax": 100,
+   "ay": 108,
+   "scale": 3,
+   "type": "forge",
+   "variant": "lv1"
+  },
+  "forge_lv1_rise25.png": {
+   "w": 200,
+   "h": 104,
+   "ax": 100,
+   "ay": 52,
+   "scale": 3,
+   "type": "forge",
+   "variant": "lv1",
+   "rise": 0.25
+  },
+  "forge_lv1_rise50.png": {
+   "w": 200,
+   "h": 138,
+   "ax": 100,
+   "ay": 86,
+   "scale": 3,
+   "type": "forge",
+   "variant": "lv1",
+   "rise": 0.5
+  },
+  "forge_lv1_rise75.png": {
+   "w": 200,
+   "h": 160,
+   "ax": 100,
+   "ay": 108,
+   "scale": 3,
+   "type": "forge",
+   "variant": "lv1",
+   "rise": 0.75
+  },
+  "forge_lv2.png": {
+   "w": 200,
+   "h": 181,
+   "ax": 100,
+   "ay": 129,
+   "scale": 3,
+   "type": "forge",
+   "variant": "lv2"
+  },
+  "forge_lv2_rise25.png": {
+   "w": 200,
+   "h": 104,
+   "ax": 100,
+   "ay": 52,
+   "scale": 3,
+   "type": "forge",
+   "variant": "lv2",
+   "rise": 0.25
+  },
+  "forge_lv2_rise50.png": {
+   "w": 200,
+   "h": 138,
+   "ax": 100,
+   "ay": 86,
+   "scale": 3,
+   "type": "forge",
+   "variant": "lv2",
+   "rise": 0.5
+  },
+  "forge_lv2_rise75.png": {
+   "w": 200,
+   "h": 181,
+   "ax": 100,
+   "ay": 129,
+   "scale": 3,
+   "type": "forge",
+   "variant": "lv2",
+   "rise": 0.75
+  },
+  "forge_lv3.png": {
+   "w": 207,
+   "h": 194,
+   "ax": 100,
+   "ay": 142,
+   "scale": 3,
+   "type": "forge",
+   "variant": "lv3"
+  },
+  "forge_lv3_rise25.png": {
+   "w": 200,
+   "h": 104,
+   "ax": 100,
+   "ay": 52,
+   "scale": 3,
+   "type": "forge",
+   "variant": "lv3",
+   "rise": 0.25
+  },
+  "forge_lv3_rise50.png": {
+   "w": 207,
+   "h": 138,
+   "ax": 100,
+   "ay": 86,
+   "scale": 3,
+   "type": "forge",
+   "variant": "lv3",
+   "rise": 0.5
+  },
+  "forge_lv3_rise75.png": {
+   "w": 207,
+   "h": 194,
+   "ax": 100,
+   "ay": 142,
+   "scale": 3,
+   "type": "forge",
+   "variant": "lv3",
+   "rise": 0.75
+  },
+  "goldmine_v2.png": {
+   "w": 200,
+   "h": 158,
+   "ax": 100,
+   "ay": 106,
+   "scale": 3,
+   "type": "goldmine",
+   "variant": "v2"
+  },
+  "goldmine_v2_rise25.png": {
+   "w": 200,
+   "h": 104,
+   "ax": 100,
+   "ay": 52,
+   "scale": 3,
+   "type": "goldmine",
+   "variant": "v2",
+   "rise": 0.25
+  },
+  "goldmine_v2_rise50.png": {
+   "w": 200,
+   "h": 138,
+   "ax": 100,
+   "ay": 86,
+   "scale": 3,
+   "type": "goldmine",
+   "variant": "v2",
+   "rise": 0.5
+  },
+  "goldmine_v2_rise75.png": {
+   "w": 200,
+   "h": 158,
+   "ax": 100,
+   "ay": 106,
+   "scale": 3,
+   "type": "goldmine",
+   "variant": "v2",
+   "rise": 0.75
+  },
+  "granary_v0.png": {
+   "w": 200,
+   "h": 153,
+   "ax": 100,
+   "ay": 101,
+   "scale": 3,
+   "type": "granary",
+   "variant": "v0"
+  },
+  "granary_v0_rise25.png": {
+   "w": 200,
+   "h": 104,
+   "ax": 100,
+   "ay": 52,
+   "scale": 3,
+   "type": "granary",
+   "variant": "v0",
+   "rise": 0.25
+  },
+  "granary_v0_rise50.png": {
+   "w": 200,
+   "h": 138,
+   "ax": 100,
+   "ay": 86,
+   "scale": 3,
+   "type": "granary",
+   "variant": "v0",
+   "rise": 0.5
+  },
+  "granary_v0_rise75.png": {
+   "w": 200,
+   "h": 153,
+   "ax": 100,
+   "ay": 101,
+   "scale": 3,
+   "type": "granary",
+   "variant": "v0",
+   "rise": 0.75
+  },
+  "lumber_v1.png": {
+   "w": 200,
+   "h": 148,
+   "ax": 100,
+   "ay": 96,
+   "scale": 3,
+   "type": "lumber",
+   "variant": "v1"
+  },
+  "lumber_v1_rise25.png": {
+   "w": 200,
+   "h": 104,
+   "ax": 100,
+   "ay": 52,
+   "scale": 3,
+   "type": "lumber",
+   "variant": "v1",
+   "rise": 0.25
+  },
+  "lumber_v1_rise50.png": {
+   "w": 200,
+   "h": 138,
+   "ax": 100,
+   "ay": 86,
+   "scale": 3,
+   "type": "lumber",
+   "variant": "v1",
+   "rise": 0.5
+  },
+  "lumber_v1_rise75.png": {
+   "w": 200,
+   "h": 148,
+   "ax": 100,
+   "ay": 96,
+   "scale": 3,
+   "type": "lumber",
+   "variant": "v1",
+   "rise": 0.75
+  },
+  "magetower_lv1.png": {
+   "w": 200,
+   "h": 264,
+   "ax": 100,
+   "ay": 212,
+   "scale": 3,
+   "type": "magetower",
+   "variant": "lv1"
+  },
+  "magetower_lv1_rise25.png": {
+   "w": 200,
+   "h": 104,
+   "ax": 100,
+   "ay": 52,
+   "scale": 3,
+   "type": "magetower",
+   "variant": "lv1",
+   "rise": 0.25
+  },
+  "magetower_lv1_rise50.png": {
+   "w": 200,
+   "h": 138,
+   "ax": 100,
+   "ay": 86,
+   "scale": 3,
+   "type": "magetower",
+   "variant": "lv1",
+   "rise": 0.5
+  },
+  "magetower_lv1_rise75.png": {
+   "w": 200,
+   "h": 198,
+   "ax": 100,
+   "ay": 146,
+   "scale": 3,
+   "type": "magetower",
+   "variant": "lv1",
+   "rise": 0.75
+  },
+  "magetower_lv2.png": {
+   "w": 200,
+   "h": 289,
+   "ax": 100,
+   "ay": 237,
+   "scale": 3,
+   "type": "magetower",
+   "variant": "lv2"
+  },
+  "magetower_lv2_rise25.png": {
+   "w": 200,
+   "h": 104,
+   "ax": 100,
+   "ay": 52,
+   "scale": 3,
+   "type": "magetower",
+   "variant": "lv2",
+   "rise": 0.25
+  },
+  "magetower_lv2_rise50.png": {
+   "w": 200,
+   "h": 138,
+   "ax": 100,
+   "ay": 86,
+   "scale": 3,
+   "type": "magetower",
+   "variant": "lv2",
+   "rise": 0.5
+  },
+  "magetower_lv2_rise75.png": {
+   "w": 200,
+   "h": 198,
+   "ax": 100,
+   "ay": 146,
+   "scale": 3,
+   "type": "magetower",
+   "variant": "lv2",
+   "rise": 0.75
+  },
+  "magetower_lv3.png": {
+   "w": 215,
+   "h": 316,
+   "ax": 106,
+   "ay": 264,
+   "scale": 3,
+   "type": "magetower",
+   "variant": "lv3"
+  },
+  "magetower_lv3_rise25.png": {
+   "w": 200,
+   "h": 104,
+   "ax": 100,
+   "ay": 52,
+   "scale": 3,
+   "type": "magetower",
+   "variant": "lv3",
+   "rise": 0.25
+  },
+  "magetower_lv3_rise50.png": {
+   "w": 200,
+   "h": 138,
+   "ax": 100,
+   "ay": 86,
+   "scale": 3,
+   "type": "magetower",
+   "variant": "lv3",
+   "rise": 0.5
+  },
+  "magetower_lv3_rise75.png": {
+   "w": 214,
+   "h": 198,
+   "ax": 105,
+   "ay": 146,
+   "scale": 3,
+   "type": "magetower",
+   "variant": "lv3",
+   "rise": 0.75
+  },
+  "market_v0.png": {
+   "w": 200,
+   "h": 121,
+   "ax": 100,
+   "ay": 69,
+   "scale": 3,
+   "type": "market",
+   "variant": "v0"
+  },
+  "market_v0_rise25.png": {
+   "w": 200,
+   "h": 104,
+   "ax": 100,
+   "ay": 52,
+   "scale": 3,
+   "type": "market",
+   "variant": "v0",
+   "rise": 0.25
+  },
+  "market_v0_rise50.png": {
+   "w": 200,
+   "h": 121,
+   "ax": 100,
+   "ay": 69,
+   "scale": 3,
+   "type": "market",
+   "variant": "v0",
+   "rise": 0.5
+  },
+  "market_v0_rise75.png": {
+   "w": 200,
+   "h": 121,
+   "ax": 100,
+   "ay": 69,
+   "scale": 3,
+   "type": "market",
+   "variant": "v0",
+   "rise": 0.75
+  },
+  "stable_v1.png": {
+   "w": 200,
+   "h": 132,
+   "ax": 100,
+   "ay": 80,
+   "scale": 3,
+   "type": "stable",
+   "variant": "v1"
+  },
+  "stable_v1_rise25.png": {
+   "w": 200,
+   "h": 104,
+   "ax": 100,
+   "ay": 52,
+   "scale": 3,
+   "type": "stable",
+   "variant": "v1",
+   "rise": 0.25
+  },
+  "stable_v1_rise50.png": {
+   "w": 200,
+   "h": 132,
+   "ax": 100,
+   "ay": 80,
+   "scale": 3,
+   "type": "stable",
+   "variant": "v1",
+   "rise": 0.5
+  },
+  "stable_v1_rise75.png": {
+   "w": 200,
+   "h": 132,
+   "ax": 100,
+   "ay": 80,
+   "scale": 3,
+   "type": "stable",
+   "variant": "v1",
+   "rise": 0.75
+  },
+  "storehouse_v0.png": {
+   "w": 200,
+   "h": 127,
+   "ax": 100,
+   "ay": 75,
+   "scale": 3,
+   "type": "storehouse",
+   "variant": "v0"
+  },
+  "storehouse_v0_rise25.png": {
+   "w": 200,
+   "h": 104,
+   "ax": 100,
+   "ay": 52,
+   "scale": 3,
+   "type": "storehouse",
+   "variant": "v0",
+   "rise": 0.25
+  },
+  "storehouse_v0_rise50.png": {
+   "w": 200,
+   "h": 127,
+   "ax": 100,
+   "ay": 75,
+   "scale": 3,
+   "type": "storehouse",
+   "variant": "v0",
+   "rise": 0.5
+  },
+  "storehouse_v0_rise75.png": {
+   "w": 200,
+   "h": 127,
+   "ax": 100,
+   "ay": 75,
+   "scale": 3,
+   "type": "storehouse",
+   "variant": "v0",
+   "rise": 0.75
+  },
+  "temple_v0.png": {
+   "w": 200,
+   "h": 144,
+   "ax": 100,
+   "ay": 92,
+   "scale": 3,
+   "type": "temple",
+   "variant": "v0"
+  },
+  "temple_v0_rise25.png": {
+   "w": 200,
+   "h": 104,
+   "ax": 100,
+   "ay": 52,
+   "scale": 3,
+   "type": "temple",
+   "variant": "v0",
+   "rise": 0.25
+  },
+  "temple_v0_rise50.png": {
+   "w": 200,
+   "h": 138,
+   "ax": 100,
+   "ay": 86,
+   "scale": 3,
+   "type": "temple",
+   "variant": "v0",
+   "rise": 0.5
+  },
+  "temple_v0_rise75.png": {
+   "w": 200,
+   "h": 144,
+   "ax": 100,
+   "ay": 92,
+   "scale": 3,
+   "type": "temple",
+   "variant": "v0",
+   "rise": 0.75
+  }
+ }
+}

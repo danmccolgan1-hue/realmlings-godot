@@ -1,0 +1,64 @@
+{
+ "MAP_SHAPES": [
+  "classic",
+  "crescent",
+  "ring",
+  "random"
+ ],
+ "MENU_WORDS": [
+  "amber",
+  "bramble",
+  "cinder",
+  "dapple",
+  "ember",
+  "fable",
+  "gilded",
+  "hollow",
+  "ivy",
+  "juniper",
+  "kestrel",
+  "lantern",
+  "meadow",
+  "nettle",
+  "oaken",
+  "pebble",
+  "quill",
+  "rook",
+  "sable",
+  "thistle",
+  "umber",
+  "vale",
+  "willow",
+  "yarrow"
+ ],
+ "MUSIC": {
+  "fade": null,
+  "on": true,
+  "started": false,
+  "track": "tavern",
+  "vol": 0.35
+ },
+ "RACE_CYCLE": [
+  "realm",
+  "swamp",
+  "wood",
+  "random"
+ ],
+ "SLOT_CYCLE": [
+  "closed",
+  "easy",
+  "moderate",
+  "difficult"
+ ],
+ "SLOT_TEXT": {
+  "closed": "Closed",
+  "difficult": "Difficult",
+  "easy": "Easy",
+  "moderate": "Moderate"
+ },
+ "START_POS": [
+  "center",
+  "edge",
+  "random"
+ ]
+}

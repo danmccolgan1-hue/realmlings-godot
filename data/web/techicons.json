@@ -1,0 +1,173 @@
+{
+ "GOV_ICONS": {},
+ "ICO": {},
+ "ICON_SIZE": 64,
+ "ITEM_SPAN": {
+  "ancienthammer": [
+   -104,
+   26
+  ],
+  "battleaxe": [
+   -62,
+   16
+  ],
+  "beardedaxe": [
+   -48,
+   14
+  ],
+  "braidedsling": [
+   -6,
+   56
+  ],
+  "champsword": [
+   -110,
+   26
+  ],
+  "club": [
+   -50,
+   14
+  ],
+  "compositebow": [
+   -48,
+   44
+  ],
+  "crypticwand": [
+   -44,
+   6
+  ],
+  "dirk": [
+   -41,
+   10
+  ],
+  "enigmaticwand": [
+   -46,
+   6
+  ],
+  "estoc": [
+   -92,
+   17
+  ],
+  "gladius": [
+   -47,
+   11
+  ],
+  "grandstave": [
+   -100,
+   32
+  ],
+  "greatsword": [
+   -96,
+   20
+  ],
+  "halberd": [
+   -150,
+   28
+  ],
+  "handaxe": [
+   -42,
+   12
+  ],
+  "handcrossbow": [
+   -50,
+   16
+  ],
+  "leathersling": [
+   -6,
+   58
+  ],
+  "levercrossbow": [
+   -50,
+   16
+  ],
+  "longbow": [
+   -70,
+   56
+  ],
+  "longsword": [
+   -73,
+   14
+  ],
+  "mace": [
+   -41,
+   14
+  ],
+  "morningstar": [
+   -56,
+   14
+  ],
+  "mythicstave": [
+   -110,
+   32
+  ],
+  "oblivion": [
+   -114,
+   28
+  ],
+  "pike": [
+   -150,
+   30
+  ],
+  "polearm": [
+   -140,
+   28
+  ],
+  "rapier": [
+   -78,
+   14
+  ],
+  "shortbow": [
+   -40,
+   36
+  ],
+  "shortsword": [
+   -43,
+   10
+  ],
+  "spear": [
+   -124,
+   26
+  ],
+  "stave": [
+   -78,
+   32
+  ],
+  "sword": [
+   -60,
+   12
+  ],
+  "wand": [
+   -37,
+   6
+  ],
+  "waraxe": [
+   -74,
+   18
+  ],
+  "warhammer": [
+   -98,
+   24
+  ],
+  "windlasscrossbow": [
+   -50,
+   18
+  ],
+  "woolsling": [
+   -6,
+   56
+  ],
+  "worldaxe": [
+   -116,
+   26
+  ],
+  "wrathspear": [
+   -160,
+   30
+  ]
+ },
+ "MAGIC_ICONS": {},
+ "REP_ICONS": {},
+ "SKIN_TINT": {
+  "diamondskin": "#bff3ff",
+  "stoneskin": "#9aa0ab"
+ }
+}

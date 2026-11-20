@@ -1,0 +1,138 @@
+{
+ "AIMED": {},
+ "AUTO_CDS": [
+  "skinCd",
+  "curseCd",
+  "fieryCd",
+  "rockCd"
+ ],
+ "AUTO_MANA": 50,
+ "CAST_TIME": 3,
+ "FINISH": {},
+ "FIRE_DMG": [
+  0,
+  150,
+  300,
+  450
+ ],
+ "GRAVE_RATE": [
+  0,
+  1,
+  2,
+  3
+ ],
+ "MANA_BLUE": "#3f7fe8",
+ "MANA_START": 25,
+ "MANA_STAR_SVG": "<svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><polygon points=\"12.00,2.20 14.00,8.46 20.13,6.12 16.48,11.58 22.14,14.91 15.60,15.47 16.51,21.97 12.00,17.20 7.49,21.97 8.40,15.47 1.86,14.91 7.52,11.58 3.87,6.12 10.00,8.46\" fill=\"#3f7fe8\" stroke=\"#1d1a22\" stroke-width=\"1.7\" stroke-linejoin=\"round\"/><circle cx=\"12\" cy=\"12.6\" r=\"2.2\" fill=\"#cfe0ff\"/></svg>",
+ "MIND": {
+  "cd": 40,
+  "show": 20
+ },
+ "PATHS_MANA": 200,
+ "PATH_MANA": 100,
+ "RISEN_N": [
+  0,
+  5,
+  7,
+  10
+ ],
+ "SACRED": {
+  "cd": 180,
+  "dur": 60,
+  "gold": 110,
+  "wood": 200
+ },
+ "SEE_TIME": 60,
+ "SPELL2_MANA": {
+  "quake": 200,
+  "shock": 50
+ },
+ "SPELL_FLAGS": [
+  {
+   "img": "sp_graverob",
+   "k": "graverob",
+   "mana": true,
+   "school": "death"
+  },
+  {
+   "img": "sp_trading",
+   "k": "trading",
+   "mana": true,
+   "school": "arcane"
+  },
+  {
+   "img": "sp_sacred",
+   "k": "sacred",
+   "mana": false,
+   "school": "pyro"
+  }
+ ],
+ "SPELL_MANA": {
+  "eyes": 25,
+  "fspirit": "drain",
+  "ftrap": 50,
+  "gelem": 100,
+  "graverob": "all",
+  "harvest": "drain",
+  "haunt": 25,
+  "mending": 25,
+  "mind": 50,
+  "pfire": 50,
+  "rift": 100,
+  "sacred": 100,
+  "spyre": 25,
+  "stasis": 50,
+  "tportal": 100,
+  "trading": "all",
+  "wrocks": 25
+ },
+ "V98_BLURBS": {
+  "arboreal": "A Mage can close a forest path again with 10 seconds of casting (200 mana).",
+  "armyofdeath": "Risen Dead raises 10 soldiers in a battle.",
+  "blazetrap": "Fire traps deal 300 damage.",
+  "charon": "Grave Robbing gives 3 gold for every point of mana.",
+  "clearthoughts": "A 3-second cast (50 mana): every army within 3 provinces of the Mage is revealed for 20 seconds. 40-second cooldown.",
+  "commune": "Opening a forest path takes 10 seconds.",
+  "curse1": "Autocast (50 mana): when an army with a Mage starts a battle, its weapons deal +5% damage. 5-minute cooldown per army.",
+  "curse2": "Cursed Weapons deal +10% damage; cooldown 3 minutes.",
+  "curse3": "Cursed Weapons deal +15% damage; cooldown 90 seconds.",
+  "deathtax": "Grave Robbing gives 2 gold for every point of mana.",
+  "diamondskin": "Hardened Skin gives +15% health.",
+  "earthquake": "A Mage standing in an enemy province your army occupies can cast an Earthquake (200 mana: it needs Magic Abundance): after 30 seconds every building in that province is destroyed, and every wall on its borders takes 120 wall damage (enough to bring down any wall).",
+  "fiery1": "Autocast (50 mana, no cooldown): when an army with a Warlock starts a battle, every blow has a 5% chance to strike twice as hard.",
+  "fiery2": "Fiery Weapons: a 10% chance of a double blow.",
+  "fiery3": "Fiery Weapons: a 15% chance of a double blow.",
+  "firetrap": "A Warlock buries a fire trap in his province (3 seconds of casting, 50 mana). The next enemy army to enter any part of that province is engulfed: 150 damage that ignores armor, to its front line. One trap per Warlock.",
+  "forest": "A Mage standing in a province you own or occupy can open a path through a border of trees after 20 seconds of casting (200 mana). Lumber Mills are unaffected.",
+  "forestspirit": "A Druid channels a Forest Spirit into the province he stands in: while he keeps it up, the province makes twice the gold, wood, food and research. It drains 1 mana a second, and he regains none meanwhile.",
+  "gelemental": "A Druid summons a towering man of living water for 2 minutes (3 seconds of casting, 100 mana): 500 health, no armor, 50 damage a swing. He joins the Druidâ€™s army (or forms one), fights, and can capture provinces. 5-minute cooldown per Druid.",
+  "graverob": "A 3-second cast that spends all of the Mageâ€™s mana: 1 gold for every point. Then the nation waits 3 minutes.",
+  "hallways": "Opening a mountain tunnel takes 10 seconds.",
+  "harvest": "A Mage channels it for as long as he stands still: every Farm you own gives 10% more food. It drains 1 mana a second, and he regains none while channeling. One Mage casts it at a time.",
+  "mending": "A Mage heals an armyâ€™s wounds back to full over 1 minute. 25 mana, no cooldown.",
+  "mindread": "Clear Thoughts reveals every army on the map.",
+  "molttrap": "Fire traps deal 450 damage.",
+  "necro": "Risen Dead raises 7 soldiers in a battle.",
+  "pathfire": "A Warlock fires up his army (50 mana): 100% faster for 10 seconds. 1-minute cooldown per Warlock.",
+  "planar": "Trading gives 1 of each resource for every point of mana.",
+  "portal": "Teleportation Riftâ€™s cooldown is 15 seconds.",
+  "prison": "The trap holds for 20 seconds.",
+  "rejuvenation": "Healing takes 30 seconds.",
+  "restoration": "Healing is instant.",
+  "rift": "Pick any explored province you may enter (your land, unclaimed land, or a nation you are at war or in a truce with): after 3 seconds of casting (100 mana) the Mage and his army are carried there. 2-minute cooldown for the nation.",
+  "risen": "Autocast: the first time a soldier of the army falls in a battle, the Mage spends 50 mana and the dead rise: that soldier and the next 4 to fall get straight back up, looking rather worse for it (same strength). Then it stops; when the battle ends it has a 2-minute cooldown. One Mage keeps this or Cursed Weapons ready, not both.",
+  "rockarmor": "Autocast (50 mana, no cooldown): when an army with a Druid starts a battle, plates of stone gather round it: a shield worth 10% of the armyâ€™s total health soaks up the damage before any soldier is hurt.",
+  "sacredpyre": "A Warlock standing in one of your provinces raises a Sacred Pyre there (3 seconds of casting, 100 mana and 200 wood). For 1 minute that province makes 110 more gold every 10 s. Then the nation waits 3 minutes.",
+  "scoutpyre": "A Warlock lights a pyre where he stands (3 seconds of casting, 25 mana). For 1 minute it sees every neighboring province in its line of sight. 1-minute cooldown per Warlock.",
+  "sealed": "A Mage can seal a mountain tunnel again with 10 seconds of casting (200 mana).",
+  "skin": "Autocast (50 mana, no cooldown): when an army with a Mage starts a battle, its soldiers get +5% health.",
+  "stasis": "A Mage sets a trap in his province (3 seconds of casting, 50 mana); the next enemy army there canâ€™t leave for 10 seconds (it can still fight). One trap at a time; no cooldown.",
+  "stockmarket": "Trading gives 2 of each resource for every 3 points of mana.",
+  "stoneskin": "Hardened Skin gives +10% health.",
+  "terrascape": "A Mage grows a line of trees along an open border, with a forest path left open in the middle: only a path through the trees remains. 5 minutes of casting, 100 mana.",
+  "townportal": "After 3 seconds of casting (100 mana), a Druid and the army he is in are carried to your capital. 5-minute cooldown per Druid.",
+  "trading": "A 3-second cast that spends all of the Mageâ€™s mana: 1 food, 1 gold and 1 wood for every 3 points. Then the nation waits 3 minutes.",
+  "underworld": "A Mage standing in a province you own or occupy can open a tunnel through a mountain border after 20 seconds of casting (200 mana).",
+  "wrocks": "A Druid raises whispering stones on a mountain border of the province he stands in (3 seconds of casting, 25 mana): both provinces on either side are in sight for 1 minute."
+ }
+}

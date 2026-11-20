@@ -1,0 +1,32 @@
+{
+ "ALLY_FORT_GRACE": 60,
+ "ARM_TAB_NAME": {
+  "Armor": "Armor",
+  "Horse": "Horses",
+  "Ogre": "Ogres",
+  "Weapon": "Weapons"
+ },
+ "BANDIT_WAVE": {
+  "cap": 50,
+  "every": 180,
+  "grow": 300,
+  "power": 1000,
+  "start": 1800
+ },
+ "DOVE_SVG": "<svg class=\"dp-ico\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M3 13c2-3 5-3.6 7-2.4L15 7l-.6 3.4L17 11l-3 2c-1.4 3-5 4-8 2.6L2.6 17 4 14z\" fill=\"#fff\" stroke=\"#1d1a22\" stroke-width=\"1.4\" stroke-linejoin=\"round\"/><path d=\"M8 11.5C9.6 7.6 12.6 5 15.4 4c-1.4 3.6-3 6-5 8z\" fill=\"#f1ede4\" stroke=\"#1d1a22\" stroke-width=\"1.4\" stroke-linejoin=\"round\"/><path d=\"M17 11l3-.4\" stroke=\"#e8a817\" stroke-width=\"1.8\" stroke-linecap=\"round\"/><path d=\"M19.6 10.4c1.2-1 2.2-.4 1.6.8M19.6 10.6c.6 1.6-.6 2-1.2 1.4\" fill=\"none\" stroke=\"#3f9b4b\" stroke-width=\"1.3\"/></svg>",
+ "FORT_SVG": "<svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M3 21V9h3v2h3V6h6v5h3V9h3v12z\" fill=\"#cfc8ba\" stroke=\"#1d1a22\" stroke-width=\"1.7\" stroke-linejoin=\"round\"/><path d=\"M10 21v-5h4v5\" fill=\"#6b4a2a\" stroke=\"#1d1a22\" stroke-width=\"1.5\"/><path d=\"M12 6V2.5l4 1.5-4 1.5\" fill=\"#c7362b\" stroke=\"#1d1a22\" stroke-width=\"1.2\" stroke-linejoin=\"round\"/></svg>",
+ "PROV_SVG": "<svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M7 3.5 L16.5 2.8 L21.3 10.2 L18.2 19.4 L8.8 21.2 L2.8 13.6 Z\" fill=\"#9bd95f\" stroke=\"#1d1a22\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/></svg>",
+ "RO_COL": [],
+ "SWORDS_SVG": "<svg class=\"dp-ico\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M5 3l11 11M19 3L8 14\" stroke=\"#1d1a22\" stroke-width=\"4\" stroke-linecap=\"round\"/><path d=\"M5 3l11 11M19 3L8 14\" stroke=\"#d8d2c4\" stroke-width=\"2\" stroke-linecap=\"round\"/><path d=\"M14 16l4 4M10 16l-4 4\" stroke=\"#1d1a22\" stroke-width=\"3.4\" stroke-linecap=\"round\"/><path d=\"M14 16l4 4M10 16l-4 4\" stroke=\"#8a6a3a\" stroke-width=\"1.8\" stroke-linecap=\"round\"/><path d=\"M13 12.5l3.5 3.5M11 12.5L7.5 16\" stroke=\"#1d1a22\" stroke-width=\"2.6\" stroke-linecap=\"round\"/></svg>",
+ "WAR_TIMER": 1200,
+ "WAVE_NAMES": [
+  "Marauders",
+  "Brigands",
+  "Reavers",
+  "Cutthroats",
+  "Outlaws",
+  "Raiders",
+  "Freebooters",
+  "Highwaymen"
+ ]
+}

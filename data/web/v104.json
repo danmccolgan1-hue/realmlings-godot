@@ -1,0 +1,260 @@
+{
+ "AI_RNG_SHARE": {
+  "difficult": 0.3,
+  "easy": 0.15,
+  "moderate": 0.25
+ },
+ "AI_SIEGE_HOPS": 3,
+ "CASH_GIVES": {
+  "food": 3,
+  "gold": 1
+ },
+ "CD_NAMES": {
+  "realm": [
+   "Pikeman",
+   "Maceman"
+  ],
+  "swamp": [
+   "Spear Berserker",
+   "Club Berserker"
+  ],
+  "wood": [
+   "Spear Protector",
+   "Club Protector"
+  ]
+ },
+ "CROPS": [
+  "staple",
+  "cash",
+  "fiber"
+ ],
+ "CROP_DELAY": 10,
+ "CROP_ICON": {},
+ "CROP_KIND": {
+  "cash": "Cash crop",
+  "fiber": "Fiber crop",
+  "staple": "Staple crop"
+ },
+ "CROP_NAMES": {
+  "cash": {
+   "realm": "Wheat",
+   "swamp": "Truffles",
+   "wood": "Pomegranates"
+  },
+  "fiber": {
+   "realm": "Straw",
+   "swamp": "Fungal Threads",
+   "wood": "Willow"
+  },
+  "staple": {
+   "realm": "Corn",
+   "swamp": "Oyster Mushrooms",
+   "wood": "Apples"
+  }
+ },
+ "RANGED": {
+  "realm": {
+   "gear": [
+    "handcrossbow",
+    "levercrossbow",
+    "windlasscrossbow"
+   ],
+   "gearName": [
+    "Hand-drawn Crossbow",
+    "Lever Crossbow",
+    "Windlass Crossbow"
+   ],
+   "id": "rng-realm",
+   "name": "Crossbowman",
+   "techs": [
+    "w-levercrossbow",
+    "w-windlass"
+   ]
+  },
+  "swamp": {
+   "gear": [
+    "woolsling",
+    "braidedsling",
+    "leathersling"
+   ],
+   "gearName": [
+    "Wool Sling",
+    "Braided Sling",
+    "Leather Sling"
+   ],
+   "id": "rng-swamp",
+   "name": "Slinger",
+   "techs": [
+    "w-braidedsling",
+    "w-leathersling"
+   ]
+  },
+  "wood": {
+   "gear": [
+    "shortbow",
+    "compositebow",
+    "longbow"
+   ],
+   "gearName": [
+    "Short Bow",
+    "Composite Bow",
+    "Long Bow"
+   ],
+   "id": "rng-wood",
+   "name": "Archer",
+   "techs": [
+    "w-compositebow",
+    "w-longbow"
+   ]
+  }
+ },
+ "RNG_BY_KIND": {
+  "rng-realm": {
+   "gear": [
+    "handcrossbow",
+    "levercrossbow",
+    "windlasscrossbow"
+   ],
+   "gearName": [
+    "Hand-drawn Crossbow",
+    "Lever Crossbow",
+    "Windlass Crossbow"
+   ],
+   "id": "rng-realm",
+   "name": "Crossbowman",
+   "race": "realm",
+   "techs": [
+    "w-levercrossbow",
+    "w-windlass"
+   ]
+  },
+  "rng-swamp": {
+   "gear": [
+    "woolsling",
+    "braidedsling",
+    "leathersling"
+   ],
+   "gearName": [
+    "Wool Sling",
+    "Braided Sling",
+    "Leather Sling"
+   ],
+   "id": "rng-swamp",
+   "name": "Slinger",
+   "race": "swamp",
+   "techs": [
+    "w-braidedsling",
+    "w-leathersling"
+   ]
+  },
+  "rng-wood": {
+   "gear": [
+    "shortbow",
+    "compositebow",
+    "longbow"
+   ],
+   "gearName": [
+    "Short Bow",
+    "Composite Bow",
+    "Long Bow"
+   ],
+   "id": "rng-wood",
+   "name": "Archer",
+   "race": "wood",
+   "techs": [
+    "w-compositebow",
+    "w-longbow"
+   ]
+  }
+ },
+ "RNG_HP": 20,
+ "V104_ARMY": 2,
+ "V104_BATTLE_MAGIC": [
+  "curse1",
+  "curse2",
+  "curse3",
+  "risen",
+  "necro",
+  "armyofdeath",
+  "fiery1",
+  "fiery2",
+  "fiery3",
+  "firetrap",
+  "blazetrap",
+  "molttrap",
+  "pathfire",
+  "pathflame",
+  "pathinferno",
+  "wrocks",
+  "gelemental"
+ ],
+ "V104_DEFENSE_TECHS": [
+  "walls",
+  "walls2",
+  "moat",
+  "arrowslits"
+ ],
+ "V104_DEMOLISH": [
+  "bank",
+  "storehouse",
+  "granary",
+  "market",
+  "goldmine",
+  "temple",
+  "lumber"
+ ],
+ "V104_ECON": 1.1,
+ "V104_ECON_TECHS": [
+  "advmills",
+  "refmills",
+  "sophmills",
+  "advmines",
+  "refmines",
+  "sophmines",
+  "market",
+  "traderoutes",
+  "rep-trade",
+  "thugs2",
+  "thugs3",
+  "bank",
+  "storehouse",
+  "granary",
+  "rep-storage",
+  "rep-lumber",
+  "retained",
+  "retained2",
+  "roads",
+  "roads2",
+  "roads3",
+  "autoscout"
+ ],
+ "V104_GUARD_MAGIC": [
+  "skin",
+  "stoneskin",
+  "diamondskin",
+  "mending",
+  "rejuvenation",
+  "restoration",
+  "rockarmor",
+  "stasis",
+  "prison"
+ ],
+ "V104_LARGER": 1.15,
+ "V104_PLAYER_THREATENS": false,
+ "V104_RIVAL_GOAL": 1.3,
+ "V104_RIVAL_RATIO": {
+  "difficult": 1,
+  "easy": null,
+  "moderate": 1.3
+ },
+ "V104_THINK": 10,
+ "V104_WARY_GOAL": 0.8,
+ "V104_WAR_TYPES": [
+  "farm",
+  "lumber",
+  "barracks",
+  "forge",
+  "magetower",
+  "stable"
+ ]
+}

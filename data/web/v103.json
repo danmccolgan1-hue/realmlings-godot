@@ -1,0 +1,26 @@
+{
+ "AI_CAP_RESERVE": [
+  "barracks",
+  "forge",
+  "magetower"
+ ],
+ "AI_EARLY_POWER": 3000,
+ "AI_SCHOOL_GOLD": 1.3,
+ "AI_SCHOOL_WOOD": 1,
+ "AI_SWAP_INTO": [
+  "temple",
+  "forge",
+  "magetower",
+  "market"
+ ],
+ "AI_TIER_CAP": {
+  "difficult": 9,
+  "easy": 2,
+  "moderate": 3
+ },
+ "SHIELD_TIER": {
+  "s-kite": 2,
+  "s-round": 1,
+  "s-tower": 3
+ }
+}

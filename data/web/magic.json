@@ -1,0 +1,499 @@
+{
+ "AUTO": {
+  "curse": {
+   "line": "curse"
+  },
+  "fiery": {
+   "line": "fiery"
+  },
+  "risen": {
+   "line": "risen"
+  },
+  "rock": {
+   "line": "rock"
+  },
+  "skin": {
+   "line": "skin"
+  }
+ },
+ "CAST": {
+  "eyes": {
+   "instant": false,
+   "line": "eyes"
+  },
+  "fspirit": {
+   "instant": false,
+   "line": "fspirit"
+  },
+  "ftrap": {
+   "instant": false,
+   "line": "ftrap"
+  },
+  "gelem": {
+   "line": "gelem"
+  },
+  "graverob": {
+   "line": "graverob"
+  },
+  "harvest": {
+   "line": "harvest"
+  },
+  "haunt": {
+   "instant": true,
+   "line": "haunt"
+  },
+  "mending": {
+   "instant": true,
+   "line": "mending"
+  },
+  "mind": {
+   "instant": false,
+   "line": "mind"
+  },
+  "pfire": {
+   "instant": true,
+   "line": "pfire"
+  },
+  "rift": {
+   "instant": false,
+   "line": "rift"
+  },
+  "sacred": {
+   "instant": false,
+   "line": "sacred"
+  },
+  "spyre": {
+   "instant": false,
+   "line": "spyre"
+  },
+  "stasis": {
+   "instant": false,
+   "line": "stasis"
+  },
+  "tportal": {
+   "line": "tportal"
+  },
+  "trading": {
+   "line": "trading"
+  },
+  "wrocks": {
+   "instant": false,
+   "line": "wrocks"
+  }
+ },
+ "CMD_ARMY": [
+  {
+   "cell": 0,
+   "id": "split",
+   "key": ""
+  },
+  {
+   "cell": 1,
+   "id": "combine",
+   "key": ""
+  },
+  {
+   "cell": 3,
+   "id": "retreat",
+   "key": "R"
+  },
+  {
+   "cell": 8,
+   "id": "rest",
+   "key": ""
+  },
+  {
+   "cell": 12,
+   "id": "inspect",
+   "key": ""
+  },
+  {
+   "cell": 13,
+   "id": "retrofit",
+   "key": ""
+  },
+  {
+   "cell": 14,
+   "id": "xpath",
+   "key": ""
+  },
+  {
+   "cell": 15,
+   "id": "dismiss",
+   "key": ""
+  }
+ ],
+ "CURSE": [
+  0,
+  {
+   "cd": 300,
+   "pct": 0.05
+  },
+  {
+   "cd": 180,
+   "pct": 0.1
+  },
+  {
+   "cd": 90,
+   "pct": 0.15
+  }
+ ],
+ "HARVEST": [
+  null,
+  {
+   "bonus": 0.1,
+   "cd": 360,
+   "dur": 180,
+   "food0": 0
+  },
+  {
+   "bonus": 0.2,
+   "cd": 240,
+   "dur": 180,
+   "food0": 200
+  },
+  {
+   "bonus": 0.3,
+   "cd": 0,
+   "dur": null,
+   "every": 180,
+   "food": 400,
+   "food0": 0
+  }
+ ],
+ "HARVEST_PCT": [
+  0,
+  0.1,
+  0.2,
+  0.3
+ ],
+ "LINES": {
+  "curse": [
+   "curse1",
+   "curse2",
+   "curse3"
+  ],
+  "eyes": [
+   "eyesforest"
+  ],
+  "fiery": [
+   "fiery1",
+   "fiery2",
+   "fiery3"
+  ],
+  "forest": [
+   "forest",
+   "commune",
+   "arboreal"
+  ],
+  "fspirit": [
+   "forestspirit"
+  ],
+  "ftrap": [
+   "firetrap",
+   "blazetrap",
+   "molttrap"
+  ],
+  "gelem": [
+   "gelemental"
+  ],
+  "graverob": [
+   "graverob",
+   "deathtax",
+   "charon"
+  ],
+  "harvest": [
+   "harvest",
+   "bountiful",
+   "magnificent"
+  ],
+  "haunt": [
+   "haunt"
+  ],
+  "mending": [
+   "mending",
+   "rejuvenation",
+   "restoration"
+  ],
+  "mind": [
+   "clearthoughts",
+   "mindread"
+  ],
+  "pfire": [
+   "pathfire",
+   "pathflame",
+   "pathinferno"
+  ],
+  "rift": [
+   "rift",
+   "portal"
+  ],
+  "risen": [
+   "risen",
+   "necro",
+   "armyofdeath"
+  ],
+  "rock": [
+   "rockarmor"
+  ],
+  "sacred": [
+   "sacredpyre"
+  ],
+  "scouts": [
+   "arcscouts",
+   "arcvision"
+  ],
+  "skin": [
+   "skin",
+   "stoneskin",
+   "diamondskin"
+  ],
+  "spyre": [
+   "scoutpyre"
+  ],
+  "stasis": [
+   "stasis",
+   "prison"
+  ],
+  "tportal": [
+   "townportal"
+  ],
+  "trading": [
+   "trading",
+   "stockmarket",
+   "planar"
+  ],
+  "tunnel": [
+   "underworld",
+   "hallways",
+   "sealed"
+  ],
+  "wrocks": [
+   "wrocks"
+  ]
+ },
+ "MAGE": "mage:A",
+ "MAGE_SPEC0": {
+  "angS": 0.12,
+  "beard": {
+   "color": "#f4f4f4",
+   "style": "long"
+  },
+  "boots": "#4a3a5a",
+  "browColor": "#f2f2f2",
+  "brows": "bushy",
+  "cape": "#6a3fa8",
+  "hairColor": "#f1f1f4",
+  "helm": "wizard",
+  "helmColor": "#3f5fc9",
+  "left": null,
+  "mouth": "smile",
+  "pants": "#6b5a48",
+  "right": "staff-crystal",
+  "robe": "#3f5fc9",
+  "robeTrim": "#f4c44f",
+  "sash": "#94603a",
+  "shirt": "#efe6cf",
+  "skin": "#f6cba3",
+  "sleeve": "#3f5fc9"
+ },
+ "MAGE_WEAPONS": {
+  "crypticwand": {
+   "atk": 3,
+   "line": "wand",
+   "name": "Cryptic Wand",
+   "tech": "crypticwand",
+   "twoH": false
+  },
+  "enigmaticwand": {
+   "atk": 5,
+   "line": "wand",
+   "name": "Enigmatic Wand",
+   "tech": "enigmaticwand",
+   "twoH": false
+  },
+  "grandstave": {
+   "atk": 6,
+   "line": "stave",
+   "name": "Grand Stave",
+   "tech": "grandstave",
+   "twoH": true
+  },
+  "mythicstave": {
+   "atk": 9,
+   "line": "stave",
+   "name": "Mythic Stave",
+   "tech": "mythicstave",
+   "twoH": true
+  },
+  "stave": {
+   "atk": 4,
+   "line": "stave",
+   "name": "Stave",
+   "tech": null,
+   "twoH": true
+  },
+  "wand": {
+   "atk": 2,
+   "line": "wand",
+   "name": "Wand",
+   "tech": null,
+   "twoH": false
+  }
+ },
+ "MEND": [
+  0,
+  {
+   "cd": 180,
+   "dur": 60
+  },
+  {
+   "cd": 120,
+   "dur": 30
+  },
+  {
+   "cd": 0,
+   "dur": 0
+  }
+ ],
+ "PATH_OPEN": [
+  0,
+  20,
+  10,
+  10
+ ],
+ "RES_SPELL": {
+  "graverob": "gold",
+  "trading": "all"
+ },
+ "RIFT_USES": [
+  0,
+  1,
+  3
+ ],
+ "RISEN": [
+  0,
+  4,
+  3,
+  2
+ ],
+ "SCHOOLS": {
+  "arcane": {
+   "blurb": "Far-seeing towers, reading minds, trading across worlds, traps and rifts.",
+   "color": "#2f6fe0",
+   "light": "#e3ecff",
+   "name": "Arcane",
+   "spells": [
+    "Arcane Scouts",
+    "Clear Thoughts",
+    "Interdimensional Trading",
+    "Stasis Trap",
+    "Teleportation Rift"
+   ]
+  },
+  "death": {
+   "blurb": "Cursed weapons, the risen dead, tunnels under mountains, and grave riches.",
+   "color": "#6b3fa0",
+   "light": "#efe6fb",
+   "name": "Necromancy",
+   "race": [
+    "realm",
+    "swamp"
+   ],
+   "spells": [
+    "Cursed Weapons",
+    "Risen Dead",
+    "Underworld Passage",
+    "Grave Robbing"
+   ]
+  },
+  "elemental": {
+   "blurb": "Stone that shields an army, rocks that whisper what they see, forest spirits that enrich the land, portals home, and a towering elemental of living water.",
+   "color": "#3f8fa8",
+   "light": "#ddf1f5",
+   "name": "Elemental",
+   "race": "wood",
+   "spells": [
+    "Rock Armor",
+    "Whispering Rocks",
+    "Town Portal",
+    "Forest Spirit",
+    "Grand Elemental"
+   ]
+  },
+  "life": {
+   "blurb": "Harvests, protective skins, healing, and paths through the forest.",
+   "color": "#3f9b4b",
+   "light": "#e3f6e0",
+   "name": "Herbomancy",
+   "race": [
+    "realm",
+    "wood"
+   ],
+   "spells": [
+    "Harvest",
+    "Hardened Skin",
+    "Mending",
+    "Speak with the Forest"
+   ]
+  },
+  "pyro": {
+   "blurb": "Fiery weapons, scouting pyres, fire traps, sacred pyres that burn wood into gold, and paths of fire.",
+   "color": "#d9542c",
+   "light": "#ffe6da",
+   "name": "Pyromancy",
+   "race": "swamp",
+   "spells": [
+    "Fiery Weapons",
+    "Scouting Pyre",
+    "Fire Trap",
+    "Sacred Pyre",
+    "Path of Fire"
+   ]
+  }
+ },
+ "SKIN": [
+  0,
+  {
+   "cd": 300,
+   "pct": 0.05
+  },
+  {
+   "cd": 180,
+   "pct": 0.1
+  },
+  {
+   "cd": 90,
+   "pct": 0.15
+  }
+ ],
+ "SPELL_CELLS": [
+  "harvest",
+  "mending",
+  "eyes",
+  "graverob",
+  "haunt",
+  "trading",
+  "mind",
+  "stasis",
+  "rift",
+  "spyre",
+  "ftrap",
+  "pfire",
+  "sacred",
+  "wrocks",
+  "tportal",
+  "fspirit",
+  "gelem"
+ ],
+ "STASIS": [
+  0,
+  10,
+  20
+ ],
+ "TRADE": [
+  0,
+  100,
+  200
+ ]
+}

@@ -1,0 +1,725 @@
+{
+ "note": "ax, ay: the anchor pixel (where the game places the art: province center, plot, feet). scale: image pixels per world unit.",
+ "images": {
+  "d_club_d0.png": {
+   "w": 85,
+   "h": 152,
+   "ax": 44,
+   "ay": 137,
+   "scale": 4,
+   "id": "d-club",
+   "dir": "d0",
+   "th": 0
+  },
+  "d_club_d1.png": {
+   "w": 85,
+   "h": 152,
+   "ax": 50,
+   "ay": 137,
+   "scale": 4,
+   "id": "d-club",
+   "dir": "d1",
+   "th": -0.7853981633974483
+  },
+  "d_club_d2.png": {
+   "w": 81,
+   "h": 152,
+   "ax": 46,
+   "ay": 137,
+   "scale": 4,
+   "id": "d-club",
+   "dir": "d2",
+   "th": -1.5707963267948966
+  },
+  "d_club_d3.png": {
+   "w": 76,
+   "h": 152,
+   "ax": 41,
+   "ay": 137,
+   "scale": 4,
+   "id": "d-club",
+   "dir": "d3",
+   "th": -2.356194490192345
+  },
+  "d_club_d4.png": {
+   "w": 85,
+   "h": 152,
+   "ax": 41,
+   "ay": 137,
+   "scale": 4,
+   "id": "d-club",
+   "dir": "d4",
+   "th": 3.141592653589793
+  },
+  "d_club_d5.png": {
+   "w": 85,
+   "h": 152,
+   "ax": 35,
+   "ay": 137,
+   "scale": 4,
+   "id": "d-club",
+   "dir": "d5",
+   "th": 2.356194490192345
+  },
+  "d_club_d6.png": {
+   "w": 80,
+   "h": 152,
+   "ax": 35,
+   "ay": 137,
+   "scale": 4,
+   "id": "d-club",
+   "dir": "d6",
+   "th": 1.5707963267948966
+  },
+  "d_club_d7.png": {
+   "w": 76,
+   "h": 152,
+   "ax": 35,
+   "ay": 137,
+   "scale": 4,
+   "id": "d-club",
+   "dir": "d7",
+   "th": 0.7853981633974483
+  },
+  "d_rider_d0.png": {
+   "w": 95,
+   "h": 258,
+   "ax": 58,
+   "ay": 238,
+   "scale": 4,
+   "id": "d-rider",
+   "dir": "d0",
+   "th": 0
+  },
+  "d_rider_d1.png": {
+   "w": 140,
+   "h": 246,
+   "ax": 84,
+   "ay": 226,
+   "scale": 4,
+   "id": "d-rider",
+   "dir": "d1",
+   "th": -0.7853981633974483
+  },
+  "d_rider_d2.png": {
+   "w": 161,
+   "h": 249,
+   "ax": 91,
+   "ay": 229,
+   "scale": 4,
+   "id": "d-rider",
+   "dir": "d2",
+   "th": -1.5707963267948966
+  },
+  "d_rider_d3.png": {
+   "w": 125,
+   "h": 263,
+   "ax": 69,
+   "ay": 243,
+   "scale": 4,
+   "id": "d-rider",
+   "dir": "d3",
+   "th": -2.356194490192345
+  },
+  "d_rider_d4.png": {
+   "w": 95,
+   "h": 258,
+   "ax": 37,
+   "ay": 238,
+   "scale": 4,
+   "id": "d-rider",
+   "dir": "d4",
+   "th": 3.141592653589793
+  },
+  "d_rider_d5.png": {
+   "w": 140,
+   "h": 242,
+   "ax": 56,
+   "ay": 222,
+   "scale": 4,
+   "id": "d-rider",
+   "dir": "d5",
+   "th": 2.356194490192345
+  },
+  "d_rider_d6.png": {
+   "w": 161,
+   "h": 244,
+   "ax": 70,
+   "ay": 224,
+   "scale": 4,
+   "id": "d-rider",
+   "dir": "d6",
+   "th": 1.5707963267948966
+  },
+  "d_rider_d7.png": {
+   "w": 125,
+   "h": 260,
+   "ax": 56,
+   "ay": 240,
+   "scale": 4,
+   "id": "d-rider",
+   "dir": "d7",
+   "th": 0.7853981633974483
+  },
+  "d_spear_d0.png": {
+   "w": 83,
+   "h": 210,
+   "ax": 42,
+   "ay": 195,
+   "scale": 4,
+   "id": "d-spear",
+   "dir": "d0",
+   "th": 0
+  },
+  "d_spear_d1.png": {
+   "w": 101,
+   "h": 209,
+   "ax": 66,
+   "ay": 194,
+   "scale": 4,
+   "id": "d-spear",
+   "dir": "d1",
+   "th": -0.7853981633974483
+  },
+  "d_spear_d2.png": {
+   "w": 93,
+   "h": 207,
+   "ax": 58,
+   "ay": 192,
+   "scale": 4,
+   "id": "d-spear",
+   "dir": "d2",
+   "th": -1.5707963267948966
+  },
+  "d_spear_d3.png": {
+   "w": 76,
+   "h": 210,
+   "ax": 41,
+   "ay": 195,
+   "scale": 4,
+   "id": "d-spear",
+   "dir": "d3",
+   "th": -2.356194490192345
+  },
+  "d_spear_d4.png": {
+   "w": 83,
+   "h": 211,
+   "ax": 41,
+   "ay": 196,
+   "scale": 4,
+   "id": "d-spear",
+   "dir": "d4",
+   "th": 3.141592653589793
+  },
+  "d_spear_d5.png": {
+   "w": 101,
+   "h": 205,
+   "ax": 35,
+   "ay": 190,
+   "scale": 4,
+   "id": "d-spear",
+   "dir": "d5",
+   "th": 2.356194490192345
+  },
+  "d_spear_d6.png": {
+   "w": 93,
+   "h": 200,
+   "ax": 35,
+   "ay": 185,
+   "scale": 4,
+   "id": "d-spear",
+   "dir": "d6",
+   "th": 1.5707963267948966
+  },
+  "d_spear_d7.png": {
+   "w": 76,
+   "h": 204,
+   "ax": 35,
+   "ay": 189,
+   "scale": 4,
+   "id": "d-spear",
+   "dir": "d7",
+   "th": 0.7853981633974483
+  },
+  "d_sword_d0.png": {
+   "w": 86,
+   "h": 152,
+   "ax": 45,
+   "ay": 137,
+   "scale": 4,
+   "id": "d-sword",
+   "dir": "d0",
+   "th": 0
+  },
+  "d_sword_d1.png": {
+   "w": 79,
+   "h": 152,
+   "ax": 44,
+   "ay": 137,
+   "scale": 4,
+   "id": "d-sword",
+   "dir": "d1",
+   "th": -0.7853981633974483
+  },
+  "d_sword_d2.png": {
+   "w": 81,
+   "h": 152,
+   "ax": 46,
+   "ay": 137,
+   "scale": 4,
+   "id": "d-sword",
+   "dir": "d2",
+   "th": -1.5707963267948966
+  },
+  "d_sword_d3.png": {
+   "w": 76,
+   "h": 152,
+   "ax": 41,
+   "ay": 137,
+   "scale": 4,
+   "id": "d-sword",
+   "dir": "d3",
+   "th": -2.356194490192345
+  },
+  "d_sword_d4.png": {
+   "w": 86,
+   "h": 152,
+   "ax": 41,
+   "ay": 137,
+   "scale": 4,
+   "id": "d-sword",
+   "dir": "d4",
+   "th": 3.141592653589793
+  },
+  "d_sword_d5.png": {
+   "w": 79,
+   "h": 152,
+   "ax": 35,
+   "ay": 137,
+   "scale": 4,
+   "id": "d-sword",
+   "dir": "d5",
+   "th": 2.356194490192345
+  },
+  "d_sword_d6.png": {
+   "w": 80,
+   "h": 152,
+   "ax": 35,
+   "ay": 137,
+   "scale": 4,
+   "id": "d-sword",
+   "dir": "d6",
+   "th": 1.5707963267948966
+  },
+  "d_sword_d7.png": {
+   "w": 76,
+   "h": 152,
+   "ax": 35,
+   "ay": 137,
+   "scale": 4,
+   "id": "d-sword",
+   "dir": "d7",
+   "th": 0.7853981633974483
+  },
+  "mage_a_d0.png": {
+   "w": 96,
+   "h": 196,
+   "ax": 48,
+   "ay": 181,
+   "scale": 4,
+   "id": "mage:A",
+   "dir": "d0",
+   "th": 0
+  },
+  "mage_a_d1.png": {
+   "w": 98,
+   "h": 196,
+   "ax": 48,
+   "ay": 181,
+   "scale": 4,
+   "id": "mage:A",
+   "dir": "d1",
+   "th": -0.7853981633974483
+  },
+  "mage_a_d2.png": {
+   "w": 96,
+   "h": 196,
+   "ax": 48,
+   "ay": 181,
+   "scale": 4,
+   "id": "mage:A",
+   "dir": "d2",
+   "th": -1.5707963267948966
+  },
+  "mage_a_d3.png": {
+   "w": 98,
+   "h": 196,
+   "ax": 48,
+   "ay": 181,
+   "scale": 4,
+   "id": "mage:A",
+   "dir": "d3",
+   "th": -2.356194490192345
+  },
+  "mage_a_d4.png": {
+   "w": 96,
+   "h": 196,
+   "ax": 48,
+   "ay": 181,
+   "scale": 4,
+   "id": "mage:A",
+   "dir": "d4",
+   "th": 3.141592653589793
+  },
+  "mage_a_d5.png": {
+   "w": 98,
+   "h": 196,
+   "ax": 50,
+   "ay": 181,
+   "scale": 4,
+   "id": "mage:A",
+   "dir": "d5",
+   "th": 2.356194490192345
+  },
+  "mage_a_d6.png": {
+   "w": 96,
+   "h": 198,
+   "ax": 48,
+   "ay": 181,
+   "scale": 4,
+   "id": "mage:A",
+   "dir": "d6",
+   "th": 1.5707963267948966
+  },
+  "mage_a_d7.png": {
+   "w": 98,
+   "h": 197,
+   "ax": 50,
+   "ay": 181,
+   "scale": 4,
+   "id": "mage:A",
+   "dir": "d7",
+   "th": 0.7853981633974483
+  },
+  "mason_a_d0.png": {
+   "w": 111,
+   "h": 185,
+   "ax": 64,
+   "ay": 170,
+   "scale": 4,
+   "id": "mason:A",
+   "dir": "d0",
+   "th": 0
+  },
+  "mason_a_d1.png": {
+   "w": 118,
+   "h": 185,
+   "ax": 61,
+   "ay": 170,
+   "scale": 4,
+   "id": "mason:A",
+   "dir": "d1",
+   "th": -0.7853981633974483
+  },
+  "mason_a_d2.png": {
+   "w": 97,
+   "h": 185,
+   "ax": 46,
+   "ay": 170,
+   "scale": 4,
+   "id": "mason:A",
+   "dir": "d2",
+   "th": -1.5707963267948966
+  },
+  "mason_a_d3.png": {
+   "w": 94,
+   "h": 185,
+   "ax": 41,
+   "ay": 170,
+   "scale": 4,
+   "id": "mason:A",
+   "dir": "d3",
+   "th": -2.356194490192345
+  },
+  "mason_a_d4.png": {
+   "w": 112,
+   "h": 185,
+   "ax": 48,
+   "ay": 170,
+   "scale": 4,
+   "id": "mason:A",
+   "dir": "d4",
+   "th": 3.141592653589793
+  },
+  "mason_a_d5.png": {
+   "w": 114,
+   "h": 185,
+   "ax": 53,
+   "ay": 170,
+   "scale": 4,
+   "id": "mason:A",
+   "dir": "d5",
+   "th": 2.356194490192345
+  },
+  "mason_a_d6.png": {
+   "w": 96,
+   "h": 185,
+   "ax": 51,
+   "ay": 170,
+   "scale": 4,
+   "id": "mason:A",
+   "dir": "d6",
+   "th": 1.5707963267948966
+  },
+  "mason_a_d7.png": {
+   "w": 96,
+   "h": 185,
+   "ax": 55,
+   "ay": 170,
+   "scale": 4,
+   "id": "mason:A",
+   "dir": "d7",
+   "th": 0.7853981633974483
+  },
+  "pioneer_b_d0.png": {
+   "w": 110,
+   "h": 166,
+   "ax": 69,
+   "ay": 139,
+   "scale": 4,
+   "id": "pioneer:B",
+   "dir": "d0",
+   "th": 0
+  },
+  "pioneer_b_d1.png": {
+   "w": 115,
+   "h": 163,
+   "ax": 65,
+   "ay": 139,
+   "scale": 4,
+   "id": "pioneer:B",
+   "dir": "d1",
+   "th": -0.7853981633974483
+  },
+  "pioneer_b_d2.png": {
+   "w": 93,
+   "h": 162,
+   "ax": 45,
+   "ay": 139,
+   "scale": 4,
+   "id": "pioneer:B",
+   "dir": "d2",
+   "th": -1.5707963267948966
+  },
+  "pioneer_b_d3.png": {
+   "w": 93,
+   "h": 162,
+   "ax": 37,
+   "ay": 139,
+   "scale": 4,
+   "id": "pioneer:B",
+   "dir": "d3",
+   "th": -2.356194490192345
+  },
+  "pioneer_b_d4.png": {
+   "w": 110,
+   "h": 165,
+   "ax": 41,
+   "ay": 139,
+   "scale": 4,
+   "id": "pioneer:B",
+   "dir": "d4",
+   "th": 3.141592653589793
+  },
+  "pioneer_b_d5.png": {
+   "w": 115,
+   "h": 167,
+   "ax": 50,
+   "ay": 139,
+   "scale": 4,
+   "id": "pioneer:B",
+   "dir": "d5",
+   "th": 2.356194490192345
+  },
+  "pioneer_b_d6.png": {
+   "w": 93,
+   "h": 169,
+   "ax": 48,
+   "ay": 139,
+   "scale": 4,
+   "id": "pioneer:B",
+   "dir": "d6",
+   "th": 1.5707963267948966
+  },
+  "pioneer_b_d7.png": {
+   "w": 93,
+   "h": 168,
+   "ax": 56,
+   "ay": 139,
+   "scale": 4,
+   "id": "pioneer:B",
+   "dir": "d7",
+   "th": 0.7853981633974483
+  },
+  "rng_realm_d0.png": {
+   "w": 84,
+   "h": 152,
+   "ax": 43,
+   "ay": 137,
+   "scale": 4,
+   "id": "rng-realm",
+   "dir": "d0",
+   "th": 0
+  },
+  "rng_realm_d1.png": {
+   "w": 107,
+   "h": 152,
+   "ax": 72,
+   "ay": 137,
+   "scale": 4,
+   "id": "rng-realm",
+   "dir": "d1",
+   "th": -0.7853981633974483
+  },
+  "rng_realm_d2.png": {
+   "w": 110,
+   "h": 152,
+   "ax": 75,
+   "ay": 137,
+   "scale": 4,
+   "id": "rng-realm",
+   "dir": "d2",
+   "th": -1.5707963267948966
+  },
+  "rng_realm_d3.png": {
+   "w": 88,
+   "h": 152,
+   "ax": 53,
+   "ay": 137,
+   "scale": 4,
+   "id": "rng-realm",
+   "dir": "d3",
+   "th": -2.356194490192345
+  },
+  "rng_realm_d4.png": {
+   "w": 84,
+   "h": 152,
+   "ax": 41,
+   "ay": 137,
+   "scale": 4,
+   "id": "rng-realm",
+   "dir": "d4",
+   "th": 3.141592653589793
+  },
+  "rng_realm_d5.png": {
+   "w": 107,
+   "h": 152,
+   "ax": 35,
+   "ay": 137,
+   "scale": 4,
+   "id": "rng-realm",
+   "dir": "d5",
+   "th": 2.356194490192345
+  },
+  "rng_realm_d6.png": {
+   "w": 110,
+   "h": 152,
+   "ax": 35,
+   "ay": 137,
+   "scale": 4,
+   "id": "rng-realm",
+   "dir": "d6",
+   "th": 1.5707963267948966
+  },
+  "rng_realm_d7.png": {
+   "w": 88,
+   "h": 152,
+   "ax": 35,
+   "ay": 137,
+   "scale": 4,
+   "id": "rng-realm",
+   "dir": "d7",
+   "th": 0.7853981633974483
+  },
+  "thug_a_d0.png": {
+   "w": 134,
+   "h": 124,
+   "ax": 86,
+   "ay": 109,
+   "scale": 4,
+   "id": "thug:A",
+   "dir": "d0",
+   "th": 0
+  },
+  "thug_a_d1.png": {
+   "w": 124,
+   "h": 126,
+   "ax": 91,
+   "ay": 111,
+   "scale": 4,
+   "id": "thug:A",
+   "dir": "d1",
+   "th": -0.7853981633974483
+  },
+  "thug_a_d2.png": {
+   "w": 102,
+   "h": 129,
+   "ax": 70,
+   "ay": 114,
+   "scale": 4,
+   "id": "thug:A",
+   "dir": "d2",
+   "th": -1.5707963267948966
+  },
+  "thug_a_d3.png": {
+   "w": 111,
+   "h": 132,
+   "ax": 53,
+   "ay": 117,
+   "scale": 4,
+   "id": "thug:A",
+   "dir": "d3",
+   "th": -2.356194490192345
+  },
+  "thug_a_d4.png": {
+   "w": 134,
+   "h": 133,
+   "ax": 48,
+   "ay": 118,
+   "scale": 4,
+   "id": "thug:A",
+   "dir": "d4",
+   "th": 3.141592653589793
+  },
+  "thug_a_d5.png": {
+   "w": 124,
+   "h": 132,
+   "ax": 33,
+   "ay": 117,
+   "scale": 4,
+   "id": "thug:A",
+   "dir": "d5",
+   "th": 2.356194490192345
+  },
+  "thug_a_d6.png": {
+   "w": 102,
+   "h": 129,
+   "ax": 32,
+   "ay": 114,
+   "scale": 4,
+   "id": "thug:A",
+   "dir": "d6",
+   "th": 1.5707963267948966
+  },
+  "thug_a_d7.png": {
+   "w": 111,
+   "h": 126,
+   "ax": 58,
+   "ay": 111,
+   "scale": 4,
+   "id": "thug:A",
+   "dir": "d7",
+   "th": 0.7853981633974483
+  }
+ }
+}

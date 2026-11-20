@@ -1,0 +1,362 @@
+{
+ "MAX_ALLIES": 1,
+ "NAME_A": [
+  "Ash",
+  "Bram",
+  "Cald",
+  "Dun",
+  "Elm",
+  "Fen",
+  "Gal",
+  "Hol",
+  "Iver",
+  "Kel",
+  "Lor",
+  "Mar",
+  "Nor",
+  "Oak",
+  "Pell",
+  "Quen",
+  "Ros",
+  "Stan",
+  "Thorn",
+  "Ul",
+  "Vel",
+  "Wyn",
+  "Yar",
+  "Brin",
+  "Cor",
+  "Del",
+  "Gorm",
+  "Hart",
+  "Lin",
+  "Mor"
+ ],
+ "NAME_B": {
+  "desert": [
+   "sand",
+   "dune",
+   "reach",
+   "mesa",
+   "rock",
+   "waste",
+   "flats",
+   "spire"
+  ],
+  "forest": [
+   "wood",
+   "holt",
+   "shaw",
+   "glen",
+   "hollow",
+   "grove",
+   "thicket",
+   "wald"
+  ],
+  "grassland": [
+   "dale",
+   "field",
+   "ford",
+   "stead",
+   "meadow",
+   "wold",
+   "hill",
+   "ton"
+  ],
+  "swamp": [
+   "marsh",
+   "mire",
+   "fen",
+   "bog",
+   "moss",
+   "mere",
+   "sump",
+   "wash"
+  ]
+ },
+ "NATIONS": {
+  "4": {
+   "alive": true,
+   "armorLine": "chain",
+   "armyN": 2,
+   "capital": 101,
+   "design": {
+    "cav": "ai4c1",
+    "inf": "ai4i1"
+   },
+   "designSig": "shortsword|leather1||spear|riding",
+   "diff": "easy",
+   "dv": 1,
+   "emblem": "eagle",
+   "exhaust": 0,
+   "family": "sword",
+   "id": 4,
+   "income": {
+    "food": 4,
+    "gold": 6,
+    "wood": 4
+   },
+   "leader": "havva",
+   "name": "Kingdom of Stonebrook",
+   "nextOutpost": 0,
+   "phase": "grow",
+   "queue": [],
+   "race": "realm",
+   "rep": {},
+   "school": null,
+   "spellT": 0,
+   "stock": {
+    "food": 250,
+    "gold": 250,
+    "wood": 250
+   },
+   "stuckSince": null,
+   "surge": false,
+   "surveyed": [
+    101
+   ],
+   "tech": {
+    "gov": {
+     "bank": 0,
+     "cur": null,
+     "done": [],
+     "opts": [],
+     "prog": 0,
+     "sticky": [],
+     "tier": 0
+    },
+    "mag": {
+     "bank": 0,
+     "cur": null,
+     "done": [],
+     "opts": [],
+     "prog": 0,
+     "sticky": [],
+     "tier": 0
+    },
+    "mil": {
+     "bank": 0,
+     "cur": null,
+     "done": [],
+     "opts": [],
+     "prog": 0,
+     "sticky": [],
+     "tier": 0
+    }
+   },
+   "think": 1,
+   "ups": {},
+   "wantSchool": "life",
+   "warCheck": 110.77520180493593,
+   "warPeak": 0,
+   "xups": {}
+  },
+  "5": {
+   "alive": true,
+   "armorLine": "chain",
+   "armyN": 1,
+   "capital": 2,
+   "design": {
+    "cav": "ai5c1",
+    "inf": "ai5i1"
+   },
+   "designSig": "shortsword|leather1||spear|riding",
+   "diff": "easy",
+   "dv": 1,
+   "emblem": "horse",
+   "exhaust": 0,
+   "family": "sword",
+   "id": 5,
+   "income": {
+    "food": 0,
+    "gold": 6,
+    "wood": 7
+   },
+   "leader": "aithne",
+   "name": "Dominion of Highmoor",
+   "nextOutpost": 0,
+   "phase": "grow",
+   "queue": [],
+   "race": "realm",
+   "rep": {},
+   "school": null,
+   "spellT": 0,
+   "stock": {
+    "food": 50,
+    "gold": 50,
+    "wood": 50
+   },
+   "stuckSince": null,
+   "surge": false,
+   "surveyed": [
+    2
+   ],
+   "tech": {
+    "gov": {
+     "bank": 0,
+     "cur": null,
+     "done": [
+      "autoscout",
+      "stealth",
+      "farsight"
+     ],
+     "opts": [],
+     "prog": 0,
+     "sticky": [],
+     "tier": 0
+    },
+    "mag": {
+     "bank": 0,
+     "cur": null,
+     "done": [],
+     "opts": [],
+     "prog": 0,
+     "sticky": [],
+     "tier": 0
+    },
+    "mil": {
+     "bank": 0,
+     "cur": null,
+     "done": [],
+     "opts": [],
+     "prog": 0,
+     "sticky": [],
+     "tier": 0
+    }
+   },
+   "think": 1.37,
+   "ups": {},
+   "wantSchool": "life",
+   "warCheck": 94.29352627135813,
+   "warPeak": 0,
+   "xups": {}
+  },
+  "6": {
+   "alive": true,
+   "armorLine": "wyvern",
+   "armyN": 1,
+   "capital": 144,
+   "design": {
+    "cav": "ai6c1",
+    "inf": "ai6i1"
+   },
+   "designSig": "handaxe|stag1||club|riding",
+   "diff": "moderate",
+   "dv": 1,
+   "emblem": "snake",
+   "exhaust": 0,
+   "family": "axe",
+   "id": 6,
+   "income": {
+    "food": 5,
+    "gold": 8,
+    "wood": 4
+   },
+   "leader": "glurg",
+   "name": "Clan of Bilegut",
+   "nextOutpost": 0,
+   "phase": "grow",
+   "queue": [],
+   "race": "swamp",
+   "rep": {},
+   "school": null,
+   "spellT": 0,
+   "stock": {
+    "food": 50,
+    "gold": 50,
+    "wood": 50
+   },
+   "stuckSince": null,
+   "surge": false,
+   "surveyed": [
+    144
+   ],
+   "tech": {
+    "gov": {
+     "bank": 0,
+     "cur": null,
+     "done": [
+      "mushroom",
+      "forge"
+     ],
+     "opts": [],
+     "prog": 0,
+     "sticky": [],
+     "tier": 0
+    },
+    "mag": {
+     "bank": 0,
+     "cur": null,
+     "done": [],
+     "opts": [],
+     "prog": 0,
+     "sticky": [],
+     "tier": 0
+    },
+    "mil": {
+     "bank": 0,
+     "cur": null,
+     "done": [],
+     "opts": [],
+     "prog": 0,
+     "sticky": [],
+     "tier": 0
+    }
+   },
+   "think": 1.74,
+   "ups": {},
+   "wantSchool": "arcane",
+   "warCheck": 85.04300259053707,
+   "warPeak": 0,
+   "xups": {}
+  }
+ },
+ "RIVAL": 2,
+ "STAGE_WORD": [
+  "outpost",
+  "fort",
+  "capital"
+ ],
+ "WAR": {
+  "allyAskAgain": 300,
+  "allyTruce": 600,
+  "declareCost": {
+   "gold": 50
+  },
+  "gold": 20,
+  "goldTerm": 300,
+  "heavyLoss": 0.1,
+  "kill": 0,
+  "maxProvs": 5,
+  "maxVsPlayer": 2,
+  "occCapital": 2,
+  "occTick": [
+   0,
+   1,
+   5
+  ],
+  "occTimes": [
+   60,
+   40,
+   20
+  ],
+  "occVal": [
+   2,
+   10,
+   25
+  ],
+  "provs": 50,
+  "splitAt": 10,
+  "stallScore": 10,
+  "stallWindow": 300,
+  "surrenderLock": 600,
+  "tickEvery": 10,
+  "total": 100,
+  "totalResearch": 100,
+  "truce": 480,
+  "whiteAfter": 180,
+  "wipe": 5,
+  "wipeBig": 1,
+  "wipeMin": 10
+ }
+}

@@ -1,0 +1,160 @@
+{
+ "ARTIFACTS": {
+  "blueskull": {
+   "desc": "all your soldiers have 15% more health.",
+   "name": "Blue Dragon Skull"
+  },
+  "crown": {
+   "desc": "your upkeep is 20% lower.",
+   "name": "Kingâ€™s Crown"
+  },
+  "eye": {
+   "desc": "you always see every army on the map and the province it stands in.",
+   "name": "Lidless Eye"
+  },
+  "flame": {
+   "desc": "every weapon you carry has +10 attack.",
+   "name": "Essence of Flame"
+  },
+  "goldskull": {
+   "desc": "+50 gold every payout, and 2000 more gold storage.",
+   "name": "Gold Dragon Skull"
+  },
+  "grips": {
+   "desc": "maces of every level (clubs, maces, morning stars, war hammers) deal 15 more damage.",
+   "name": "Grips of the Beast"
+  },
+  "redskull": {
+   "desc": "all your units are 25% faster.",
+   "name": "Red Dragon Skull"
+  },
+  "slippers": {
+   "desc": "your armies can fly over any border into a neighboring province (an ability on the armyâ€™s card, 1-minute cooldown for your whole nation).",
+   "name": "Winged Slippers"
+  },
+  "stump": {
+   "desc": "+50 wood every payout.",
+   "name": "Enchanted Stump"
+  }
+ },
+ "BOSSES": {
+  "bluedragon": {
+   "art": "blueskull",
+   "name": "the Blue Dragon",
+   "power": 40000,
+   "short": "Blue Dragon",
+   "site": "death",
+   "speed": 0.45
+  },
+  "golddragon": {
+   "art": "goldskull",
+   "name": "the Gold Dragon",
+   "power": 50000,
+   "short": "Gold Dragon",
+   "site": "death",
+   "speed": 0.45
+  },
+  "inferno": {
+   "art": "flame",
+   "name": "the Walking Inferno",
+   "power": 30000,
+   "short": "Walking Inferno",
+   "site": "oasis",
+   "speed": 0.5
+  },
+  "reddragon": {
+   "art": "redskull",
+   "name": "the Red Dragon",
+   "power": 30000,
+   "short": "Red Dragon",
+   "site": "death",
+   "speed": 0.45
+  },
+  "scarabs": {
+   "art": "eye",
+   "name": "the Scarab Army",
+   "power": 35000,
+   "short": "Scarab Army",
+   "site": "oasis",
+   "speed": 0.55
+  },
+  "serpent": {
+   "art": "slippers",
+   "name": "the Winged Serpent",
+   "power": 30000,
+   "short": "Winged Serpent",
+   "site": "heart",
+   "speed": 0.6
+  },
+  "sherman": {
+   "art": "stump",
+   "name": "General Sherman",
+   "power": 20000,
+   "short": "General Sherman",
+   "site": "heart",
+   "speed": 0.35,
+   "sub": "the Tallest Redwood Ent"
+  },
+  "skeletonking": {
+   "art": "crown",
+   "name": "the Skeleton King",
+   "power": 25000,
+   "short": "Skeleton King",
+   "site": "oasis",
+   "speed": 0.5
+  },
+  "ursa": {
+   "art": "grips",
+   "name": "Ursa Major",
+   "power": 25000,
+   "short": "Ursa Major",
+   "site": "heart",
+   "speed": 0.55
+  }
+ },
+ "BOSS_ATK": 30,
+ "BOSS_K": 0.045,
+ "BOSS_SITES": {
+  "death": [
+   "reddragon",
+   "bluedragon",
+   "golddragon"
+  ],
+  "heart": [
+   "sherman",
+   "ursa",
+   "serpent"
+  ],
+  "oasis": [
+   "skeletonking",
+   "inferno",
+   "scarabs"
+  ]
+ },
+ "FLY_CD": 60,
+ "SKULLS": {
+  "skull1": {
+   "atk": 1,
+   "lv": 1,
+   "name": "Cracked Skull",
+   "tech": "skull-cracked"
+  },
+  "skull3": {
+   "atk": 2,
+   "lv": 2,
+   "name": "Polished Skull",
+   "tech": "skull-polished"
+  },
+  "skull4": {
+   "atk": 3,
+   "lv": 3,
+   "name": "Flawless Skull",
+   "tech": "skull-flawless"
+  }
+ },
+ "UQ_NAME": {
+  "death": "Death Mountain",
+  "heart": "Heart of the Forest",
+  "oasis": "Desert Oasis"
+ }
+}

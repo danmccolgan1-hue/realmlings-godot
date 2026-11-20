@@ -1,0 +1,266 @@
+{
+ "CUTE_NAMES": [
+  "Pip",
+  "Bo",
+  "Tib",
+  "Moss",
+  "Fen",
+  "Kit",
+  "Dot",
+  "Bram",
+  "Wren",
+  "Jot",
+  "Nib",
+  "Tuck",
+  "Bun",
+  "Pim",
+  "Fig",
+  "Lark",
+  "Mott",
+  "Rue",
+  "Sprig",
+  "Hob",
+  "Dab",
+  "Cob",
+  "Nell",
+  "Puck",
+  "Tam",
+  "Zed",
+  "Quill",
+  "Bix",
+  "Mags",
+  "Plum",
+  "Tot",
+  "Fitz",
+  "Gus",
+  "Ned",
+  "Wick",
+  "Pog"
+ ],
+ "FLAG_EMBLEMS": [
+  "dragon",
+  "eagle",
+  "lion",
+  "snake",
+  "crown",
+  "swords",
+  "shield",
+  "horse"
+ ],
+ "FLAG_NAMES": {
+  "crown": "Crown",
+  "dragon": "Dragon",
+  "eagle": "Eagle",
+  "horse": "Rearing horse",
+  "lion": "Lion",
+  "shield": "Shield",
+  "snake": "Snake",
+  "swords": "Crossed swords"
+ },
+ "GRID_KEYS": [
+  "q",
+  "w",
+  "e",
+  "r",
+  "a",
+  "s",
+  "d",
+  "f",
+  "z",
+  "x",
+  "c",
+  "v",
+  "u",
+  "i",
+  "o",
+  "p"
+ ],
+ "NAME_PARTS": {
+  "realm": {
+   "places": [
+    "Thornwall",
+    "Emberreach",
+    "Mistvale",
+    "Highmoor",
+    "Goldhaven",
+    "Ravenmark",
+    "Stonebrook",
+    "Willowmere",
+    "Frostholm",
+    "Sunspire",
+    "Duskwood",
+    "Briarfell",
+    "Ironcrest",
+    "Oakenshade",
+    "Ashford",
+    "Silverdale",
+    "Kingsbridge",
+    "Lionmere",
+    "Brightwater",
+    "Hollowell",
+    "Redcliff",
+    "Ambervale",
+    "Westmarch",
+    "Copperfield"
+   ],
+   "titles": [
+    "Kingdom",
+    "Duchy",
+    "Realm",
+    "March",
+    "Principality",
+    "Dominion",
+    "Grand Duchy",
+    "Barony",
+    "Free Cities",
+    "Crown",
+    "County",
+    "Empire"
+   ]
+  },
+  "swamp": {
+   "places": [
+    "Bloodtusk",
+    "Gorehide",
+    "Skullmire",
+    "Rotfang",
+    "Bonegnaw",
+    "Mudmaw",
+    "Gutripper",
+    "Ironjaw",
+    "Grimbog",
+    "Blackfen",
+    "Bilegut",
+    "Snaggletooth",
+    "Muckclaw",
+    "Thudfist",
+    "Skarrak",
+    "Grubsnout",
+    "Stinkwallow",
+    "Toadbelly",
+    "Mirefang",
+    "Gobsmack"
+   ],
+   "titles": [
+    "Clan",
+    "Tribe",
+    "Legion",
+    "Horde",
+    "Warband",
+    "Brood",
+    "Mob"
+   ]
+  },
+  "wood": {
+   "adj": [
+    "Ancient",
+    "Eternal",
+    "Silverleaf",
+    "Starlit",
+    "Moonlit",
+    "Leafsworn",
+    "Evergreen",
+    "Twilight"
+   ],
+   "groups": [
+    "Sentinels",
+    "Watchers",
+    "Hunters",
+    "Ancients",
+    "Keepers",
+    "Guardians",
+    "Defenders",
+    "Wardens",
+    "Children"
+   ],
+   "of": [
+    "the Silver Grove",
+    "the Elder Bough",
+    "the Twilight",
+    "the Deepwood",
+    "the Gloaming",
+    "the Dark",
+    "the Whispering Stars",
+    "the Evergreen",
+    "the Moonlit Glade",
+    "the First Dawn",
+    "the Hidden Vale",
+    "the Ancient Oak"
+   ],
+   "post": [
+    "watchers",
+    "wardens",
+    "singers",
+    "walkers",
+    "keepers",
+    "sworn",
+    "weavers",
+    "seekers",
+    "guards"
+   ],
+   "pre": [
+    "Moon",
+    "Star",
+    "Dawn",
+    "Dusk",
+    "Silver",
+    "Leaf",
+    "Elder",
+    "Mist",
+    "Twilight",
+    "Ever",
+    "Sun",
+    "Glimmer",
+    "Thorn",
+    "Willow"
+   ]
+  }
+ },
+ "NATION": {
+  "color": 0,
+  "emblem": "crown",
+  "leader": "niall",
+  "name": "My Realm"
+ },
+ "NATION_COLORS": [
+  [
+   "#2f6fe0",
+   "#7fb0ff"
+  ],
+  [
+   "#d23b3b",
+   "#ff9a9a"
+  ],
+  [
+   "#2f9e55",
+   "#8fe0a6"
+  ],
+  [
+   "#8a4fd0",
+   "#c9a6ff"
+  ],
+  [
+   "#e08a1e",
+   "#ffc777"
+  ],
+  [
+   "#1f9fa5",
+   "#86e3e6"
+  ],
+  [
+   "#c23f8f",
+   "#f4a3d2"
+  ],
+  [
+   "#4b4f5c",
+   "#a9afbf"
+  ]
+ ],
+ "ROAD_REACH": 170,
+ "UI": {
+  "z": 1
+ },
+ "XICON": {
+  "dismiss": "data:image/png;base64,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"
+ }
+}

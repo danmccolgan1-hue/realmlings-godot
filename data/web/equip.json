@@ -1,0 +1,1944 @@
+{
+ "ARMORS": {
+  "chain1": {
+   "armor": 4,
+   "cost": {
+    "gold": 15
+   },
+   "level": 1,
+   "name": "Chain I",
+   "race": "realm",
+   "speed": 1,
+   "tech": "a-chain1",
+   "type": "chain"
+  },
+  "chain2": {
+   "armor": 8,
+   "cost": {
+    "gold": 30
+   },
+   "level": 2,
+   "name": "Chain II",
+   "race": "realm",
+   "speed": 1,
+   "tech": "a-chain2",
+   "type": "chain"
+  },
+  "chain3": {
+   "armor": 12,
+   "cost": {
+    "gold": 50
+   },
+   "level": 3,
+   "name": "Chain III",
+   "race": "realm",
+   "speed": 1,
+   "tech": "a-chain3",
+   "type": "chain"
+  },
+  "chain4": {
+   "armor": 16,
+   "cost": {
+    "gold": 80
+   },
+   "level": 4,
+   "name": "Chain IV",
+   "race": "realm",
+   "speed": 1,
+   "tech": "a-chain4",
+   "type": "chain"
+  },
+  "dragon1": {
+   "armor": 7.2,
+   "cost": {
+    "gold": 35
+   },
+   "level": 1,
+   "name": "Dragonbone I",
+   "race": "swamp",
+   "speed": 0.935,
+   "tech": "a-dragon1",
+   "type": "dragon"
+  },
+  "dragon2": {
+   "armor": 12.6,
+   "cost": {
+    "gold": 60
+   },
+   "level": 2,
+   "name": "Dragonbone II",
+   "race": "swamp",
+   "speed": 0.935,
+   "tech": "a-dragon2",
+   "type": "dragon"
+  },
+  "dragon3": {
+   "armor": 18,
+   "cost": {
+    "gold": 85
+   },
+   "level": 3,
+   "name": "Dragonbone III",
+   "race": "swamp",
+   "speed": 0.935,
+   "tech": "a-dragon3",
+   "type": "dragon"
+  },
+  "dragon4": {
+   "armor": 23.4,
+   "cost": {
+    "gold": 115
+   },
+   "level": 4,
+   "name": "Dragonbone IV",
+   "race": "swamp",
+   "speed": 0.935,
+   "tech": "a-dragon4",
+   "type": "dragon"
+  },
+  "leather1": {
+   "armor": 1,
+   "cost": {},
+   "level": 1,
+   "name": "Leather I",
+   "race": "realm",
+   "speed": 1.1,
+   "tech": null,
+   "type": "leather"
+  },
+  "leather2": {
+   "armor": 3,
+   "cost": {
+    "gold": 10
+   },
+   "level": 2,
+   "name": "Leather II",
+   "race": "realm",
+   "speed": 1.1,
+   "tech": "a-leather2",
+   "type": "leather"
+  },
+  "leather3": {
+   "armor": 5,
+   "cost": {
+    "gold": 20
+   },
+   "level": 3,
+   "name": "Leather III",
+   "race": "realm",
+   "speed": 1.1,
+   "tech": "a-leather3",
+   "type": "leather"
+  },
+  "leather4": {
+   "armor": 7,
+   "cost": {
+    "gold": 35
+   },
+   "level": 4,
+   "name": "Leather IV",
+   "race": "realm",
+   "speed": 1.1,
+   "tech": "a-leather4",
+   "type": "leather"
+  },
+  "mithril1": {
+   "armor": 4,
+   "cost": {
+    "gold": 15
+   },
+   "level": 1,
+   "name": "Mithril I",
+   "race": "wood",
+   "speed": 1,
+   "tech": "a-mithril1",
+   "type": "mithril"
+  },
+  "mithril2": {
+   "armor": 8,
+   "cost": {
+    "gold": 30
+   },
+   "level": 2,
+   "name": "Mithril II",
+   "race": "wood",
+   "speed": 1,
+   "tech": "a-mithril2",
+   "type": "mithril"
+  },
+  "mithril3": {
+   "armor": 12,
+   "cost": {
+    "gold": 50
+   },
+   "level": 3,
+   "name": "Mithril III",
+   "race": "wood",
+   "speed": 1,
+   "tech": "a-mithril3",
+   "type": "mithril"
+  },
+  "mithril4": {
+   "armor": 16,
+   "cost": {
+    "gold": 80
+   },
+   "level": 4,
+   "name": "Mithril IV",
+   "race": "wood",
+   "speed": 1,
+   "tech": "a-mithril4",
+   "type": "mithril"
+  },
+  "ornate1": {
+   "armor": 8,
+   "cost": {
+    "gold": 35
+   },
+   "level": 1,
+   "name": "Ornate I",
+   "race": "wood",
+   "speed": 0.85,
+   "tech": "a-ornate1",
+   "type": "ornate"
+  },
+  "ornate2": {
+   "armor": 14,
+   "cost": {
+    "gold": 60
+   },
+   "level": 2,
+   "name": "Ornate II",
+   "race": "wood",
+   "speed": 0.85,
+   "tech": "a-ornate2",
+   "type": "ornate"
+  },
+  "ornate3": {
+   "armor": 20,
+   "cost": {
+    "gold": 85
+   },
+   "level": 3,
+   "name": "Ornate III",
+   "race": "wood",
+   "speed": 0.85,
+   "tech": "a-ornate3",
+   "type": "ornate"
+  },
+  "ornate4": {
+   "armor": 26,
+   "cost": {
+    "gold": 115
+   },
+   "level": 4,
+   "name": "Ornate IV",
+   "race": "wood",
+   "speed": 0.85,
+   "tech": "a-ornate4",
+   "type": "ornate"
+  },
+  "plate1": {
+   "armor": 8,
+   "cost": {
+    "gold": 35
+   },
+   "level": 1,
+   "name": "Plate I",
+   "race": "realm",
+   "speed": 0.85,
+   "tech": "a-plate1",
+   "type": "plate"
+  },
+  "plate2": {
+   "armor": 14,
+   "cost": {
+    "gold": 60
+   },
+   "level": 2,
+   "name": "Plate II",
+   "race": "realm",
+   "speed": 0.85,
+   "tech": "a-plate2",
+   "type": "plate"
+  },
+  "plate3": {
+   "armor": 20,
+   "cost": {
+    "gold": 85
+   },
+   "level": 3,
+   "name": "Plate III",
+   "race": "realm",
+   "speed": 0.85,
+   "tech": "a-plate3",
+   "type": "plate"
+  },
+  "plate4": {
+   "armor": 26,
+   "cost": {
+    "gold": 115
+   },
+   "level": 4,
+   "name": "Plate IV",
+   "race": "realm",
+   "speed": 0.85,
+   "tech": "a-plate4",
+   "type": "plate"
+  },
+  "spirit1": {
+   "armor": 1,
+   "cost": {},
+   "level": 1,
+   "name": "Spiritweave I",
+   "race": "wood",
+   "speed": 1.1,
+   "tech": null,
+   "type": "spirit"
+  },
+  "spirit2": {
+   "armor": 3,
+   "cost": {
+    "gold": 10
+   },
+   "level": 2,
+   "name": "Spiritweave II",
+   "race": "wood",
+   "speed": 1.1,
+   "tech": "a-spirit2",
+   "type": "spirit"
+  },
+  "spirit3": {
+   "armor": 5,
+   "cost": {
+    "gold": 20
+   },
+   "level": 3,
+   "name": "Spiritweave III",
+   "race": "wood",
+   "speed": 1.1,
+   "tech": "a-spirit3",
+   "type": "spirit"
+  },
+  "spirit4": {
+   "armor": 7,
+   "cost": {
+    "gold": 35
+   },
+   "level": 4,
+   "name": "Spiritweave IV",
+   "race": "wood",
+   "speed": 1.1,
+   "tech": "a-spirit4",
+   "type": "spirit"
+  },
+  "stag1": {
+   "armor": 0.9,
+   "cost": {},
+   "level": 1,
+   "name": "Staghide I",
+   "race": "swamp",
+   "speed": 1.21,
+   "tech": null,
+   "type": "stag"
+  },
+  "stag2": {
+   "armor": 2.7,
+   "cost": {
+    "gold": 10
+   },
+   "level": 2,
+   "name": "Staghide II",
+   "race": "swamp",
+   "speed": 1.21,
+   "tech": "a-stag2",
+   "type": "stag"
+  },
+  "stag3": {
+   "armor": 4.5,
+   "cost": {
+    "gold": 20
+   },
+   "level": 3,
+   "name": "Staghide III",
+   "race": "swamp",
+   "speed": 1.21,
+   "tech": "a-stag3",
+   "type": "stag"
+  },
+  "stag4": {
+   "armor": 6.3,
+   "cost": {
+    "gold": 35
+   },
+   "level": 4,
+   "name": "Staghide IV",
+   "race": "swamp",
+   "speed": 1.21,
+   "tech": "a-stag4",
+   "type": "stag"
+  },
+  "wyvern1": {
+   "armor": 3.6,
+   "cost": {
+    "gold": 15
+   },
+   "level": 1,
+   "name": "Wyvern-Scaled I",
+   "race": "swamp",
+   "speed": 1.1,
+   "tech": "a-wyvern1",
+   "type": "wyvern"
+  },
+  "wyvern2": {
+   "armor": 7.2,
+   "cost": {
+    "gold": 30
+   },
+   "level": 2,
+   "name": "Wyvern-Scaled II",
+   "race": "swamp",
+   "speed": 1.1,
+   "tech": "a-wyvern2",
+   "type": "wyvern"
+  },
+  "wyvern3": {
+   "armor": 10.8,
+   "cost": {
+    "gold": 50
+   },
+   "level": 3,
+   "name": "Wyvern-Scaled III",
+   "race": "swamp",
+   "speed": 1.1,
+   "tech": "a-wyvern3",
+   "type": "wyvern"
+  },
+  "wyvern4": {
+   "armor": 14.4,
+   "cost": {
+    "gold": 80
+   },
+   "level": 4,
+   "name": "Wyvern-Scaled IV",
+   "race": "swamp",
+   "speed": 1.1,
+   "tech": "a-wyvern4",
+   "type": "wyvern"
+  }
+ },
+ "ARMOR_HP": [
+  0,
+  0,
+  10,
+  20,
+  30
+ ],
+ "ARMOR_K": 12,
+ "ARMOR_TYPES": {
+  "chain": {
+   "armor": [
+    4,
+    8,
+    12,
+    16
+   ],
+   "gold": [
+    15,
+    30,
+    50,
+    80
+   ],
+   "name": "Chain",
+   "note": "no speed change",
+   "race": "realm",
+   "speed": 1
+  },
+  "dragon": {
+   "armor": [
+    7.2,
+    12.6,
+    18,
+    23.4
+   ],
+   "gold": [
+    35,
+    60,
+    85,
+    115
+   ],
+   "name": "Dragonbone",
+   "note": "âˆ’6.5% speed",
+   "race": "swamp",
+   "speed": 0.935,
+   "twin": "plate"
+  },
+  "leather": {
+   "armor": [
+    1,
+    3,
+    5,
+    7
+   ],
+   "gold": [
+    0,
+    10,
+    20,
+    35
+   ],
+   "name": "Leather",
+   "note": "+10% speed",
+   "race": "realm",
+   "speed": 1.1
+  },
+  "mithril": {
+   "armor": [
+    4,
+    8,
+    12,
+    16
+   ],
+   "gold": [
+    15,
+    30,
+    50,
+    80
+   ],
+   "name": "Mithril",
+   "note": "no speed change",
+   "race": "wood",
+   "speed": 1,
+   "twin": "chain"
+  },
+  "ornate": {
+   "armor": [
+    8,
+    14,
+    20,
+    26
+   ],
+   "gold": [
+    35,
+    60,
+    85,
+    115
+   ],
+   "name": "Ornate",
+   "note": "âˆ’15% speed",
+   "race": "wood",
+   "speed": 0.85,
+   "twin": "plate"
+  },
+  "plate": {
+   "armor": [
+    8,
+    14,
+    20,
+    26
+   ],
+   "gold": [
+    35,
+    60,
+    85,
+    115
+   ],
+   "name": "Plate",
+   "note": "âˆ’15% speed",
+   "race": "realm",
+   "speed": 0.85
+  },
+  "spirit": {
+   "armor": [
+    1,
+    3,
+    5,
+    7
+   ],
+   "gold": [
+    0,
+    10,
+    20,
+    35
+   ],
+   "name": "Spiritweave",
+   "note": "+10% speed",
+   "race": "wood",
+   "speed": 1.1,
+   "twin": "leather"
+  },
+  "stag": {
+   "armor": [
+    0.9,
+    2.7,
+    4.5,
+    6.3
+   ],
+   "gold": [
+    0,
+    10,
+    20,
+    35
+   ],
+   "name": "Staghide",
+   "note": "+21% speed",
+   "race": "swamp",
+   "speed": 1.21,
+   "twin": "leather"
+  },
+  "wyvern": {
+   "armor": [
+    3.6,
+    7.2,
+    10.8,
+    14.4
+   ],
+   "gold": [
+    15,
+    30,
+    50,
+    80
+   ],
+   "name": "Wyvern-Scaled",
+   "note": "+10% speed",
+   "race": "swamp",
+   "speed": 1.1,
+   "twin": "chain"
+  }
+ },
+ "CHAMP": {
+  "armor": 4,
+  "cost": {
+   "gold": 300
+  },
+  "hp": 70,
+  "speed": 0.72,
+  "upkeep": {
+   "food": 4
+  }
+ },
+ "CHAMP_WEAPONS": [
+  "champsword",
+  "ancienthammer",
+  "wrathspear",
+  "worldaxe",
+  "oblivion"
+ ],
+ "DSTATS": {
+  "ai4c1": {
+   "armor": 1,
+   "atk": 6,
+   "blurb": "Spear, Leather I armor, Rouncey. +50% damage against cavalry.",
+   "cav": true,
+   "cost": {
+    "gold": 300
+   },
+   "crit": 0,
+   "fam": "pole",
+   "hp": 50,
+   "ogre": false,
+   "parry": 0,
+   "plate": false,
+   "race": "realm",
+   "red": 0.07692307692307693,
+   "rough": false,
+   "shieldArmor": 0,
+   "speed": 1.54,
+   "upkeep": {
+    "food": 4
+   }
+  },
+  "ai4i1": {
+   "armor": 1,
+   "atk": 6,
+   "blurb": "Short Sword, Leather I armor. Parry: take 10% less damage.",
+   "cav": false,
+   "cost": {
+    "gold": 80
+   },
+   "crit": 0,
+   "fam": "sword",
+   "hp": 30,
+   "ogre": false,
+   "parry": 0.1,
+   "plate": false,
+   "race": "realm",
+   "red": 0.07692307692307693,
+   "rough": false,
+   "shieldArmor": 0,
+   "speed": 0.83,
+   "upkeep": {
+    "food": 2
+   }
+  },
+  "ai5c1": {
+   "armor": 1,
+   "atk": 6,
+   "blurb": "Spear, Leather I armor, Rouncey. +50% damage against cavalry.",
+   "cav": true,
+   "cost": {
+    "gold": 300
+   },
+   "crit": 0,
+   "fam": "pole",
+   "hp": 50,
+   "ogre": false,
+   "parry": 0,
+   "plate": false,
+   "race": "realm",
+   "red": 0.07692307692307693,
+   "rough": false,
+   "shieldArmor": 0,
+   "speed": 1.54,
+   "upkeep": {
+    "food": 4
+   }
+  },
+  "ai5i1": {
+   "armor": 1,
+   "atk": 6,
+   "blurb": "Short Sword, Leather I armor. Parry: take 10% less damage.",
+   "cav": false,
+   "cost": {
+    "gold": 80
+   },
+   "crit": 0,
+   "fam": "sword",
+   "hp": 30,
+   "ogre": false,
+   "parry": 0.1,
+   "plate": false,
+   "race": "realm",
+   "red": 0.07692307692307693,
+   "rough": false,
+   "shieldArmor": 0,
+   "speed": 0.83,
+   "upkeep": {
+    "food": 2
+   }
+  },
+  "ai6c1": {
+   "armor": 0.7200000000000001,
+   "atk": 6,
+   "blurb": "Club, Staghide I armor, Ogre. Crushing: ignores half of enemy armor, and deals 150% damage to soldiers in plate.",
+   "cav": true,
+   "cost": {
+    "gold": 300,
+    "wood": 10
+   },
+   "crit": 0,
+   "fam": "blunt",
+   "hp": 58,
+   "ogre": true,
+   "parry": 0,
+   "plate": false,
+   "race": "swamp",
+   "red": 0.05660377358490566,
+   "rough": false,
+   "shieldArmor": 0,
+   "speed": 1.45,
+   "upkeep": {
+    "food": 4
+   }
+  },
+  "ai6i1": {
+   "armor": 0.9,
+   "atk": 6,
+   "blurb": "Hand Axe, Staghide I armor. Critical strike: each blow has a 10% chance to do double damage.",
+   "cav": false,
+   "cost": {
+    "gold": 80
+   },
+   "crit": 0.1,
+   "fam": "axe",
+   "hp": 30,
+   "ogre": false,
+   "parry": 0,
+   "plate": false,
+   "race": "swamp",
+   "red": 0.06976744186046512,
+   "rough": false,
+   "shieldArmor": 0,
+   "speed": 0.91,
+   "upkeep": {
+    "food": 2
+   }
+  },
+  "b-bluedragon": {
+   "armor": 0,
+   "atk": 30,
+   "blurb": "",
+   "cav": false,
+   "cost": {},
+   "fam": "boss",
+   "hp": 4000,
+   "parry": 0,
+   "red": 0,
+   "rough": true,
+   "shieldArmor": 0,
+   "speed": 0.45,
+   "upkeep": {}
+  },
+  "b-golddragon": {
+   "armor": 0,
+   "atk": 30,
+   "blurb": "",
+   "cav": false,
+   "cost": {},
+   "fam": "boss",
+   "hp": 5000,
+   "parry": 0,
+   "red": 0,
+   "rough": true,
+   "shieldArmor": 0,
+   "speed": 0.45,
+   "upkeep": {}
+  },
+  "b-inferno": {
+   "armor": 0,
+   "atk": 30,
+   "blurb": "",
+   "cav": false,
+   "cost": {},
+   "fam": "boss",
+   "hp": 3000,
+   "parry": 0,
+   "red": 0,
+   "rough": true,
+   "shieldArmor": 0,
+   "speed": 0.5,
+   "upkeep": {}
+  },
+  "b-reddragon": {
+   "armor": 0,
+   "atk": 30,
+   "blurb": "",
+   "cav": false,
+   "cost": {},
+   "fam": "boss",
+   "hp": 3000,
+   "parry": 0,
+   "red": 0,
+   "rough": true,
+   "shieldArmor": 0,
+   "speed": 0.45,
+   "upkeep": {}
+  },
+  "b-scarabs": {
+   "armor": 0,
+   "atk": 30,
+   "blurb": "",
+   "cav": false,
+   "cost": {},
+   "fam": "boss",
+   "hp": 3500,
+   "parry": 0,
+   "red": 0,
+   "rough": true,
+   "shieldArmor": 0,
+   "speed": 0.55,
+   "upkeep": {}
+  },
+  "b-serpent": {
+   "armor": 0,
+   "atk": 30,
+   "blurb": "",
+   "cav": false,
+   "cost": {},
+   "fam": "boss",
+   "hp": 3000,
+   "parry": 0,
+   "red": 0,
+   "rough": true,
+   "shieldArmor": 0,
+   "speed": 0.6,
+   "upkeep": {}
+  },
+  "b-sherman": {
+   "armor": 0,
+   "atk": 30,
+   "blurb": "",
+   "cav": false,
+   "cost": {},
+   "fam": "boss",
+   "hp": 2000,
+   "parry": 0,
+   "red": 0,
+   "rough": true,
+   "shieldArmor": 0,
+   "speed": 0.35,
+   "upkeep": {}
+  },
+  "b-skeletonking": {
+   "armor": 0,
+   "atk": 30,
+   "blurb": "",
+   "cav": false,
+   "cost": {},
+   "fam": "boss",
+   "hp": 2500,
+   "parry": 0,
+   "red": 0,
+   "rough": true,
+   "shieldArmor": 0,
+   "speed": 0.5,
+   "upkeep": {}
+  },
+  "b-ursa": {
+   "armor": 0,
+   "atk": 30,
+   "blurb": "",
+   "cav": false,
+   "cost": {},
+   "fam": "boss",
+   "hp": 2500,
+   "parry": 0,
+   "red": 0,
+   "rough": true,
+   "shieldArmor": 0,
+   "speed": 0.55,
+   "upkeep": {}
+  },
+  "d-club": {
+   "armor": 1,
+   "atk": 5,
+   "blurb": "Club, Leather I armor. Crushing: ignores half of enemy armor, and deals 150% damage to soldiers in plate.",
+   "cav": false,
+   "cost": {
+    "gold": 80,
+    "wood": 10
+   },
+   "crit": 0,
+   "fam": "blunt",
+   "hp": 30,
+   "ogre": false,
+   "parry": 0,
+   "plate": false,
+   "race": "realm",
+   "red": 0.07692307692307693,
+   "rough": false,
+   "shieldArmor": 0,
+   "speed": 0.83,
+   "upkeep": {
+    "food": 2
+   }
+  },
+  "d-rider": {
+   "armor": 1,
+   "atk": 6,
+   "blurb": "Spear, Leather I armor, Rouncey. +50% damage against cavalry.",
+   "cav": true,
+   "cost": {
+    "gold": 300
+   },
+   "crit": 0,
+   "fam": "pole",
+   "hp": 50,
+   "ogre": false,
+   "parry": 0,
+   "plate": false,
+   "race": "realm",
+   "red": 0.07692307692307693,
+   "rough": false,
+   "shieldArmor": 0,
+   "speed": 1.54,
+   "upkeep": {
+    "food": 4
+   }
+  },
+  "d-spear": {
+   "armor": 1,
+   "atk": 5,
+   "blurb": "Spear, Leather I armor. +50% damage against cavalry.",
+   "cav": false,
+   "cost": {
+    "gold": 80
+   },
+   "crit": 0,
+   "fam": "pole",
+   "hp": 30,
+   "ogre": false,
+   "parry": 0,
+   "plate": false,
+   "race": "realm",
+   "red": 0.07692307692307693,
+   "rough": false,
+   "shieldArmor": 0,
+   "speed": 0.83,
+   "upkeep": {
+    "food": 2
+   }
+  },
+  "d-sw-axe": {
+   "armor": 0.9,
+   "atk": 6,
+   "blurb": "Hand Axe, Staghide I armor. Critical strike: each blow has a 10% chance to do double damage.",
+   "cav": false,
+   "cost": {
+    "gold": 80
+   },
+   "crit": 0.1,
+   "fam": "axe",
+   "hp": 30,
+   "ogre": false,
+   "parry": 0,
+   "plate": false,
+   "race": "swamp",
+   "red": 0.06976744186046512,
+   "rough": false,
+   "shieldArmor": 0,
+   "speed": 0.91,
+   "upkeep": {
+    "food": 2
+   }
+  },
+  "d-sw-club": {
+   "armor": 0.9,
+   "atk": 5,
+   "blurb": "Club, Staghide I armor. Crushing: ignores half of enemy armor, and deals 150% damage to soldiers in plate.",
+   "cav": false,
+   "cost": {
+    "gold": 80,
+    "wood": 10
+   },
+   "crit": 0,
+   "fam": "blunt",
+   "hp": 30,
+   "ogre": false,
+   "parry": 0,
+   "plate": false,
+   "race": "swamp",
+   "red": 0.06976744186046512,
+   "rough": false,
+   "shieldArmor": 0,
+   "speed": 0.91,
+   "upkeep": {
+    "food": 2
+   }
+  },
+  "d-sw-ogre": {
+   "armor": 0.7200000000000001,
+   "atk": 6,
+   "blurb": "Club, Staghide I armor, Ogre. Crushing: ignores half of enemy armor, and deals 150% damage to soldiers in plate.",
+   "cav": true,
+   "cost": {
+    "gold": 300,
+    "wood": 10
+   },
+   "crit": 0,
+   "fam": "blunt",
+   "hp": 58,
+   "ogre": true,
+   "parry": 0,
+   "plate": false,
+   "race": "swamp",
+   "red": 0.05660377358490566,
+   "rough": false,
+   "shieldArmor": 0,
+   "speed": 1.45,
+   "upkeep": {
+    "food": 4
+   }
+  },
+  "d-sw-spear": {
+   "armor": 0.9,
+   "atk": 5,
+   "blurb": "Spear, Staghide I armor. +50% damage against cavalry.",
+   "cav": false,
+   "cost": {
+    "gold": 80
+   },
+   "crit": 0,
+   "fam": "pole",
+   "hp": 30,
+   "ogre": false,
+   "parry": 0,
+   "plate": false,
+   "race": "swamp",
+   "red": 0.06976744186046512,
+   "rough": false,
+   "shieldArmor": 0,
+   "speed": 0.91,
+   "upkeep": {
+    "food": 2
+   }
+  },
+  "d-sword": {
+   "armor": 1,
+   "atk": 6,
+   "blurb": "Short Sword, Leather I armor. Parry: take 10% less damage.",
+   "cav": false,
+   "cost": {
+    "gold": 80
+   },
+   "crit": 0,
+   "fam": "sword",
+   "hp": 30,
+   "ogre": false,
+   "parry": 0.1,
+   "plate": false,
+   "race": "realm",
+   "red": 0.07692307692307693,
+   "rough": false,
+   "shieldArmor": 0,
+   "speed": 0.83,
+   "upkeep": {
+    "food": 2
+   }
+  },
+  "d-wd-champ": {
+   "armor": 12,
+   "atk": 18,
+   "blurb": "Champion Sword, Ornate I armor. Parry: take 10% less damage.",
+   "cav": true,
+   "champ": true,
+   "cost": {
+    "gold": 335
+   },
+   "crit": 0,
+   "fam": "thrust",
+   "hp": 70,
+   "ogre": false,
+   "parry": 0.1,
+   "plate": true,
+   "race": "wood",
+   "red": 0.5,
+   "rough": true,
+   "shieldArmor": 0,
+   "speed": 0.61,
+   "two": false,
+   "upkeep": {
+    "food": 4
+   }
+  },
+  "d-wd-club": {
+   "armor": 1,
+   "atk": 5,
+   "blurb": "Club, Spiritweave I armor. Crushing: ignores half of enemy armor, and deals 150% damage to soldiers in plate.",
+   "cav": false,
+   "cost": {
+    "gold": 80,
+    "wood": 10
+   },
+   "crit": 0,
+   "fam": "blunt",
+   "hp": 30,
+   "ogre": false,
+   "parry": 0,
+   "plate": false,
+   "race": "wood",
+   "red": 0.07692307692307693,
+   "rough": false,
+   "shieldArmor": 0,
+   "speed": 0.83,
+   "upkeep": {
+    "food": 2
+   }
+  },
+  "d-wd-spear": {
+   "armor": 1,
+   "atk": 5,
+   "blurb": "Spear, Spiritweave I armor. +50% damage against cavalry.",
+   "cav": false,
+   "cost": {
+    "gold": 80
+   },
+   "crit": 0,
+   "fam": "pole",
+   "hp": 30,
+   "ogre": false,
+   "parry": 0,
+   "plate": false,
+   "race": "wood",
+   "red": 0.07692307692307693,
+   "rough": false,
+   "shieldArmor": 0,
+   "speed": 0.83,
+   "upkeep": {
+    "food": 2
+   }
+  },
+  "d-wd-sword": {
+   "armor": 1,
+   "atk": 6,
+   "blurb": "Dirk, Spiritweave I armor. Parry: take 10% less damage.",
+   "cav": false,
+   "cost": {
+    "gold": 80
+   },
+   "crit": 0,
+   "fam": "thrust",
+   "hp": 30,
+   "ogre": false,
+   "parry": 0.1,
+   "plate": false,
+   "race": "wood",
+   "red": 0.07692307692307693,
+   "rough": false,
+   "shieldArmor": 0,
+   "speed": 0.83,
+   "upkeep": {
+    "food": 2
+   }
+  },
+  "m-ent": {
+   "armor": 1,
+   "atk": 12,
+   "blurb": "",
+   "cav": false,
+   "cost": {},
+   "fam": "blunt",
+   "hp": 100,
+   "parry": 0,
+   "red": 0.07692307692307693,
+   "rough": true,
+   "shieldArmor": 0,
+   "speed": 0.5,
+   "upkeep": {}
+  },
+  "m-jackal": {
+   "armor": 4,
+   "atk": 14,
+   "blurb": "",
+   "cav": false,
+   "cost": {},
+   "fam": "sword",
+   "hp": 30,
+   "parry": 0.1,
+   "red": 0.25,
+   "rough": true,
+   "shieldArmor": 0,
+   "speed": 0.75,
+   "upkeep": {}
+  },
+  "m-zombie": {
+   "armor": 1,
+   "atk": 3,
+   "blurb": "",
+   "cav": false,
+   "cost": {},
+   "fam": "blunt",
+   "hp": 15,
+   "parry": 0,
+   "red": 0.07692307692307693,
+   "rough": true,
+   "shieldArmor": 0,
+   "speed": 0.6,
+   "upkeep": {}
+  },
+  "mage:A": {
+   "armor": 1,
+   "atk": 4,
+   "blurb": "Stave.",
+   "cav": false,
+   "cost": {
+    "gold": 300
+   },
+   "fam": "magic",
+   "hp": 25,
+   "line": "stave",
+   "parry": 0,
+   "red": 0.07692307692307693,
+   "rough": false,
+   "shieldArmor": 0,
+   "speed": 0.8,
+   "upkeep": {
+    "food": 2
+   }
+  },
+  "rng-realm": {
+   "armor": 0,
+   "atk": 6,
+   "blurb": "",
+   "cav": false,
+   "cost": {
+    "gold": 60
+   },
+   "crit": 0,
+   "fam": "ranged",
+   "hp": 20,
+   "ogre": false,
+   "parry": 0,
+   "plate": false,
+   "race": "realm",
+   "ranged": true,
+   "red": 0,
+   "rough": false,
+   "shieldArmor": 0,
+   "speed": 0.75,
+   "upkeep": {
+    "food": 1
+   }
+  },
+  "rng-swamp": {
+   "armor": 0,
+   "atk": 6,
+   "blurb": "",
+   "cav": false,
+   "cost": {
+    "gold": 60
+   },
+   "crit": 0,
+   "fam": "ranged",
+   "hp": 20,
+   "ogre": false,
+   "parry": 0,
+   "plate": false,
+   "race": "swamp",
+   "ranged": true,
+   "red": 0,
+   "rough": false,
+   "shieldArmor": 0,
+   "speed": 0.75,
+   "upkeep": {
+    "food": 1
+   }
+  },
+  "rng-wood": {
+   "armor": 0,
+   "atk": 6,
+   "blurb": "",
+   "cav": false,
+   "cost": {
+    "gold": 60
+   },
+   "crit": 0,
+   "fam": "ranged",
+   "hp": 20,
+   "ogre": false,
+   "parry": 0,
+   "plate": false,
+   "race": "wood",
+   "ranged": true,
+   "red": 0,
+   "rough": false,
+   "shieldArmor": 0,
+   "speed": 0.75,
+   "upkeep": {
+    "food": 1
+   }
+  },
+  "wd-elem": {
+   "armor": 0,
+   "atk": 50,
+   "blurb": "",
+   "cav": false,
+   "cost": {},
+   "crit": 0,
+   "fam": "water",
+   "hp": 500,
+   "parry": 0,
+   "red": 0,
+   "rough": true,
+   "shieldArmor": 0,
+   "speed": 0.61,
+   "upkeep": {}
+  }
+ },
+ "FAMILY": {
+  "axe": {
+   "name": "Axes",
+   "note": "Critical strike: each blow has a 10% chance to do double damage",
+   "order": [
+    "handaxe",
+    "beardedaxe",
+    "battleaxe",
+    "waraxe"
+   ],
+   "race": "swamp"
+  },
+  "blunt": {
+   "name": "Blunt",
+   "note": "Crushing: ignores half of enemy armor, and deals 150% damage to soldiers in plate",
+   "order": [
+    "club",
+    "mace",
+    "morningstar",
+    "warhammer"
+   ]
+  },
+  "pole": {
+   "name": "Polearms",
+   "note": "+50% damage against cavalry",
+   "order": [
+    "spear",
+    "pike",
+    "polearm",
+    "halberd"
+   ]
+  },
+  "sword": {
+   "name": "Swords",
+   "note": "Parry: take 10% less damage",
+   "order": [
+    "shortsword",
+    "sword",
+    "longsword",
+    "greatsword"
+   ],
+   "race": "realm"
+  },
+  "thrust": {
+   "name": "Thrusting Swords",
+   "note": "Parry: take 10% less damage",
+   "order": [
+    "dirk",
+    "gladius",
+    "rapier",
+    "estoc"
+   ],
+   "race": "wood"
+  }
+ },
+ "HORSES": {
+  "arabian": {
+   "armor": 0,
+   "atk": 1,
+   "coat": "#d9d4cc",
+   "cost": {
+    "food": 50,
+    "gold": 200
+   },
+   "hp": 0,
+   "mane": "#9a958c",
+   "name": "Arabian",
+   "note": "Fastest horse there is, but light: no extra health.",
+   "rough": false,
+   "speed": 1.9,
+   "tech": "horse-breeding",
+   "upFood": 0
+  },
+  "friesian": {
+   "armor": 0,
+   "atk": 3,
+   "coat": "#24201f",
+   "cost": {
+    "food": 100,
+    "gold": 300
+   },
+   "hp": 20,
+   "mane": "#0f0d0d",
+   "name": "Friesian",
+   "note": "Powerful charger: the hardest-hitting horse, but costly to buy and feed.",
+   "rough": false,
+   "speed": 1.4,
+   "tech": "horse-training",
+   "upFood": 1
+  },
+  "mongolian": {
+   "armor": 0,
+   "atk": 0,
+   "coat": "#c79a5e",
+   "cost": {
+    "gold": 60
+   },
+   "hp": 8,
+   "mane": "#3a2a1e",
+   "name": "Mongolian",
+   "note": "Hardy steppe pony: 2 less food upkeep and no cavalry penalty in forest or swamp, but a weak charge.",
+   "rough": true,
+   "speed": 1.55,
+   "tech": "horse-breeding",
+   "upFood": -2
+  },
+  "percheron": {
+   "armor": 3,
+   "atk": 2,
+   "barding": "#2f5fc0",
+   "coat": "#9a9ea6",
+   "cost": {
+    "food": 150,
+    "gold": 280
+   },
+   "hp": 40,
+   "mane": "#e6e6ea",
+   "name": "Percheron",
+   "note": "Huge draught horse in barding: the toughest mount, but slow and hungry.",
+   "rough": false,
+   "speed": 1.1,
+   "tech": "horse-training",
+   "upFood": 2
+  },
+  "riding": {
+   "armor": 0,
+   "atk": 1,
+   "coat": "#9a5b32",
+   "cost": {},
+   "hp": 10,
+   "mane": "#5a3a22",
+   "name": "Rouncey",
+   "note": "Common riding horse. Cheap and balanced.",
+   "rough": false,
+   "speed": 1.4,
+   "tech": null,
+   "upFood": 0
+  }
+ },
+ "OGRES": {
+  "arabian": {
+   "armor": 0,
+   "atk": 1,
+   "cost": {
+    "food": 50,
+    "gold": 200
+   },
+   "hp": 6,
+   "name": "Swampfeet Ogre",
+   "note": "Long-legged and quick: the fastest Ogre, but the frailest.",
+   "rough": false,
+   "skin": "#93b55c",
+   "speed": 1.6,
+   "tech": "horse-breeding",
+   "upFood": 0
+  },
+  "friesian": {
+   "armor": 0,
+   "atk": 4,
+   "cost": {
+    "food": 100,
+    "gold": 300
+   },
+   "fists": "#b8352d",
+   "hp": 28,
+   "name": "Bloodknuckle Ogre",
+   "note": "Knuckles caked red: the hardest-hitting Ogre, but costly to keep.",
+   "rough": false,
+   "skin": "#9a6a4a",
+   "speed": 1.2,
+   "tech": "horse-training",
+   "upFood": 1
+  },
+  "mongolian": {
+   "armor": 0,
+   "atk": 0,
+   "cost": {
+    "gold": 60
+   },
+   "hp": 14,
+   "moss": true,
+   "name": "Mossback Ogre",
+   "note": "Moss-grown and patient: 2 less food upkeep and at home in forest and swamp, but a weak blow.",
+   "rough": true,
+   "skin": "#5f7d3a",
+   "speed": 1.3,
+   "tech": "horse-breeding",
+   "upFood": -2
+  },
+  "percheron": {
+   "armor": 1,
+   "atk": 2,
+   "cost": {
+    "food": 150,
+    "gold": 280
+   },
+   "hp": 55,
+   "name": "Leviathan Ogre",
+   "note": "A hulking giant from the deep bogs: the toughest of all, but slow and hungry.",
+   "rough": false,
+   "skin": "#5a7a80",
+   "speed": 0.95,
+   "tech": "horse-training",
+   "upFood": 2
+  },
+  "riding": {
+   "armor": 0,
+   "atk": 1,
+   "cost": {},
+   "hp": 18,
+   "name": "Ogre",
+   "note": "A common Ogre: big, tough and steady.",
+   "rough": false,
+   "skin": "#7a9a4a",
+   "speed": 1.2,
+   "tech": null,
+   "upFood": 0
+  }
+ },
+ "OGRE_ARMOR": 0.8,
+ "PLATE_TYPES": [
+  "plate",
+  "dragon",
+  "ornate"
+ ],
+ "ROMAN4": [
+  "",
+  "I",
+  "II",
+  "III",
+  "IV"
+ ],
+ "SHIELD_DEFS": {
+  "kite": {
+   "armor": 6,
+   "cost": {
+    "gold": 20,
+    "wood": 10
+   },
+   "name": "Kite Shield",
+   "speed": 1,
+   "tech": "s-kite"
+  },
+  "round": {
+   "armor": 3,
+   "cost": {
+    "gold": 10,
+    "wood": 10
+   },
+   "name": "Round Shield",
+   "speed": 1,
+   "tech": "s-round"
+  },
+  "tower": {
+   "armor": 10,
+   "cost": {
+    "gold": 35,
+    "wood": 15
+   },
+   "name": "Tower Shield",
+   "speed": 0.92,
+   "tech": "s-tower"
+  }
+ },
+ "STATS0": {
+  "armor": 0,
+  "atk": 5,
+  "cav": false,
+  "crit": 0,
+  "fam": "sword",
+  "hp": 30,
+  "parry": 0,
+  "red": 0,
+  "shieldArmor": 0
+ },
+ "TWO_BURST": 2.5,
+ "UNIT_BASE": {
+  "cav": {
+   "cost": {
+    "gold": 300
+   },
+   "hp": 40,
+   "name": "Cavalry",
+   "speed": 1,
+   "upkeep": {
+    "food": 4
+   }
+  },
+  "inf": {
+   "cost": {
+    "gold": 80
+   },
+   "hp": 30,
+   "name": "Infantry",
+   "speed": 0.75,
+   "upkeep": {
+    "food": 2
+   }
+  }
+ },
+ "WEAPONS": {
+  "ancienthammer": {
+   "atk": 27,
+   "champ": true,
+   "cost": {
+    "gold": 150
+   },
+   "fam": "blunt",
+   "hp": 15,
+   "name": "Ancient Hammer",
+   "note": "Rune-carved stone on a long haft: tougher, but slower.",
+   "race": "wood",
+   "spd": 0.92,
+   "tech": "horse-breeding",
+   "tier": 2,
+   "twoH": true
+  },
+  "battleaxe": {
+   "atk": 14,
+   "cost": {
+    "gold": 50
+   },
+   "fam": "axe",
+   "name": "Battle Axe",
+   "race": "swamp",
+   "tech": "w-battleaxe",
+   "tier": 3,
+   "twoH": false
+  },
+  "beardedaxe": {
+   "atk": 10,
+   "cost": {
+    "gold": 25
+   },
+   "fam": "axe",
+   "name": "Bearded Axe",
+   "race": "swamp",
+   "tech": "w-bearded",
+   "tier": 2,
+   "twoH": false
+  },
+  "champsword": {
+   "atk": 18,
+   "champ": true,
+   "cost": {},
+   "fam": "thrust",
+   "hp": 0,
+   "name": "Champion Sword",
+   "note": "A great sword, balanced and steady.",
+   "race": "wood",
+   "spd": 1,
+   "tech": null,
+   "tier": 1,
+   "twoH": true
+  },
+  "club": {
+   "atk": 5,
+   "cost": {
+    "wood": 10
+   },
+   "fam": "blunt",
+   "name": "Club",
+   "tech": null,
+   "tier": 1,
+   "twoH": false
+  },
+  "dirk": {
+   "atk": 6,
+   "cost": {},
+   "fam": "thrust",
+   "name": "Dirk",
+   "race": "wood",
+   "tech": null,
+   "tier": 1,
+   "twoH": false
+  },
+  "estoc": {
+   "atk": 20,
+   "cost": {
+    "gold": 120
+   },
+   "fam": "thrust",
+   "name": "Estoc",
+   "race": "wood",
+   "tech": "w-estoc",
+   "tier": 4,
+   "twoH": false
+  },
+  "gladius": {
+   "atk": 10,
+   "cost": {
+    "gold": 25
+   },
+   "fam": "thrust",
+   "name": "Gladius",
+   "race": "wood",
+   "tech": "w-gladius",
+   "tier": 2,
+   "twoH": false
+  },
+  "greatsword": {
+   "atk": 30,
+   "cost": {
+    "gold": 120
+   },
+   "fam": "sword",
+   "name": "Great Sword",
+   "race": "realm",
+   "tech": "w-greatsword",
+   "tier": 4,
+   "twoH": true
+  },
+  "halberd": {
+   "atk": 18,
+   "cost": {
+    "gold": 65,
+    "wood": 20
+   },
+   "fam": "pole",
+   "name": "Halberd",
+   "tech": "w-halberd",
+   "tier": 4,
+   "twoH": true
+  },
+  "handaxe": {
+   "atk": 6,
+   "cost": {},
+   "fam": "axe",
+   "name": "Hand Axe",
+   "race": "swamp",
+   "tech": null,
+   "tier": 1,
+   "twoH": false
+  },
+  "longsword": {
+   "atk": 14,
+   "cost": {
+    "gold": 50
+   },
+   "fam": "sword",
+   "name": "Long Sword",
+   "race": "realm",
+   "tech": "w-longsword",
+   "tier": 3,
+   "twoH": false
+  },
+  "mace": {
+   "atk": 8,
+   "cost": {
+    "gold": 35
+   },
+   "fam": "blunt",
+   "name": "Mace",
+   "tech": "w-mace",
+   "tier": 2,
+   "twoH": false
+  },
+  "morningstar": {
+   "atk": 11,
+   "cost": {
+    "gold": 70
+   },
+   "fam": "blunt",
+   "name": "Morning Star",
+   "tech": "w-morningstar",
+   "tier": 3,
+   "twoH": false
+  },
+  "oblivion": {
+   "atk": 60,
+   "champ": true,
+   "cost": {
+    "gold": 450
+   },
+   "fam": "thrust",
+   "hp": 25,
+   "name": "Oblivion Blade",
+   "note": "A dark greatsword humming with violet light: the deadliest, the toughest, the slowest.",
+   "race": "wood",
+   "spd": 0.9,
+   "tech": "horse-training",
+   "tier": 4,
+   "twoH": true
+  },
+  "pike": {
+   "atk": 9,
+   "cost": {
+    "gold": 15,
+    "wood": 10
+   },
+   "fam": "pole",
+   "name": "Pike",
+   "tech": "w-pike",
+   "tier": 2,
+   "twoH": true
+  },
+  "polearm": {
+   "atk": 13,
+   "cost": {
+    "gold": 35,
+    "wood": 15
+   },
+   "fam": "pole",
+   "name": "Polearm",
+   "tech": "w-polearm",
+   "tier": 3,
+   "twoH": true
+  },
+  "rapier": {
+   "atk": 14,
+   "cost": {
+    "gold": 50
+   },
+   "fam": "thrust",
+   "name": "Rapier",
+   "race": "wood",
+   "tech": "w-rapier",
+   "tier": 3,
+   "twoH": false
+  },
+  "shortsword": {
+   "atk": 6,
+   "cost": {},
+   "fam": "sword",
+   "name": "Short Sword",
+   "race": "realm",
+   "tech": null,
+   "tier": 1,
+   "twoH": false
+  },
+  "spear": {
+   "atk": 5,
+   "cost": {},
+   "fam": "pole",
+   "name": "Spear",
+   "tech": null,
+   "tier": 1,
+   "twoH": true
+  },
+  "sword": {
+   "atk": 10,
+   "cost": {
+    "gold": 25
+   },
+   "fam": "sword",
+   "name": "Bastard Sword",
+   "race": "realm",
+   "tech": "w-bastard",
+   "tier": 2,
+   "twoH": false
+  },
+  "waraxe": {
+   "atk": 20,
+   "cost": {
+    "gold": 120
+   },
+   "fam": "axe",
+   "name": "War Axe",
+   "race": "swamp",
+   "tech": "w-waraxe",
+   "tier": 4,
+   "twoH": false
+  },
+  "warhammer": {
+   "atk": 15,
+   "cost": {
+    "gold": 120
+   },
+   "fam": "blunt",
+   "name": "War Hammer",
+   "tech": "w-warhammer",
+   "tier": 4,
+   "twoH": false
+  },
+  "worldaxe": {
+   "atk": 42,
+   "champ": true,
+   "cost": {
+    "gold": 280
+   },
+   "fam": "axe",
+   "hp": 10,
+   "name": "Worldbreaker Axe",
+   "note": "A huge double-bitted axe: critical strikes, a little slower.",
+   "race": "wood",
+   "spd": 0.95,
+   "tech": "horse-training",
+   "tier": 3,
+   "twoH": true
+  },
+  "wrathspear": {
+   "atk": 27,
+   "champ": true,
+   "cost": {
+    "gold": 120
+   },
+   "fam": "pole",
+   "hp": 0,
+   "name": "Wrathful Spear",
+   "note": "A long leaf-bladed spear: quicker on the march.",
+   "race": "wood",
+   "spd": 1.1,
+   "tech": "horse-breeding",
+   "tier": 2,
+   "twoH": true
+  }
+ }
+}

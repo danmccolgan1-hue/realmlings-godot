@@ -1,0 +1,17 @@
+{
+ "SIM_OWNERS": [
+  901,
+  902
+ ],
+ "SIM_RACE_NAME": {
+  "realm": "Realmlings",
+  "swamp": "Swamplings",
+  "wood": "Woodlings"
+ },
+ "SIM_TERRAINS": [
+  "grassland",
+  "forest",
+  "swamp",
+  "desert"
+ ]
+}

@@ -1,0 +1,1044 @@
+{
+ "ART_PROBE": 640,
+ "BAND_IN": 50,
+ "BLEND": 70,
+ "BSLOTS": [
+  [
+   -70,
+   -96
+  ],
+  [
+   70,
+   -96
+  ],
+  [
+   -76,
+   82
+  ],
+  [
+   76,
+   82
+  ],
+  [
+   -122,
+   -8
+  ],
+  [
+   122,
+   -8
+  ]
+ ],
+ "BUILD_DEFS": {
+  "bank": {
+   "blurb": "Raises the nationâ€™s gold storage by 1000 (it starts at 2000).",
+   "cost": {
+    "wood": 300
+   },
+   "name": "Bank",
+   "note": "+1000 gold storage",
+   "store": {
+    "gold": 1000
+   },
+   "tech": "bank",
+   "upkeep": {
+    "wood": 1
+   },
+   "variant": 0
+  },
+  "barracks": {
+   "cost": {
+    "gold": 100,
+    "wood": 300
+   },
+   "name": "Barracks",
+   "note": "trains infantry",
+   "upkeep": {
+    "wood": 4
+   },
+   "variant": 2
+  },
+  "farm": {
+   "cost": {
+    "gold": 50,
+    "wood": 100
+   },
+   "gives": {
+    "food": 5
+   },
+   "name": "Farm",
+   "upkeep": {
+    "wood": 2
+   },
+   "variant": 0
+  },
+  "forge": {
+   "blurb": "Unlocks Military research and adds 2 Military points every 10 s. Upgrades to a Battle Forge, then a War Forge.",
+   "cost": {
+    "gold": 150,
+    "wood": 200
+   },
+   "levels": [
+    "Forge",
+    "Battle Forge",
+    "War Forge"
+   ],
+   "name": "Forge",
+   "tech": "forge",
+   "upkeep": {
+    "wood": 3
+   },
+   "ups": [
+    null,
+    {
+     "cost": {
+      "gold": 300,
+      "wood": 300
+     },
+     "time": 20
+    },
+    {
+     "cost": {
+      "gold": 600,
+      "wood": 500
+     },
+     "time": 30
+    }
+   ],
+   "variant": 0
+  },
+  "goldmine": {
+   "cost": {
+    "wood": 300
+   },
+   "gives": {
+    "gold": 10
+   },
+   "name": "Gold Mine",
+   "upkeep": {
+    "wood": 2
+   },
+   "variant": 2
+  },
+  "granary": {
+   "blurb": "Raises the nationâ€™s food storage by 1000 (it starts at 2000).",
+   "cost": {
+    "gold": 50,
+    "wood": 150
+   },
+   "name": "Granary",
+   "note": "+1000 food storage",
+   "store": {
+    "food": 1000
+   },
+   "tech": "granary",
+   "upkeep": {
+    "wood": 1
+   },
+   "variant": 0
+  },
+  "lumber": {
+   "cost": {
+    "gold": 25,
+    "wood": 100
+   },
+   "gives": {
+    "wood": 4
+   },
+   "name": "Lumber Mill",
+   "upkeep": {},
+   "variant": 1
+  },
+  "magetower": {
+   "blurb": "Unlocks Magic research and adds 2 Magic points every 10 s. Upgrades to a Mage Sanctum, then a Mage Arcanum.",
+   "cost": {
+    "gold": 200,
+    "wood": 150
+   },
+   "levels": [
+    "Mage Tower",
+    "Mage Sanctum",
+    "Mage Arcanum"
+   ],
+   "name": "Mage Tower",
+   "tech": "magetower",
+   "upkeep": {
+    "wood": 3
+   },
+   "ups": [
+    null,
+    {
+     "cost": {
+      "gold": 400,
+      "wood": 200
+     },
+     "time": 20
+    },
+    {
+     "cost": {
+      "gold": 800,
+      "wood": 300
+     },
+     "time": 30
+    }
+   ],
+   "variant": 0
+  },
+  "market": {
+   "blurb": "A small, steady gold income; can be built in any province.",
+   "cost": {
+    "gold": 50,
+    "wood": 150
+   },
+   "gives": {
+    "gold": 3
+   },
+   "name": "Marketplace",
+   "tech": "market",
+   "upkeep": {
+    "wood": 1
+   },
+   "variant": 0
+  },
+  "pyre": {
+   "blurb": "Raised by a Warlock on a free building plot. Burns 10 wood every 10 s for 20 gold. Build it up into a Grand Pyre: 20 wood for 50 gold. One per living Warlock.",
+   "cost": {
+    "wood": 200
+   },
+   "levels": [
+    "Sacred Pyre",
+    "Grand Pyre"
+   ],
+   "name": "Sacred Pyre",
+   "race": "swamp",
+   "tech": "sacredpyre",
+   "upkeep": {},
+   "ups": [
+    null,
+    {
+     "cost": {
+      "wood": 600
+     },
+     "time": 60
+    }
+   ],
+   "variant": 0
+  },
+  "stable": {
+   "cost": {
+    "gold": 300,
+    "wood": 400
+   },
+   "name": "Stable",
+   "note": "with a Barracks: cavalry",
+   "tech": "stable",
+   "upkeep": {
+    "wood": 6
+   },
+   "variant": 1
+  },
+  "storehouse": {
+   "blurb": "Raises the nationâ€™s wood storage by 1000 (it starts at 2000).",
+   "cost": {
+    "gold": 50,
+    "wood": 100
+   },
+   "name": "Storehouse",
+   "note": "+1000 wood storage",
+   "store": {
+    "wood": 1000
+   },
+   "tech": "storehouse",
+   "upkeep": {
+    "wood": 1
+   },
+   "variant": 0
+  },
+  "temple": {
+   "blurb": "A marble temple: adds 2 Government research points every payout. No research needed to build it; it never upgrades.",
+   "cost": {
+    "gold": 150,
+    "wood": 200
+   },
+   "name": "Temple",
+   "note": "+2 Government research",
+   "research": {
+    "gov": 2
+   },
+   "upkeep": {
+    "wood": 3
+   },
+   "variant": 0
+  }
+ },
+ "BUILD_ORDER": [
+  "farm",
+  "lumber",
+  "goldmine",
+  "barracks",
+  "stable",
+  "market",
+  "granary",
+  "storehouse",
+  "bank",
+  "forge",
+  "magetower",
+  "temple"
+ ],
+ "BUILD_TIME": 30,
+ "CAPITAL_BONUS": {
+  "food": 5,
+  "gold": 5,
+  "wood": 5
+ },
+ "CMD": {
+  "army": [
+   {
+    "cell": 0,
+    "id": "split",
+    "key": ""
+   },
+   {
+    "cell": 1,
+    "id": "combine",
+    "key": ""
+   },
+   {
+    "cell": 3,
+    "id": "retreat",
+    "key": "R"
+   },
+   {
+    "cell": 8,
+    "id": "rest",
+    "key": ""
+   },
+   {
+    "cell": 12,
+    "id": "inspect",
+    "key": ""
+   },
+   {
+    "cell": 13,
+    "id": "retrofit",
+    "key": ""
+   },
+   {
+    "cell": 14,
+    "id": "xpath",
+    "key": ""
+   },
+   {
+    "cell": 15,
+    "id": "dismiss",
+    "key": ""
+   }
+  ],
+  "mason:A": [
+   {
+    "cell": 0,
+    "id": "build:outpost",
+    "key": "Q"
+   },
+   {
+    "cell": 1,
+    "id": "build:farm",
+    "key": ""
+   },
+   {
+    "cell": 2,
+    "id": "build:lumber",
+    "key": ""
+   },
+   {
+    "cell": 3,
+    "id": "build:goldmine",
+    "key": ""
+   },
+   {
+    "cell": 4,
+    "id": "build:barracks",
+    "key": ""
+   },
+   {
+    "cell": 5,
+    "id": "build:stable",
+    "key": ""
+   },
+   {
+    "cell": 6,
+    "id": "build:market",
+    "key": ""
+   },
+   {
+    "cell": 7,
+    "id": "build:granary",
+    "key": ""
+   },
+   {
+    "cell": 8,
+    "id": "build:storehouse",
+    "key": ""
+   },
+   {
+    "cell": 9,
+    "id": "build:bank",
+    "key": ""
+   },
+   {
+    "cell": 10,
+    "id": "build:forge",
+    "key": ""
+   },
+   {
+    "cell": 11,
+    "id": "build:magetower",
+    "key": ""
+   },
+   {
+    "cell": 12,
+    "id": "build:temple",
+    "key": ""
+   },
+   {
+    "cell": 13,
+    "id": "road",
+    "key": ""
+   },
+   {
+    "cell": 14,
+    "id": "cancelbuild",
+    "key": ""
+   },
+   {
+    "cell": 15,
+    "id": "dismiss",
+    "key": ""
+   }
+  ],
+  "pioneer:B": [
+   {
+    "cell": 0,
+    "id": "survey",
+    "key": "Q"
+   },
+   {
+    "cell": 1,
+    "id": "auto",
+    "key": ""
+   },
+   {
+    "cell": 2,
+    "id": "stealth",
+    "key": ""
+   },
+   {
+    "cell": 15,
+    "id": "dismiss",
+    "key": ""
+   },
+   {
+    "cell": 3,
+    "id": "ssight",
+    "key": ""
+   },
+   {
+    "cell": 4,
+    "id": "follow",
+    "key": ""
+   }
+  ],
+  "thug:A": [
+   {
+    "cell": 0,
+    "id": "thugin",
+    "key": "Q"
+   },
+   {
+    "cell": 15,
+    "id": "dismiss",
+    "key": ""
+   }
+  ]
+ },
+ "DECOR_N": 3,
+ "DMG_RATE": 0.22,
+ "EB": 0.4,
+ "EXPLORE_TIME": 8,
+ "FORT_UPGRADE": {
+  "cost": {
+   "gold": 200,
+   "wood": 300
+  },
+  "time": 15
+ },
+ "KB": 0.5,
+ "MAX_EXTRAS": 6,
+ "MAX_Z": 6,
+ "ME": 1,
+ "MILITARY": [
+  "d-spear",
+  "d-sword",
+  "d-club",
+  "d-rider",
+  "d-sw-spear",
+  "d-sw-axe",
+  "d-sw-club",
+  "d-wd-sword",
+  "d-wd-spear",
+  "d-wd-club",
+  "d-wd-champ",
+  "d-sw-ogre",
+  "rng-realm",
+  "rng-swamp",
+  "rng-wood",
+  "ai4i1",
+  "ai4c1",
+  "ai5i1",
+  "ai5c1",
+  "ai6i1",
+  "ai6c1"
+ ],
+ "OUTPOST_COST": {
+  "wood": 25
+ },
+ "PAUSE_ICON": "<svg viewBox=\"0 0 20 20\" width=\"18\" height=\"18\" aria-hidden=\"true\"><rect x=\"4.5\" y=\"3.5\" width=\"4\" height=\"13\" rx=\"1\" fill=\"currentColor\"/><rect x=\"11.5\" y=\"3.5\" width=\"4\" height=\"13\" rx=\"1\" fill=\"currentColor\"/></svg>",
+ "PLAYERS": {
+  "1": {
+   "color": "#2f6fe0",
+   "light": "#7fb0ff",
+   "name": "My Realm"
+  },
+  "2": {
+   "color": "#d23b3b",
+   "light": "#ff9a9a",
+   "name": "Crimson Kingdom"
+  },
+  "3": {
+   "color": "#8a5a2b",
+   "light": "#d6a46a",
+   "name": "Raiders"
+  },
+  "4": {
+   "color": "#d23b3b",
+   "light": "#ff9a9a",
+   "name": "Kingdom of Stonebrook"
+  },
+  "5": {
+   "color": "#2f9e55",
+   "light": "#8fe0a6",
+   "name": "Dominion of Highmoor"
+  },
+  "6": {
+   "color": "#8a4fd0",
+   "light": "#c9a6ff",
+   "name": "Clan of Bilegut"
+  }
+ },
+ "PLOTS_BY_STAGE": [
+  2,
+  4,
+  6
+ ],
+ "QUEUE_MAX": 10,
+ "RES": [
+  "gold",
+  "wood",
+  "food"
+ ],
+ "RES_LABEL": {
+  "food": "Food",
+  "gold": "Gold",
+  "wood": "Wood"
+ },
+ "RETREAT_LOCK": 10,
+ "RETREAT_LOSS": 0.6,
+ "ROUND": 0.8,
+ "SCOUT_SLOW": 4,
+ "SLOTS": [
+  [
+   -30,
+   62
+  ],
+  [
+   30,
+   62
+  ],
+  [
+   0,
+   78
+  ],
+  [
+   -118,
+   42
+  ],
+  [
+   118,
+   42
+  ],
+  [
+   -112,
+   -54
+  ],
+  [
+   112,
+   -54
+  ]
+ ],
+ "SLOW_BUILD": [
+  "forge",
+  "magetower",
+  "pyre"
+ ],
+ "SPEED": 150,
+ "STAGE_NAME": [
+  "Outpost",
+  "Fort",
+  "Capital"
+ ],
+ "STAND_GAP": 14,
+ "START_STOCK": {
+  "food": 50,
+  "gold": 50,
+  "wood": 50
+ },
+ "SURVEY_TIME": 30,
+ "TERRAIN_MOD": {
+  "desert": {
+   "note": "Desert: no modifiers"
+  },
+  "forest": {
+   "note": "Forest: defenders +25%, cavalry âˆ’25%"
+  },
+  "grassland": {
+   "note": "Open ground: cavalry +20%"
+  },
+  "swamp": {
+   "note": "Swamp: everyone âˆ’20%, cavalry âˆ’30%"
+  }
+ },
+ "TER_TEXT": {
+  "desert": "#b0600f",
+  "forest": "#16543a",
+  "grassland": "#4d7f12",
+  "swamp": "#6b4a8e"
+ },
+ "TICK": 10,
+ "TRAINS": {
+  "capital": [
+   "pioneer:B",
+   "mason:A"
+  ]
+ },
+ "UK": 0.21,
+ "UNIT_DEFS": {
+  "ai4c1": {
+   "blurb": "Spear, Leather I armor, Rouncey. +50% damage against cavalry.",
+   "cost": {
+    "gold": 300
+   },
+   "design": true,
+   "name": "Lancer",
+   "upkeep": {
+    "food": 4
+   }
+  },
+  "ai4i1": {
+   "blurb": "Short Sword, Leather I armor. Parry: take 10% less damage.",
+   "cost": {
+    "gold": 80
+   },
+   "design": true,
+   "name": "Swordsman",
+   "upkeep": {
+    "food": 2
+   }
+  },
+  "ai5c1": {
+   "blurb": "Spear, Leather I armor, Rouncey. +50% damage against cavalry.",
+   "cost": {
+    "gold": 300
+   },
+   "design": true,
+   "name": "Lancer",
+   "upkeep": {
+    "food": 4
+   }
+  },
+  "ai5i1": {
+   "blurb": "Short Sword, Leather I armor. Parry: take 10% less damage.",
+   "cost": {
+    "gold": 80
+   },
+   "design": true,
+   "name": "Swordsman",
+   "upkeep": {
+    "food": 2
+   }
+  },
+  "ai6c1": {
+   "blurb": "Club, Staghide I armor, Ogre. Crushing: ignores half of enemy armor, and deals 150% damage to soldiers in plate.",
+   "cost": {
+    "gold": 300,
+    "wood": 10
+   },
+   "design": true,
+   "name": "Ogre",
+   "upkeep": {
+    "food": 4
+   }
+  },
+  "ai6i1": {
+   "blurb": "Hand Axe, Staghide I armor. Critical strike: each blow has a 10% chance to do double damage.",
+   "cost": {
+    "gold": 80
+   },
+   "design": true,
+   "name": "Axe Berserker",
+   "upkeep": {
+    "food": 2
+   }
+  },
+  "army": {
+   "blurb": "A group of soldiers that moves as one.",
+   "cost": {},
+   "name": "Army",
+   "upkeep": {}
+  },
+  "b-bluedragon": {
+   "blurb": "A boss: power 40000. Beating it gives the Blue Dragon Skull.",
+   "cost": {},
+   "name": "Blue Dragon",
+   "upkeep": {}
+  },
+  "b-golddragon": {
+   "blurb": "A boss: power 50000. Beating it gives the Gold Dragon Skull.",
+   "cost": {},
+   "name": "Gold Dragon",
+   "upkeep": {}
+  },
+  "b-inferno": {
+   "blurb": "A boss: power 30000. Beating it gives the Essence of Flame.",
+   "cost": {},
+   "name": "Walking Inferno",
+   "upkeep": {}
+  },
+  "b-reddragon": {
+   "blurb": "A boss: power 30000. Beating it gives the Red Dragon Skull.",
+   "cost": {},
+   "name": "Red Dragon",
+   "upkeep": {}
+  },
+  "b-scarabs": {
+   "blurb": "A boss: power 35000. Beating it gives the Lidless Eye.",
+   "cost": {},
+   "name": "Scarab Army",
+   "upkeep": {}
+  },
+  "b-serpent": {
+   "blurb": "A boss: power 30000. Beating it gives the Winged Slippers.",
+   "cost": {},
+   "name": "Winged Serpent",
+   "upkeep": {}
+  },
+  "b-sherman": {
+   "blurb": "A boss: power 20000. Beating it gives the Enchanted Stump.",
+   "cost": {},
+   "name": "General Sherman",
+   "upkeep": {}
+  },
+  "b-skeletonking": {
+   "blurb": "A boss: power 25000. Beating it gives the Kingâ€™s Crown.",
+   "cost": {},
+   "name": "Skeleton King",
+   "upkeep": {}
+  },
+  "b-ursa": {
+   "blurb": "A boss: power 25000. Beating it gives the Grips of the Beast.",
+   "cost": {},
+   "name": "Ursa Major",
+   "upkeep": {}
+  },
+  "d-club": {
+   "blurb": "Club, Leather I armor. Crushing: ignores half of enemy armor, and deals 150% damage to soldiers in plate.",
+   "cost": {
+    "gold": 80,
+    "wood": 10
+   },
+   "design": true,
+   "name": "Clubman",
+   "upkeep": {
+    "food": 2
+   }
+  },
+  "d-rider": {
+   "blurb": "Spear, Leather I armor, Rouncey. +50% damage against cavalry.",
+   "cost": {
+    "gold": 300
+   },
+   "design": true,
+   "name": "Rider",
+   "upkeep": {
+    "food": 4
+   }
+  },
+  "d-spear": {
+   "blurb": "Spear, Leather I armor. +50% damage against cavalry.",
+   "cost": {
+    "gold": 80
+   },
+   "design": true,
+   "name": "Spearman",
+   "upkeep": {
+    "food": 2
+   }
+  },
+  "d-sw-axe": {
+   "blurb": "Hand Axe, Staghide I armor. Critical strike: each blow has a 10% chance to do double damage.",
+   "cost": {
+    "gold": 80
+   },
+   "design": true,
+   "name": "Axe Berserker",
+   "upkeep": {
+    "food": 2
+   }
+  },
+  "d-sw-club": {
+   "blurb": "Club, Staghide I armor. Crushing: ignores half of enemy armor, and deals 150% damage to soldiers in plate.",
+   "cost": {
+    "gold": 80,
+    "wood": 10
+   },
+   "design": true,
+   "name": "Club Berserker",
+   "upkeep": {
+    "food": 2
+   }
+  },
+  "d-sw-ogre": {
+   "blurb": "Club, Staghide I armor, Ogre. Crushing: ignores half of enemy armor, and deals 150% damage to soldiers in plate.",
+   "cost": {
+    "gold": 300,
+    "wood": 10
+   },
+   "design": true,
+   "name": "Ogre",
+   "upkeep": {
+    "food": 4
+   }
+  },
+  "d-sw-spear": {
+   "blurb": "Spear, Staghide I armor. +50% damage against cavalry.",
+   "cost": {
+    "gold": 80
+   },
+   "design": true,
+   "name": "Spear Berserker",
+   "upkeep": {
+    "food": 2
+   }
+  },
+  "d-sword": {
+   "blurb": "Short Sword, Leather I armor. Parry: take 10% less damage.",
+   "cost": {
+    "gold": 80
+   },
+   "design": true,
+   "name": "Footman",
+   "upkeep": {
+    "food": 2
+   }
+  },
+  "d-wd-champ": {
+   "blurb": "Champion Sword, Ornate I armor. Parry: take 10% less damage.",
+   "cost": {
+    "gold": 335
+   },
+   "design": true,
+   "name": "Champion",
+   "upkeep": {
+    "food": 4
+   }
+  },
+  "d-wd-club": {
+   "blurb": "Club, Spiritweave I armor. Crushing: ignores half of enemy armor, and deals 150% damage to soldiers in plate.",
+   "cost": {
+    "gold": 80,
+    "wood": 10
+   },
+   "design": true,
+   "name": "Club Protector",
+   "upkeep": {
+    "food": 2
+   }
+  },
+  "d-wd-spear": {
+   "blurb": "Spear, Spiritweave I armor. +50% damage against cavalry.",
+   "cost": {
+    "gold": 80
+   },
+   "design": true,
+   "name": "Spear Protector",
+   "upkeep": {
+    "food": 2
+   }
+  },
+  "d-wd-sword": {
+   "blurb": "Dirk, Spiritweave I armor. Parry: take 10% less damage.",
+   "cost": {
+    "gold": 80
+   },
+   "design": true,
+   "name": "Sword Protector",
+   "upkeep": {
+    "food": 2
+   }
+  },
+  "m-ent": {
+   "blurb": "An old tree that has pulled up its roots: as strong as two Riders. 100 wood when felled.",
+   "cost": {},
+   "name": "Walking Ent",
+   "upkeep": {}
+  },
+  "m-jackal": {
+   "blurb": "A desert hunter with a jackalâ€™s head, a long curved sword and mail. 30 gold each.",
+   "cost": {},
+   "name": "Jackal-man",
+   "upkeep": {}
+  },
+  "m-zombie": {
+   "blurb": "The restless dead of the marshes: half a Footman each, but they come in numbers. 20 gold each.",
+   "cost": {},
+   "name": "Zombie",
+   "upkeep": {}
+  },
+  "mage:A": {
+   "blurb": "Casts the spells of your school. Joins an army to fight in it and power its battle spells.",
+   "cost": {
+    "gold": 300
+   },
+   "name": "Mage",
+   "upkeep": {
+    "food": 2
+   }
+  },
+  "mason:A": {
+   "blurb": "Builds outposts and buildings.",
+   "cost": {
+    "gold": 50
+   },
+   "name": "Mason",
+   "upkeep": {
+    "food": 1
+   }
+  },
+  "pioneer:B": {
+   "blurb": "Explores fog and surveys land.",
+   "cost": {
+    "gold": 50
+   },
+   "name": "Wayfinder",
+   "upkeep": {
+    "food": 1
+   }
+  },
+  "rng-realm": {
+   "blurb": "Ranged soldier with a Hand-drawn Crossbow: 20 health, no armor, attack 6. Full damage from the back row, only 40% in the front row (or in an army of fewer than 6). Fills an army from the back. Research Lever Crossbows to re-arm them.",
+   "cost": {
+    "gold": 60
+   },
+   "design": true,
+   "name": "Crossbowman",
+   "ranged": true,
+   "upkeep": {
+    "food": 1
+   }
+  },
+  "rng-swamp": {
+   "blurb": "Ranged soldier with a Wool Sling: 20 health, no armor, attack 6. Full damage from the back row, only 40% in the front row (or in an army of fewer than 6). Fills an army from the back. Research Braided Slings to re-arm them.",
+   "cost": {
+    "gold": 60
+   },
+   "design": true,
+   "name": "Slinger",
+   "ranged": true,
+   "upkeep": {
+    "food": 1
+   }
+  },
+  "rng-wood": {
+   "blurb": "Ranged soldier with a Short Bow: 20 health, no armor, attack 6. Full damage from the back row, only 40% in the front row (or in an army of fewer than 6). Fills an army from the back. Research Composite Bows to re-arm them.",
+   "cost": {
+    "gold": 60
+   },
+   "design": true,
+   "name": "Archer",
+   "ranged": true,
+   "upkeep": {
+    "food": 1
+   }
+  },
+  "thug:A": {
+   "blurb": "Doesnâ€™t fight. Sits in a Thug Den and squeezes 1 gold out of the neighborhood every 10 s.",
+   "cost": {
+    "gold": 40
+   },
+   "name": "Thug",
+   "upkeep": {
+    "food": 1
+   }
+  },
+  "wd-elem": {
+   "blurb": "A towering man of living water, summoned by a Druid for 2 minutes: 500 health, no armor, 50 damage a swing.",
+   "cost": {},
+   "name": "Grand Elemental",
+   "upkeep": {}
+  }
+ },
+ "UNIT_LIMIT": {
+  "mason:A": 3,
+  "pioneer:B": 3
+ },
+ "UNIT_SPEED": {
+  "ai4c1": 1.54,
+  "ai4i1": 0.83,
+  "ai5c1": 1.54,
+  "ai5i1": 0.83,
+  "ai6c1": 1.45,
+  "ai6i1": 0.91,
+  "b-bluedragon": 0.45,
+  "b-golddragon": 0.45,
+  "b-inferno": 0.5,
+  "b-reddragon": 0.45,
+  "b-scarabs": 0.55,
+  "b-serpent": 0.6,
+  "b-sherman": 0.35,
+  "b-skeletonking": 0.5,
+  "b-ursa": 0.55,
+  "d-club": 0.83,
+  "d-rider": 1.54,
+  "d-spear": 0.83,
+  "d-sw-axe": 0.91,
+  "d-sw-club": 0.91,
+  "d-sw-ogre": 1.45,
+  "d-sw-spear": 0.91,
+  "d-sword": 0.83,
+  "d-wd-champ": 0.61,
+  "d-wd-club": 0.83,
+  "d-wd-spear": 0.83,
+  "d-wd-sword": 0.83,
+  "m-ent": 0.5,
+  "m-jackal": 0.75,
+  "m-zombie": 0.6,
+  "mage:A": 0.8,
+  "mason:A": 0.5,
+  "pioneer:B": 1,
+  "rng-realm": 0.75,
+  "rng-swamp": 0.75,
+  "rng-wood": 0.75,
+  "thug:A": 0.9,
+  "wd-elem": 0.61
+ },
+ "WAYFINDER": "pioneer:B",
+ "WORLD_K": 2
+}

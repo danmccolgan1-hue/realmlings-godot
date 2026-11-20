@@ -1,0 +1,265 @@
+{
+ "note": "ax, ay: the anchor pixel (where the game places the art: province center, plot, feet). scale: image pixels per world unit.",
+ "images": {
+  "monster_b_bluedragon_d2.png": {
+   "w": 854,
+   "h": 593,
+   "ax": 439,
+   "ay": 542,
+   "scale": 4,
+   "id": "b-bluedragon",
+   "dir": "d2",
+   "th": -1.5707963267948966
+  },
+  "monster_b_bluedragon_d6.png": {
+   "w": 854,
+   "h": 593,
+   "ax": 415,
+   "ay": 542,
+   "scale": 4,
+   "id": "b-bluedragon",
+   "dir": "d6",
+   "th": 1.5707963267948966
+  },
+  "monster_b_golddragon_d2.png": {
+   "w": 854,
+   "h": 593,
+   "ax": 439,
+   "ay": 542,
+   "scale": 4,
+   "id": "b-golddragon",
+   "dir": "d2",
+   "th": -1.5707963267948966
+  },
+  "monster_b_golddragon_d6.png": {
+   "w": 854,
+   "h": 593,
+   "ax": 415,
+   "ay": 542,
+   "scale": 4,
+   "id": "b-golddragon",
+   "dir": "d6",
+   "th": 1.5707963267948966
+  },
+  "monster_b_inferno_d2.png": {
+   "w": 608,
+   "h": 607,
+   "ax": 304,
+   "ay": 533,
+   "scale": 4,
+   "id": "b-inferno",
+   "dir": "d2",
+   "th": -1.5707963267948966
+  },
+  "monster_b_inferno_d6.png": {
+   "w": 608,
+   "h": 607,
+   "ax": 304,
+   "ay": 533,
+   "scale": 4,
+   "id": "b-inferno",
+   "dir": "d6",
+   "th": 1.5707963267948966
+  },
+  "monster_b_reddragon_d2.png": {
+   "w": 854,
+   "h": 593,
+   "ax": 439,
+   "ay": 542,
+   "scale": 4,
+   "id": "b-reddragon",
+   "dir": "d2",
+   "th": -1.5707963267948966
+  },
+  "monster_b_reddragon_d6.png": {
+   "w": 854,
+   "h": 593,
+   "ax": 415,
+   "ay": 542,
+   "scale": 4,
+   "id": "b-reddragon",
+   "dir": "d6",
+   "th": 1.5707963267948966
+  },
+  "monster_b_scarabs_d2.png": {
+   "w": 342,
+   "h": 319,
+   "ax": 184,
+   "ay": 247,
+   "scale": 4,
+   "id": "b-scarabs",
+   "dir": "d2",
+   "th": -1.5707963267948966
+  },
+  "monster_b_scarabs_d6.png": {
+   "w": 342,
+   "h": 319,
+   "ax": 158,
+   "ay": 247,
+   "scale": 4,
+   "id": "b-scarabs",
+   "dir": "d6",
+   "th": 1.5707963267948966
+  },
+  "monster_b_serpent_d2.png": {
+   "w": 529,
+   "h": 506,
+   "ax": 266,
+   "ay": 469,
+   "scale": 4,
+   "id": "b-serpent",
+   "dir": "d2",
+   "th": -1.5707963267948966
+  },
+  "monster_b_serpent_d6.png": {
+   "w": 529,
+   "h": 506,
+   "ax": 263,
+   "ay": 469,
+   "scale": 4,
+   "id": "b-serpent",
+   "dir": "d6",
+   "th": 1.5707963267948966
+  },
+  "monster_b_sherman_d2.png": {
+   "w": 546,
+   "h": 1320,
+   "ax": 273,
+   "ay": 1276,
+   "scale": 4,
+   "id": "b-sherman",
+   "dir": "d2",
+   "th": -1.5707963267948966
+  },
+  "monster_b_sherman_d6.png": {
+   "w": 546,
+   "h": 1320,
+   "ax": 273,
+   "ay": 1276,
+   "scale": 4,
+   "id": "b-sherman",
+   "dir": "d6",
+   "th": 1.5707963267948966
+  },
+  "monster_b_skeletonking_d2.png": {
+   "w": 215,
+   "h": 438,
+   "ax": 116,
+   "ay": 424,
+   "scale": 4,
+   "id": "b-skeletonking",
+   "dir": "d2",
+   "th": -1.5707963267948966
+  },
+  "monster_b_skeletonking_d6.png": {
+   "w": 215,
+   "h": 438,
+   "ax": 99,
+   "ay": 424,
+   "scale": 4,
+   "id": "b-skeletonking",
+   "dir": "d6",
+   "th": 1.5707963267948966
+  },
+  "monster_b_ursa_d2.png": {
+   "w": 457,
+   "h": 314,
+   "ax": 278,
+   "ay": 278,
+   "scale": 4,
+   "id": "b-ursa",
+   "dir": "d2",
+   "th": -1.5707963267948966
+  },
+  "monster_b_ursa_d6.png": {
+   "w": 457,
+   "h": 314,
+   "ax": 179,
+   "ay": 278,
+   "scale": 4,
+   "id": "b-ursa",
+   "dir": "d6",
+   "th": 1.5707963267948966
+  },
+  "monster_m_ent_d2.png": {
+   "w": 154,
+   "h": 222,
+   "ax": 77,
+   "ay": 207,
+   "scale": 4,
+   "id": "m-ent",
+   "dir": "d2",
+   "th": -1.5707963267948966
+  },
+  "monster_m_ent_d6.png": {
+   "w": 154,
+   "h": 222,
+   "ax": 77,
+   "ay": 207,
+   "scale": 4,
+   "id": "m-ent",
+   "dir": "d6",
+   "th": 1.5707963267948966
+  },
+  "monster_m_jackal_d2.png": {
+   "w": 122,
+   "h": 173,
+   "ax": 70,
+   "ay": 158,
+   "scale": 4,
+   "id": "m-jackal",
+   "dir": "d2",
+   "th": -1.5707963267948966
+  },
+  "monster_m_jackal_d6.png": {
+   "w": 122,
+   "h": 173,
+   "ax": 52,
+   "ay": 158,
+   "scale": 4,
+   "id": "m-jackal",
+   "dir": "d6",
+   "th": 1.5707963267948966
+  },
+  "monster_m_zombie_d2.png": {
+   "w": 95,
+   "h": 147,
+   "ax": 65,
+   "ay": 132,
+   "scale": 4,
+   "id": "m-zombie",
+   "dir": "d2",
+   "th": -1.5707963267948966
+  },
+  "monster_m_zombie_d6.png": {
+   "w": 95,
+   "h": 147,
+   "ax": 30,
+   "ay": 132,
+   "scale": 4,
+   "id": "m-zombie",
+   "dir": "d6",
+   "th": 1.5707963267948966
+  },
+  "monster_wd_elem_d2.png": {
+   "w": 148,
+   "h": 272,
+   "ax": 74,
+   "ay": 254,
+   "scale": 4,
+   "id": "wd-elem",
+   "dir": "d2",
+   "th": -1.5707963267948966
+  },
+  "monster_wd_elem_d6.png": {
+   "w": 148,
+   "h": 272,
+   "ax": 74,
+   "ay": 254,
+   "scale": 4,
+   "id": "wd-elem",
+   "dir": "d6",
+   "th": 1.5707963267948966
+  }
+ }
+}

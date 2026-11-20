@@ -1,0 +1,197 @@
+{
+ "BANDIT": {
+  "bounty": 50,
+  "chance": 0.1,
+  "troops": {
+   "d-sword": 2
+  }
+ },
+ "CIV_SKIN": [
+  "#f2c9a0",
+  "#e0ad82",
+  "#c68a5e",
+  "#9c6a45",
+  "#f5d6b8"
+ ],
+ "CIV_TUNIC": [
+  "#c8473d",
+  "#3f72d9",
+  "#4b9b4f",
+  "#d9b45a",
+  "#8a5aa8",
+  "#e08a3c",
+  "#6d8fa8",
+  "#b3646f"
+ ],
+ "GANG_NAMES": [
+  "Mudfoot Gang",
+  "Red Caps",
+  "Black Hounds",
+  "Crooked Knives",
+  "Ditch Rats",
+  "Grey Hoods",
+  "Bog Wolves",
+  "Sand Vipers",
+  "Rusty Spurs",
+  "Night Crows",
+  "Thistle Band",
+  "One-Eyed Gang"
+ ],
+ "HORDE_MIN": 10,
+ "HOUSE_K": 0.4,
+ "HOUSE_LOOKS": [
+  {
+   "chimney": true,
+   "d": 22,
+   "h": 20,
+   "roof": "#c8473d",
+   "w": 30,
+   "wall": null
+  },
+  {
+   "chimney": false,
+   "d": 20,
+   "h": 18,
+   "roof": "#3f72d9",
+   "w": 26,
+   "wall": null
+  },
+  {
+   "chimney": false,
+   "d": 22,
+   "h": 22,
+   "roof": "#d9b45a",
+   "w": 32,
+   "wall": "#e9dcc0"
+  },
+  {
+   "chimney": true,
+   "d": 22,
+   "h": 20,
+   "roof": "#7a5a43",
+   "w": 28,
+   "wall": "#c9b48e"
+  },
+  {
+   "chimney": true,
+   "d": 20,
+   "h": 18,
+   "roof": "#d9b45a",
+   "w": 24,
+   "wall": null
+  },
+  {
+   "chimney": false,
+   "d": 20,
+   "h": 20,
+   "roof": "#a33a33",
+   "w": 30,
+   "wall": "#ece4d4"
+  }
+ ],
+ "REP_FAM": {
+  "axe": "rep-sword",
+  "blunt": "rep-blunt",
+  "pole": "rep-pole",
+  "stave": "rep-stave",
+  "sword": "rep-sword",
+  "thrust": "rep-sword",
+  "wand": "rep-wand"
+ },
+ "RP_COL": {
+  "gov": "#3f72d9",
+  "mag": "#7a55c9",
+  "mil": "#c8473d"
+ },
+ "RP_STAR": "10.00,6.50 10.91,9.51 13.83,8.34 12.05,10.93 14.78,12.49 11.64,12.71 12.13,15.81 10.00,13.50 7.87,15.81 8.36,12.71 5.22,12.49 7.95,10.93 6.17,8.34 9.09,9.51",
+ "SETPIECES": {
+  "battlesite": {
+   "blurb": "Rusted blades and old bones half-buried in the sand.",
+   "name": "Ancient Battle Site",
+   "need": "a Forge",
+   "pts": 1,
+   "terrain": [
+    "desert"
+   ],
+   "tree": "mil"
+  },
+  "library": {
+   "blurb": "Shelves of crumbling scrolls, still legible to a patient scholar.",
+   "name": "Forgotten Library",
+   "need": null,
+   "pts": 1,
+   "terrain": [
+    "swamp",
+    "desert"
+   ],
+   "tree": "gov"
+  },
+  "rift": {
+   "blurb": "A seam in the air where another world once broke through.",
+   "name": "Closed Interdimensional Rift",
+   "need": "a Mage Tower",
+   "pts": 1,
+   "terrain": [
+    "swamp"
+   ],
+   "tree": "mag"
+  }
+ },
+ "SETPIECE_CHANCE": 0.1,
+ "SW_CIV": [
+  "#3f6b35",
+  "#5f9a3e",
+  "#93c463",
+  "#3f8a80",
+  "#8a6a44"
+ ],
+ "SW_HUTS": [
+  {
+   "h": 20,
+   "r": 11,
+   "wall": "#8b6a45"
+  },
+  {
+   "h": 18,
+   "r": 9,
+   "wall": "#a8794a"
+  },
+  {
+   "h": 21,
+   "r": 12,
+   "wall": "#6e5134"
+  },
+  {
+   "h": 22,
+   "r": 10,
+   "wall": "#8b6a45"
+  },
+  {
+   "h": 17,
+   "r": 9,
+   "wall": "#a8794a"
+  },
+  {
+   "h": 19,
+   "r": 11,
+   "wall": "#7a5a3a"
+  }
+ ],
+ "WD_CIV_HAIR": [
+  "#e6e2ef",
+  "#2d2838",
+  "#8a4a3a",
+  "#cfd8e8",
+  "#4a3560",
+  "#d9b85a"
+ ],
+ "WD_CIV_TUNIC": [
+  "#c8c6c0",
+  "#6f7f4a",
+  "#3f8f86",
+  "#8a63b8",
+  "#d9cfa8",
+  "#4f6f3c",
+  "#a07ab8"
+ ]
+}

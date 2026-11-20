@@ -1,0 +1,168 @@
+{
+ "AI_DIFF": {
+  "difficult": {
+   "armor": "chain",
+   "family": "sword",
+   "masons": 3,
+   "masons2": 3,
+   "maxProvs": 99,
+   "outpostGap": 0,
+   "school": null,
+   "think": 1,
+   "war": false,
+   "wf": 3
+  },
+  "easy": {
+   "armor": "chain",
+   "family": "sword",
+   "masons": 1,
+   "masons2": 2,
+   "maxProvs": 20,
+   "outpostGap": 75,
+   "school": null,
+   "think": 3,
+   "war": false,
+   "wf": 1
+  },
+  "moderate": {
+   "armor": "chain",
+   "family": "sword",
+   "masons": 2,
+   "masons2": 3,
+   "maxProvs": 99,
+   "outpostGap": 0,
+   "school": null,
+   "think": 1.5,
+   "war": true,
+   "wf": 2
+  }
+ },
+ "AI_IDS": [
+  4,
+  5,
+  6,
+  7,
+  8,
+  9,
+  10
+ ],
+ "AI_MAGIC_LATE": 1800,
+ "AI_MAGIC_PREFS": {
+  "arcane": {
+   "arcscouts": 6,
+   "clearthoughts": 3,
+   "magicabund": 12,
+   "magicwell": 14,
+   "planar": 26,
+   "stockmarket": 28,
+   "trading": 30
+  },
+  "death": {
+   "charon": 28,
+   "curse1": 10,
+   "deathtax": 28,
+   "graverob": 30,
+   "magicabund": 12,
+   "magicwell": 14,
+   "risen": 8
+  },
+  "elemental": {
+   "forestspirit": 14,
+   "gelemental": 10,
+   "magicabund": 12,
+   "magicwell": 14,
+   "rockarmor": 25,
+   "townportal": 6,
+   "wrocks": 6
+  },
+  "life": {
+   "bountiful": 25,
+   "harvest": 30,
+   "magicabund": 12,
+   "magicwell": 14,
+   "magnificent": 20,
+   "mending": 8,
+   "skin": 10
+  },
+  "pyro": {
+   "fiery1": 12,
+   "fiery2": 10,
+   "fiery3": 8,
+   "firetrap": 6,
+   "magicabund": 12,
+   "magicwell": 14,
+   "pathfire": 6,
+   "sacredpyre": 20,
+   "scoutpyre": 4
+  }
+ },
+ "AI_PLACES": [
+  "Thornwall",
+  "Emberreach",
+  "Mistvale",
+  "Highmoor",
+  "Goldhaven",
+  "Ravenmark",
+  "Stonebrook",
+  "Willowmere",
+  "Frostholm",
+  "Sunspire",
+  "Duskwood",
+  "Briarfell",
+  "Ironcrest",
+  "Saltmarsh",
+  "Oakenshade",
+  "Ashford"
+ ],
+ "AI_POWER_GOAL": {
+  "easy": 4000,
+  "moderate": 6000
+ },
+ "AI_TITLES": [
+  "Kingdom",
+  "Duchy",
+  "Realm",
+  "March",
+  "Principality",
+  "Dominion",
+  "Free Cities",
+  "Grand Duchy",
+  "Barony"
+ ],
+ "AI_WAR_THINK": 60,
+ "DIFF_NAME": {
+  "difficult": "Difficult",
+  "easy": "Easy",
+  "moderate": "Moderate"
+ },
+ "KEY_BUILDINGS": [
+  "barracks",
+  "magetower",
+  "forge",
+  "temple",
+  "goldmine"
+ ],
+ "SW_AI_PLACES": [
+  "Bloodtusk",
+  "Gorehide",
+  "Skullmire",
+  "Rotfang",
+  "Bonegnaw",
+  "Mudmaw",
+  "Gutripper",
+  "Ironjaw",
+  "Grimbog",
+  "Blackfen",
+  "Bilegut",
+  "Snaggletooth",
+  "Muckclaw",
+  "Thudfist",
+  "Skarrak",
+  "Grubsnout"
+ ],
+ "SW_AI_TITLES": [
+  "Clan",
+  "Tribe",
+  "Legion"
+ ]
+}

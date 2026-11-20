@@ -1,0 +1,265 @@
+{
+ "TP": {
+  "bandits": 4,
+  "capital": 0,
+  "desert": 3,
+  "forest": 1,
+  "swamp": 2
+ },
+ "TUT_AUDIO": {},
+ "TUT_EXPLAIN": [
+  {
+   "dx": 170,
+   "dy": 0,
+   "label": "Armory",
+   "sel": "#armBtn",
+   "side": "r"
+  },
+  {
+   "dx": -60,
+   "dy": 150,
+   "fx": 0.25,
+   "label": "Resources",
+   "sel": "#res",
+   "side": "b"
+  },
+  {
+   "dx": 120,
+   "dy": 125,
+   "label": "Research",
+   "sel": "#techBtn",
+   "side": "b"
+  },
+  {
+   "dx": -190,
+   "dy": 30,
+   "label": "Outliner",
+   "sel": "#roster",
+   "side": "l"
+  },
+  {
+   "dx": -200,
+   "dy": -80,
+   "label": "Action Card",
+   "sel": "#cmdGrid",
+   "side": "l"
+  },
+  {
+   "dx": 190,
+   "dy": -20,
+   "ghost": "#tutProvGhost",
+   "label": "Province Menu",
+   "sel": "#prov",
+   "side": "r"
+  },
+  {
+   "dx": 240,
+   "dy": -40,
+   "label": "Minimap Toggles",
+   "sel": "#mini .mini-togs",
+   "side": "r"
+  },
+  {
+   "dx": 170,
+   "dy": 40,
+   "label": "Minimap",
+   "sel": "#mini",
+   "side": "r"
+  }
+ ],
+ "TUT_FINAL": {
+  "id": "20",
+  "lines": [
+   "Good job and thank you for completing the tutorial. You are now ready to start your first Realmlings adventure."
+  ]
+ },
+ "TUT_TRIGGERS": [
+  {
+   "id": "1",
+   "lines": [
+    "Welcome to Realmlings! This is what is known as a 4X Game. Explore, expand, exploit, and exterminate. Your goal is to expand as a nation, grow in strength and overcome rival playersâ€™ nations."
+   ],
+   "obj": {
+    "key": "capital",
+    "text": "Select your Capital"
+   }
+  },
+  {
+   "glow": [
+    "#techBtn",
+    "#nflags"
+   ],
+   "id": "2",
+   "lines": [
+    "Every nation starts with a single province with a Capital. The Capital is special, it can support more buildings than any other province and can build Masons and Wayfinders.",
+    "At the top of the screen you can see the research button. Below is a notification indicating that new research is available. There are three trees of research: Government, which improves your nationâ€™s infrastructural capabilities, Military, which improves your nationâ€™s army, and Magic, which improves your nationâ€™s magical abilities. At the start of a game military and magic research are locked until the Forge and Mage Tower buildings are researched and later constructed."
+   ],
+   "obj": {
+    "key": "research",
+    "text": "Select your research"
+   }
+  },
+  {
+   "glow": [
+    "#res"
+   ],
+   "id": "3",
+   "lines": [
+    "Above Research is your resources: Gold, Wood, and Food. Units typically require Gold for the upfront purchase and have an upkeep of Food. Buildings typically require Gold and Wood for an upfront purchase and have an upkeep of Wood.",
+    "If you do not upkeep your buildings they will break down. If you do not feed your army, they will desert you.",
+    {
+     "call": [
+      {
+       "dx": 40,
+       "dy": 120,
+       "label": "Cycle Timer",
+       "sel": "#res .tick",
+       "side": "b"
+      }
+     ],
+     "t": "The number to the right of each resource is your current net income. Every 10 seconds, as seen by the circular timer here, you will get an influx of your net resources."
+    }
+   ]
+  },
+  {
+   "id": "3.1",
+   "lines": [
+    "This is a Wayfinder, this unitâ€™s role is to scout and expand your nationâ€™s vision of the world. He can also survey provinces to reveal their base resources. This is necessary for expansion.",
+    "Every game starts with the game paused. You can pause at any time to queue up actions and take the time you need to make decisions."
+   ],
+   "obj": {
+    "key": "wayfinder",
+    "text": "Select your Wayfinder"
+   }
+  },
+  {
+   "id": "4",
+   "lines": [
+    "Use the wayfinder to survey the neighboring province. Move the wayfinder to the province and press Q or select the button from the action card in the bottom right."
+   ],
+   "obj": {
+    "key": "survey",
+    "text": "Survey the neighboring province"
+   }
+  },
+  {
+   "id": "5",
+   "lines": [
+    "Good Job. The province beyond is unexplored and only the wayfinder can explore there. Tell your wayfinder to explore the province by right clicking on the province."
+   ],
+   "obj": {
+    "key": "explore",
+    "text": "Explore the next province"
+   }
+  },
+  {
+   "id": "6",
+   "lines": [
+    "Notice how this province has a different terrain than the previous two. Your Capital is Grassland, your neighboring province is a Forest. This is a Swamp. Swamps produce less gold than Forests or Grasslands and have certain building restrictions. Farms for example cannot be built in swamps."
+   ]
+  },
+  {
+   "id": "7",
+   "lines": [
+    "This is a Mason, he builds your buildings and expands your borders by building outposts. Use the Mason to build an outpost in your neighboring forest province."
+   ]
+  },
+  {
+   "id": "8",
+   "lines": [],
+   "obj": {
+    "key": "outpost",
+    "text": "Build an outpost"
+   }
+  },
+  {
+   "id": "9",
+   "lines": [
+    "Notice how you can only build outposts in provinces that are adjacent to another province you own."
+   ]
+  },
+  {
+   "id": "10",
+   "lines": [
+    "The lumber mill is one of the most important buildings you can build. The more Wood you make the more buildings you can build. Lumber mills can only be built in provinces with bordering trees. The more bordering trees the more lumber mills you can build.",
+    "Each province can support 1 of each building except lumber mills and farms."
+   ]
+  },
+  {
+   "glow": [
+    "#r-provs"
+   ],
+   "id": "11",
+   "lines": [
+    "You can only build 4 outposts before you reach your expansion limit. To expand beyond that you will need to upgrade one of your outposts to a fort."
+   ]
+  },
+  {
+   "glow": [
+    "#r-forts"
+   ],
+   "id": "12",
+   "lines": [
+    "You can only upgrade one outpost right now but through technology you can upgrade more and expand even farther."
+   ]
+  },
+  {
+   "id": "13",
+   "lines": [
+    "Click on your outpost to upgrade it to a fort."
+   ],
+   "obj": {
+    "key": "fort",
+    "text": "Upgrade an outpost"
+   }
+  },
+  {
+   "id": "14",
+   "lines": [
+    "Continue exploring with your wayfinder."
+   ]
+  },
+  {
+   "id": "15",
+   "lines": [
+    "You have discovered the desert. This terrain type has very little resources and cannot support farms or lumber mills. However the desert can sometimes hide gold deposits well worth the expansion and resources to claim."
+   ]
+  },
+  {
+   "id": "16",
+   "lines": [
+    "You have found a band of bandits. They are territorial and wonâ€™t move from their province. To defeat them you will need to train an army.",
+    "Have your mason build a barracks."
+   ],
+   "obj": {
+    "key": "barracks",
+    "text": "Build a barracks"
+   }
+  },
+  {
+   "id": "17",
+   "lines": [
+    "Good. Now that you have a barracks train some Footmen to defeat the bandits and end the tutorial."
+   ],
+   "obj": {
+    "key": "swords",
+    "text": "Train some Footmen"
+   }
+  },
+  {
+   "glow": [
+    "#armBtn"
+   ],
+   "id": "18",
+   "lines": [
+    "You can customize your troops in the Armory. Building Forges allow for further upgrades."
+   ]
+  },
+  {
+   "id": "19",
+   "lines": [
+    "There are other races you can play that play somewhat differently to the Realmlings. Explore each race to find the one that you like best."
+   ]
+  }
+ ]
+}
