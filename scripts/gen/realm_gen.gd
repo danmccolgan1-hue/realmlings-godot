@@ -222,8 +222,9 @@ static func ang_diff(a: float, b: float) -> float:
 	return 2.0 * PI - d if d > PI else d
 
 
-## web: generateWorld(seed, opts, withUniques) without uniques and without the validation report.
-static func generate_world(seed: String, opts = null) -> Dictionary:
+## web: generateWorld(seed, opts, withUniques) without the validation report. With uniques (every normal game): Death
+## Mountain, the Desert Oasis and the Heart of the Forest, and the next island is tried if any of them doesn't fit.
+static func generate_world(seed: String, opts = null, with_uniques := false) -> Dictionary:
 	var o := DEFAULT_OPTS.duplicate()
 	if opts is Dictionary:
 		o.merge(opts, true)
@@ -240,9 +241,171 @@ static func generate_world(seed: String, opts = null) -> Dictionary:
 		r.world.seed = seed
 		r.world.attempts = attempt + 1
 		r.world.opts = o
+		if with_uniques:
+			place_uniques(r.world, seed)
+			var U: Dictionary = r.world.unique
+			if U.death < 0 or U.oasis < 0 or U.heart < 0:
+				reasons["unique provinces"] = reasons.get("unique provinces", 0) + 1
+				continue
 		return r.world
 	push_error("Could not generate a valid world: " + str(reasons))
 	return {}
+
+
+# web: gen.js placeUniques
+static func place_uniques(w: Dictionary, seed: String) -> void:
+	var rng := Mulberry32.from_string("unique:" + seed)
+	var ps: Array = w.provinces
+	var E: Array = w.edges
+	var n := ps.size()
+	var other := func(e: Dictionary, i: int) -> int: return e.b if e.a == i else e.a
+	var inland := func(i: int) -> bool: return ps[i].coast.is_empty()
+	var banned := {}
+	var U := {"death": -1, "deathGuard": -1, "oasis": -1, "oasisGuard": -1, "heart": -1, "heartGuard": -1}
+	var connected := func(closed: Dictionary, dead: int) -> bool:
+		var start := 0 if dead != 0 else 1
+		var seen := {start: true}
+		var q := [start]
+		while not q.is_empty():
+			var u: int = q.pop_back()
+			for id in ps[u].edges:
+				var e: Dictionary = E[id]
+				if not e.open or closed.has(id):
+					continue
+				var v: int = other.call(e, u)
+				if v == dead or seen.has(v):
+					continue
+				seen[v] = true
+				q.append(v)
+		return seen.size() == n - (1 if dead >= 0 else 0)
+	var order := func(list: Array) -> Array: return rng.shuffle(list.duplicate())
+	# 1. Death Mountain: inland, not a desert, ideally with no desert or coastal neighbor
+	var base := []
+	for i in n:
+		if inland.call(i) and ps[i].terrain != "desert" and ps[i].nbr.size() >= 4:
+			base.append(i)
+	base = order.call(base)
+	var score := func(i: int) -> int:
+		var s := 0
+		for j in ps[i].nbr:
+			if ps[j].terrain == "desert":
+				s += 10
+			if not inland.call(j):
+				s += 1
+		return s
+	base = JS.stable_sort(base, func(x, y): return score.call(x) - score.call(y))
+	for i in base:
+		var closed := {}
+		for id in ps[i].edges:
+			closed[id] = true
+		if not connected.call(closed, i):
+			continue
+		U.death = i
+		for id in ps[i].edges:
+			E[id].open = false
+			E[id].style = "mountains"
+		# a river along its side runs under the mountain there: cut that stretch out so the border shows mountains
+		var dm := {}
+		for id in ps[i].edges:
+			var v: Array = E[id].v
+			dm["%d_%d" % [mini(v[0], v[1]), maxi(v[0], v[1])]] = true
+		var rivers := []
+		for r in w.rivers:
+			var cur := [r.verts[0]]
+			for k in range(1, r.verts.size()):
+				var a: int = r.verts[k - 1]
+				var b: int = r.verts[k]
+				if dm.has("%d_%d" % [mini(a, b), maxi(a, b)]):
+					if cur.size() > 1:
+						rivers.append({"verts": cur, "lake": null})
+					cur = [b]
+				else:
+					cur.append(b)
+			if cur.size() > 1:
+				rivers.append({"verts": cur, "lake": r.lake})
+		w.rivers = rivers
+		var gl: Array = order.call(ps[i].nbr.duplicate())
+		gl = JS.stable_sort(gl, func(x, y): return int(inland.call(y)) - int(inland.call(x)))
+		var g: int = gl[0]
+		U.deathGuard = g
+		banned[i] = true
+		for j in ps[i].nbr:
+			banned[j] = true
+		for j in ps[g].nbr:
+			banned[j] = true
+		break
+	# 2 and 3: a ring of one terrain with a single way in
+	var ringed := func(terrain: String, style: String, key: String) -> void:
+		var cands := []
+		for i in n:
+			if ps[i].terrain == terrain and inland.call(i) and ps[i].nbr.size() >= 4 and not banned.has(i) and not ps[i].nbr.any(func(j): return banned.has(j)):
+				cands.append(i)
+		cands = order.call(cands)
+		var same := func(i: int) -> float:
+			return ps[i].nbr.filter(func(j): return ps[j].terrain == terrain).size() / float(ps[i].nbr.size())
+		cands = JS.stable_sort(cands, func(x, y): return signf(same.call(y) - same.call(x)))
+		for i in cands:
+			var gs: Array = order.call(ps[i].nbr.filter(func(j): return not banned.has(j)))
+			gs = JS.stable_sort(gs, func(x, y):
+				var d := int(ps[y].terrain == terrain) - int(ps[x].terrain == terrain)
+				return d if d != 0 else ps[y].nbr.size() - ps[x].nbr.size())
+			for g in gs:
+				var ent := -1
+				for id in ps[i].edges:
+					if other.call(E[id], i) == g:
+						ent = id
+						break
+				if ent < 0:
+					continue
+				var closed := {}
+				for id in ps[i].edges:
+					if id != ent:
+						closed[id] = true
+				var was: bool = E[ent].open
+				E[ent].open = true
+				if not connected.call(closed, U.death):
+					E[ent].open = was
+					continue
+				for id in ps[i].edges:
+					if id != ent:
+						E[id].open = false
+						E[id].style = style
+				E[ent].style = null
+				for j in ps[i].nbr:
+					if ps[j].terrain != terrain:
+						ps[j].terrain = terrain
+						if terrain == "desert":
+							for id in ps[j].edges:
+								var o: int = other.call(E[id], j)
+								if o == i or o == U.death:
+									continue
+								E[id].open = true
+								E[id].style = null
+				U[key] = i
+				U[key + "Guard"] = g
+				banned[i] = true
+				for j in ps[i].nbr:
+					banned[j] = true
+				for j in ps[g].nbr:
+					banned[j] = true
+				return
+	ringed.call("desert", "palms", "oasis")
+	ringed.call("forest", "trees", "heart")
+	# junction fillers around the unique provinces follow their new borders
+	var v_kind := {}
+	if U.death >= 0:
+		for v in ps[U.death].verts:
+			v_kind[v] = "mountains"
+	if U.oasis >= 0:
+		for v in ps[U.oasis].verts:
+			v_kind[v] = "palms"
+	if U.heart >= 0:
+		for v in ps[U.heart].verts:
+			v_kind[v] = "trees"
+	for j in w.junctions:
+		if v_kind.has(j.v) and j.kind != "river":
+			j.kind = v_kind[j.v]
+	w.unique = U
 
 
 ## web: generatePractice(seed) — a small 10-province island cut from a normal world.

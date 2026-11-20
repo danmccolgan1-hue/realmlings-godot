@@ -21,6 +21,20 @@ func run() -> Array:
 		for m in e.slice(0, 5):
 			errs.append("%s: %s" % [want.seed, m])
 	print("    generated %d islands in %d ms" % [files.size(), total_ms])
+	# full-size worlds with rivers, lakes and the unique provinces
+	for f in DirAccess.get_files_at(DIR + "world/"):
+		var want: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(DIR + "world/" + f))
+		var got := RealmGen.generate_world(want.seed, null, true)
+		var e := compare(want, got)
+		if not _arr_eq(want.rivers.map(func(r): return [r.verts, r.lake]), got.rivers.map(func(r): return [r.verts, r.lake])):
+			e.append("rivers differ")
+		if not _arr_eq(want.lakes.map(func(l): return l.polys), got.lakes.map(func(l): return l.polys)):
+			e.append("lakes differ")
+		for k in want.unique:
+			if int(want.unique[k]) != int(got.get("unique", {}).get(k, -9)):
+				e.append("unique %s %s != %s" % [k, got.get("unique", {}).get(k), want.unique[k]])
+		for m in e.slice(0, 5):
+			errs.append("world %s: %s" % [want.seed, m])
 	return errs
 
 
