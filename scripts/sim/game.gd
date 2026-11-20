@@ -868,7 +868,56 @@ func province_income(p: int, b: Dictionary) -> Dictionary:
 	var y := {}
 	for k in RES:
 		y[k] = yields[p][k] + (CAPITAL_BONUS[k] if b.stage == 2 or b.get("cc", false) else 0) + x[k]
+	if b.stage == 2 and b.owner == ME:
+		y.gold += trade_gold()   # Trade Routes: markets the capital reaches by road
 	return y
+
+
+# web: content.js tradeMarkets / tradeGold + v105.js (a Trade Network: +10% each): the capital earns +1 gold for every
+# Marketplace it reaches along roads, through your own unoccupied provinces
+func trade_gold() -> int:
+	if not has_tech("traderoutes") or capital < 0 or not owned(capital):
+		return 0
+	var adj := {}
+	for k in roads:
+		var ab: PackedStringArray = k.split("_")
+		var a := int(ab[0])
+		var q := int(ab[1])
+		if not adj.has(a):
+			adj[a] = []
+		if not adj.has(q):
+			adj[q] = []
+		adj[a].append(q)
+		adj[q].append(a)
+	var seen := {capital: true}
+	var queue := [capital]
+	var n := 0
+	while not queue.is_empty():
+		var a: int = queue.pop_front()
+		for q in adj.get(a, []):
+			if seen.has(q) or not owned(q) or occ.has(q):
+				continue
+			seen[q] = true
+			queue.append(q)
+			n += extras_in(q).filter(func(e): return e.type == "market").size()
+	var g := int(JS.round_js(n * (1 + 0.05 * rep_lv("rep-trade"))))
+	var tc := trade_count(ME)
+	return int(JS.round_js(g * (1 + DIPL.tradeBonus * tc))) if tc and g else g
+
+
+# web: content.js lumberBonus: Sawyer Guilds, +5% wood from every Lumber Mill per level, added up across the nation
+func lumber_bonus() -> int:
+	var n := rep_lv("rep-lumber")
+	if not n:
+		return 0
+	var w := 0
+	var per: int = int(gives_of("lumber").get("wood", 0))
+	for p in extras:
+		if owned(p) and not occ.has(p):
+			for e in extras[p]:
+				if e.type == "lumber":
+					w += per
+	return int(JS.round_js(w * 0.05 * n))
 
 
 func troop_upkeep(kind: String) -> Dictionary:
@@ -955,6 +1004,7 @@ func compute_income() -> void:
 	for k in RES:
 		gross[k] += tb[k]
 	gross.food += harvest_food()
+	gross.wood += lumber_bonus()   # Sawyer Guilds
 	income = {}
 	for k in RES:
 		income[k] = gross[k] - up[k]
@@ -1095,6 +1145,7 @@ func update(real_t: float) -> void:
 		step_develop(d)
 		if not nations.is_empty():
 			Ai.step_enemies(self)
+		step_gift_vaults()
 		step_orders()
 		if not nations.is_empty():
 			for id in nations:
@@ -4319,7 +4370,7 @@ const SAVE_VERSION := 1
 ## Everything a game is, besides the map (which comes back from the seed) and the callbacks.
 const SAVE_FIELDS := ["battles", "bandit_count", "monster_count", "leader", "capital", "stock", "income", "income_parts", "buildings", "extras", "occ", "units", "next_id",
 	"army_counter", "tech", "rep", "surveyed", "unit_defs", "designs", "exhaust", "exhaust_ok", "harvest", "devel", "upgrades",
-	"xup", "auto_tech", "roads", "walls", "wall_hp", "artifacts", "quakes", "quake_seq", "wall_max", "wall_crack", "broken_walls", "rewall_jobs", "gate_own", "fort_walled", "gpc_slow_t", "dev_t", "cd", "paths",
+	"xup", "auto_tech", "roads", "walls", "wall_hp", "artifacts", "gift_vault", "quakes", "quake_seq", "wall_max", "wall_crack", "broken_walls", "rewall_jobs", "gate_own", "fort_walled", "gpc_slow_t", "dev_t", "cd", "paths",
 	"harvest_by", "trap", "reveals", "eyes", "haunts", "mana_pool", "mana_prev_t", "mage_gear", "finds", "treasure_rolled",
 	"sp_found", "setpieces", "travelers", "train_orders", "train_order_seq", "design_seq", "prov_rename", "nations", "players", "race_of", "wars", "truces", "allies", "war_seq", "met", "occ", "occ_prog", "dipl", "war_log", "war_ever", "war_lock", "ai_met", "fallen", "ally_check", "bandit_next", "bandit_waves", "ally_ask", "crop_scan_at", "ai_scout_t", "wf", "known", "explored", "visible", "queues", "rally", "military", "UNIT_SPEED", "open_nbr", "all_nbr",
 	"yields", "tree_border", "t", "next_tick", "paused", "last", "started"]
@@ -6800,12 +6851,18 @@ func news(msg: String, warn := false) -> void:
 
 # --- v105 opinion: what a computer nation thinks of another ---
 const DIPL := {"ally": 50, "trade": 25, "crime": 25, "war": -200, "race": -200, "fort": -25, "den": -25, "difficult": -25,
-	"like": 50, "dislike": -25, "boss": 25, "threat": -100, "threatProvs": 100, "exhPer": 2, "exhDeclare": 50}
+	"like": 50, "dislike": -25, "boss": 25, "threat": -100, "threatProvs": 100, "exhPer": 2, "exhDeclare": 50,
+	"flirt": {"v": 25, "dur": 600}, "gift": {"v": 25, "dur": 600, "gold": 1000}, "bribe": {"gold": 2000}, "offer": -50,
+	"spy": {"gold": 200, "dur": 180, "fail": 0.1, "cost": -50, "lock": 600, "provs": 0.3, "power": 0.3, "show": 3},
+	"reqTime": 30, "tradeBonus": 0.1}
 
 func dipl_state() -> Dictionary:
-	for kv in [["decl", {}], ["boss", {}], ["mods", []], ["access", []], ["trade", []], ["crime", []], ["lost", {}], ["news", []], ["enemy", {}]]:
+	for kv in [["decl", {}], ["boss", {}], ["mods", []], ["access", []], ["trade", []], ["crime", []], ["lost", {}], ["news", []], ["enemy", {}],
+			["spies", {}], ["spyLock", {}], ["intel", {}], ["reqs", []]]:
 		if not dipl.has(kv[0]):
 			dipl[kv[0]] = kv[1].duplicate()
+	if not dipl.get("seq", 0):
+		dipl.seq = 1
 	return dipl
 
 
@@ -7046,7 +7103,9 @@ func new_war(att: int, def: int, parent) -> Dictionary:
 	end_access(att, def, "you are at war")
 	end_access(def, att, "you are at war")
 	for kind in ["trade", "crime"]:
-		D[kind] = D[kind].filter(func(P): return not ((P.a == att and P.b == def) or (P.a == def and P.b == att)))
+		var P = pair_has(D[kind], att, def)
+		if P != null:
+			end_pact(kind, P, "war")
 	if parent != null:
 		w.proxy = def
 		w.cost0 = army_value(def)
@@ -7056,6 +7115,8 @@ func new_war(att: int, def: int, parent) -> Dictionary:
 		for c in wars:
 			if not is_same(c, w) and c.get("proxy") == def:
 				c.exhB = c.get("exhB", 0) + DIPL.exhDeclare
+		if att != ME and def != ME and (knows(att) or knows(def)):
+			news_add("war", att, def)
 	return w
 
 
@@ -7540,6 +7601,13 @@ func evict_armies() -> void:
 
 
 func end_war(w: Dictionary) -> void:
+	var live := wars.has(w)
+	end_war0(w)
+	if live and w.get("parent") == null and w.a != ME and w.b != ME and (knows(w.a) or knows(w.b)):
+		news_add("peace", w.a, w.b)
+
+
+func end_war0(w: Dictionary) -> void:
 	var rec = null
 	for r in war_log:
 		if r.id == w.id and r.end == null:
@@ -7849,15 +7917,9 @@ func step_alliances() -> void:
 			form_alliance(a, b, vs)
 
 
+# web: v105.js offerAlliance = dipRequest(from, 'alliance', {vs})
 func offer_alliance(from: int, vs: int) -> bool:
-	if ally_offer != null or demand != null:
-		return false
-	ally_offer = {"from": from, "vs": vs, "t": t}
-	if on_dialog.is_valid():
-		on_dialog.call("The %s proposes an alliance" % player_info(from).name,
-			"They fear the %s (%d provinces) and propose an alliance: if anyone declares war on one of you, the other joins the war." % [player_info(vs).name, provs_of(vs).size()],
-			[{"id": "yes", "label": "Ally", "why": null}, {"id": "no", "label": "Decline", "why": null}], func(id): answer_alliance(id == "yes"))
-	return true
+	return dip_request(from, "alliance", {"vs": vs}) != null
 
 
 func answer_alliance(yes: bool) -> void:
@@ -7900,26 +7962,457 @@ func meet_nation(o: int) -> void:
 			[{"id": "ok", "label": "OK", "why": null}], Callable())
 
 
-# --- every half second (web: v105.js stepDiplomacy, without the player's diplomatic actions yet) ---
+# =================================================================================================================
+# the player's diplomatic actions (web: v105.js dxAct and its reasons, v106.js wrappers). Realmlings: Flirt, Gift,
+# Bribe, military access (offer / ask / give back), Trade Network, alliance, spies, Proclaim Enemy, declare war.
+var gift_vault := 0   # v106: gifted gold over the storage limit, waiting for room
+
+func add_mod(o: int, t2: int, kind: String, v: int, dur: float) -> void:
+	dipl_state().mods.append({"o": o, "t": t2, "kind": kind, "v": v, "until": t + dur})
+
+
+func mod_active(o: int, t2: int, kind: String):
+	for m in dipl_state().mods:
+		if m.o == o and m.t == t2 and m.kind == kind and m.until > t:
+			return m
+	return null
+
+
+func pair_has(list: Array, a: int, b: int):
+	for x in list:
+		if (x.a == a and x.b == b) or (x.a == b and x.b == a):
+			return x
+	return null
+
+
+func sex_of(o: int):
+	var L = leader_of(o)
+	return L.get("sex") if L != null else null
+
+
+func fmt_left(sec: float) -> String:
+	return "%s left" % fmt_time(maxf(0, sec))
+
+
+func sgn(v: int) -> String:
+	return ("+%d" % v) if v > 0 else str(v)
+
+
+func flirt_why(o: int) -> String:
+	if race_of.get(ME, "realm") != race_of.get(o, "realm"):
+		return "Only with a leader of your own race"
+	if sex_of(ME) == null or sex_of(o) == null or sex_of(ME) == sex_of(o):
+		return "Only with a leader of the opposite sex"
+	var m = mod_active(o, ME, "flirt")
+	if m != null:
+		return "Still charmed: %s" % fmt_left(m.until - t)
+	return ""
+
+
+func gift_why(o: int) -> String:
+	if race_of.get(ME, "realm") != race_of.get(o, "realm"):
+		return "Only to a nation of your own race"
+	if stock.gold < DIPL.gift.gold:
+		return "Needs %d gold" % DIPL.gift.gold
+	return ""
+
+
+func bloc(o: int) -> int:
+	var n := provs_of(o).size()
+	for x in allies_of(o):
+		n += provs_of(x).size()
+	return n
+
+
+func bribe_why_for(payer: int, x: int, y: int) -> String:
+	if y == x or y == payer or not alive_nation(y) or not alive_nation(x):
+		return "Not possible"
+	if allied(x, y):
+		return "They are allies"
+	if at_war(x, y):
+		return "Already at war"
+	if bloc(y) >= bloc(x):
+		return "Not smaller than them (with allies)"
+	var st := stock_of(x)
+	var give := {}
+	var dc: Dictionary = W("declareCost")
+	for k in dc:
+		give[k] = maxi(0, dc[k] - st.get(k, 0))
+		st[k] = st.get(k, 0) + give[k]
+	var why := declare_why(x, y)
+	for k in give:
+		st[k] -= give[k]
+	return why
+
+
+func bribe_targets(o: int) -> Array:
+	return live_nations().filter(func(y): return y != ME and met.has(y) and bribe_why_for(ME, o, y) == "")
+
+
+func bribe_why(o: int) -> String:
+	if not nations.has(o):
+		return "Not possible"
+	if dipl_state().decl.get("%d>%d" % [ME, o], 0) > 0:
+		return "You have declared war on them"
+	if not wars_of(o).is_empty():
+		return "They are at war"
+	if stock.gold < DIPL.bribe.gold:
+		return "Needs %d gold" % DIPL.bribe.gold
+	if bribe_targets(o).is_empty():
+		return "No smaller nation they could attack"
+	return ""
+
+
+func do_bribe(payer: int, x: int, y: int) -> bool:
+	var why := (bribe_why(x) if bribe_why(x) != "" else bribe_why_for(ME, x, y)) if payer == ME else bribe_why_for(payer, x, y)
+	if why != "":
+		if payer == ME:
+			toast("Can’t bribe: %s." % (why[0].to_lower() + why.substr(1)), true)
+		return false
+	stock_of(payer).gold -= DIPL.bribe.gold
+	var st := stock_of(x)
+	var dc: Dictionary = W("declareCost")
+	for k in dc:
+		st[k] = st.get(k, 0) + dc[k]   # the bribe pays their war fee
+	var w = declare_war(x, y)
+	if payer == ME:
+		toast(("The %s took your %d gold and declared war on the %s." % [player_info(x).name, DIPL.bribe.gold, player_info(y).name]) if w else "The bribe fell through.", not w)
+	return w != null and w != false
+
+
+func grant_why(o: int) -> String:
+	if access_given(ME, o):
+		return ""
+	if allied(ME, o):
+		return "Allies already have access"
+	if at_war(ME, o):
+		return "You are at war"
+	if opinion(o, ME) < DIPL.offer:
+		return "They refuse: their opinion of you is %s (needs %d or better)" % [sgn(opinion(o, ME)), DIPL.offer]
+	return ""
+
+
+func ask_why(o: int) -> String:
+	if access_given(o, ME):
+		return "They already let you through"
+	if allied(ME, o):
+		return "Allies already have access"
+	if at_war(ME, o):
+		return "You are at war"
+	if opinion(o, ME) <= 0:
+		return "Their opinion of you is %s (needs to be positive)" % sgn(opinion(o, ME))
+	return ""
+
+
+func trade_why(a: int, b: int) -> String:
+	if pair_has(dipl_state().trade, a, b) != null:
+		return "Already trading"
+	if at_war(a, b):
+		return "You are at war"
+	if not nations_border(a, b):
+		return "Needs a shared border"
+	for xy in [[a, b], [b, a]]:
+		if nations.has(xy[0]) and opinion(xy[0], xy[1]) < DIPL.trade:
+			return "Their opinion of you is %s (needs +%d)" % [sgn(opinion(xy[0], xy[1])), DIPL.trade]
+	return ""
+
+
+func trade_count(o: int) -> int:
+	return dipl_state().trade.filter(func(c): return c.a == o or c.b == o).size()
+
+
+func form_pact(kind: String, a: int, b: int) -> void:
+	var D := dipl_state()
+	D[kind].append({"a": a, "b": b, "since": t})
+	var o := b if a == ME else a if b == ME else 0
+	if o:
+		toast("You and the %s formed a Trade Network. Community and Trade Routes give both of you 10%% more gold." % player_info(o).name)
+	elif knows(a) or knows(b):
+		toast("The %s and the %s formed a Trade Network." % [player_info(a).name, player_info(b).name])
+	compute_income()
+
+
+func end_pact(kind: String, P: Dictionary, why := "") -> void:
+	var D := dipl_state()
+	D[kind] = D[kind].filter(func(x): return not is_same(x, P))
+	var o: int = P.b if P.a == ME else P.a if P.b == ME else 0
+	if o:
+		toast("Your Trade Network with the %s has ended%s." % [player_info(o).name, (": " + why) if why != "" else ""], why != "you ended it")
+	compute_income()
+
+
+func spy_why(o: int) -> String:
+	var D := dipl_state()
+	if D.spies.has(o):
+		return "Spying: %s" % fmt_left(D.spies[o].until - t)
+	if D.spyLock.get(o, 0.0) > t:
+		return "Your spies were caught: %s" % fmt_left(D.spyLock[o] - t)
+	if stock.gold < DIPL.spy.gold:
+		return "Needs %d gold" % DIPL.spy.gold
+	return ""
+
+
+func finish_spy(o: int) -> void:
+	var D := dipl_state()
+	D.spies.erase(o)
+	if not alive_nation(o):
+		return
+	if not D.intel.has(o):
+		D.intel[o] = {}
+	var I: Dictionary = D.intel[o]
+	var nm: String = player_info(o).name
+	if js_rand.call() < DIPL.spy.fail:
+		add_mod(o, ME, "spy", DIPL.spy.cost, DIPL.spy.lock)
+		D.spyLock[o] = t + DIPL.spy.lock
+		toast("Your spies were caught by the %s! Their opinion of you drops by %d for %d minutes, and you can’t spy on them for as long." % [nm, -DIPL.spy.cost, DIPL.spy.lock / 60], true)
+		return
+	var r: float = js_rand.call()
+	if r < DIPL.spy.provs:
+		var own := provs_of(o)
+		var hidden := own.filter(func(p): return not explored.has(p))
+		var pool: Array = dx_shuffle(hidden if not hidden.is_empty() else own).slice(0, DIPL.spy.show)
+		for p in pool:
+			known[p] = true
+		I.provs = pool
+		I.provsT = t
+		compute_fog()
+		toast("Your spies mapped %d province%s of the %s: %s." % [pool.size(), "" if pool.size() == 1 else "s", nm, ", ".join(pool.map(func(p): return prov_name(p)))])
+	elif r < DIPL.spy.provs + DIPL.spy.power:
+		I.power = Ai.nation_power(self, o)
+		I.powerT = t
+		toast("Your spies counted the %s’s armies: total power %d." % [nm, I.power])
+	else:
+		toast("Your spies came back from the %s with nothing useful." % nm)
+
+
+## web: v105.js dxAct + v106.js: the player's request to a computer nation
+func dx_act(act: String, o: int, arg := -1) -> void:
+	var D := dipl_state()
+	var nm: String = player_info(o).name if is_nation(o) else ""
+	var why := ""
+	match act:
+		"flirt":
+			why = flirt_why(o)
+			if why == "":
+				add_mod(o, ME, "flirt", DIPL.flirt.v, DIPL.flirt.dur)
+				toast("%s blushes: +%d opinion for %d minutes." % [leader_of(o).full, DIPL.flirt.v, DIPL.flirt.dur / 60])
+		"gift":
+			why = gift_why(o)
+			if why == "":
+				stock.gold -= DIPL.gift.gold
+				var N: Dictionary = nations[o]
+				N.stock.gold += DIPL.gift.gold
+				add_mod(o, ME, "gift", DIPL.gift.v, DIPL.gift.dur)
+				toast("You sent the %s %d gold: +%d opinion for %d minutes." % [nm, DIPL.gift.gold, DIPL.gift.v, DIPL.gift.dur / 60])
+				var over: int = N.stock.gold - Ai.storage(self, N, "gold")   # v106: over the limit it waits in a vault
+				if over > 0:
+					N.stock.gold -= over
+					N.giftVault = N.get("giftVault", 0) + over
+		"bribe":
+			do_bribe(ME, o, arg)
+			return
+		"grant":
+			if access_given(ME, o):
+				end_access(ME, o, "you revoked it")
+				return
+			why = grant_why(o)
+			if why == "":
+				D.access.append({"from": ME, "to": o})
+				toast("The %s accepts your offer: their armies may now march through your land. You can revoke it at any time." % nm)
+		"ask":
+			why = ask_why(o)
+			if why == "":
+				D.access.append({"from": o, "to": ME})
+				toast("The %s grants you military access: your armies may march through their land." % nm)
+		"giveback":
+			end_access(o, ME, "you gave it back")
+			return
+		"ally":
+			if allied(ME, o):
+				for A in allies:
+					if (A.a == ME and A.b == o) or (A.b == ME and A.a == o):
+						end_alliance(A, "you ended it")
+						return
+			why = ally_why(ME, o)
+			if why == "":
+				form_alliance(ME, o, 0)
+		"trade":
+			var P = pair_has(D.trade, ME, o)
+			if P != null:
+				end_pact("trade", P, "you ended it")
+				return
+			why = trade_why(ME, o)
+			if why == "":
+				form_pact("trade", ME, o)
+		"spy":
+			why = spy_why(o)
+			if why == "":
+				stock.gold -= DIPL.spy.gold
+				D.spies[o] = {"t0": t, "until": t + DIPL.spy.dur}
+				toast("Spies sent into the %s. They report back in %d minutes." % [nm, DIPL.spy.dur / 60])
+		"proclaim":
+			if enemy_of(ME) == o:
+				renounce_enemy(ME)
+				return
+			why = proclaim_why(ME, o)
+			if why == "":
+				proclaim_enemy(ME, o)
+		"declare":
+			declare_war(ME, o)
+			return
+	if why != "":
+		toast(why, true)
+
+
+# --- requests from computer nations (web: v105.js dipRequest / answerRequest / stepRequests): 30 s, then declined ---
+const REQ_NAME := {"flirt": "Flirting", "gift": "Gift", "access": "Access request", "alliance": "Alliance offer", "trade": "Trade Network"}
+
+func req_text(r: Dictionary) -> Array:
+	var o: int = r.from
+	match r.kind:
+		"flirt":
+			return ["%s is flirting with you." % (leader_of(o).full if leader_of(o) != null else "Their leader"), "Flirt back", "Ignore"]
+		"gift":
+			return ["They offer you a gift of %d gold." % r.data.gold, "Accept", "Refuse"]
+		"access":
+			return ["They ask for military access: their armies would march through your land (you can revoke it at any time).", "Grant", "Refuse"]
+		"alliance":
+			var vs = r.data.get("vs", 0)
+			return ["They propose an alliance%s: if anyone declares war on one of you, the other joins (a Proxy War)." % ((" against the " + player_info(vs).name) if vs else ""), "Ally", "Decline"]
+		"trade":
+			return ["They propose a Trade Network: Community and Trade Routes give both nations 10% more gold.", "Agree", "Decline"]
+	return ["", "Yes", "No"]
+
+
+func dip_request(from: int, kind: String, data := {}):
+	var D := dipl_state()
+	if not nations.has(from) or not alive_nation(from) or fallen or D.reqs.any(func(r): return r.from == from and r.kind == kind):
+		return null
+	var r := {"id": D.seq, "from": from, "kind": kind, "data": data, "t": t, "until": t + DIPL.reqTime, "min": false}
+	D.seq += 1
+	D.reqs.append(r)
+	met[from] = true
+	return r
+
+
+func answer_request(r: Dictionary, yes: bool, quiet := false) -> void:
+	var D := dipl_state()
+	D.reqs = D.reqs.filter(func(x): return not is_same(x, r))
+	var o: int = r.from
+	var nm: String = player_info(o).name
+	if not alive_nation(o):
+		return
+	if not yes:
+		toast(("No answer to the %s’s %s: declined." if quiet else "You declined the %s’s %s.") % [nm, REQ_NAME[r.kind].to_lower()])
+		return
+	match r.kind:
+		"flirt":
+			if mod_active(o, ME, "flirt") == null:
+				add_mod(o, ME, "flirt", DIPL.flirt.v, DIPL.flirt.dur)
+			toast("You flirt back: the %s likes you more (+%d for %d minutes)." % [nm, DIPL.flirt.v, DIPL.flirt.dur / 60])
+		"gift":
+			var st: Dictionary = nations[o].stock
+			var g := mini(r.data.gold, floori(st.gold))
+			st.gold -= g
+			var had: int = stock.gold
+			stock.gold += g
+			toast("You accepted %d gold from the %s." % [g, nm])
+			var room: int = storage_cap("gold") - had   # v106: over your storage it waits in your treasury
+			if g > room and room >= 0:
+				gift_vault += g - room
+				stock.gold = had + room
+				toast("The gift is in your treasury: %d gold waits for room in your stores." % (g - room))
+		"access":
+			if at_war(ME, o):
+				toast("Not while you are at war.", true)
+				return
+			if not access_given(ME, o):
+				D.access.append({"from": ME, "to": o})
+			toast("The %s may now march through your land." % nm)
+		"alliance":
+			var why := ally_why(ME, o)
+			if why != "":
+				toast("The alliance is no longer possible: %s." % (why[0].to_lower() + why.substr(1)), true)
+				return
+			form_alliance(ME, o, r.data.get("vs", 0))
+		"trade":
+			var why := trade_why(ME, o)
+			if why != "":
+				toast("No longer possible: %s." % (why[0].to_lower() + why.substr(1)), true)
+				return
+			form_pact("trade", ME, o)
+
+
+func step_requests() -> void:
+	for r in dipl_state().reqs.duplicate():
+		if t >= r.until or not alive_nation(r.from):
+			answer_request(r, false, true)
+
+
+# web: v105.js newsAdd: wars starting and ending between nations you know (the six latest)
+func news_add(kind: String, a: int, b: int) -> void:
+	var D := dipl_state()
+	D.news.append({"id": D.seq, "kind": kind, "a": a, "b": b, "t": t})
+	D.seq += 1
+	if D.news.size() > 6:
+		D.news = D.news.slice(D.news.size() - 6)
+
+
+# web: v106.js stepGiftVaults: vaulted gift gold moves into storage as room opens
+func step_gift_vaults() -> void:
+	for id in nations:
+		var N: Dictionary = nations[id]
+		if N.get("giftVault", 0) > 0 and N.alive:
+			var room := maxi(0, Ai.storage(self, N, "gold") - N.stock.gold)
+			var m := mini(room, N.giftVault)
+			N.stock.gold += m
+			N.giftVault -= m
+	if gift_vault > 0:
+		var room := maxi(0, storage_cap("gold") - stock.gold)
+		var m := mini(room, gift_vault)
+		stock.gold += m
+		gift_vault -= m
+
+
+# --- every half second (web: v105.js stepDiplomacy) ---
 var dx_step_t := -1.0
 
 func step_diplomacy() -> void:
 	if not started or fallen:
 		return
+	var D := dipl_state()
+	if not paused:
+		step_requests()
 	if t - dx_step_t < 0.5 and t >= dx_step_t:
 		return
 	dx_step_t = t
-	var D := dipl_state()
 	D.mods = D.mods.filter(func(m): return m.until > t)
+	for o in D.spies.keys():
+		if not alive_nation(o):
+			D.spies.erase(o)
+		elif t >= D.spies[o].until:
+			finish_spy(o)
 	for A in allies.duplicate():
 		for xy in [[A.a, A.b], [A.b, A.a]]:
 			if nations.has(xy[0]) and alive_nation(xy[0]) and alive_nation(xy[1]) and opinion(xy[0], xy[1]) < 0 and allies.has(A):
 				end_alliance(A, "the %s’s opinion of you fell below zero" % player_info(xy[0]).name if xy[1] == ME else "opinion fell below zero")
 	for kind in ["trade", "crime"]:
 		for P in D[kind].duplicate():
-			if not alive_nation(P.a) or not alive_nation(P.b) or at_war(P.a, P.b) or (kind == "trade" and not nations_border(P.a, P.b)):
-				D[kind].erase(P)
+			var why := ""
+			if not alive_nation(P.a) or not alive_nation(P.b):
+				why = "a nation fell"
+			elif at_war(P.a, P.b):
+				why = "war"
+			elif kind == "trade" and not nations_border(P.a, P.b):
+				why = "you no longer share a border"
+			else:
+				for xy in [[P.a, P.b], [P.b, P.a]]:
+					if nations.has(xy[0]) and opinion(xy[0], xy[1]) < 0:
+						why = "opinion fell below zero"
+			if why != "":
+				end_pact(kind, P, why)
 	D.access = D.access.filter(func(g): return alive_nation(g.from) and alive_nation(g.to) and not at_war(g.from, g.to))
+	D.news = D.news.filter(func(n): return is_nation(n.a) and is_nation(n.b))
 
 
 

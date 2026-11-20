@@ -58,8 +58,17 @@ The plan after milestone 1. Each step is tested against the web game, then commi
    Renounce Enemy. The top-bar button turns into a war chip. AI demands and alliance offers use the dialog box.
    Start menu: Practice island or a full map with 1–6 opponents (Easy / Moderate / Difficult / Mixed) and a start
    position. Map: other nations' settlements only where explored, their units in their color (red when hostile).
-   Still to come from the web game's diplomacy panel: the v105 actions (gifts, bribes, flirting, military access,
-   Trade Networks, asking for an alliance).
+   The v105 actions are in now (Batch B, below).
+6. **Batch B: diplomacy actions, gift vaults, requests, news** — done (v105 dx* functions, matched on 2 fixtures in
+   `tests/test_dipl.gd`):
+   - Actions, each with its web reason when unavailable: Flirt, Gift (1000 gold), Propose / Ask for an alliance,
+     offer and ask for military access, Trade Network, Send spies (200 gold, intel on success), Bribe a third
+     nation (2000 gold; the fixtures never have a valid target, so only the reasons are tested).
+   - Requests go through one queue (`dip_request`): timer, yes / no / Later / Show me, "N requests waiting"
+     (`scripts/ui/request_box.gd`). Alliance offers from computer nations use it.
+   - Pacts end with their reason (war, opinion, timeout); Trade Networks add gold to the capital's Trade Routes.
+   - Gift vaults (v105) on the map and their payout; a news list (wars, peace, pacts) in the Diplomacy window.
+   - Not ported: Swampling / Woodling-only pacts (growl, crime). The web AI doesn't flirt or gift to you either.
 
 ## Things to remember
 

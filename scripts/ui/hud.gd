@@ -41,6 +41,7 @@ var map: MapView
 var cam: Camera2D
 var armory: ArmoryWindow
 var diplomacy: DiplomacyWindow
+var requests: RequestBox
 var dip_btn: Button
 var dialog: DialogBox
 var minimap: Minimap
@@ -166,6 +167,10 @@ func _ready() -> void:
 	add_child(armory)
 	diplomacy = DiplomacyWindow.new()
 	add_child(diplomacy)
+	requests = RequestBox.new()
+	requests.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	requests.position = Vector2(-260, 70)
+	add_child(requests)
 	dialog = DialogBox.new()
 	add_child(dialog)
 	_build_menu()
@@ -179,6 +184,11 @@ func set_game(g: Game) -> void:
 		dialog.ask(title, text, choices, f if f.is_valid() else func(_id): pass)
 	armory.setup(g, self)
 	diplomacy.setup(g, self)
+	requests.setup(g, self)
+	if requests.waiting.get_parent() == null:
+		requests.waiting.set_anchors_preset(Control.PRESET_CENTER_TOP)
+		requests.waiting.position = Vector2(-90, 70)
+		add_child(requests.waiting)
 	g.on_game_over = func(_w): dialog.ask("Your realm has fallen", "Every province you held is gone. The other nations play on without you.",
 		[{"id": "menu", "label": "Main menu", "why": null}, {"id": "watch", "label": "Watch", "why": null}],
 		func(id): if id == "menu" and main: main.to_main_menu())
@@ -469,6 +479,19 @@ func _show_inspect(a: Dictionary) -> void:
 
 
 ## Select a unit and look at it (the roster's buttons).
+## Look at a nation: the camera goes to its capital (or any province of it).
+func focus_nation(o: int) -> void:
+	var c := game.capital_of(o)
+	if c < 0:
+		var pl := game.provs_of(o)
+		if pl.is_empty():
+			return
+		c = pl[0]
+	if cam:
+		cam.position = Vector2(game.G.provs[c].ic[0], game.G.provs[c].ic[1])
+	select_province(c)
+
+
 func focus_unit(u: Dictionary) -> void:
 	select_unit(u)
 	if map:

@@ -36,6 +36,7 @@ The web game in `reference/web-v106/` is the source of truth. This spec says **w
 | 11. Tutorial | Done: the five-province tutorial island, all 20 steps and their objectives, the Swamp Bandits, the final message. No leader is assigned and there are no voice lines | played through to the end by its own commands (`tests/test_tutorial.gd`) |
 | 14. Wars and computer nations | Done for Realmling nations on full maps: wars, peace, alliances, opinion, Proclaim Enemy, the AI's economy, research and brain with every wrapper up to v106, bandit waves. See `docs/WAR_PORT_NOTES.md` | 2 war games, 3 computer-nation games of 40–60 min (`tests/test_war.gd`, `tests/test_ai.gd`) |
 | 15. Sieges, quakes, bosses and artifacts | Done: battering walls, broken walls and rebuilding them, Shockwave and Earthquake for everyone, boss fights, the nine artifacts and Winged Slippers, Intact Ruins | 3 scripted games (`tests/test_siege.gd`) |
+| 16. Diplomacy actions and requests | Done: flirt, gifts, alliances asked and offered, military access, Trade Networks, spies, bribes, the request queue, gift vaults, news | 2 scripted games (`tests/test_dipl.gd`) |
 | 3. Economy, later | Crops and Harvest, Trade Routes, Sawyer Guilds, artifacts, research points and mana at payday, deep gold mines | arrive with the systems that switch them on |
 
 Left out of milestone 1 for now: the technology the Intact Ruins grant is picked at random in the web game (tests remove the ruins and check their placement).

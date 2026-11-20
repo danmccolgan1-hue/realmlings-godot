@@ -67,7 +67,9 @@ func _process(dt: float) -> void:
 
 
 func _state_key() -> String:
-	var parts := [game.fallen, game.wars.size(), game.allies.size(), game.artifacts.get(Game.ME, []).size()]
+	var D := game.dipl_state()
+	var parts := [game.fallen, game.wars.size(), game.allies.size(), game.artifacts.get(Game.ME, []).size(), D.news.size(), D.access.size(), D.trade.size(),
+		D.spies.size(), D.mods.size(), int(game.stock.gold) / 100, D.intel.size()]
 	for w in game.wars:
 		parts.append([w.id, game.warscore(w, Game.ME), int(game.t - w.since) / 30])
 	for o in game.live_nations():
@@ -88,6 +90,7 @@ func _refresh() -> void:
 		var al := UiKit.rich(18, 840)
 		al.text = "[b]Your artifacts:[/b] " + "; ".join(arts.map(func(id): return "%s — %s" % [Game.ARTIFACTS[id].name, Game.ARTIFACTS[id].desc]))
 		body.add_child(al)
+	_news()
 	_wars()
 	_nations()
 
@@ -103,6 +106,19 @@ func _swatch(o: int) -> ColorRect:
 func _heading(txt: String) -> void:
 	var l := UiKit.ink(22)
 	l.text = txt
+	body.add_child(l)
+
+
+# --- news of wars between the nations you know (web: v105.js newsAdd flags) ---
+func _news() -> void:
+	var D := game.dipl_state()
+	if D.news.is_empty():
+		return
+	var l := UiKit.rich(17, 840)
+	var lines := []
+	for n in D.news:
+		lines.append(("%s: the %s declared war on the %s" if n.kind == "war" else "%s: the %s and the %s made peace") % [Game.fmt_time(n.t), game.player_info(n.a).name, game.player_info(n.b).name])
+	l.text = "[b]News:[/b] " + "; ".join(lines) + "."
 	body.add_child(l)
 
 
@@ -224,32 +240,55 @@ func _nations() -> void:
 			int(Ai.nation_power(game, o)), "+" if op >= 0 else "", op, _relation(o)]
 		t.tooltip_text = _opinion_tip(o)
 		row.add_child(t)
-		var acts := VBoxContainer.new()
-		acts.add_theme_constant_override("separation", 6)
-		row.add_child(acts)
-		if not war:
-			var why := game.declare_why(Game.ME, o)
-			var b := UiKit.button("Declare war (%d gold)" % game.W("declareCost").gold, 17, func():
-				if game.declare_why(Game.ME, o) == "":
-					game.declare_war(Game.ME, o)
-					key = "")
-			b.disabled = why != ""
-			b.tooltip_text = why if why != "" else "Their allies join them; yours join you."
-			acts.add_child(b)
-		if game.enemy_of(Game.ME) == o:
-			acts.add_child(UiKit.button("Renounce enemy", 17, func():
-				game.renounce_enemy(Game.ME)
-				key = ""))
-		else:
-			var pw := game.proclaim_why(Game.ME, o)
-			var pb := UiKit.button("Proclaim enemy", 17, func():
-				if game.proclaim_why(Game.ME, o) == "":
-					game.proclaim_enemy(Game.ME, o)
-					key = "")
-			pb.disabled = pw != ""
-			pb.tooltip_text = pw if pw != "" else "%d opinion with them while it stands; +%d with nations who share the enemy. One every 10 minutes." % [Game.DIPL_ENEMY, Game.DIPL_SHARED]
-			acts.add_child(pb)
 		col.add_child(row)
+		var intel = game.dipl_state().intel.get(o)
+		if intel != null and intel.has("power"):
+			var il := UiKit.ink(16)
+			il.text = "Spies counted their armies %s ago: power %d." % [Game.fmt_time(game.t - intel.powerT), int(intel.power)]
+			col.add_child(il)
+		var acts := HFlowContainer.new()
+		acts.add_theme_constant_override("h_separation", 6)
+		acts.add_theme_constant_override("v_separation", 6)
+		col.add_child(acts)
+		var D := game.dipl_state()
+		var act := func(label: String, why: String, tip: String, a: String, arg := -1):
+			var b := UiKit.button(label, 16, func():
+				game.dx_act(a, o, arg)
+				key = "")
+			b.disabled = why != ""
+			b.tooltip_text = why if why != "" else tip
+			acts.add_child(b)
+		if not war:
+			act.call("Declare war (%d gold)" % game.W("declareCost").gold, game.declare_why(Game.ME, o), "Their allies join them; yours join you.", "declare")
+		act.call("Flirt", game.flirt_why(o), "+%d opinion for 10 minutes." % Game.DIPL.flirt.v, "flirt")
+		act.call("Gift (%d gold)" % Game.DIPL.gift.gold, game.gift_why(o), "+%d opinion for 10 minutes." % Game.DIPL.gift.v, "gift")
+		if game.allied(Game.ME, o):
+			act.call("End the alliance", "", "They no longer join your wars, nor you theirs.", "ally")
+		else:
+			act.call("Propose an alliance", game.ally_why(Game.ME, o), "If anyone declares war on one of you, the other joins (a Proxy War).", "ally")
+		if game.access_given(Game.ME, o):
+			act.call("Revoke their access", "", "Their armies may no longer march through your land.", "grant")
+		elif not game.allied(Game.ME, o):
+			act.call("Offer military access", game.grant_why(o), "Their armies may march through your land; +%d opinion while it stands." % Game.DIPL_ACCESS_OP, "grant")
+		if game.access_given(o, Game.ME):
+			act.call("Give back their access", "", "Your armies leave their land.", "giveback")
+		elif not game.allied(Game.ME, o):
+			act.call("Ask for military access", game.ask_why(o), "Your armies may march through their land.", "ask")
+		if game.pair_has(D.trade, Game.ME, o) != null:
+			act.call("End the Trade Network", "", "", "trade")
+		else:
+			act.call("Trade Network", game.trade_why(Game.ME, o), "Community and Trade Routes give both nations 10% more gold; +25 opinion.", "trade")
+		act.call("Send spies (%d gold)" % Game.DIPL.spy.gold, game.spy_why(o), "3 minutes; 10% they are caught (−50 opinion), else they map provinces or count their armies.", "spy")
+		if game.enemy_of(Game.ME) == o:
+			act.call("Renounce enemy", "", "", "proclaim")
+		else:
+			act.call("Proclaim enemy", game.proclaim_why(Game.ME, o), "%d opinion with them while it stands; +%d with nations who share the enemy. One every 10 minutes." % [Game.DIPL_ENEMY, Game.DIPL_SHARED], "proclaim")
+		var bw := game.bribe_why(o)
+		if bw == "":
+			for y in game.bribe_targets(o):
+				act.call("Bribe to attack the %s (%d gold)" % [game.player_info(y).name, Game.DIPL.bribe.gold], "", "They declare war on the %s; you pay their war fee too." % game.player_info(y).name, "bribe", y)
+		else:
+			act.call("Bribe (%d gold)" % Game.DIPL.bribe.gold, bw, "", "bribe")
 		body.add_child(box)
 
 

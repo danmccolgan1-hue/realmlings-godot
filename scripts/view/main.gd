@@ -348,6 +348,9 @@ func _maybe_screenshot() -> void:
 		for o in game.nations:
 			game.met[o] = true
 		map.layers.refresh()
+	if OS.get_cmdline_user_args().has("--request") and not game.nations.is_empty():   # a computer nation's alliance offer
+		var ids: Array = game.nations.keys()
+		game.dip_request(ids[0], "alliance", {"vs": ids[-1]})
 	if OS.get_cmdline_user_args().has("--dip"):
 		hud.diplomacy.open()
 	if OS.get_cmdline_user_args().has("--research"):
