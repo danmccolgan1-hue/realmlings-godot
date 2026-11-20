@@ -2,6 +2,7 @@ extends Node2D
 ## Entry point. Milestone 1 so far: pick a seed and a Realmling leader, then play the Practice island.
 ## Space: pause / play. Left-click: select a unit or a province. Right-click: send the selected unit there.
 ## Command card keys: q w e r / a s d f / z x c v / u i o p. T: research (with no unit selected).
+## F5: quick save, F9: quick load; an autosave every 5 minutes of play.
 ## Drag (left or middle mouse) to pan, wheel to zoom.
 
 const SEED_WORDS := ["ember", "oak", "river", "banner", "moss", "crown", "lantern", "stone", "harbor", "thistle", "kettle", "saffron"]
@@ -77,7 +78,19 @@ func _build_menu() -> void:
 	start.add_theme_font_size_override("font_size", 28)
 	start.pressed.connect(_start)
 	col.add_child(start)
-	status = _dark("")
+	var cont := Button.new()
+	cont.text = "Continue (last autosave)"
+	cont.add_theme_font_size_override("font_size", 22)
+	cont.pressed.connect(func(): load_from(AUTOSAVE))
+	cont.visible = FileAccess.file_exists(AUTOSAVE)
+	col.add_child(cont)
+	var quick := Button.new()
+	quick.text = "Load quicksave (F9)"
+	quick.add_theme_font_size_override("font_size", 22)
+	quick.pressed.connect(func(): load_from(QUICKSAVE))
+	quick.visible = FileAccess.file_exists(QUICKSAVE)
+	col.add_child(quick)
+	status = _dark("F5 saves, F9 loads, the game autosaves every 5 minutes.")
 	col.add_child(status)
 
 
@@ -106,9 +119,11 @@ func _gen(seed: String, leader_id: String) -> void:
 	call_deferred("_on_ready", g)
 
 
-func _on_ready(g: Game) -> void:
-	thread.wait_to_finish()
+func _on_ready(g: Game, from_thread := true) -> void:
+	if from_thread:
+		thread.wait_to_finish()
 	game = g
+	next_autosave = (floor(g.t / AUTOSAVE_EVERY) + 1) * AUTOSAVE_EVERY
 	menu.hide()
 	map.set_game(g)
 	hud.set_game(g)
@@ -120,9 +135,50 @@ func _on_ready(g: Game) -> void:
 	_maybe_screenshot()
 
 
+const QUICKSAVE := "user://quicksave.json"
+const AUTOSAVE := "user://autosave.json"
+const AUTOSAVE_EVERY := 300.0   # web: an autosave every 5 minutes of play
+var next_autosave := AUTOSAVE_EVERY
+
+
+func save_to(path: String, quiet := false) -> void:
+	var f := FileAccess.open(path, FileAccess.WRITE)
+	if f == null:
+		hud.add_toast("Couldn't save: %s" % error_string(FileAccess.get_open_error()), true)
+		return
+	f.store_string(game.save_text())
+	f.close()
+	if not quiet:
+		hud.add_toast("Saved.")
+
+
+func load_from(path: String) -> void:
+	if not FileAccess.file_exists(path):
+		if hud.visible:
+			hud.add_toast("No saved game yet.", true)
+		else:
+			status.text = "No saved game yet."
+		return
+	var g := Game.load_text(FileAccess.get_file_as_string(path))
+	if g == null:
+		status.text = "That save can't be read."
+		return
+	g.paused = true
+	g.last = 0.0
+	map.selected_unit = null
+	hud.select_unit(null)
+	hud.select_province(-1)
+	_on_ready(g, false)
+	hud.add_toast("Loaded. The game is paused: press Space to go on.")
+
+
 func _process(_delta: float) -> void:
 	if game:
 		game.update(Time.get_ticks_msec() / 1000.0)
+		if game.t >= next_autosave:
+			next_autosave = (floor(game.t / AUTOSAVE_EVERY) + 1) * AUTOSAVE_EVERY
+			save_to(AUTOSAVE, true)
+			hud.add_toast("Autosaved.")
 
 
 ## For checking the view without a person: godot --path . -- --shot=/tmp/a.png [--seed=ember] [--leader=finn]
@@ -148,7 +204,17 @@ func _maybe_screenshot() -> void:
 			wfu = u
 	var demo := OS.get_cmdline_user_args().has("--demo")
 	var q1: int = game.open_nbr[game.capital][0].q
-	if play > 0 and demo:   # roads, walls and development: the scripted game of tests/fixtures/play/*_roads.json
+	var spells := OS.get_cmdline_user_args().has("--spells")
+	var army = null
+	for u in game.units:
+		if u.kind == "army":
+			army = u
+	if play > 0 and spells:   # Havva's Herbomancy, as in tests/fixtures/play/*_life.json
+		game.grant_tech("school-life")
+		for id in ["harvest", "mending", "forest", "eyesforest"]:
+			game.grant_tech(id)
+		game.order_build(mason, game.capital, "farm")
+	elif play > 0 and demo:   # roads, walls and development: the scripted game of tests/fixtures/play/*_roads.json
 		for k in Game.RES:
 			game.stock[k] += 3000
 		game.grant_tech("roads")
@@ -163,6 +229,8 @@ func _maybe_screenshot() -> void:
 		var step := 0
 		while game.t < play:
 			real += 0.1
+			if spells and step == 350:
+				game.cast_spell(army, "harvest")
 			if demo:
 				if step == 400:
 					game.order_build(mason, q1, "outpost")
@@ -181,6 +249,9 @@ func _maybe_screenshot() -> void:
 		game.update(Time.get_ticks_msec() / 1000.0)
 	if OS.get_cmdline_user_args().has("--research"):
 		hud.toggle_research()
+	elif spells:
+		map.selected_unit = army
+		hud.select_unit(army)
 	else:
 		map.selected_unit = mason
 		hud.select_unit(mason)
@@ -200,6 +271,12 @@ func _unhandled_input(ev: InputEvent) -> void:
 			game.paused = not game.paused
 			get_viewport().set_input_as_handled()
 			return
+		if ev.keycode == KEY_F5:
+			save_to(QUICKSAVE)
+			return
+		if ev.keycode == KEY_F9:
+			load_from(QUICKSAVE)
+			return
 		if ev.keycode == KEY_T and hud.unit == null:
 			hud.toggle_research()
 			get_viewport().set_input_as_handled()
@@ -218,7 +295,12 @@ func _unhandled_input(ev: InputEvent) -> void:
 				drag_moved = 0.0
 			else:
 				dragging = false
-				if ev.button_index == MOUSE_BUTTON_LEFT and drag_moved < 6.0 and game:
+				if ev.button_index == MOUSE_BUTTON_LEFT and drag_moved < 6.0 and game and hud.aim != null:
+					var tp := map.province_at(get_global_mouse_position())
+					if tp >= 0:
+						game.cast_spell(hud.aim.unit, hud.aim.spell, tp)
+					hud.aim = null
+				elif ev.button_index == MOUSE_BUTTON_LEFT and drag_moved < 6.0 and game:
 					var at := get_global_mouse_position()
 					var u = map.unit_at(at)
 					map.selected_unit = u
@@ -226,6 +308,9 @@ func _unhandled_input(ev: InputEvent) -> void:
 					var p: int = u.prov if u != null else map.province_at(at)
 					map.selected_prov = p
 					hud.select_province(p)
+		elif ev.button_index == MOUSE_BUTTON_RIGHT and ev.pressed and game and hud.aim != null:
+			hud.aim = null
+			hud.add_toast("Cancelled.")
 		elif ev.button_index == MOUSE_BUTTON_RIGHT and ev.pressed and game and map.selected_unit != null:
 			var at := get_global_mouse_position()
 			var p := map.province_at(at)

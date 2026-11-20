@@ -55,6 +55,18 @@ var wall_hp := {}
 var gate_own := {}           # "a_b" -> {home, owner}
 var fort_walled := {}        # "p>q" -> true: borders a fort or capital has walled once
 var gpc_slow_t := -9.0
+# magic (web: magic.js S.cd / S.paths / S.harvest / S.trap, v98.js S.reveals / S.eyes / S.haunts / S.manaPool)
+var cd := {}                 # spell -> game time when ready again
+var paths := {}              # edge index -> "forest" | "tunnel"
+var harvest_by = null        # web: S.harvest
+var trap = null
+var reveals := []
+var eyes := []
+var haunts := []
+var mana_pool := []
+var mana_prev := {}
+var mana_prev_t := -1.0
+var mage_gear := {"weapon": "stave", "shield": null}
 var dev_t := -1.0            # web: V106.t (development's own clock)
 ## development's lucky finds (web: Math.random); tests replace it
 var dev_rand: Callable
@@ -666,6 +678,7 @@ func compute_income() -> void:
 	var tb := tech_bonus()
 	for k in RES:
 		gross[k] += tb[k]
+	gross.food += harvest_food()
 	income = {}
 	for k in RES:
 		income[k] = gross[k] - up[k]
@@ -711,6 +724,7 @@ func payday(_t: float) -> void:
 		stock[k] = maxi(0, stock[k] + income[k])
 	step_exhaustion(short)
 	tech_payday()
+	regen_mana()
 	if on_payday.is_valid():
 		on_payday.call(_t)
 
@@ -765,6 +779,7 @@ func update(real_t: float) -> void:
 		payday(nt)
 	step_training(t)
 	if not paused:
+		step_magic(t, dt)
 		step_gpc(t)
 	clamp_stock()
 	step_upgrades(t)
@@ -1643,6 +1658,13 @@ func compute_fog() -> void:
 				vis[p] = true
 				for n in open_nbr[p]:
 					vis[n.q] = true
+	for r in eyes:
+		if r.until > t:
+			vis[r.a] = true
+			vis[r.b] = true
+	for h in haunts:
+		if h.until > t:
+			vis[h.prov] = true
 	for p in vis:
 		exp[p] = true
 	visible = vis
@@ -2762,3 +2784,577 @@ func reset_develop(p: int, r: Dictionary, lost: bool) -> void:
 		r.job = null
 		r.owner = buildings[p].owner if buildings.has(p) else 0
 	compute_income()
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# magic (web: magic.js CAST / castWhy / castSpell / startPath / stepMagic, v98.js mana, 3-second casts and the
+# reworked spells, v102.js mage gear, v105.js the Mage leaders' bonuses). Battle spells (Hardened Skin, Cursed
+# Weapons, Risen Dead) and the stasis trap's catch come with battles.
+
+const LINES := {"harvest": ["harvest", "bountiful", "magnificent"], "skin": ["skin", "stoneskin", "diamondskin"],
+	"mending": ["mending", "rejuvenation", "restoration"], "forest": ["forest", "commune", "arboreal"],
+	"curse": ["curse1", "curse2", "curse3"], "tunnel": ["underworld", "hallways", "sealed"], "risen": ["risen", "necro", "armyofdeath"],
+	"graverob": ["graverob", "deathtax", "charon"], "scouts": ["arcscouts", "arcvision"], "mind": ["clearthoughts", "mindread"],
+	"trading": ["trading", "stockmarket", "planar"], "stasis": ["stasis", "prison"], "rift": ["rift", "portal"],
+	"eyes": ["eyesforest"], "haunt": ["haunt"]}
+const HARVEST_PCT := [0, 0.1, 0.2, 0.3]
+const MEND := [{}, {"dur": 60, "cd": 180}, {"dur": 30, "cd": 120}, {"dur": 0, "cd": 0}]
+const RES_SPELL := {"graverob": "gold", "trading": "all"}
+const RES_CD := 180.0
+const PATH_OPEN := [0, 20, 10, 10]
+const PATH_CLOSE := 10
+const STASIS := [0, 10, 20]
+const MANA_START := 25.0
+const MANA_CAPS := [100, 150, 200]
+const MANA_REGEN := [0, 1, 2, 3]
+const SPELL_MANA := {"harvest": "drain", "mending": 25, "graverob": "all", "haunt": 25, "trading": "all", "mind": 50, "stasis": 50, "rift": 100, "eyes": 25}
+const PATHS_MANA := 200
+const CAST_TIME := 3.0
+const GRAVE_RATE := [0, 1, 2, 3]
+const TRADE_RATE := [0, 1.0 / 3, 2.0 / 3, 1]
+const MIND := {"show": 20, "cd": 40}
+const RIFT_CD := [0, 120, 15]
+const SEE_TIME := 60.0
+const STAVE_CAST := {"grandstave": 0.9, "mythicstave": 0.8}
+const WAND_MANA := {"crypticwand": 0.9, "enigmaticwand": 0.8}
+## The spells a caster can cast from the command card, in order.
+const SPELLS := ["harvest", "mending", "graverob", "trading", "mind", "stasis", "rift", "eyes", "haunt"]
+
+
+func lvl(line: String) -> int:
+	var n := 0
+	for id in LINES[line]:
+		if has_tech(id):
+			n += 1
+	return n
+
+
+func line_tech(line: String) -> String:
+	return LINES[line][maxi(0, lvl(line) - 1)]
+
+
+func mages_in(u: Dictionary) -> int:
+	var mage: String = GameData.c("MAGE")
+	if u.kind == mage:
+		return 1
+	if u.kind == "army":
+		return u.troops.get(mage, 0)
+	return 0
+
+
+func is_caster(u) -> bool:
+	return u != null and u.owner == ME and mages_in(u) > 0
+
+
+func mana_cap() -> int:
+	return MANA_CAPS[2] if has_tech("magicabund") else MANA_CAPS[1] if has_tech("magicwell") else MANA_CAPS[0]
+
+
+static func mana_of(c) -> float:
+	return 0.0 if c == null else c.get("mana", MANA_START)
+
+
+func mana_mult() -> float:
+	return WAND_MANA.get(mage_gear.weapon, 1.0)
+
+
+func mc(n) :
+	return JS.round_js(n * mana_mult()) if (n is int or n is float) else n
+
+
+func spend_mana(c: Dictionary, n) -> void:
+	c.mana = maxf(0.0, mana_of(c) - mc(n))
+
+
+func mana_need(k: String) -> int:
+	var m = SPELL_MANA.get(k, 0)
+	return 1 if (m is String) else m
+
+
+func harvest_pct() -> float:
+	var L := lvl("harvest")
+	if not L:
+		return 0.0
+	var p: float = HARVEST_PCT[L] + 0.02 * rep_lv("rep-harvest")
+	if leader == "havva":
+		p += 0.05 * L
+	return p
+
+
+# web: magic.js harvestFood() as the v104 crops wrapper computes it (every Farm grows its staple)
+func harvest_food() -> int:
+	if harvest_by == null:
+		return 0
+	var food := 0
+	var per: int = gives_of("farm").get("food", 0)
+	for p in extras:
+		if owned(p) and not occ.has(p):
+			for e in extras[p]:
+				if e.type == "farm":
+					food += per
+	return int(JS.round_js(food * harvest_pct()))
+
+
+func cd_left(k: String) -> float:
+	return maxf(0.0, cd.get(k, 0.0) - t)
+
+
+func start_cast(c: Dictionary, spell: String, dur: float, data := {}) -> void:
+	if spell == "pathopen" or spell == "pathclose":
+		spend_mana(c, PATHS_MANA)
+	var m: float = STAVE_CAST.get(mage_gear.weapon, 1.0)
+	if is_finite(dur) and m != 1.0:
+		dur = JS.round_js(dur * m * 10) / 10.0
+	if c.get("cast") != null:
+		cancel_cast(c)
+	c.cast = {"spell": spell, "t0": t, "dur": dur}
+	c.cast.merge(data)
+
+
+func begin_cast(c: Dictionary, k: String, data := {}) -> void:
+	var m = SPELL_MANA.get(k, 0)
+	if (m is int) and m:
+		spend_mana(c, m)
+	start_cast(c, "q:" + k, CAST_TIME, data)
+
+
+func cancel_cast(c: Dictionary, why := "") -> void:
+	if c.get("cast") == null:
+		return
+	var sp: String = c.cast.spell
+	c.cast = null
+	if sp == "harvest":
+		harvest_by = null
+		compute_income()
+	if why != "":
+		toast(why)
+
+
+func _others_casting(c: Dictionary, spell: String) -> bool:
+	return units.any(func(v): return not is_same(v, c) and v.get("cast") != null and v.cast.spell == spell)
+
+
+func mending_target(c: Dictionary):
+	if c.kind == "army":
+		return c
+	for v in units:
+		if v.kind == "army" and v.owner == ME and v.prov == c.prov:
+			return v
+	return null
+
+
+func see_nbrs(c: Dictionary) -> Array:
+	return all_nbr[c.prov].filter(func(q): return _edge_between(c.prov, q, "trees", null) >= 0)
+
+
+func _edge_between(p: int, q: int, style, open) -> int:
+	for i in world.edges.size():
+		var e: Dictionary = world.edges[i]
+		if ((e.a == p and e.b == q) or (e.a == q and e.b == p)) and (style == null or e.style == style) and (open == null or e.open == open):
+			return i
+	return -1
+
+
+func haunt_why(p: int):
+	if not explored.has(p):
+		return "Explore that province first"
+	if haunts.any(func(h): return h.prov == p and h.until > t):
+		return "Already haunted"
+	return null
+
+
+func rift_why(c: Dictionary, p: int):
+	if p == c.prov:
+		return "Already here"
+	if not explored.has(p):
+		return "Explore that province first"
+	return null
+
+
+func _spell_why(c: Dictionary, k: String):
+	match k:
+		"harvest":
+			return "Another Mage is already casting this" if _others_casting(c, "harvest") else null
+		"mending":
+			return "No army of yours here to heal" if mending_target(c) == null else null
+		"graverob", "trading":
+			return "Another Mage is already casting this" if _others_casting(c, "q:" + k) else null
+		"stasis":
+			return "A trap is already set" if trap != null else null
+		"haunt":
+			return haunt_why(c.prov)
+		"eyes":
+			return null if not see_nbrs(c).is_empty() else "No border of trees here"
+	return null
+
+
+## Why caster c can't cast spell k now, or null. web: magic.js castWhy + v98.js (mana)
+func cast_why(c: Dictionary, k: String):
+	var cast = c.get("cast")
+	if cast != null and cast.spell == "q:" + k:
+		return null
+	if current_school() == null:
+		return "Choose a school of magic first"
+	if not lvl(k):
+		return "Not researched"
+	if cast != null and cast.spell == k:
+		return null
+	if c.moving:
+		return "Stop moving first"
+	if cd_left(k) > 0:
+		return "Ready in %d s" % ceili(cd_left(k))
+	var w = _spell_why(c, k)
+	if w != null:
+		return w
+	var need := mana_need(k)
+	if need and mana_of(c) < mc(need):
+		var m = SPELL_MANA.get(k)
+		return "No mana left" if m is String else "Not enough mana (%d/%d)" % [int(floor(mana_of(c))), mc(need)]
+	return null
+
+
+## Cast (or stop casting) spell k. Spells that need a target (rift, eyes) take it as `target`.
+## web: magic.js castSpell + CAST[k].go, v98.js AIMED
+func cast_spell(c: Dictionary, k: String, target := -1) -> bool:
+	var cast = c.get("cast")
+	if cast != null and (cast.spell == "q:" + k or cast.spell == k):
+		cancel_cast(c, "Casting stopped.")
+		return false
+	var why = cast_why(c, k)
+	if why != null:
+		toast(str(why) + ".", true)
+		return false
+	match k:
+		"harvest":
+			start_cast(c, "harvest", INF)
+			harvest_by = c.id
+			compute_income()
+			toast("Harvest: your Farms give %d%% more food while %s keeps casting. Moving stops it." % [JS.round_js(harvest_pct() * 100), c.name])
+		"mending":
+			spend_mana(c, SPELL_MANA.mending)
+			var a: Dictionary = mending_target(c)
+			var M: Dictionary = MEND[lvl("mending")]
+			if M.dur:
+				a.heal = {"t0": t, "dur": M.dur, "w0": a.get("wounds", 0.0)}
+			else:
+				a.wounds = 0.0
+			toast("Mending on %s." % a.name)
+		"mind", "graverob", "trading", "stasis":
+			begin_cast(c, k)
+			toast("%s: 3 s of casting." % TECH_BY_ID[line_tech(k)].name)
+		"haunt":
+			spend_mana(c, SPELL_MANA.haunt)
+			haunts.append({"prov": c.prov, "owner": ME, "t0": t, "until": t + SEE_TIME})
+			compute_fog()
+			toast("A restless spirit haunts this province: you see it for 1 minute.")
+		"eyes":
+			var list := see_nbrs(c)
+			var q: int = target if target >= 0 else (list[0] if list.size() == 1 else -1)
+			if q < 0 or not list.has(q):
+				toast("Eyes of the Forest: pick the neighbouring province across the trees.", true)
+				return false
+			begin_cast(c, "eyes", {"to": q})
+			toast("Eyes of the Forest: 3 s of casting.")
+		"rift":
+			var rw = rift_why(c, target) if target >= 0 else "Pick the province to teleport to"
+			if rw != null:
+				toast("Teleportation Rift: %s." % str(rw).to_lower(), true)
+				return false
+			begin_cast(c, "rift", {"to": target})
+			toast("%s opens a rift: 3 s of casting." % c.name)
+	return true
+
+
+# web: magic.js pathWhy + v98.js (200 mana)
+func path_why(c: Dictionary, q: int, kind: String, close: bool):
+	var line := "forest" if kind == "forest" else "tunnel"
+	var L := lvl(line)
+	if not L:
+		return "Not researched"
+	if close and L < 3:
+		return "Research %s first" % TECH_BY_ID[LINES[line][2]].name
+	if not all_nbr[c.prov].has(q):
+		return "The Mage must stand next door"
+	var style := "trees" if kind == "forest" else "mountains"
+	if close:
+		if _path_edge(c.prov, q, kind) < 0:
+			return "No %s on that border" % ("forest path" if kind == "forest" else "tunnel")
+	elif _edge_between(c.prov, q, style, false) < 0:
+		return "No border of trees there" if kind == "forest" else "No mountain border there"
+	if c.moving:
+		return "Stop moving first"
+	if not owned(c.prov):
+		return "Only from a province you own or occupy"
+	if mana_of(c) < mc(PATHS_MANA):
+		return "Not enough mana (%d/%d)" % [int(floor(mana_of(c))), mc(PATHS_MANA)]
+	return null
+
+
+func _path_edge(p: int, q: int, kind: String) -> int:
+	for i in paths:
+		var e: Dictionary = world.edges[i]
+		if paths[i] == kind and [e.a, e.b].has(q) and [e.a, e.b].has(p):
+			return i
+	return -1
+
+
+func start_path(c: Dictionary, q: int, kind: String, close := false) -> bool:
+	var why = path_why(c, q, kind, close)
+	if why != null:
+		toast(str(why) + ".", true)
+		return false
+	var dur: float = PATH_CLOSE if close else PATH_OPEN[lvl("forest" if kind == "forest" else "tunnel")]
+	start_cast(c, "pathclose" if close else "pathopen", dur, {"to": q, "kind": kind})
+	toast("%s %s: %d s of casting." % ["Closing" if close else "Opening", "a path through the trees" if kind == "forest" else "a tunnel under the mountains", dur])
+	return true
+
+
+func open_edge(i: int, kind: String) -> void:
+	var e: Dictionary = world.edges[i]
+	var a: Array = world.vertices[e.v[0]]
+	var b: Array = world.vertices[e.v[1]]
+	var m := [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]
+	e.open = true
+	paths[i] = kind
+	open_nbr[e.a].append({"q": e.b, "m": m})
+	open_nbr[e.b].append({"q": e.a, "m": m})
+
+
+func close_edge(i: int) -> void:
+	var e: Dictionary = world.edges[i]
+	e.open = false
+	paths.erase(i)
+	open_nbr[e.a] = open_nbr[e.a].filter(func(n): return n.q != e.b)
+	open_nbr[e.b] = open_nbr[e.b].filter(func(n): return n.q != e.a)
+
+
+func teleport(c: Dictionary, to: int) -> void:
+	c.path = []
+	c.moving = false
+	c.surveyQueue = []
+	c.lastProv = c.prov
+	c.prov = to
+	c.slot = free_slot(to, c)
+	var xy := slot_pos(to, c.slot)
+	c.x = xy[0]
+	c.y = xy[1]
+	c.erase("final")
+	compute_fog()
+
+
+func _finish_q(c: Dictionary, k: String, cs: Dictionary, now: float) -> void:
+	match k:
+		"mind":
+			reveals.append({"prov": c.prov, "all": lvl("mind") >= 2, "until": now + MIND.show})
+			cd["mind"] = now + MIND.cd
+			toast("Clear Thoughts: armies nearby are revealed for 20 s.")
+		"graverob":
+			var n := int(floor(mana_of(c)))
+			var g := int(JS.round_js(n * GRAVE_RATE[lvl("graverob")] * (1 + 0.02 * rep_lv("rep-graverob"))))
+			spend_mana(c, n)
+			stock.gold += g
+			cd["graverob"] = now + RES_CD
+			toast("Grave Robbing: %d mana became %d gold." % [n, g])
+			if leader == "niall" and g > 0:
+				stock.gold += 100
+				toast("Necromancer Niall: +100 gold from the graves.")
+		"trading":
+			var n := int(floor(mana_of(c)))
+			var each := int(floor(n * TRADE_RATE[lvl("trading")] * (1 + 0.02 * rep_lv("rep-trading"))))
+			spend_mana(c, n)
+			for r in RES:
+				stock[r] += each
+			cd["trading"] = now + RES_CD
+			toast("Trading across worlds: %d mana became %d of each resource." % [n, each])
+			if leader == "alma" and each > 0:
+				var x := int(JS.round_js(each * 0.3))
+				for r in RES:
+					stock[r] += x
+				toast("Arcanist Alma: +30%% from the trade (+%d of each)." % x)
+		"stasis":
+			if trap == null:
+				trap = {"prov": c.prov, "t0": now}
+				toast("Stasis trap set.")
+		"rift":
+			var why = rift_why(c, cs.to)
+			if why != null:
+				toast("The rift collapses: %s." % str(why).to_lower(), true)
+				return
+			teleport(c, cs.to)
+			cd["rift"] = now + RIFT_CD[maxi(1, lvl("rift"))]
+			toast("%s steps through the rift." % c.name)
+		"eyes":
+			if not see_nbrs(c).has(cs.to):
+				return
+			eyes.append({"owner": ME, "a": c.prov, "b": cs.to, "edge": _edge_between(c.prov, cs.to, "trees", null), "t0": now, "until": now + SEE_TIME})
+			compute_fog()
+			toast("Eyes of the Forest: both provinces are in sight for 1 minute.")
+
+
+# web: v98.js syncMana(t): mana follows a Mage from one unit to the next
+func sync_mana(now: float) -> void:
+	if now < mana_prev_t:
+		mana_prev = {}
+	mana_prev_t = now
+	var cur := {}
+	for u in units:
+		if mages_in(u) > 0:
+			cur[u.id] = u
+		elif u.has("mana"):
+			mana_pool.append({"owner": u.owner, "prov": u.prov, "mana": u.mana, "t": now})
+			u.erase("mana")
+	for id in mana_prev:
+		var u: Dictionary = mana_prev[id]
+		if not cur.has(id) and not units.any(func(v): return is_same(v, u)) and u.has("mana"):
+			mana_pool.append({"owner": u.owner, "prov": u.prov, "mana": u.mana, "t": now})
+	for u in cur.values():
+		if not u.has("mana"):
+			var found := -1
+			for i in mana_pool.size():
+				if mana_pool[i].owner == u.owner and mana_pool[i].prov == u.prov:
+					found = i
+					break
+			if found >= 0:
+				u.mana = mana_pool[found].mana
+				mana_pool.remove_at(found)
+			else:
+				u.mana = MANA_START
+	mana_prev = cur
+	if not mana_pool.is_empty():
+		mana_pool = mana_pool.filter(func(r): return now - r.t < 2)
+
+
+# web: v98.js regenMana() at every payday: each Mage not casting regains mana for every Mage Tower (by level)
+func regen_mana() -> void:
+	var r := 0
+	for p in extras:
+		if not owned(p) or occ.has(p):
+			continue
+		for e in extras[p]:
+			if e.type == "magetower":
+				r += MANA_REGEN[mini(3, e.get("level", 1))]
+	var L = leader_of()
+	if L != null and L.start == "mage":
+		r += 4   # v105: a Mage leader's Mages regain 4 more
+	for c in units:
+		if mages_in(c) <= 0 or c.get("cast") != null:
+			continue
+		c.mana = minf(mana_cap(), mana_of(c) + r)
+
+
+# web: magic.js stepMagic(t, dt) + v98.js wrapper
+func step_magic(now: float, dt: float) -> void:
+	sync_mana(now)
+	for c in units.duplicate():
+		var cs = c.get("cast")
+		if cs == null or not is_caster(c):
+			continue
+		if cs.spell == "harvest" and not c.moving:
+			c.mana = maxf(0.0, mana_of(c) - dt)
+			if c.mana <= 0:
+				cancel_cast(c, "%s has run out of mana." % c.name)
+				continue
+		if not cs.spell.begins_with("q:") or not is_finite(cs.dur) or c.moving or now - cs.t0 < cs.dur:
+			continue
+		c.cast = null
+		_finish_q(c, cs.spell.substr(2), cs, now)
+	# the original channels
+	for c in units:
+		var cs = c.get("cast")
+		if cs == null:
+			continue
+		if not is_caster(c):
+			cancel_cast(c)
+			continue
+		if c.moving:
+			cancel_cast(c, "%s stopped casting." % c.name)
+			continue
+		if now - cs.t0 < cs.dur:
+			continue
+		if cs.spell == "pathopen":
+			c.cast = null
+			var i := _edge_between(c.prov, cs.to, "trees" if cs.kind == "forest" else "mountains", false)
+			if i >= 0:
+				open_edge(i, cs.kind)
+				toast("The trees part: a path opens." if cs.kind == "forest" else "A tunnel opens under the mountains.")
+		elif cs.spell == "pathclose":
+			c.cast = null
+			var i := _path_edge(c.prov, cs.to, cs.kind)
+			if i >= 0:
+				close_edge(i)
+	# healing over time
+	for a in units:
+		if a.get("heal") != null:
+			var f := minf(1.0, (now - a.heal.t0) / a.heal.dur)
+			a.wounds = a.heal.w0 * (1 - f)
+			if f >= 1:
+				a.heal = null
+	reveals = reveals.filter(func(r): return r.until > now)
+	cd.erase("stasis")
+	var n0 := eyes.size() + haunts.size()
+	eyes = eyes.filter(func(r): return r.until > now)
+	haunts = haunts.filter(func(r): return r.until > now)
+	if eyes.size() + haunts.size() != n0:
+		compute_fog()
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# saving and loading (web: save.js keeps the seed and regenerates the map; this is the Godot format)
+
+const SAVE_VERSION := 1
+## Everything a game is, besides the map (which comes back from the seed) and the callbacks.
+const SAVE_FIELDS := ["leader", "capital", "stock", "income", "income_parts", "buildings", "extras", "occ", "units", "next_id",
+	"army_counter", "tech", "rep", "surveyed", "unit_defs", "designs", "exhaust", "exhaust_ok", "harvest", "devel", "upgrades",
+	"xup", "auto_tech", "roads", "walls", "wall_hp", "gate_own", "fort_walled", "gpc_slow_t", "dev_t", "cd", "paths",
+	"harvest_by", "trap", "reveals", "eyes", "haunts", "mana_pool", "mana_prev_t", "mage_gear", "finds", "treasure_rolled",
+	"sp_found", "wf", "known", "explored", "visible", "queues", "rally", "military", "UNIT_SPEED", "open_nbr", "all_nbr",
+	"yields", "tree_border", "t", "next_tick", "paused", "last", "started"]
+
+
+## The whole game as a plain Dictionary (see SaveCodec for the text form).
+func to_save() -> Dictionary:
+	var d := {"version": SAVE_VERSION, "seed": str(world.seed).trim_prefix("practice:"), "practice": world.get("practice", false)}
+	var edges := []
+	for e in world.edges:
+		edges.append([e.open, e.style])
+	d.edges = edges
+	d.terrain = G.provs.map(func(P): return P.terrain)
+	for f in SAVE_FIELDS:
+		d[f] = get(f)
+	d.mana_prev = mana_prev.keys()   # unit ids
+	d.rng = [rng.seed, rng.state]
+	return d
+
+
+func save_text() -> String:
+	return SaveCodec.to_text(to_save())
+
+
+## A game from to_save(); `map` may be a ready map for the same seed (tests reuse one).
+static func from_save(d: Dictionary, map: Dictionary = {}) -> Game:
+	if int(d.get("version", 0)) != SAVE_VERSION:
+		push_error("Unknown save version %s" % d.get("version"))
+		return null
+	var g := Game.new()
+	g.world = map if not map.is_empty() else RealmGen.scale_world(RealmGen.generate_practice(d.seed))
+	g.G = WorldPrep.prep(g.world)   # province shapes come from the map as generated, before walls and paths
+	for i in d.edges.size():
+		g.world.edges[i].open = d.edges[i][0]
+		g.world.edges[i].style = d.edges[i][1]
+	for i in d.terrain.size():
+		g.G.provs[i].terrain = d.terrain[i]
+	for f in SAVE_FIELDS:
+		g.set(f, d[f])
+	g.mana_prev = {}
+	for id in d.mana_prev:
+		for u in g.units:
+			if u.id == id:
+				g.mana_prev[id] = u
+	g.rng.seed = d.rng[0]
+	g.rng.state = d.rng[1]
+	return g
+
+
+static func load_text(text: String, map: Dictionary = {}) -> Game:
+	var d = SaveCodec.from_text(text)
+	return from_save(d, map) if d is Dictionary else null

@@ -27,6 +27,7 @@ var GRID_KEYS: Array
 var actions: VBoxContainer   # train and upgrade buttons of the selected province
 var actions_key := ""
 var confirm_key := ""
+var aim = null               # {unit, spell}: the next click picks the spell's province
 var research: PanelContainer
 var research_box: VBoxContainer
 var research_key := ""
@@ -164,6 +165,16 @@ func commands_of(u) -> Array:
 	var list: Array = GameData.c("CMD").get(u.kind, [])
 	if u.kind == "mage:A" or game.military.has(u.kind):
 		list = []
+	if game.is_caster(u):
+		# the Realmlings' castable spells fill the card's middle rows (web: magic.js SPELL_CELLS)
+		var cell := 4 if u.kind == "army" else 0
+		for k in Game.SPELLS:
+			if game.lvl(k) and cell < 15:
+				var casting: bool = u.get("cast") != null and (u.cast.spell == k or u.cast.spell == "q:" + k)
+				var mana = Game.SPELL_MANA.get(k, 0)
+				var label: String = game.TECH_BY_ID[game.line_tech(k)].name
+				out[cell] = {"id": "spell:" + k, "label": "%s\n%s" % [label, "stop" if casting else ("%s mana" % mana if mana is int else str(mana))], "why": game.cast_why(u, k)}
+				cell += 1
 	for c in list:
 		var id: String = c.id
 		var cmd = null
@@ -231,6 +242,13 @@ func press(i: int) -> void:
 		confirm_key = ""
 		game.dismiss([unit])
 		select_unit(null)
+	elif id.begins_with("spell:"):
+		var k := id.substr(6)
+		if k in ["rift"] or (k == "eyes" and game.see_nbrs(unit).size() > 1):
+			aim = {"unit": unit, "spell": k}
+			add_toast("Click the province to target. Right-click cancels.")
+		else:
+			game.cast_spell(unit, k)
 	elif id == "split":
 		game.split_army(unit)
 	elif id == "combine":
@@ -388,6 +406,15 @@ func _refresh_actions() -> void:
 					rows.append({"btn": "Upgrading to %s… (cancel)" % d.levels[lv], "why": null, "do": game.cancel_xup.bind(prov, e.slot)})
 				elif lv < d.levels.size():
 					rows.append({"btn": "Upgrade %s to %s (%s)" % [d.levels[lv - 1], d.levels[lv], Game.cost_text(d.ups[lv].cost)], "why": game.xup_why(prov, e), "do": game.start_xup.bind(prov, e.slot)})
+	if unit != null and game.is_caster(unit) and unit.prov == prov:
+		rows.append({"label": "%s: %d / %d mana%s" % [unit.name, int(Game.mana_of(unit)), game.mana_cap(), (" · casting " + str(unit.cast.spell).trim_prefix("q:")) if unit.get("cast") != null else ""]})
+		for q in game.all_nbr[prov]:
+			for kind in ["forest", "tunnel"]:
+				if not game.lvl(kind):
+					continue
+				var why = game.path_why(unit, q, kind, false)
+				if why == null or str(why).begins_with("Not enough mana"):
+					rows.append({"btn": "Open a %s to province %d (200 mana)" % ["forest path" if kind == "forest" else "tunnel", q], "why": why, "do": game.start_path.bind(unit, q, kind, false)})
 	if unit != null and unit.kind == Game.MASON and unit.prov == prov and not unit.moving:
 		rows.append({"label": "Mason: roads and walls to a neighbour"})
 		for q in game.all_nbr[prov]:

@@ -23,7 +23,9 @@ func run() -> Array:
 	return errs
 
 
-static func play(fx: Dictionary, map: Dictionary) -> Array:
+## after_frame (optional): func(g, i) -> Game, called after every frame; it may hand back another game to go on with
+## (tests/test_save.gd swaps in a saved and loaded copy).
+static func play(fx: Dictionary, map: Dictionary, after_frame := Callable()) -> Array:
 	var g := Game.new_practice(fx.seed, fx.leader, map)
 	var errs := []
 	var ruins := []
@@ -56,7 +58,9 @@ static func play(fx: Dictionary, map: Dictionary) -> Array:
 			var u = unit(g, A.get("u", ""))
 			match A.a:
 				"survey": g.queue_survey(u, int(A.p))
-				"order": g.order(u, int(A.p))
+				"order":
+					if int(A.p) >= 0:
+						g.order(u, int(A.p))
 				"build": g.order_build(u, int(A.p), A.type)
 				"upgrade": g.start_upgrade(int(A.p))
 				"give":
@@ -70,6 +74,14 @@ static func play(fx: Dictionary, map: Dictionary) -> Array:
 						g.pick_tech(A.id)
 				"points": g.add_research(A.tree, int(A.n))
 				"grant": g.grant_tech(A.id)
+				"mana": unit(g, "army").mana = float(A.n)
+				"cast": g.cast_spell(unit(g, "army"), A.k)
+				"aim":
+					if int(A.p) >= 0:
+						g.cast_spell(unit(g, "army"), A.k, int(A.p))
+				"path":
+					if int(A.p) >= 0:
+						g.start_path(unit(g, "army"), int(A.p), A.kind)
 				"link":
 					if int(A.p) >= 0:
 						g.start_link(u, int(A.p), A.type)
@@ -89,6 +101,8 @@ static func play(fx: Dictionary, map: Dictionary) -> Array:
 							g.start_xup(int(A.p), e.slot)
 							break
 		g.update(1.0 + i * 0.1)
+		if after_frame.is_valid():
+			g = after_frame.call(g, i)
 		if i % 10 == 0:
 			var e := compare(snaps[si], snapshot(g))
 			si += 1
@@ -153,7 +167,15 @@ static func snapshot(g: Game) -> Dictionary:
 		ys.append([y.gold, y.wood, y.food, y.deposit])
 	var rd := g.roads.keys()
 	rd.sort()
-	return {"t": g.t, "queues": qs, "roads": rd, "walls": sorted_keys(g.walls), "devel": dv, "yields": ys, "tech": tch, "rep": g.rep, "xup": g.xup.keys(), "levels": lv, "stock": g.stock, "income": g.income, "units": us, "explored": sorted_keys(g.explored), "visible": sorted_keys(g.visible),
+	var cds := []
+	for k in sorted_keys(g.cd):
+		cds.append([k, g.cd[k]])
+	var pth := []
+	for k in sorted_keys(g.paths):
+		pth.append([k, g.paths[k]])
+	return {"t": g.t, "mana": g.units.map(func(u): return u.get("mana")), "casts": g.units.map(func(u): return u.cast.spell if u.get("cast") != null else null),
+		"cd": cds, "paths": pth, "eyes": g.eyes.map(func(r): return [r.a, r.b, r.until]), "haunts": g.haunts.map(func(h): return [h.prov, h.until]),
+		"reveals": g.reveals.size(), "harvest": g.harvest_by != null, "queues": qs, "roads": rd, "walls": sorted_keys(g.walls), "devel": dv, "yields": ys, "tech": tch, "rep": g.rep, "xup": g.xup.keys(), "levels": lv, "stock": g.stock, "income": g.income, "units": us, "explored": sorted_keys(g.explored), "visible": sorted_keys(g.visible),
 		"surveyed": sorted_keys(g.surveyed), "wf": sorted_keys(g.wf), "buildings": bl, "extras": ex, "upgrades": g.upgrades.keys(), "techs": techs, "finds": fd}
 
 

@@ -19,9 +19,13 @@ Scenarios
           gates), the army walks through its own gate, the Mason builds a wall.
   develop: Finn: the capital developed twice (Math.random fixed at 0.99: no lucky finds), the army split, combined
           and split again, the Forge torn down. 620 s.
+  life / arcane / death: the three Realmling schools' spells (Havva, Alma, Niall): mana set by the script where a
+          spell needs more than the Mages have; Harvest, Mending, Eyes of the Forest, a forest path; Interdimensional
+          Trading, Clear Thoughts, Teleportation Rift; Grave Robbing, Haunt, a tunnel. '?' and '@path' targets are
+          recorded in `actions`.
 The web game offers technologies at random; a pick of '?' takes the first on offer by id (recorded in `actions`)
 and the chosen technology is added to the offer when missing, so the test can do exactly the same."""
-import asyncio, json
+import asyncio, json, sys
 from pathlib import Path
 from playwright.async_api import async_playwright
 
@@ -120,8 +124,37 @@ ACTIONS = {
     {'t': 60, 'a': 'destroy', 'p': P['cap'], 'type': 'forge'},
     {'t': 305, 'a': 'develop', 'p': P['cap']},
   ],
+  'life': lambda P: [
+    {'t': 0.5, 'a': 'give', 'gold': 500, 'wood': 500, 'food': 0},
+    {'t': 0.5, 'a': 'grant', 'id': 'school-life'},
+    {'t': 0.6, 'a': 'grant', 'id': 'harvest'}, {'t': 0.6, 'a': 'grant', 'id': 'mending'},
+    {'t': 0.6, 'a': 'grant', 'id': 'forest'}, {'t': 0.6, 'a': 'grant', 'id': 'eyesforest'},
+    {'t': 0.6, 'a': 'build', 'u': 'mason', 'p': P['cap'], 'type': 'farm'},
+    {'t': 35, 'a': 'cast', 'k': 'harvest'},
+    {'t': 70, 'a': 'mana', 'n': 200}, {'t': 71, 'a': 'cast', 'k': 'mending'},
+    {'t': 80, 'a': 'aim', 'k': 'eyes', 'p': '?'},
+    {'t': 90, 'a': 'mana', 'n': 250}, {'t': 91, 'a': 'path', 'kind': 'forest', 'p': '?'},
+    {'t': 120, 'a': 'order', 'u': 'army', 'p': '@path'},
+    {'t': 150, 'a': 'order', 'u': 'army', 'p': P['cap']},
+  ],
+  'arcane': lambda P: [
+    {'t': 0.5, 'a': 'grant', 'id': 'school-arcane'},
+    {'t': 0.6, 'a': 'grant', 'id': 'trading'}, {'t': 0.6, 'a': 'grant', 'id': 'clearthoughts'}, {'t': 0.6, 'a': 'grant', 'id': 'rift'},
+    {'t': 1, 'a': 'mana', 'n': 100}, {'t': 2, 'a': 'cast', 'k': 'trading'},
+    {'t': 10, 'a': 'mana', 'n': 100}, {'t': 11, 'a': 'cast', 'k': 'mind'},
+    {'t': 20, 'a': 'mana', 'n': 150}, {'t': 21, 'a': 'aim', 'k': 'rift', 'p': P['q1']},
+    {'t': 40, 'a': 'cast', 'k': 'trading'},
+  ],
+  'death': lambda P: [
+    {'t': 0.5, 'a': 'grant', 'id': 'school-death'},
+    {'t': 0.6, 'a': 'grant', 'id': 'graverob'}, {'t': 0.6, 'a': 'grant', 'id': 'underworld'}, {'t': 0.6, 'a': 'grant', 'id': 'haunt'},
+    {'t': 1, 'a': 'mana', 'n': 100}, {'t': 2, 'a': 'cast', 'k': 'graverob'},
+    {'t': 10, 'a': 'cast', 'k': 'haunt'},
+    {'t': 20, 'a': 'mana', 'n': 250}, {'t': 21, 'a': 'path', 'kind': 'tunnel', 'p': '?'},
+    {'t': 50, 'a': 'order', 'u': 'army', 'p': '@path'},
+  ],
 }
-LEADER = {'orders': 'havva', 'auto': 'aithne', 'train': 'cormac', 'research': 'finn', 'magic': 'havva', 'roads': 'havva', 'develop': 'finn'}
+LEADER = {'life': 'havva', 'arcane': 'alma', 'death': 'niall', 'orders': 'havva', 'auto': 'aithne', 'train': 'cormac', 'research': 'finn', 'magic': 'havva', 'roads': 'havva', 'develop': 'finn'}
 FRAMES_OF = {'develop': 6201}
 
 RUN = r"""(() => {
@@ -138,6 +171,9 @@ RUN = r"""(() => {
     extras: [...S.extras].map(([p, l]) => [p, l.map(e => [e.type, e.slot])]).sort((a, b) => a[0] - b[0]),
     upgrades: [...S.upgrades.keys()], techs: S.tech.gov.done.length + S.tech.mil.done.length + S.tech.mag.done.length,
     tech: Object.fromEntries(TREE_KEYS.map(k => [k, { cur: S.tech[k].cur, prog: S.tech[k].prog, bank: S.tech[k].bank, done: S.tech[k].done.slice(), tier: S.tech[k].tier }])),
+    mana: S.units.map(u => u.mana === undefined ? null : u.mana), casts: S.units.map(u => u.cast ? u.cast.spell : null),
+    cd: Object.keys(S.cd).sort().map(k => [k, S.cd[k]]), paths: Object.keys(S.paths).sort().map(k => [+k, S.paths[k]]),
+    eyes: (S.eyes || []).map(r => [r.a, r.b, r.until]), haunts: (S.haunts || []).map(h => [h.prov, h.until]), reveals: (S.reveals || []).length, harvest: !!S.harvest,
     rep: { ...S.rep }, xup: [...S.xup.keys()], roads: [...S.roads].sort(), walls: [...S.walls].sort((a, b) => a - b),
     devel: [...S.devel].map(([p, r]) => [p, r.lv, r.job ? Math.round(r.job.done * 1000) / 1000 : null]), yields: yields.map(y => [y.gold, y.wood, y.food, !!y.deposit]), levels: [...S.extras].map(([p, l]) => [p, l.map(e => e.level || 1)]).sort((a, b) => a[0] - b[0]),
     finds: [...S.finds].map(([p, f]) => [p, f.id, !!f.done]) });
@@ -146,7 +182,7 @@ RUN = r"""(() => {
     while (k < acts.length && S.t >= acts[k].t) {
       const A = acts[k++], u = A.u ? U[A.u]() : null;
       if (A.a === 'survey') { u.surveyQueue.push(A.p); }
-      else if (A.a === 'order') order(u, A.p);
+      else if (A.a === 'order') { if (A.p === '@path') A.p = window.__pathTo; if (A.p >= 0) order(u, A.p); }
       else if (A.a === 'build') orderBuild(u, A.p, A.type);
       else if (A.a === 'upgrade') startUpgrade(A.p);
       else if (A.a === 'give') { for (const r of RES) S.stock[r] += A[r]; }
@@ -159,6 +195,20 @@ RUN = r"""(() => {
       }
       else if (A.a === 'points') addResearch(A.tree, A.n);
       else if (A.a === 'grant') grantTech(A.id);
+      else if (A.a === 'mana') { U.army().mana = A.n; }
+      else if (A.a === 'cast') castSpell(U.army(), A.k);
+      else if (A.a === 'aim') {
+        const c = U.army();
+        if (A.p === '?') { const l = A.k === 'eyes' ? seeNbrs(c, 'eyes') : []; A.p = l.length ? l[0] : -1; }
+        if (A.p >= 0) AIMED[A.k](c, A.p);
+      }
+      else if (A.a === 'path') {
+        // '?': the first neighbour across a border of trees (forest) or mountains (tunnel), recorded for the test
+        const c = U.army(), st = A.kind === 'forest' ? 'trees' : 'mountains';
+        if (A.p === '?') { const q = allNbr[c.prov].find(q => edgeBetween(c.prov, q, st, false) >= 0); A.p = q === undefined ? -1 : q; }
+        window.__pathTo = A.p;
+        if (A.p >= 0) startPath(c, A.p, A.kind, false);
+      }
       else if (A.a === 'link') {
         // '?': the first explored open neighbour of the Mason's province other than the capital (recorded for the test)
         if (A.p === '?') { const c = openNbr[u.prov].map(n => n.q).find(q => q !== S.capital && S.explored.has(q)); A.p = c === undefined ? -1 : c; }
@@ -184,7 +234,7 @@ async def main():
         await pg.add_init_script("localStorage.setItem('realm-intro-seen','1'); window.requestAnimationFrame = () => 0;")
         await pg.goto('http://localhost:8777/realmlings_play.html'); await pg.wait_for_timeout(800)
         for seed in SEEDS:
-            for sc in ['orders', 'auto', 'train', 'research', 'magic', 'roads', 'develop']:
+            for sc in [a for a in (sys.argv[1:] or ['orders', 'auto', 'train', 'research', 'magic', 'roads', 'develop', 'life', 'arcane', 'death'])]:
                 await pg.reload(); await pg.wait_for_timeout(600)
                 plan = json.loads(await pg.evaluate("s => window.__evalIn(s)", SETUP % (json.dumps(seed), json.dumps(LEADER[sc]))))
                 acts = ACTIONS[sc](plan)
