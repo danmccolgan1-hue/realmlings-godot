@@ -46,6 +46,7 @@ static func play(fx: Dictionary) -> Array:
 	var errs := []
 	var g := Game.new_world(fx.seed, fx.leader, fx.slots, "center")
 	g.battle_rand = func(): return 0.5
+	g.ai_frozen = true   # the fixture freezes the brains (stepAI, aiEnemyThink)
 	g.units = g.units.filter(func(u): return not u.get("bandit", false))
 	g.travelers.clear()
 	g.paused = false

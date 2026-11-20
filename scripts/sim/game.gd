@@ -414,6 +414,12 @@ func assign_ai_leaders() -> void:
 
 ## web: v105.js applyLeaderStart(o) with the v106.js wrapper (the Horsemistress), for any nation
 func apply_leader_start(o := ME) -> void:
+	apply_leader_start0(o)
+	if o != ME and nations.has(o):
+		nations[o].income = Ai.income(self, nations[o])
+
+
+func apply_leader_start0(o := ME) -> void:
 	var L = leader_of(o)
 	var cap := cap_of(o)
 	if L == null or cap < 0:
@@ -735,11 +741,14 @@ func extras_in(p: int) -> Array:
 	return extras.get(p, [])
 
 
-# web: game.js plotCap() (no conquered capitals, no Auto-build outposts yet)
+# web: game.js plotCap(): Conquered Capitals have 6 plots, Auto-build outposts one more
 func plot_cap(p: int) -> int:
 	if not buildings.has(p):
 		return 0
-	return GameData.c("PLOTS_BY_STAGE")[buildings[p].stage]
+	var b: Dictionary = buildings[p]
+	if b.get("cc", false):
+		return 6
+	return GameData.c("PLOTS_BY_STAGE")[b.stage] + (1 if b.stage == 0 and tech_of(b.owner, "autobuild") else 0)
 
 
 # web: game.js usedSlots() (building sites and pending orders come with the Mason)
@@ -783,11 +792,11 @@ func prov_limit() -> int:
 
 
 # web: v106.js devLimitBonus(): developed forts and capitals hold more provinces
-func dev_limit_bonus() -> int:
+func dev_limit_bonus(o := ME) -> int:
 	var dev := 0
 	for p in devel:
 		var r: Dictionary = devel[p]
-		if r.get("lv", 0) and buildings.has(p) and buildings[p].owner == ME and buildings[p].stage >= 1:
+		if r.get("lv", 0) and buildings.has(p) and buildings[p].owner == o and buildings[p].stage >= 1:
 			dev += r.lv
 	return dev
 
@@ -914,8 +923,9 @@ func upkeep() -> Dictionary:
 
 
 # web: v106.js leaderUpkeepCut(): the Horsemistress' cavalry eat at most 3 food each
-func leader_upkeep_cut(troops: Dictionary) -> int:
-	if leader != "hisola":
+func leader_upkeep_cut(troops: Dictionary, o := ME) -> int:
+	var L = leader_of(o)
+	if L == null or L.id != "hisola":
 		return 0
 	var cut := 0
 	for k in troops:
@@ -986,6 +996,8 @@ func payday(_t: float) -> void:
 	for k in RES:
 		stock[k] = maxi(0, stock[k] + income[k])
 	step_exhaustion(short)
+	if not nations.is_empty():
+		Ai.payday(self)
 	tech_payday()
 	regen_mana()
 	if on_payday.is_valid():
@@ -1047,6 +1059,7 @@ func update(real_t: float) -> void:
 		if not nations.is_empty():
 			step_war(t)
 			step_ai(t)
+		step_scouts(t)
 		step_magic(t, dt)
 		step_gpc(t)
 		step_patrols(t, dt)
@@ -1065,7 +1078,12 @@ func update(real_t: float) -> void:
 		dev_t = t
 		d = minf(d, 1.0)
 		step_develop(d)
+		if not nations.is_empty() and not fallen:
+			Ai.step_enemies(self)
 		step_orders()
+		if not nations.is_empty() and not fallen:
+			for id in nations:
+				Ai.develop(self, nations[id])
 		if not nations.is_empty():
 			step_war_timers()
 	compute_fog()
@@ -1146,7 +1164,7 @@ func find_path(u: Dictionary, target: int):
 		if a == target:
 			break
 		for n in path_nbr(u, a):
-			if not prev.has(n.q) and can_enter(u, n.q, target):
+			if not prev.has(n.q) and (path_avoid == null or n.q == target or not path_avoid.has(n.q)) and can_enter(u, n.q, target):
 				prev[n.q] = {"a": a, "m": n.m}
 				q.append(n.q)
 	if not prev.has(target):
@@ -1160,8 +1178,22 @@ func find_path(u: Dictionary, target: int):
 	return hops
 
 
-# web: game.js order(u, target, quiet, pt)
+## web: v101.js pathAvoid: while a computer nation's army is ordered at war, paths avoid where an outmatching enemy
+## stands or is heading (the destination excepted)
+var path_avoid = null
+
+
+# web: game.js order(u, target, quiet, pt) + v101.js (computer armies at war steer clear of armies that would crush them)
 func order(u: Dictionary, target: int, quiet := false, pt = null) -> bool:
+	if u.kind == "army" and nations.has(u.owner) and not enemies_of(u.owner).is_empty():
+		path_avoid = Ai.danger_for(self, nations[u.owner], raw_strength([u]))
+		var r := order0(u, target, quiet, pt)
+		path_avoid = null
+		return r
+	return order0(u, target, quiet, pt)
+
+
+func order0(u: Dictionary, target: int, quiet := false, pt = null) -> bool:
 	if u.get("fleeing", false):
 		if not quiet:
 			toast("%s is running from bandits. He takes orders again once he is back." % u.name, true)
@@ -1330,6 +1362,9 @@ func step_unit(u: Dictionary, dt: float) -> void:
 					if u.get("retreatHome", false):
 						u.retreatHome = false
 						toast("%s is back under your command." % u.name)
+					if u.get("exiting", false) and (nation_of(u.prov) == u.owner or u.get("exitTo", -1) == u.prov):
+						u.exiting = false
+						u.erase("exitTo")
 			else:
 				u.x += dx / d * sp * time
 				u.y += dy / d * sp * time
@@ -1808,34 +1843,84 @@ func begin_extra(u: Dictionary, type: String, want := -1) -> bool:
 # web: game.js cancelBuild(u): the resources come back
 func cancel_build(u: Dictionary) -> void:
 	if u.build != null and u.build.has("paid"):
+		var st := stock_of(u.owner)
 		for k in u.build.paid:
-			stock[k] += u.build.paid[k]
+			st[k] += u.build.paid[k]
 	u.build = null
 
 
-# the end of a build (web: game.js update(), "if (u.build) ...")
+# the end of a build (web: game.js update(), "if (u.build) ...") — any owner's Mason
 func finish_build(u: Dictionary) -> void:
 	var b: Dictionary = u.build
+	var mine: bool = u.owner == ME
 	if b.type in ["road", "wall"]:
 		finish_link(b)
 	elif b.type != "outpost":
-		if owned(u.prov):
+		if nation_of(u.prov) == u.owner:
 			if not extras.has(u.prov):
 				extras[u.prov] = []
 			extras[u.prov].append({"type": b.type, "slot": b.slot, "born": t})
-			toast("%s built." % BUILD_DEFS[b.type].name)
-			compute_income()
+			if mine:
+				toast("%s built." % BUILD_DEFS[b.type].name)
+				compute_income()
 		else:
 			cancel_build(u)
-			toast("The province is no longer yours: construction cancelled, resources refunded.", true)
+			if mine:
+				toast("The province is no longer yours: construction cancelled, resources refunded.", true)
 	elif not buildings.has(u.prov):
 		buildings[u.prov] = {"stage": 0, "born": t, "owner": u.owner}
 		compute_income()
-		toast("Outpost built. Its neighbors are now explored.")
+		outpost_claimed(u.prov, u.owner)
+		if mine:
+			toast("Outpost built. Its neighbors are now explored.")
 	else:
 		cancel_build(u)
-		toast("Someone claimed this province first: outpost cancelled, resources refunded.", true)
+		if mine:
+			toast("Someone claimed this province first: outpost cancelled, resources refunded.", true)
+	if not mine and u.build != null:
+		Ai.built(self, u)
 	u.build = null
+
+
+# web: gpc.js outpostClaimed(p, by): another nation's Wayfinders standing there withdraw
+func outpost_claimed(p: int, by: int) -> void:
+	for u in units.duplicate():
+		if u.kind != WAYFINDER or u.owner == by or u.prov != p or u.get("exiting", false) or u.get("stealth", false):
+			continue
+		var back = u.get("lastProv")
+		var bo := nation_of(back) if back != null else 0
+		var ok_back: bool = back != null and back != p and (bo == u.owner or (bo != 0 and hostile(u.owner, bo)))
+		u.path = []
+		u.moving = false
+		u.scouting = null
+		u.survey = null
+		u.aiSurvey = null
+		u.erase("aiTarget")
+		u.aiJob = null
+		u.surveyQueue = []
+		u.pendingSurvey = -1
+		u.autoWalk = null
+		u.pending = null
+		var dest: int = back if ok_back else capital_of(u.owner)
+		if dest < 0:
+			var own := provs_of(u.owner)
+			if own.is_empty():
+				continue
+			var d := hops_list(p, all_nbr)
+			own = JS.stable_sort(own, func(x, y): return d[x] - d[y])
+			dest = own[0]
+		u.exiting = true
+		if not order(u, dest, true):
+			u.prov = dest
+			u.slot = free_slot(dest, u)
+			var xy := slot_pos(dest, u.slot)
+			u.x = xy[0]
+			u.y = xy[1]
+			u.exiting = false
+		elif ok_back:
+			u.exitTo = dest
+		if u.owner == ME:
+			toast("The %s finished an outpost at %s: %s withdraws to %s." % [player_info(by).name, prov_name(p), u.name, prov_name(dest) if ok_back else "your capital"], true)
 
 
 # web: game.js bslotOf(p, slot): where building plot `slot` sits, as an offset from the province centre (seeded)
@@ -3050,10 +3135,10 @@ func dev_cost(lv: int) -> Dictionary:
 	return {"gold": c, "wood": c, "food": c}
 
 
-func dev_why(p: int):
+func dev_why(p: int, o := ME):
 	if not buildings.has(p):
 		return "Needs an outpost, fort or capital"
-	if buildings[p].owner != ME:
+	if buildings[p].owner != o:
 		return "Not yours"
 	var r = dev_rec(p)
 	var lv: int = r.lv if r != null else 0
@@ -3064,20 +3149,31 @@ func dev_why(p: int):
 		return "Already developing"
 	if occ.has(p):
 		return "Occupied by the enemy"
+	if o != ME:
+		var st := stock_of(o)
+		var c := dev_cost(lv)
+		for k in c:
+			if st[k] < c[k]:
+				return "Not enough resources"
+		return null
 	return lack_text(dev_cost(lv))
 
 
-func start_develop(p: int) -> bool:
-	var why = dev_why(p)
+func start_develop(p: int, o := ME) -> bool:
+	var why = dev_why(p, o)
 	if why != null:
-		toast("Can’t develop: %s." % str(why).to_lower(), true)
+		if o == ME:
+			toast("Can’t develop: %s." % str(why).to_lower(), true)
 		return false
 	var r: Dictionary = dev_rec(p, true)
 	var c := dev_cost(r.lv)
+	var st := stock_of(o)
 	for k in c:
-		stock[k] -= c[k]
-	r.owner = ME
-	r.job = {"done": 0.0, "paid": c, "by": ME}
+		st[k] -= c[k]
+	r.owner = o
+	r.job = {"done": 0.0, "paid": c, "by": o}
+	if o != ME:
+		return true
 	toast("Developing to level %d: %d minutes (−%s)." % [r.lv + 1, GameData.c("DEV").time / 60, cost_text(c)])
 	compute_income()
 	return true
@@ -3202,8 +3298,8 @@ func is_caster(u) -> bool:
 	return u != null and u.owner == ME and mages_in(u) > 0
 
 
-func mana_cap() -> int:
-	return MANA_CAPS[2] if has_tech("magicabund") else MANA_CAPS[1] if has_tech("magicwell") else MANA_CAPS[0]
+func mana_cap(o := ME) -> int:
+	return MANA_CAPS[2] if tech_of(o, "magicabund") else MANA_CAPS[1] if tech_of(o, "magicwell") else MANA_CAPS[0]
 
 
 static func mana_of(c) -> float:
@@ -3582,20 +3678,28 @@ func sync_mana(now: float) -> void:
 
 # web: v98.js regenMana() at every payday: each Mage not casting regains mana for every Mage Tower (by level)
 func regen_mana() -> void:
+	var per := {}
+	for c in units:
+		if mages_in(c) <= 0 or c.get("cast") != null or c.get("quake"):
+			continue
+		if not per.has(c.owner):
+			per[c.owner] = [mana_regen(c.owner), mana_cap(c.owner)]
+		c.mana = minf(per[c.owner][1], mana_of(c) + per[c.owner][0])
+
+
+# web: v98.js manaRegen(o) + v105.js (a Mage leader's Mages regain 4 more)
+func mana_regen(o: int) -> int:
 	var r := 0
 	for p in extras:
-		if not owned(p) or occ.has(p):
+		if nation_of(p) != o or (occ.has(p) and occ[p] != o):
 			continue
 		for e in extras[p]:
 			if e.type == "magetower":
 				r += MANA_REGEN[mini(3, e.get("level", 1))]
-	var L = leader_of()
-	if L != null and L.start == "mage":
-		r += 4   # v105: a Mage leader's Mages regain 4 more
-	for c in units:
-		if mages_in(c) <= 0 or c.get("cast") != null:
-			continue
-		c.mana = minf(mana_cap(), mana_of(c) + r)
+	var L = leader_of(o)
+	if L != null and L.get("start") == "mage":
+		r += 4
+	return r
 
 
 # web: magic.js stepMagic(t, dt) + v98.js wrapper
@@ -4456,6 +4560,8 @@ func hops_from(p: int) -> Dictionary:
 func retreat(a: Dictionary) -> void:
 	if a.get("battle") == null:
 		return
+	if nations.has(a.owner) and retreat_lock_left(a) <= 0:
+		Ai.note_defeat(self, a, a.battle)   # v100: what beat it decides the counters it trains
 	if retreat_lock_left(a) > 0:
 		toast("%s can’t pull out yet: the lines are locked for %d s more." % [a.name, ceili(retreat_lock_left(a))], true)
 		return
@@ -4666,6 +4772,87 @@ func bandit_flee(u: Dictionary) -> bool:
 		u.fleeing = true
 	toast("%s ran into a Bandit Gang and is scurrying back, unharmed. Wayfinders can't go there until the gang is gone." % u.name, true)
 	return true
+
+
+# web: govtech.js stepScouts: a Wayfinder or Mason who meets enemy soldiers runs back the way he came; marked for 15 s
+# after, a second meeting gives a friendly army 5 s to reach him before he is caught (sneaking comes with Stealth)
+const SCOUT_MARK := 15.0
+const SCOUT_RESCUE := 5.0
+
+func step_scouts(now: float) -> void:
+	for u in units.duplicate():
+		if u.kind != WAYFINDER and u.kind != MASON:
+			continue
+		var mine: bool = u.owner == ME
+		if mine and u.get("stealth", false) and not has_tech("stealth"):
+			u.stealth = false
+		if u.get("stealth", false):
+			continue
+		if u.get("warFlee", false) and not u.get("fleeing", false) and not u.moving:
+			u.warFlee = false
+			u.markUntil = now + SCOUT_MARK
+		var foe = null
+		for v in units:
+			if v.kind == "army" and (not v.get("bandit", false) or u.kind == MASON) and hostile(v.owner, u.owner) and v.prov == u.prov and not v.get("retreating", false) and troop_count(v) > 0:
+				foe = v
+				break
+		if foe != null and foe.get("bandit", false) and mine:
+			foe.seen = true
+		var guard: bool = foe != null and units.any(func(v): return v.kind == "army" and v.owner == u.owner and v.prov == u.prov and troop_count(v) > 0)
+		if foe == null or guard:
+			if u.get("doomAt", 0.0):
+				u.doomAt = 0.0
+				if mine:
+					toast("%s is safe: your army reached him." % u.name if guard else "%s got away." % u.name)
+			continue
+		if u.get("fleeing", false):
+			continue
+		if u.get("doomAt", 0.0):
+			if now < u.doomAt:
+				continue
+			u._gone = true
+			units = units.filter(func(v): return not is_same(v, u))
+			if u.build != null:
+				cancel_build(u)
+			if mine:
+				compute_income()
+				toast("%s was caught by %s and killed." % [u.name, foe.name], true)
+			continue
+		var back = u.get("lastProv")
+		if now < u.get("markUntil", 0.0) or back == null or back == u.prov:
+			u.doomAt = now + SCOUT_RESCUE
+			u.path = []
+			u.moving = false
+			if u.build != null:
+				cancel_build(u)
+			u.pending = null
+			u.aiJob = null
+			if mine:
+				toast("%s is cornered by %s at %s! Get an army there within %d seconds to save him." % [u.name, foe.name, prov_name(u.prov), SCOUT_RESCUE], true)
+			continue
+		u.path = []
+		u.moving = false
+		u.scouting = null
+		u.survey = null
+		u.aiSurvey = null
+		u.erase("aiTarget")
+		u.surveyQueue = []
+		u.pendingSurvey = -1
+		u.autoWalk = null
+		if u.build != null:
+			cancel_build(u)
+		u.pending = null
+		u.aiJob = null
+		u.fleeing = false
+		if not order(u, back, true):
+			u.doomAt = now + SCOUT_RESCUE
+			if mine:
+				toast("%s is cornered by %s at %s! Get an army there within %d seconds to save him." % [u.name, foe.name, prov_name(u.prov), SCOUT_RESCUE], true)
+			continue
+		u.fleeing = true
+		u.warFlee = true
+		if mine:
+			toast("%s spotted %s at %s and is running back to %s." % [u.name, foe.name, prov_name(u.prov), prov_name(back)], true)
 
 
 # =================================================================================================================
@@ -5525,7 +5712,7 @@ func spawn_ai_nations(slots: Array) -> void:
 			"alive": true, "capital": cap, "stock": GameData.c("START_STOCK").duplicate(), "rep": {}, "surveyed": {cap: true}, "exhaust": 0,
 			"ups": {}, "xups": {}, "tech": tech_state, "queue": [], "think": t + 1 + i * 0.37, "nextOutpost": 0, "phase": "grow",
 			"stuckSince": null, "warCheck": warc, "family": fam, "armorLine": D.armor, "race": rc, "school": null, "wantSchool": school,
-			"spellT": 0, "dv": 0, "design": {"inf": "d-sword", "cav": "d-rider"}, "armyN": 0}
+			"spellT": 0, "dv": 0, "design": {"inf": "d-sword", "cav": "d-rider"}, "armyN": 0, "income": {"gold": 0, "wood": 0, "food": 0}}
 		nations[id] = N
 		buildings[cap] = {"stage": 2, "born": -10, "owner": id}
 		var wf := mk_unit(next_id, GameData.c("WAYFINDER"), "", cap, 0)
@@ -5925,6 +6112,16 @@ func opinion_parts(o: int, t2: int) -> Array:
 	for m in D.mods:
 		if m.o == o and m.t == t2 and m.until > t:
 			out.append([m.kind, m.v])
+	# v106: access they give, Trade Networks, proclaimed enemies, shared enemies
+	if D.access.any(func(g): return g.from == t2 and g.to == o) and not allied(o, t2):
+		out.append(["Grants you military access", DIPL_ACCESS_OP])
+	if D.get("trade", []).any(func(P): return (P.a == o and P.b == t2) or (P.a == t2 and P.b == o)):
+		out.append(["Trade Network", DIPL_TRADE_OP])
+	if enemy_of(t2) == o:
+		out.append(["Proclaimed you their enemy", DIPL_ENEMY])
+	var eo := enemy_of(o)
+	if eo and eo != t2 and enemy_of(t2) == eo:
+		out.append(["Shared Enemies: the %s" % player_info(eo).name, DIPL_SHARED])
 	return out
 
 
@@ -5936,7 +6133,8 @@ func opinion(o: int, t2: int) -> int:
 
 
 func enemy_of(o: int) -> int:
-	return dipl_state().enemy.get(o, 0)
+	var r = dipl_state().enemy.get(o)
+	return r.t if r is Dictionary and alive_nation(r.t) else 0
 
 
 func access_given(from: int, to: int) -> bool:
@@ -6936,12 +7134,83 @@ func step_diplomacy() -> void:
 
 
 # =================================================================================================================
-# the computer players (web: ai.js stepAI and its wrappers); the brains are ported in the next step
+# the computer players (web: ai.js stepAI and its wrappers): the rules are in ai.gd (class Ai)
 var ally_check := 0.0
+var ai_frozen := false          # tests: the brains are off (alliances are still checked), like the web fixtures' frozen stepAI
+var ai_war_plans := {}          # web: v100.js aiWarPlans (kept off the save)
+var v104_cache := {"k": -1}
+var crop_scan_at := 0.0
+var wilds_t := -1
+var wilds = null
+var ai_scout_t := -9.0
+const DIPL_ENEMY_EVERY := 600.0
+const DIPL_ENEMY := -300
+const DIPL_SHARED := 50
+const DIPL_ACCESS_OP := 25
+const DIPL_TRADE_OP := 25
 
 func step_ai(now: float) -> void:
 	if not started:
 		return
-	if now >= ally_check:
-		ally_check = now + 5
-		step_alliances()
+	if ai_frozen:
+		if now >= ally_check:
+			ally_check = now + 5
+			step_alliances()
+		return
+	Ai.step(self, now)
+
+
+func ai_note_defeat(a: Dictionary, b) -> void:
+	Ai.note_defeat(self, a, b)
+
+
+func ai_on_transfer(p: int, from: int, to: int) -> void:
+	Ai.on_transfer(self, p, from, to)
+
+
+# --- v106 Proclaim Enemy ---
+func enemy_state() -> Dictionary:
+	var D := dipl_state()
+	if not D.has("enemy"):
+		D.enemy = {}
+	if not D.has("enemyAt"):
+		D.enemyAt = {}
+	return D
+
+
+func proclaim_why(o: int, t2: int) -> String:
+	var D := enemy_state()
+	if o == t2 or not alive_nation(t2):
+		return "Not possible"
+	if enemy_of(o) == t2:
+		return ""
+	if enemy_of(o):
+		return "%s the %s (renounce first)" % ["You already proclaim" if o == ME else "They already proclaim", player_info(enemy_of(o)).name]
+	if allied(o, t2):
+		return "Not your ally"
+	var left: float = D.enemyAt.get(o, -1e9) + DIPL_ENEMY_EVERY - t
+	if left > 0:
+		return "One proclamation every %d minutes: %s left" % [int(DIPL_ENEMY_EVERY / 60), fmt_time(left)]
+	return ""
+
+
+func proclaim_enemy(o: int, t2: int) -> void:
+	var D := enemy_state()
+	D.enemy[o] = {"t": t2, "since": t}
+	D.enemyAt[o] = t
+	if o == ME:
+		toast("You proclaim the %s your enemy: %d opinion with them for as long as it stands. Nations with the same enemy like you more (+%d)." % [player_info(t2).name, DIPL_ENEMY, DIPL_SHARED])
+	elif t2 == ME:
+		toast("The %s proclaimed you their enemy!" % player_info(o).name, true)
+
+
+func renounce_enemy(o: int) -> void:
+	var D := enemy_state()
+	var r = D.enemy.get(o)
+	if r == null:
+		return
+	D.enemy.erase(o)
+	if o == ME:
+		toast("You renounce your proclamation against the %s." % player_info(r.t).name)
+	elif r.t == ME:
+		toast("The %s no longer proclaims you their enemy." % player_info(o).name)
