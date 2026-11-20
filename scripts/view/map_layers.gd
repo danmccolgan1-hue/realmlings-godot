@@ -364,7 +364,6 @@ func _paint_territory(ci: CanvasItem) -> void:
 		return
 	var g: Game = view.game
 	var V: Array = w.vertices
-	var P: Dictionary = GameData.c("PLAYERS")
 	var by_owner := {}
 	for p in g.buildings:
 		var o: int = g.buildings[p].owner
@@ -385,8 +384,8 @@ func _paint_territory(ci: CanvasItem) -> void:
 	var px := 1.0 / cam_zoom()
 	for o in by_owner:
 		var T: Dictionary = by_owner[o]
-		var col := Color(P[str(o)].color)
-		var light := Color(P[str(o)].light)
+		var col := Color(g.player_info(o).color)   # (the nations' own colors: ids past 6 aren't in PLAYERS)
+		var light := Color(g.player_info(o).light)
 		var lines := chains(T.segs)
 		# the province shapes clip the bands to the inside of the border
 		var mask := Layer.new()
@@ -471,7 +470,7 @@ func _build_fog() -> void:
 	var L := Layer.new()
 	L.paint = func(ci: CanvasItem):
 		ci.draw_rect(Rect2(Vector2.ZERO, Vector2(fog_vp.size)), Color.BLACK)
-		if view.game == null:
+		if view.game == null or view.game.reveal_all:   # (Settings → Debug → Reveal, and replays: no fog at all)
 			ci.draw_rect(Rect2(Vector2.ZERO, Vector2(fog_vp.size)), Color.WHITE)
 			return
 		var V: Array = w.vertices
@@ -514,7 +513,7 @@ func refresh() -> void:
 	var g: Game = view.game
 	if g == null:
 		return
-	var fk := "%s|%s" % [g.explored.keys(), g.visible.keys()]
+	var fk := "%s|%s|%s" % [g.explored.keys(), g.visible.keys(), g.reveal_all]
 	if fk != fog_key:
 		fog_key = fk
 		fog_vp.render_target_update_mode = SubViewport.UPDATE_ONCE

@@ -200,7 +200,10 @@ func set_game(g: Game) -> void:
 	diplomacy.setup(g, self)
 	requests.setup(g, self)
 	flags.setup(g, self)
-	g.on_game_over = func(_w): dialog.ask("Your realm has fallen", "Every province you held is gone. The other nations play on without you.",
+	g.on_game_over = func(_w):
+		if main:
+			main.save_recording()
+		dialog.ask("Your realm has fallen", "Every province you held is gone. The other nations play on without you.",
 		[{"id": "menu", "label": "Main menu", "why": null}, {"id": "watch", "label": "Watch", "why": null}],
 		func(id): if id == "menu" and main: main.to_main_menu())
 	roster.setup(g, self)

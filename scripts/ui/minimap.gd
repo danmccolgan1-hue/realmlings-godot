@@ -40,7 +40,6 @@ func _draw() -> void:
 	if game == null:
 		return
 	draw_rect(Rect2(Vector2.ZERO, SIZE), MapLayers.SEA.darkened(0.15))
-	var P: Dictionary = GameData.c("PLAYERS")
 	for i in map.polys.size():
 		var pts := PackedVector2Array()
 		for v in map.polys[i]:
@@ -52,7 +51,7 @@ func _draw() -> void:
 		draw_colored_polygon(pts, col)
 		if game.buildings.has(i):
 			pts.append(pts[0])
-			draw_polyline(pts, Color(P[str(game.buildings[i].owner)].color), 2.5)
+			draw_polyline(pts, Color(game.player_info(game.buildings[i].owner).color), 2.5)
 	for u in game.units:
 		if u.owner != Game.ME and not game.visible.has(u.prov):
 			continue

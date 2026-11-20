@@ -87,6 +87,28 @@ The plan after milestone 1. Each step is tested against the web game, then commi
      map seed, and the debug switches (reveal, +2000 resources, every technology; swamp.js). Not ported: Quick queue
      (the port has no Ctrl+right-click build menu yet), music and sound volumes (no audio yet).
    - Patch Notes on the start screen: the port's own versions, then the web game's v106 notes (PATCH_NOTES).
+8. **Batch D: recordings and replays, Windows build, saves, speed** — done (`tests/test_replay.gd`, `tests/test_build.gd`):
+   - Recording (`scripts/sim/recorder.gd`; Settings → Record games, off by default; full maps only): the web game's
+     v102 log (events by diffing every second: buildings built / upgraded / lost, settlements gained / lost,
+     research, milestones, wars, peace with its terms; a line per nation every 30 s) plus a map frame every 5 s
+     (province owners and stages, buildings, roads and walls as changes; every nation's armies with ids). Left out of
+     the web log: the player's picked research, training and spell counts, design changes, gear mix. It lives in the
+     save (`rec`) and is written to `user://recordings/` on every autosave, on leaving, on falling and on quitting.
+     Recording reads the game only (the test checks a recorded game plays exactly like the same game unrecorded).
+   - Replays (`scripts/view/replay.gd`, `scripts/ui/replay_hud.gd`, `scripts/ui/recordings_window.gd`): Recorded games
+     on the start screen; the map is raised again from the seed and a stand-in Game is set to each moment (armies glide
+     between frames); play / pause, 1× to 64×, a timeline to scrub, every nation's numbers, a chart of provinces held,
+     and the latest events. No fog in replays (or with Debug → Reveal).
+   - Windows: `export_presets.cfg` (icon `assets/icon/realmlings.ico` from `tools/make_icon.gd` + `.py`, version 0.5.0,
+     company and copyright, build folders left out); `docs/BUILDING.md` has the steps to export on your PC.
+   - Saves carry `version` 2 and the `build` that wrote them; version-1 saves load (missing fields keep a new game's
+     defaults), a newer save is refused with the reason (`Game.migrate_save`, `Game.save_why`).
+   - Speed, same answers (all fixtures still match): `Game.enter_cache` (the unit checks of `can_enter` worked out once
+     per AI walk), `Game.armies_by_prov` (scouts and patrols), Wayfinder bandit check, road midpoints cached. Six
+     computer nations, 40 minutes: about 3–6 ms of rules per frame, the worst AI frame 15–20 ms (was 37).
+     Rendering can't be timed here (software GL); the map's own drawing code is about 3 ms a frame on the full map.
+   - Fixed: the map and minimap took nation colors from the static PLAYERS table (ids 1–6), so games with 4+ opponents
+     failed to draw borders and other nations' colors could differ from their own; they use `player_info` now.
 
 ## Things to remember
 

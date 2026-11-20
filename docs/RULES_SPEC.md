@@ -38,6 +38,8 @@ The web game in `reference/web-v106/` is the source of truth. This spec says **w
 | 15. Sieges, quakes, bosses and artifacts | Done: battering walls, broken walls and rebuilding them, Shockwave and Earthquake for everyone, boss fights, the nine artifacts and Winged Slippers, Intact Ruins | 3 scripted games (`tests/test_siege.gd`) |
 | 16. Diplomacy actions and requests | Done: flirt, gifts, alliances asked and offered, military access, Trade Networks, spies, bribes, the request queue, gift vaults, news | 2 scripted games (`tests/test_dipl.gd`) |
 | 17. Flags, tooltips, settings, patch notes | Done: notification flags (flags.js and wrappers), command and button tooltips (cmdInfo), Settings with debug switches, Patch Notes | `tests/test_ui.gd` |
+| 18. Recordings and replays | Done: v102 recording (events, milestones, 30 s lines) plus map frames; replay viewer from the start screen | `tests/test_replay.gd` (a recorded game plays exactly like an unrecorded one; the replay matches the map) |
+| 19. Shipping | Windows export preset and icon, save versions with migration, version on screen | `tests/test_build.gd`; build steps in `docs/BUILDING.md` |
 | 3. Economy, later | Crops and Harvest, Trade Routes, Sawyer Guilds, artifacts, research points and mana at payday, deep gold mines | arrive with the systems that switch them on |
 
 Left out of milestone 1 for now: the technology the Intact Ruins grant is picked at random in the web game (tests remove the ruins and check their placement).

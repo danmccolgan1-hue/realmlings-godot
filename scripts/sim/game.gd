@@ -1155,6 +1155,8 @@ func update(real_t: float) -> void:
 		update_met()
 	if tutorial != null:
 		tutorial.step()
+	if not rec.is_empty():
+		Recorder.step(self)   # web: v102.js stepRecord
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -1185,7 +1187,8 @@ func busy(u: Dictionary) -> bool:
 
 
 # web: game.js canEnter() — on the Practice island there are no other nations, bandits or bosses to keep out of
-func can_enter(u: Dictionary, q: int, tgt: int) -> bool:
+## `seen` (from enter_cache) answers the unit-scanning checks for a walk over many provinces; same answers.
+func can_enter(u: Dictionary, q: int, tgt: int, seen := {}) -> bool:
 	var ok: bool = u.owner != ME or u.get("exiting", false) or explored.has(q)
 	if not ok and u.kind == WAYFINDER:
 		ok = q == tgt or (u.autoWalk != null and q == u.autoWalk.to)
@@ -1193,15 +1196,35 @@ func can_enter(u: Dictionary, q: int, tgt: int) -> bool:
 		ok = not wars.is_empty() and nation_of(q) != 0 and hostile(ME, nation_of(q))
 	if not ok:
 		return false
-	if u.kind == WAYFINDER and u.owner == ME and bandits_seen_in(q):
+	if u.kind == WAYFINDER and u.owner == ME and (seen.bandits.has(q) if not seen.is_empty() else bandits_seen_in(q)):
 		return false
-	if u.kind == MASON and mason_danger(u, q):
+	if u.kind == MASON and (seen.danger.has(q) if not seen.is_empty() else mason_danger(u, q)):
 		return false
 	if not nation_ok(u, q):
 		return false
-	if boss_block(u, q, tgt):
+	if seen.is_empty():
+		if boss_block(u, q, tgt):
+			return false
+	elif is_death_mtn(q) or (nations.has(u.owner) and q != tgt and seen.boss.has(q)):
 		return false
 	return true
+
+
+## The provinces where can_enter's unit checks say no for this unit, worked out in one pass over the units:
+## {bandits: seen Bandit Gangs, danger: a Mason's danger (mason_danger), boss: a boss standing there (boss_in)}.
+func enter_cache(u: Dictionary) -> Dictionary:
+	var bandits := {}
+	var danger := {}
+	var boss := {}
+	for v in units:
+		if v.get("bandit", false) and v.get("seen", false) and troop_count(v) > 0:
+			bandits[v.prov] = true
+		if v.get("boss") != null and troop_count(v) > 0:
+			boss[v.prov] = true
+		if u.kind == MASON and v.kind == "army" and troop_count(v) > 0 and not v.get("retreating", false) and hostile(v.owner, u.owner) \
+				and (u.owner != ME or (v.get("seen", false) if v.get("bandit", false) else visible.has(v.prov))):
+			danger[v.prov] = true
+	return {"bandits": bandits, "danger": danger, "boss": boss}
 
 
 # web: game.js nationOk: other nations' land only at war, in a truce, or with military access (v105)
@@ -2211,6 +2234,10 @@ func compute_fog() -> void:
 
 ## Debug and pictures only (the view's --reveal): the whole map is seen. Not part of the web game's rules.
 var reveal_all := false
+var rec := {}                # the game's recording (Recorder), when Settings → Record games is on
+var rec_prev := {}           # Recorder's working state: what it saw a second ago (not saved)
+var rec_map := {}            # ...and the map in its last frame
+var rec_t := -9.0
 var debug_cap := 0           # web: S.debugCap, the Settings debug button's extra storage
 var debug_tech := false      # web: S.debugTech
 
@@ -4368,19 +4395,21 @@ func step_magic(now: float, dt: float) -> void:
 # ---------------------------------------------------------------------------------------------------------------
 # saving and loading (web: save.js keeps the seed and regenerates the map; this is the Godot format)
 
-const SAVE_VERSION := 1
+## 1: Godot 0.1–0.4. 2: Godot 0.5 (the build that wrote it, recordings, debug switches). Older saves load: fields
+## they don't have keep a new game's defaults (see migrate_save). A save from a newer build is refused.
+const SAVE_VERSION := 2
 ## Everything a game is, besides the map (which comes back from the seed) and the callbacks.
 const SAVE_FIELDS := ["battles", "bandit_count", "monster_count", "leader", "capital", "stock", "income", "income_parts", "buildings", "extras", "occ", "units", "next_id",
 	"army_counter", "tech", "rep", "surveyed", "unit_defs", "designs", "exhaust", "exhaust_ok", "harvest", "devel", "upgrades",
 	"xup", "auto_tech", "roads", "walls", "wall_hp", "artifacts", "gift_vault", "quakes", "quake_seq", "wall_max", "wall_crack", "broken_walls", "rewall_jobs", "gate_own", "fort_walled", "gpc_slow_t", "dev_t", "cd", "paths",
 	"harvest_by", "trap", "reveals", "eyes", "haunts", "mana_pool", "mana_prev_t", "mage_gear", "finds", "treasure_rolled",
 	"sp_found", "setpieces", "travelers", "train_orders", "train_order_seq", "design_seq", "prov_rename", "nations", "players", "race_of", "wars", "truces", "allies", "war_seq", "met", "occ", "occ_prog", "dipl", "war_log", "war_ever", "war_lock", "ai_met", "fallen", "ally_check", "bandit_next", "bandit_waves", "ally_ask", "crop_scan_at", "ai_scout_t", "wf", "known", "explored", "visible", "queues", "rally", "military", "UNIT_SPEED", "open_nbr", "all_nbr",
-	"yields", "tree_border", "debug_cap", "debug_tech", "reveal_all", "t", "next_tick", "paused", "last", "started"]
+	"yields", "tree_border", "debug_cap", "debug_tech", "reveal_all", "rec", "t", "next_tick", "paused", "last", "started"]
 
 
 ## The whole game as a plain Dictionary (see SaveCodec for the text form).
 func to_save() -> Dictionary:
-	var d := {"version": SAVE_VERSION, "seed": str(world.seed).trim_prefix("practice:"), "practice": world.get("practice", false), "mode": world.get("mode", "practice")}
+	var d := {"version": SAVE_VERSION, "build": str(ProjectSettings.get_setting("application/config/version", "")), "seed": str(world.seed).trim_prefix("practice:"), "practice": world.get("practice", false), "mode": world.get("mode", "practice")}
 	var edges := []
 	for e in world.edges:
 		edges.append([e.open, e.style])
@@ -4406,8 +4435,7 @@ func save_text() -> String:
 
 ## A game from to_save(); `map` may be a ready map for the same seed (tests reuse one).
 static func from_save(d: Dictionary, map: Dictionary = {}) -> Game:
-	if int(d.get("version", 0)) != SAVE_VERSION:
-		push_error("Unknown save version %s" % d.get("version"))
+	if not migrate_save(d):
 		return null
 	var g := Game.new()
 	if d.get("mode", "practice") == "normal":
@@ -4422,7 +4450,8 @@ static func from_save(d: Dictionary, map: Dictionary = {}) -> Game:
 	for i in d.terrain.size():
 		g.G.provs[i].terrain = d.terrain[i]
 	for f in SAVE_FIELDS:
-		g.set(f, d[f])
+		if d.has(f):   # (an older save may not have every field: the new game's default stays)
+			g.set(f, d[f])
 	for x in g.designs:
 		if not x.get("builtin", false):
 			g.register_design(x)
@@ -4445,6 +4474,30 @@ static func from_save(d: Dictionary, map: Dictionary = {}) -> Game:
 	g.rng.seed = d.rng[0]
 	g.rng.state = d.rng[1]
 	return g
+
+
+## Bring an older save up to this build's format, in place; false when it can't be read (a newer build's save).
+static func migrate_save(d: Dictionary) -> bool:
+	var v := int(d.get("version", 0))
+	if v < 1 or v > SAVE_VERSION:
+		push_error("Can't read save version %s (this build reads 1 to %d)" % [d.get("version"), SAVE_VERSION])
+		return false
+	# 1 -> 2: new fields only (debug_cap, debug_tech, reveal_all, rec and the Batch A/B fields); their defaults hold
+	d.version = SAVE_VERSION
+	return true
+
+
+## Why a save can't be loaded, for the player: "" when it can.
+static func save_why(text: String) -> String:
+	var d = SaveCodec.from_text(text)
+	if not (d is Dictionary):
+		return "That save can't be read."
+	var v := int(d.get("version", 0))
+	if v > SAVE_VERSION:
+		return "That save was made by a newer version of Realmlings (%s). Update the game to load it." % d.get("build", "?")
+	if v < 1:
+		return "That save can't be read."
+	return ""
 
 
 static func load_text(text: String, map: Dictionary = {}) -> Game:
@@ -4491,6 +4544,18 @@ static func terrain_mod(ter: String, cav: bool, def: bool) -> float:
 
 func hostile(a: int, b: int) -> bool:
 	return a != b and (a == RAIDERS or b == RAIDERS or (not wars.is_empty() and at_war(a, b)))
+
+
+## Every army with soldiers, by the province it stands in, in the units' order (for loops that would otherwise scan
+## all units for each unit; same answers).
+func armies_by_prov() -> Dictionary:
+	var out := {}
+	for v in units:
+		if v.kind == "army" and troop_count(v) > 0:
+			if not out.has(v.prov):
+				out[v.prov] = []
+			out[v.prov].append(v)
+	return out
 
 
 func hostiles_in(p: int, owner: int) -> Array:
@@ -5400,10 +5465,11 @@ func patrol_point(p: int) -> Array:
 
 
 func step_patrols(now: float, dt: float) -> void:
+	var at := armies_by_prov()
 	for u in units:
 		if not u.get("bandit", false) or u.kind != "army" or troop_count(u) <= 0:
 			continue
-		if u.get("battle") != null or u.moving or not hostiles_in(u.prov, u.owner).is_empty():
+		if u.get("battle") != null or u.moving or at.get(u.prov, []).any(func(v): return hostile(v.owner, u.owner) and not v.get("retreating", false)):
 			u.patrolling = false
 			u.pt = null
 			continue
@@ -5465,6 +5531,7 @@ const SCOUT_MARK := 15.0
 const SCOUT_RESCUE := 5.0
 
 func step_scouts(now: float) -> void:
+	var at := armies_by_prov()
 	for u in units.duplicate():
 		if u.kind != WAYFINDER and u.kind != MASON:
 			continue
@@ -5477,13 +5544,14 @@ func step_scouts(now: float) -> void:
 			u.warFlee = false
 			u.markUntil = now + SCOUT_MARK
 		var foe = null
-		for v in units:
-			if v.kind == "army" and (not v.get("bandit", false) or u.kind == MASON) and hostile(v.owner, u.owner) and v.prov == u.prov and not v.get("retreating", false) and troop_count(v) > 0:
+		var here: Array = at.get(u.prov, [])
+		for v in here:
+			if (not v.get("bandit", false) or u.kind == MASON) and hostile(v.owner, u.owner) and not v.get("retreating", false):
 				foe = v
 				break
 		if foe != null and foe.get("bandit", false) and mine:
 			foe.seen = true
-		var guard: bool = foe != null and units.any(func(v): return v.kind == "army" and v.owner == u.owner and v.prov == u.prov and troop_count(v) > 0)
+		var guard: bool = foe != null and here.any(func(v): return v.owner == u.owner)
 		if foe == null or guard:
 			if u.get("doomAt", 0.0):
 				u.doomAt = 0.0
@@ -7641,6 +7709,7 @@ func end_war0(w: Dictionary) -> void:
 func make_peace(w, winner: int, terms: Dictionary) -> void:
 	if w == null or not wars.has(w):
 		return
+	Recorder.peace(self, w, winner, terms)   # web: v102.js makePeace wrapper
 	var loser := foe_of(w, winner)
 	var me := winner == ME or loser == ME
 	var lines := []
@@ -8614,3 +8683,18 @@ func debug_all_tech() -> void:
 	clamp_stock()
 	debug_tech = true
 	toast("Debug: %d technologies researched (Magic school: %s)." % [n, GameData.c("SCHOOLS")[sc].name])
+
+
+## Settings → Record games turned on or off during a game (web: v102.js #recBtn)
+func rec_toggle(v: bool) -> void:
+	if nations.is_empty() or tutorial != null:
+		return
+	if v:
+		if not rec.is_empty():
+			rec.on = true
+		else:
+			Recorder.start(self, "turned on at " + fmt_time(t))
+		toast("Recording this game.")
+	elif not rec.is_empty():
+		rec.on = false
+		toast("Recording stopped. What was recorded so far is kept.")

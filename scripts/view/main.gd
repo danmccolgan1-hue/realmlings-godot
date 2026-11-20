@@ -29,6 +29,9 @@ var dragging := false
 var drag_moved := 0.0
 var menu_settings: SettingsWindow
 var patch_notes: PatchNotes
+var recordings: RecordingsWindow
+var replay: Replay
+var replay_hud: ReplayHud
 
 
 func _ready() -> void:
@@ -57,8 +60,15 @@ func _ready() -> void:
 			shot_slots = a.substr(8).split(",")
 		elif a == "--tutorial":
 			_on_ready.call_deferred(Tutorial.start(), false)
-		elif a.begins_with("--shot=") and OS.get_cmdline_user_args().has("--patch"):
-			_menu_shot.call_deferred(a.substr(7))
+		elif a == "--record":   # record this game (for pictures of a replay), without changing the saved setting
+			Settings.record_games = true
+		elif a.begins_with("--replay=") and Array(OS.get_cmdline_user_args()).any(func(x): return x.begins_with("--shot=")):
+			start_replay.call_deferred(a.substr(9))
+		elif a.begins_with("--shot=") and OS.get_cmdline_user_args().has("--menu"):
+			_menu_shot.call_deferred(a.substr(7), false)
+		elif a.begins_with("--shot=") and (OS.get_cmdline_user_args().has("--patch") or Array(OS.get_cmdline_user_args()).any(func(x): return x.begins_with("--replay="))):
+			if OS.get_cmdline_user_args().has("--patch"):
+				_menu_shot.call_deferred(a.substr(7))
 		elif a.begins_with("--shot=") and not OS.get_cmdline_user_args().has("--tutorial"):
 			_start.call_deferred()
 
@@ -127,46 +137,66 @@ func _build_menu() -> void:
 	start.text = "Start"
 	start.add_theme_font_size_override("font_size", 28)
 	start.pressed.connect(_start)
+	UiKit.style_button(start, true)
 	col.add_child(start)
 	var tut := Button.new()
 	tut.text = "Basic Tutorial"
 	tut.add_theme_font_size_override("font_size", 22)
 	tut.pressed.connect(func(): _on_ready(Tutorial.start(), false))
+	UiKit.style_button(tut)
 	col.add_child(tut)
 	var cont := Button.new()
 	cont.text = "Continue (last autosave)"
 	cont.add_theme_font_size_override("font_size", 22)
 	cont.pressed.connect(func(): load_from(AUTOSAVE))
 	cont.visible = FileAccess.file_exists(AUTOSAVE)
+	UiKit.style_button(cont)
 	col.add_child(cont)
 	var quick := Button.new()
 	quick.text = "Load quicksave (F9)"
 	quick.add_theme_font_size_override("font_size", 22)
 	quick.pressed.connect(func(): load_from(QUICKSAVE))
 	quick.visible = FileAccess.file_exists(QUICKSAVE)
+	UiKit.style_button(quick)
 	col.add_child(quick)
 	var more := HBoxContainer.new()
 	more.add_theme_constant_override("separation", 10)
 	more.alignment = BoxContainer.ALIGNMENT_CENTER
-	for b in [["Settings", func(): menu_settings.toggle(null)], ["Patch Notes", func(): patch_notes.open()]]:
+	for b in [["Recorded games", func(): recordings.open()], ["Settings", func(): menu_settings.toggle(null)], ["Patch Notes", func(): patch_notes.open()]]:
 		var mb := Button.new()
 		mb.text = b[0]
 		mb.add_theme_font_size_override("font_size", 20)
 		mb.pressed.connect(b[1])
+		UiKit.style_button(mb)
 		more.add_child(mb)
 	col.add_child(more)
 	status = _dark("F5 saves, F9 loads, the game autosaves every 5 minutes.")
+	status.add_theme_font_size_override("font_size", 17)
+	status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(status)
+	var ver := _dark("Version %s · follows the web game %s" % [ProjectSettings.get_setting("application/config/version"), GameData.c("GAME_VERSION")])
+	ver.add_theme_font_size_override("font_size", 15)
+	ver.add_theme_color_override("font_color", Color("#6b5a44"))
+	ver.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	col.add_child(ver)
+	if DisplayServer.get_name() != "headless":
+		DisplayServer.window_set_title("Realmlings %s" % ProjectSettings.get_setting("application/config/version"))
 	menu_settings = SettingsWindow.new()
 	ui.add_child(menu_settings)
 	patch_notes = PatchNotes.new()
 	ui.add_child(patch_notes)
+	recordings = RecordingsWindow.new()
+	ui.add_child(recordings)
+	recordings.on_watch = start_replay
+	replay_hud = ReplayHud.new()
+	add_child(replay_hud)
 
 
 ## Leave the game for the start screen (from the in-game menu).
 func to_main_menu() -> void:
 	if game and game.tutorial == null:
 		save_to(AUTOSAVE, true)
+	save_recording()
 	game = null
 	hud.game = null
 	hud.hide()
@@ -200,6 +230,8 @@ func _start() -> void:
 
 func _gen(seed: String, leader_id: String, slots := [], start := "center") -> void:
 	var g := Game.new_practice(seed, leader_id) if slots.is_empty() else Game.new_world(seed, leader_id, slots, start)
+	if Settings.record_games and not slots.is_empty():
+		Recorder.start(g, "new game")
 	call_deferred("_on_ready", g)
 
 
@@ -247,9 +279,15 @@ func load_from(path: String) -> void:
 		else:
 			status.text = "No saved game yet."
 		return
-	var g := Game.load_text(FileAccess.get_file_as_string(path))
+	var txt := FileAccess.get_file_as_string(path)
+	var why := Game.save_why(txt)
+	var g := Game.load_text(txt) if why == "" else null
 	if g == null:
-		status.text = "That save can't be read."
+		why = why if why != "" else "That save can't be read."
+		if hud.visible:
+			hud.add_toast(why, true)
+		else:
+			status.text = why
 		return
 	g.paused = true
 	g.last = 0.0
@@ -260,7 +298,67 @@ func load_from(path: String) -> void:
 	hud.add_toast("Loaded. The game is paused: press Space to go on.")
 
 
+# --- watching a recording ---
+
+## Raise the recorded map and start playing it back (from Recorded games).
+func start_replay(path: String) -> void:
+	if thread and thread.is_alive():
+		return
+	status.text = "Raising the recorded map…"
+	thread = Thread.new()
+	thread.start(func(): call_deferred("_on_replay", Replay.load_file(path)))
+
+
+func _on_replay(r) -> void:
+	thread.wait_to_finish()
+	if r == null:
+		status.text = "That recording can't be read."
+		return
+	status.text = ""
+	replay = r
+	menu.hide()
+	map.selected_unit = null
+	map.selected_prov = -1
+	map.set_game(r.g)
+	replay_hud.setup(r, self, map, cam)
+	var b := map.bounds()
+	cam.position = b.get_center()
+	var z := map.fit_zoom()
+	cam.zoom = Vector2(z, z)
+	for a in OS.get_cmdline_user_args():   # a picture of the replay: --replay=<file> --at=<seconds> --shot=<png>
+		if a.begins_with("--shot="):
+			replay_hud.playing = false
+			var at: float = r.t1 * 0.6
+			for x in OS.get_cmdline_user_args():
+				if x.begins_with("--at="):
+					at = float(x.substr(5))
+			r.seek(at)
+			replay_hud.step(0.0)
+			for x in OS.get_cmdline_user_args():
+				if x.begins_with("--zoom="):
+					cam.zoom = Vector2(float(x.substr(7)), float(x.substr(7)))
+					for u in r.g.units:
+						if u.owner == Game.ME:
+							cam.position = Vector2(u.x, u.y)
+			for i in 4:
+				await get_tree().process_frame
+			await RenderingServer.frame_post_draw
+			get_viewport().get_texture().get_image().save_png(a.substr(7))
+			get_tree().quit()
+
+
+func exit_replay() -> void:
+	replay = null
+	replay_hud.hide()
+	map.game = null
+	menu.show()
+
+
 func _process(delta: float) -> void:
+	if replay != null:
+		_camera(delta)
+		replay_hud.step(delta)
+		return
 	if game:
 		_camera(delta)
 		game.update(Time.get_ticks_msec() / 1000.0)
@@ -268,7 +366,25 @@ func _process(delta: float) -> void:
 			next_autosave = (floor(game.t / AUTOSAVE_EVERY) + 1) * AUTOSAVE_EVERY
 			if game.tutorial == null:
 				save_to(AUTOSAVE, true)
+				save_recording()
 				hud.add_toast("Autosaved.")
+
+
+## The game's recording, if it has one, goes to user://recordings/ (on every autosave, on leaving and on quitting).
+func save_recording() -> void:
+	if game == null or game.rec.is_empty() or game.rec.get("frames", []).is_empty():
+		return
+	DirAccess.make_dir_recursive_absolute(Recorder.DIR)
+	var f := FileAccess.open(Recorder.path_of(game), FileAccess.WRITE)
+	if f == null:
+		return
+	f.store_string(JSON.stringify(Recorder.export(game)))
+	f.close()
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_CLOSE_REQUEST:
+		save_recording()
 
 
 ## For checking the view without a person: godot --path . -- --shot=/tmp/a.png [--seed=ember] [--leader=finn]
@@ -381,6 +497,8 @@ func _maybe_screenshot() -> void:
 	else:
 		map.selected_unit = mason
 		hud.select_unit(mason)
+	if OS.get_cmdline_user_args().has("--record"):
+		save_recording()
 	if OS.get_cmdline_user_args().has("--settings"):
 		hud.settings.open(game)
 	if OS.get_cmdline_user_args().has("--armory"):
@@ -405,6 +523,19 @@ func _maybe_screenshot() -> void:
 				cam.position = Vector2(game.G.provs[c].ic[0], game.G.provs[c].ic[1])
 	for i in 3:
 		await get_tree().process_frame
+	if OS.get_cmdline_user_args().has("--fps"):   # how long frames take, playing at full speed, the whole map in view
+		game.paused = false
+		cam.zoom = Vector2(map.fit_zoom(), map.fit_zoom())
+		cam.position = map.bounds().get_center()
+		var t0 := Time.get_ticks_usec()
+		var worst := 0.0
+		var proc := 0.0
+		for i in 240:
+			var a0 := Time.get_ticks_usec()
+			await get_tree().process_frame
+			worst = maxf(worst, (Time.get_ticks_usec() - a0) / 1000.0)
+			proc += Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0
+		print("FPS-CHECK avg frame %.1f ms, worst %.1f ms, process %.1f ms" % [(Time.get_ticks_usec() - t0) / 240000.0, worst, proc / 240.0])
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--hover="):   # hold the mouse over a spot until its tooltip shows
 			var xy := a.substr(8).split(",")
@@ -421,8 +552,9 @@ func _maybe_screenshot() -> void:
 
 
 ## A picture of the start screen with the Patch Notes open (--patch), for checking the view.
-func _menu_shot(path: String) -> void:
-	patch_notes.open()
+func _menu_shot(path: String, notes := true) -> void:
+	if notes:
+		patch_notes.open()
 	for i in 4:
 		await get_tree().process_frame
 	await RenderingServer.frame_post_draw
@@ -456,6 +588,15 @@ func zoom_by(f: float) -> void:
 
 
 func _unhandled_input(ev: InputEvent) -> void:
+	if replay != null and ev is InputEventKey and ev.pressed and not ev.echo:
+		if ev.keycode == KEY_ESCAPE:
+			exit_replay()
+			get_viewport().set_input_as_handled()
+			return
+		if ev.keycode == KEY_SPACE:
+			replay_hud.toggle_play()
+			get_viewport().set_input_as_handled()
+			return
 	if ev is InputEventKey and ev.pressed and not ev.echo and game:
 		if ev.keycode == KEY_ESCAPE:
 			if hud.settings.win.panel.visible:

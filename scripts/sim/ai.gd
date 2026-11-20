@@ -1463,6 +1463,7 @@ static func reach(g: Game, u: Dictionary, limit := 12) -> Dictionary:
 	var d := {u.prov: 0}
 	var q := [u.prov]
 	var i := 0
+	var seen := g.enter_cache(u)   # what can_enter would find in each province, worked out once for the whole walk
 	while i < q.size():
 		var a: int = q[i]
 		i += 1
@@ -1470,7 +1471,7 @@ static func reach(g: Game, u: Dictionary, limit := 12) -> Dictionary:
 		if da >= limit:
 			continue
 		for nb in g.path_nbr(u, a):
-			if not d.has(nb.q) and g.can_enter(u, nb.q, -1):
+			if not d.has(nb.q) and g.can_enter(u, nb.q, -1, seen):
 				d[nb.q] = da + 1
 				q.append(nb.q)
 	return d
@@ -2038,6 +2039,10 @@ static func wayfinders(g: Game, N: Dictionary, P: Dictionary) -> void:
 	var mine := g.provs_of(N.id)
 	var near := g.hops_list(mine, g.all_nbr)
 	var wfs := units_of(g, N, g.WAYFINDER)
+	var bandit_at := {}   # g.bandits_in, worked out once
+	for v in g.units:
+		if v.get("bandit", false) and g.troop_count(v) > 0:
+			bandit_at[v.prov] = true
 	for u in wfs:
 		if u.moving or u.get("aiSurvey") != null or u.get("exiting", false):
 			continue
@@ -2052,7 +2057,7 @@ static func wayfinders(g: Game, N: Dictionary, P: Dictionary) -> void:
 		var best := -1
 		var bs := INF
 		for p in d:
-			if N.surveyed.has(p) or taken.has(p) or g.buildings.has(p) or g.bandits_in(p) or near[p] > 3:
+			if N.surveyed.has(p) or taken.has(p) or g.buildings.has(p) or bandit_at.has(p) or near[p] > 3:
 				continue
 			var sc: float = d[p] + near[p] * 2
 			if sc < bs:

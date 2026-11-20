@@ -136,3 +136,15 @@ static func tooltip_theme() -> Theme:
 	th.set_font_size("font_size", "TooltipLabel", 17)
 	th.set_color("font_color", "TooltipLabel", Color("#faf1dc"))
 	return th
+
+
+## The start screen's buttons: gold for the main action, dark ink for the rest.
+static func style_button(b: Button, main := false) -> void:
+	var base := GOLD if main else DARK
+	for st in [["normal", base], ["hover", base.lightened(0.12)], ["pressed", base.darkened(0.15)], ["focus", base], ["disabled", base.lerp(Color.GRAY, 0.5)]]:
+		var bx := box(st[1], 10, 3, INK)
+		bx.content_margin_top = 8
+		bx.content_margin_bottom = 8
+		b.add_theme_stylebox_override(st[0], bx)
+	for c in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
+		b.add_theme_color_override(c, INK if main else Color("#faf1dc"))

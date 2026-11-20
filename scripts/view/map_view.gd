@@ -19,11 +19,17 @@ var font: Font
 var selected_prov := -1
 var selected_unit = null    # a unit Dictionary of the game
 var layers: MapLayers
+var _edge_mid := {}       # "a_b" (both ways) -> the middle of that border, where a road crosses it
 const FOG_UNEXPLORED := Color("#10182e", 0.86)
 const FOG_DIM := Color("#10182e", 0.28)
 
 
 func set_world(w: Dictionary) -> void:
+	_edge_mid.clear()
+	for e in w.edges:
+		var m := (_v(w.vertices, e.v[0]) + _v(w.vertices, e.v[1])) / 2
+		_edge_mid["%d_%d" % [e.a, e.b]] = m
+		_edge_mid["%d_%d" % [e.b, e.a]] = m
 	world = w
 	polys.clear()
 	var V: Array = w.vertices
@@ -84,10 +90,7 @@ func _draw() -> void:
 			var ab: PackedStringArray = k.split("_")
 			var a: Array = game.G.provs[int(ab[0])].ic
 			var b: Array = game.G.provs[int(ab[1])].ic
-			var m := Vector2.ZERO
-			for e in world.edges:
-				if (e.a == int(ab[0]) and e.b == int(ab[1])) or (e.a == int(ab[1]) and e.b == int(ab[0])):
-					m = (_v(V, e.v[0]) + _v(V, e.v[1])) / 2
+			var m: Vector2 = _edge_mid.get(k, Vector2.ZERO)
 			var line := PackedVector2Array([Vector2(a[0], a[1]), m, Vector2(b[0], b[1])])
 			draw_polyline(line, OL, 26.0, true)
 			draw_polyline(line, ROAD_COL, 20.0, true)
