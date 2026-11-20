@@ -23,7 +23,11 @@ The web game in `reference/web-v106/` is the source of truth. This spec says **w
 | 1. Map generator | Done (`scripts/gen/realm_gen.gd`) | 16 seeds, every province, border and vertex (`tests/test_world_gen.gd`) |
 | 2. World setup | Done for Realmlings on the Practice island (`scripts/sim/game.gd`, `world_prep.gd`): capital choice, yields, starting units, all 8 Realmling leader starts | 4 seeds × 8 leaders (`tests/test_economy.gd`) |
 | 3. Economy | Done for what exists at the start: income, upkeep (leader cuts, free buildings, province limit), storage, payday every 10 s, Army Exhaustion and desertion | same, 200 s of play each |
+| 4. Settlements and buildings | Done: outposts (survey first, border your land, outpost limit), buildings on plots (`buildCheck`, `bslotOf`), Fort upgrades. Building levels (Forge, Mage Tower), demolish and v106 development still to come | 4 seeds, scripted game (`tests/test_play.gd`) |
+| 5. Workers, movement, fog | Done: orders and paths (`findPath`, `walkHops`, `navRoute`), exploring (8 s a province), surveys (the lap walk), auto-scouting, Far Sight, fog (explored / visible), Intact Ruins placement, Forgotten Treasure. Roads and walls still to come | 4 seeds × 2 scripted games, a snapshot every second, positions to the last digit |
 | 3. Economy, later | Crops and Harvest, Trade Routes, Sawyer Guilds, artifacts, research points and mana at payday, deep gold mines | arrive with the systems that switch them on |
+
+Left out of milestone 1 for now: Bandit Gangs, travelers (`v78.js` placeTravelers), the technology the Intact Ruins grant is picked at random in the web game (tests remove the ruins and check their placement).
 
 Port from the **assembled** game, not the separate files alone: `assemble_game.py` rewrites parts of `page.html` (for example the province inset distances 6 / 50 / 18 used for `ic`).
 

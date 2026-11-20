@@ -1,7 +1,7 @@
 extends Node2D
-## Entry point. Milestone 1 so far: pick a seed and a Realmling leader, then play the Practice island: the economy
-## runs (paydays every 10 s), the starting units stand at the capital.
-## Space: pause / play. Drag (left or middle mouse) to pan, wheel to zoom, click a province to inspect it.
+## Entry point. Milestone 1 so far: pick a seed and a Realmling leader, then play the Practice island.
+## Space: pause / play. Left-click: select a unit or a province. Right-click: send the selected unit there.
+## Command card keys: q w e r / a s d f / z x c v / u i o p. Drag (left or middle mouse) to pan, wheel to zoom.
 
 const SEED_WORDS := ["ember", "oak", "river", "banner", "moss", "crown", "lantern", "stone", "harbor", "thistle", "kettle", "saffron"]
 
@@ -138,7 +138,16 @@ func _maybe_screenshot() -> void:
 		return
 	hud.select_province(game.capital)
 	map.selected_prov = game.capital
+	var mason = null
+	var wfu = null
+	for u in game.units:
+		if u.kind == Game.MASON and mason == null:
+			mason = u
+		elif u.kind == game.WAYFINDER and wfu == null:
+			wfu = u
 	if play > 0:
+		game.queue_survey(wfu, game.open_nbr[game.capital][0].q)
+		game.order_build(mason, game.capital, "farm")
 		game.paused = false
 		var real := 1.0
 		while game.t < play:
@@ -147,6 +156,11 @@ func _maybe_screenshot() -> void:
 		game.paused = true
 		game.last = 0.0
 		game.update(Time.get_ticks_msec() / 1000.0)
+	map.selected_unit = mason
+	hud.select_unit(mason)
+	var b := map.bounds()
+	cam.zoom = Vector2(0.55, 0.55)
+	cam.position = Vector2(game.G.provs[game.capital].ic[0], game.G.provs[game.capital].ic[1] - 60)
 	for i in 3:
 		await get_tree().process_frame
 	await RenderingServer.frame_post_draw
@@ -155,10 +169,14 @@ func _maybe_screenshot() -> void:
 
 
 func _unhandled_input(ev: InputEvent) -> void:
-	if ev is InputEventKey and ev.pressed and not ev.echo and ev.keycode == KEY_SPACE and game:
-		game.paused = not game.paused
-		get_viewport().set_input_as_handled()
-		return
+	if ev is InputEventKey and ev.pressed and not ev.echo and game:
+		if ev.keycode == KEY_SPACE:
+			game.paused = not game.paused
+			get_viewport().set_input_as_handled()
+			return
+		if hud.key(OS.get_keycode_string(ev.keycode).to_lower()):
+			get_viewport().set_input_as_handled()
+			return
 	if ev is InputEventMouseButton:
 		if ev.button_index == MOUSE_BUTTON_WHEEL_UP and ev.pressed:
 			cam.zoom = (cam.zoom * 1.15).clamp(Vector2(0.03, 0.03), Vector2(3, 3))
@@ -171,9 +189,18 @@ func _unhandled_input(ev: InputEvent) -> void:
 			else:
 				dragging = false
 				if ev.button_index == MOUSE_BUTTON_LEFT and drag_moved < 6.0 and game:
-					var p := map.province_at(get_global_mouse_position())
+					var at := get_global_mouse_position()
+					var u = map.unit_at(at)
+					map.selected_unit = u
+					hud.select_unit(u)
+					var p: int = u.prov if u != null else map.province_at(at)
 					map.selected_prov = p
 					hud.select_province(p)
+		elif ev.button_index == MOUSE_BUTTON_RIGHT and ev.pressed and game and map.selected_unit != null:
+			var at := get_global_mouse_position()
+			var p := map.province_at(at)
+			if p >= 0:
+				game.order(map.selected_unit, p, false, [at.x, at.y])
 	elif ev is InputEventMouseMotion and dragging:
 		drag_moved += ev.relative.length()
 		cam.position -= ev.relative / cam.zoom

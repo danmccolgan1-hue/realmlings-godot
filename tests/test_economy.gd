@@ -1,4 +1,5 @@
 extends RefCounted
+class_name TestEconomy
 ## Game setup, leader starts and the economy must match the web game. Fixtures: tests/fixtures/econ, written by
 ## tools/gen_econ_fixtures.py (a Practice game per seed and Realmling leader, 200 s of game time in 0.1 s frames).
 
@@ -106,6 +107,9 @@ static func compare_start(w: Dictionary, g: Game) -> Array:
 static func compare_run(fx: Dictionary, g: Game) -> Array:
 	var got := []
 	g.paused = false
+	for u in g.units:
+		if u.kind == g.WAYFINDER:
+			u.auto = false   # as in the fixture: no auto-scouting
 	g.on_payday = func(t: float) -> void:
 		got.append({"t": t, "stock": g.stock.duplicate(), "income": g.income.duplicate(), "exhaust": g.exhaust, "soldiers": g.soldier_count()})
 	for i in int(fx.frames):
