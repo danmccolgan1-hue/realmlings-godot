@@ -405,6 +405,10 @@ func _maybe_screenshot() -> void:
 		return
 	map.selected_prov = game.capital
 	hud.select_province(game.capital, "settlement" if OS.get_cmdline_user_args().has("--capital") else "")
+	if OS.get_cmdline_user_args().has("--farm"):   # pictures: a Farm selected, its crop on the card
+		game.extras[game.capital] = game.extras_in(game.capital) + [{"type": "farm", "slot": 3}]
+		game.compute_income()
+		hud.select_province(game.capital, "farm@3")
 	var mason = null
 	var wfu = null
 	for u in game.units:
@@ -498,7 +502,7 @@ func _maybe_screenshot() -> void:
 	elif spells or battle:
 		map.selected_unit = army
 		hud.select_unit(army)
-	elif not OS.get_cmdline_user_args().has("--capital"):
+	elif not (OS.get_cmdline_user_args().has("--capital") or OS.get_cmdline_user_args().has("--farm")):
 		map.selected_unit = mason
 		hud.select_unit(mason)
 	if OS.get_cmdline_user_args().has("--record"):
@@ -523,6 +527,8 @@ func _maybe_screenshot() -> void:
 			var c := game.capital_of(o)
 			if c >= 0:
 				cam.position = Vector2(game.G.provs[c].ic[0], game.G.provs[c].ic[1])
+		if a.begins_with("--rtab="):   # pictures: the outliner's tab
+			Settings.roster_tab = a.substr(7)
 		if a.begins_with("--landmark="):   # pictures: death | oasis | heart | setpiece | ruins | travelers | lair
 			var what := a.substr(11)
 			var p := -1

@@ -848,14 +848,26 @@ func gives_of(type: String) -> Dictionary:
 	return base
 
 
-# web: game.js extrasBonus() (+ v104.js crops: every farm grows its staple until crops are ported;
-# v106.js deep gold mines come with development)
+# web: game.js extrasBonus() + v104.js crops (a Farm gives its crop's resources) + v105.js Ultanitous (+1 by crop)
+# + v106.js deep gold mines
 func extras_bonus(p: int) -> Dictionary:
 	var y := {"gold": 0, "wood": 0, "food": 0}
 	for e in extras_in(p):
 		var gv := gives_of(e.type)
 		for k in gv:
 			y[k] += gv[k]
+	var st := gives_of("farm")
+	for e in extras_in(p):
+		if e.type == "farm" and Ai.crop_of(e) != "staple":
+			var g := Ai.crop_gives(Ai.crop_of(e), st)
+			for k in st:
+				y[k] -= st[k]
+			for k in g:
+				y[k] = y.get(k, 0) + g[k]
+	if leader == "ultanitous":
+		for e in extras_in(p):
+			if e.type == "farm":
+				y[Ai.CROP_PLUS[Ai.crop_of(e)]] += 1
 	var r = devel.get(p)
 	if r != null and r.deep and extras_in(p).any(func(e): return e.type == "goldmine"):
 		y.gold += GameData.c("DEV").deepGold   # v106: a Deep Gold Deposit
@@ -954,6 +966,11 @@ func upkeep() -> Dictionary:
 	if has_art(ME, "crown"):   # v95: the King’s Crown, 20% off
 		for k in u:
 			u[k] = int(JS.round_js(u[k] * 0.8))
+	for p in buildings:   # v104: a Fiber crop needs no wood upkeep
+		if buildings[p].owner == ME:
+			for e in extras_in(p):
+				if e.type == "farm" and Ai.crop_of(e) == "fiber":
+					u.wood -= Ai.crop_up(self, "staple")
 	# v106: leader upkeep cuts, buildings that cost a leader nothing, over the province limit
 	for v in units:
 		if v.owner == ME and v.kind == "army":
@@ -1003,7 +1020,20 @@ func compute_income() -> void:
 	var tb := tech_bonus()
 	for k in RES:
 		gross[k] += tb[k]
-	gross.food += harvest_food()
+	if harvest_by != null:   # v104: Harvest by crop, food from every crop and gold from Cash crops
+		var pct := harvest_pct()
+		var st := gives_of("farm")
+		var food := 0
+		var gold := 0
+		for p in extras:
+			if owned(p) and not occ.has(p):
+				for e in extras[p]:
+					if e.type == "farm":
+						var g := Ai.crop_gives(Ai.crop_of(e), st)
+						food += g.get("food", 0)
+						gold += g.get("gold", 0)
+		gross.food += int(JS.round_js(food * pct))
+		gross.gold += int(JS.round_js(gold * pct))
 	gross.wood += lumber_bonus()   # Sawyer Guilds
 	income = {}
 	for k in RES:
@@ -8668,6 +8698,37 @@ func unit_status(u: Dictionary) -> String:
 	if u.moving:
 		return "walking"
 	return "idle"
+
+
+# web: game.js nearestMason(): your closest Mason with no building job who can walk to p, or null
+func nearest_mason(p: int):
+	var best = null
+	var bd := INF
+	for u in units:
+		if u.kind != MASON or u.owner != ME or u.build != null or u.get("pending") != null:
+			continue
+		var hops = find_path(u, p)
+		if hops == null:
+			continue
+		var d: float = Vector2(u.x - G.provs[p].ic[0], u.y - G.provs[p].ic[1]).length() * 0.01 + hops.size()
+		if d < bd:
+			bd = d
+			best = u
+	return best
+
+
+# web: v106.js outpostBtnWhy(): why the province menu's Build Outpost can't send a Mason ("" when it can)
+func outpost_btn_why(p: int) -> String:
+	if buildings.has(p):
+		return "Already has a settlement"
+	if over_limit() > 0 or provs_of(ME).size() >= prov_limit():
+		return "Province limit reached (%d/%d)" % [provs_of(ME).size(), prov_limit()]
+	if units.any(func(u): return u.owner == ME and ((u.build != null and u.build.type == "outpost" and u.build.prov == p) or (u.get("pending") != null and u.pending.type == "outpost" and u.pending.prov == p))):
+		return "A Mason is already on it"
+	if nearest_mason(p) == null:
+		return "No free %s" % unit_defs[MASON].name
+	var why = build_check(p, "outpost")
+	return "" if why == null else str(why)
 
 
 # web: flags.js freeMasons(): a Mason with nothing to do

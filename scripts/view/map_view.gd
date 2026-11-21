@@ -328,6 +328,7 @@ func _gate(a: Vector2, b: Vector2, col: Color) -> void:
 
 
 var landmarks: MapLandmarks
+var labels: MapLabels
 
 
 func _draw_game() -> void:
@@ -393,14 +394,28 @@ func _draw_game() -> void:
 		var at := Vector2(u.x, u.y - u.get("flyH", 0.0))   # Winged Slippers lift a flying army
 		if u.get("flyH", 0.0) > 0:
 			draw_circle(Vector2(u.x, u.y + 4), 30.0, Color(0, 0, 0, 0.22))
-		if is_same(u, selected_unit):
-			draw_arc(at, 30.0, 0, TAU, 32, Color("#fff6c8"), 5.0)
+		# rings at the feet: yours a thin pulsing one in your color, others' in theirs (bandits and monsters red),
+		# the selected one glowing (web: game.js drawUnitBody, ownRing; v78.js selRing)
+		var t2: float = game.t
+		var big := u.get("monster") != null
+		var rrx := (30.0 if big else 16.0) * UK_K
+		var rry := (12.0 if big else 6.5) * UK_K
+		if u.owner == Game.ME and not is_same(u, selected_unit) and not u.get("exiting", false):
+			var pulse := 1.0 + sin(t2 * 4 + float(u.id)) * 0.07
+			_ellipse(Vector2(u.x, u.y + 1), rrx * pulse, rry * pulse, OL, 3.0)
+			_ellipse(Vector2(u.x, u.y + 1), rrx * pulse, rry * pulse, Color(game.player_info(Game.ME).color), 1.6)
 		if u.owner != Game.ME:
-			# bandits, monsters and nations at war with you wear a red ring; other nations their own color
 			var hostile: bool = game.hostile(Game.ME, u.owner)
 			var ring: Color = HOSTILE if hostile else Color(game.player_info(u.owner).color)
-			draw_arc(at, 26.0, 0, TAU, 32, OL, 8.0)
-			draw_arc(at, 26.0, 0, TAU, 32, ring, 5.0)
+			_ellipse(Vector2(u.x, u.y + 1), rrx, rry, OL, 4.0)
+			_ellipse(Vector2(u.x, u.y + 1), rrx, rry, ring, 2.2)
+		if is_same(u, selected_unit):
+			_sel_ring(Vector2(u.x, u.y + 1), rrx + 1 * UK_K, rry + 0.5 * UK_K, t2)
+		# workers hop as they walk, and bob as they build or survey
+		var working: bool = u.build != null or u.survey != null
+		var walking2: bool = u.moving or u.survey != null
+		if u.get("monster") == null:
+			at.y += -absf(sin(t2 * 9)) * 3.0 if walking2 else -absf(sin(t2 * 8)) * 2.0 if working else 0.0
 		var sp = Art.get_sprite("units", "realm", Art.unit_file(kind, _dir(u.th)))
 		if sp == null and u.get("monster") != null:
 			# monsters are drawn facing left or right only (web: art.js monster sprites)
@@ -410,6 +425,9 @@ func _draw_game() -> void:
 			sp = Art.get_sprite("units", "realm", Art.unit_file("d-sword", _dir(u.th)))   # Armory designs without art yet
 		if sp:
 			Art.draw(self, sp, at)
+			if u.kind == game.MAGE:   # v99: the Mage's mana, just over his hat
+				var top: float = sp.ay / sp.scale
+				_mana_bar(u, u.x, u.y - top - 3.2 * sqrt(UK_K) - 7, 18 * UK_K, UK_K)
 		else:
 			draw_circle(at, 18.0, OL)
 		if n > 0:
@@ -426,6 +444,9 @@ func _draw_game() -> void:
 			_badge(at + Vector2(-30, -70), "⚒")
 	if selected_prov >= 0 and selected_part != "":
 		_part_ring()
+	if labels == null:
+		labels = MapLabels.new(self)
+	labels.draw(game, game.t)
 	landmarks.draw_over(game)
 
 
@@ -516,8 +537,7 @@ func _army(u: Dictionary) -> void:
 		_ellipse(Vector2(base.x, base.y + 1), rx * pulse, ry * pulse, OL, 3.0)
 		_ellipse(Vector2(base.x, base.y + 1), rx * pulse, ry * pulse, Color(game.player_info(Game.ME).color), 1.6)
 	if is_same(u, selected_unit):
-		_ellipse(Vector2(base.x, base.y + 2), rx + 2 * K, ry + K, OL, 6.0)
-		_ellipse(Vector2(base.x, base.y + 2), rx + 2 * K, ry + K, Color("#fff6c8"), 3.5)
+		_sel_ring(Vector2(base.x, base.y + 2), rx + 2 * K, ry + K, t)
 	var walking: bool = u.moving or u.get("patrolling", false)
 	var hop := -absf(sin(t * 9)) * 3.0 if walking else 0.0
 	var spots := []
@@ -538,6 +558,8 @@ func _army(u: Dictionary) -> void:
 	var top := base.y - (rows - 1) * gy / 2 + 4 * K - (38.0 if figs.any(func(k): return _is_cav(k)) else 33.0) * K
 	_army_flag(u, base.x + half_w + 4 * K, base.y + (rows - 1) * gy / 2 + 2, top - 2 * K, t, K)
 	_army_health(u, base.x, top - 5 * K, minf(56 * K, half_w * 1.6), K)
+	if game.mages_in(u) > 0:   # v99: an army with Mages shows their mana over its health
+		_mana_bar(u, base.x, top - 5 * K - 3.2 * sqrt(K) - 4.5, minf(56 * K, half_w * 1.6), K)
 	_army_power(u, Vector2(base.x, base.y + ry + 6 * K))
 	if u.survey != null:
 		_bar(base + Vector2(0, -60), minf(1.0, (game.t - u.survey.t0) / u.survey.dur), Color("#7fc8f0"))
@@ -545,6 +567,37 @@ func _army(u: Dictionary) -> void:
 		_bar(Vector2(base.x, top - 30), minf(1.0, (game.t - u.quake.t0) / u.quake.T), Color("#c98bff"))
 	if u.get("sieging") != null:
 		_badge(Vector2(base.x - half_w - 14, top), "⚒")
+
+
+## The selection ring: a glowing gold oval with a ripple going out. web: v78.js selRing
+func _sel_ring(c: Vector2, rx: float, ry: float, t: float) -> void:
+	var pulse := 1 + sin(t * 6) * 0.14
+	var ripple := fposmod(t * 0.9, 1.0)
+	_ellipse(c, rx * (1 + ripple * 0.6), ry * (1 + ripple * 0.6), Color("#ffe27a", 0.55 * (1 - ripple)), 2.5)
+	_ellipse(c, rx * pulse, ry * pulse, Color(1.0, 0.84, 0.35, 0.35), 12.0 + sin(t * 6) * 4)   # (the glow)
+	_ellipse(c, rx * pulse, ry * pulse, OL, 6.0)
+	_ellipse(c, rx * pulse, ry * pulse, Color("#ffd34d"), 3.6)
+	_ellipse(c, rx * pulse, ry * pulse, Color("#fff8d6"), 1.4)
+
+
+## A caster's mana as a thin blue bar. web: v98.js manaBar
+func _mana_bar(c: Dictionary, x: float, y: float, w: float, K: float) -> void:
+	var h := 3.2 * sqrt(K)
+	var f := clampf(Game.mana_of(c) / maxf(1.0, game.mana_cap(c.owner)), 0, 1)
+	var outer := StyleBoxFlat.new()
+	outer.bg_color = OL
+	outer.set_corner_radius_all(int((h + 3) / 2))
+	draw_style_box(outer, Rect2(x - w / 2 - 1.5, y - 1.5, w + 3, h + 3))
+	var inner := StyleBoxFlat.new()
+	inner.bg_color = Color("#26324a")
+	inner.set_corner_radius_all(int(h / 2))
+	draw_style_box(inner, Rect2(x - w / 2, y, w, h))
+	if f > 0:
+		var fill := StyleBoxFlat.new()
+		fill.bg_color = Color("#3f7fe8")
+		fill.set_corner_radius_all(int(h / 2))
+		draw_style_box(fill, Rect2(x - w / 2, y, maxf(h, w * f), h))
+		draw_rect(Rect2(x - w / 2 + h / 2, y + 0.5, maxf(0, w * f - h), h * 0.3), Color(1, 1, 1, 0.35))
 
 
 ## The nation's flag on the army's banner pole, waving (web: v78.js drawArmyFlag)

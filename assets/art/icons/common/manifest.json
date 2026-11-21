@@ -1,11 +1,113 @@
 {
  "note": "ax, ay: the anchor pixel (where the game places the art: province center, plot, feet). scale: image pixels per world unit.",
  "images": {
+  "cmd_auto.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "id": "auto"
+  },
   "cmd_bridge.png": {
    "ax": 0,
    "ay": 0,
    "scale": 1,
    "kind": "bridge"
+  },
+  "cmd_build_bank.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "id": "build:bank"
+  },
+  "cmd_build_barracks.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "id": "build:barracks"
+  },
+  "cmd_build_farm.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "id": "build:farm"
+  },
+  "cmd_build_forge.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "id": "build:forge"
+  },
+  "cmd_build_goldmine.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "id": "build:goldmine"
+  },
+  "cmd_build_granary.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "id": "build:granary"
+  },
+  "cmd_build_lumber.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "id": "build:lumber"
+  },
+  "cmd_build_magetower.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "id": "build:magetower"
+  },
+  "cmd_build_market.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "id": "build:market"
+  },
+  "cmd_build_outpost.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "id": "build:outpost"
+  },
+  "cmd_build_stable.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "id": "build:stable"
+  },
+  "cmd_build_storehouse.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "id": "build:storehouse"
+  },
+  "cmd_build_temple.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "id": "build:temple"
+  },
+  "cmd_cancel.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "cancel"
+  },
+  "cmd_cancelbuild.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "id": "cancelbuild"
+  },
+  "cmd_combine.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "id": "combine"
   },
   "cmd_demolish.png": {
    "ax": 0,
@@ -23,7 +125,19 @@
    "ax": 0,
    "ay": 0,
    "scale": 1,
-   "kind": "dismiss"
+   "id": "dismiss"
+  },
+  "cmd_fly.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "fly"
+  },
+  "cmd_follow.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "id": "follow"
   },
   "cmd_gate.png": {
    "ax": 0,
@@ -31,11 +145,53 @@
    "scale": 1,
    "kind": "gate"
   },
+  "cmd_inspect.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "id": "inspect"
+  },
+  "cmd_path.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "path"
+  },
+  "cmd_quake.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "quake"
+  },
   "cmd_rally.png": {
    "ax": 0,
    "ay": 0,
    "scale": 1,
    "kind": "rally"
+  },
+  "cmd_rest.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "id": "rest"
+  },
+  "cmd_retreat.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "id": "retreat"
+  },
+  "cmd_retrofit.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "id": "retrofit"
+  },
+  "cmd_rewall.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "rewall"
   },
   "cmd_rewalls.png": {
    "ax": 0,
@@ -47,13 +203,49 @@
    "ax": 0,
    "ay": 0,
    "scale": 1,
-   "kind": "road"
+   "id": "road"
+  },
+  "cmd_rows.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "id": "rows"
+  },
+  "cmd_shock.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "shock"
+  },
+  "cmd_split.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "id": "split"
+  },
+  "cmd_ssight.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "id": "ssight"
+  },
+  "cmd_stealth.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "id": "stealth"
   },
   "cmd_survey.png": {
    "ax": 0,
    "ay": 0,
    "scale": 1,
-   "kind": "survey"
+   "id": "survey"
+  },
+  "cmd_thugin.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "id": "thugin"
   },
   "cmd_upgrade.png": {
    "ax": 0,
@@ -66,6 +258,12 @@
    "ay": 0,
    "scale": 1,
    "kind": "wall"
+  },
+  "cmd_xpath.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "id": "xpath"
   },
   "res_food.png": {
    "w": 80,
@@ -90,6 +288,80 @@
    "ay": 40,
    "scale": 1,
    "res": "wood"
+  },
+  "ui_autobld_off.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "ui_crop_all.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "ui_crop_cash.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "ui_crop_fiber.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "ui_crop_ok.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "ui_crop_staple.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "ui_dev.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "ui_follow.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "ui_rally.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "ui_rows.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "ui_slippers.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "ui_thug.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "ui_armory.png": {
+   "w": 140,
+   "h": 136,
+   "ax": 70,
+   "ay": 68,
+   "scale": 1
+  },
+  "ui_dove.png": {
+   "w": 140,
+   "h": 136,
+   "ax": 70,
+   "ay": 68,
+   "scale": 1
   }
  }
 }

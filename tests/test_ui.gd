@@ -10,6 +10,7 @@ func run() -> Array:
 	_debug(errs)
 	_gate_road(errs)
 	_fort_cmds(errs)
+	_crops(errs)
 	var pn: Array = GameData.c("PATCH_NOTES")
 	if pn.is_empty() or pn[0].v != "v106":
 		errs.append("patch notes: the web game's v106 notes are missing")
@@ -230,3 +231,39 @@ func _fort_cmds(errs: Array) -> void:
 	g.dismantle_fort(q)
 	if g.buildings[q].stage != 0 or not g.extras_in(q).is_empty():
 		errs.append("fort: dismantling leaves stage %d with %d buildings" % [g.buildings[q].stage, g.extras_in(q).size()])
+
+
+## v104 crops for the player: a Cash crop gives 3 food and 1 gold, a Fiber crop 2 wood and no wood upkeep, one Fiber
+## crop per province, a change takes 10 s, and "Apply to all" plans every Farm (web: v104.js).
+func _crops(errs: Array) -> void:
+	var g := Game.new_practice("ember", "cormac")
+	var p := g.capital
+	g.extras[p] = g.extras_in(p) + [{"type": "farm", "slot": 4}, {"type": "farm", "slot": 5}]
+	g.compute_income()
+	var st := g.gives_of("farm")
+	var base := g.extras_bonus(p)
+	var up0 := g.upkeep()
+	var f1: Dictionary = g.extras_in(p).filter(func(e): return e.type == "farm")[0]
+	var f2: Dictionary = g.extras_in(p).filter(func(e): return e.type == "farm")[1]
+	Ai.set_crop(g, f1, "cash")
+	if f1.get("cropNext") != "cash" or absf(f1.cropAt - (g.t + Ai.CROP_DELAY)) > 0.01:
+		errs.append("crops: a new crop doesn't wait %d s" % int(Ai.CROP_DELAY))
+	g.t += Ai.CROP_DELAY + 1
+	g.crop_scan_at = 0
+	Ai.step_crops(g)
+	if Ai.crop_of(f1) != "cash":
+		errs.append("crops: the Cash crop never grows")
+	var cash := g.extras_bonus(p)
+	if cash.food != base.food - st.get("food", 0) + 3 or cash.gold != base.gold + 1:
+		errs.append("crops: a Cash crop gives %s (was %s, staple %s)" % [cash, base, st])
+	f2.crop = "fiber"
+	var fib := g.extras_bonus(p)
+	if fib.wood != base.wood + 2:
+		errs.append("crops: a Fiber crop gives %s" % fib)
+	if g.upkeep().wood != up0.wood - Ai.crop_up(g, "staple"):
+		errs.append("crops: a Fiber crop still pays wood upkeep (%d vs %d)" % [g.upkeep().wood, up0.wood])
+	if not Ai.fiber_taken(g, p, f1):
+		errs.append("crops: a second Fiber crop is allowed in one province")
+	var plan: Dictionary = Ai.crop_all_plan(g, "staple")
+	if plan.plan.size() != 2:
+		errs.append("crops: Apply to all (Corn) would change %d Farms, not 2" % plan.plan.size())

@@ -11,6 +11,8 @@ from collections import defaultdict
 from playwright.async_api import async_playwright
 
 OUT = sys.argv[1] if len(sys.argv) > 1 else 'assets/art'
+ONLY = [a[7:].split(',') for a in sys.argv[2:] if a.startswith('--jobs=')]   # --jobs=uiicons: only these, merged into the manifests
+ONLY = ONLY[0] if ONLY else None
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 
@@ -29,6 +31,8 @@ async def main():
         await pg.wait_for_timeout(3500)
         await pg.evaluate(open(os.path.join(HERE, 'export_art.js')).read())
         jobs = await pg.evaluate('window.__exportArtJobs')
+        if ONLY:
+            jobs = [j for j in jobs if j in ONLY]
         manifests = defaultdict(dict)
         errors = []
         for job in jobs:
@@ -47,6 +51,9 @@ async def main():
                 manifests[folder][name] = it
             print(job, len(items))
         for folder, m in manifests.items():
+            mf = os.path.join(OUT, folder, 'manifest.json')
+            if ONLY and os.path.exists(mf):
+                m = {**json.load(open(mf)).get('images', {}), **m}
             with open(os.path.join(OUT, folder, 'manifest.json'), 'w') as f:
                 json.dump({'note': 'ax, ay: the anchor pixel (where the game places the art: province center, plot, feet). scale: image pixels per world unit.', 'images': dict(sorted(m.items()))}, f, indent=1)
         if errors:

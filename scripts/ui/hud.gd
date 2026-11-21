@@ -11,16 +11,17 @@ var game: Game
 var paused_label: Label
 var topbar: TopBar
 var panel: PanelContainer
-var panel_text: RichTextLabel
 var prov := -1
 var part := ""               # the selected building of `prov`: "settlement" or "<type>@<slot>" (web: S.selPart)
-var parts_row: HFlowContainer   # the province panel's buildings, to select one (web: the province menu's .pm-b)
-var parts_key := ""
+var tip: PanelContainer      # the province under the mouse (web: #tip)
+var tip_text: RichTextLabel
+var tip_key := ""
+var pick: PickMenu           # the build-on-a-plot and crop menus
+var crop_arm := {}           # web: v104.js cropAllArm, {p, slot, t}: "Apply to all" waits 8 s for its confirm
 var unit = null
-var card: GridContainer
-var card_buttons := []
+var card: CommandCard
+var sel_line: Label          # what is selected, bottom left next to the minimap (web: #sel)
 var card_cmds := []          # per cell: {id, label, why} or null
-var upgrade_btn: Button
 var toasts: VBoxContainer
 var toast_list := []         # [{label, until}]
 var GRID_KEYS: Array
@@ -66,32 +67,10 @@ func _ready() -> void:
 	topbar = TopBar.new()
 	topbar.hud = self
 	add_child(topbar)
-	panel = PanelContainer.new()
-	panel.add_theme_stylebox_override("panel", _box(Color("#faf1dc", 0.96)))
-	panel.custom_minimum_size = Vector2(420, 0)
-	panel_text = RichTextLabel.new()
-	panel_text.bbcode_enabled = true
-	panel_text.fit_content = true
-	panel_text.custom_minimum_size = Vector2(400, 0)
-	panel_text.add_theme_color_override("default_color", Color("#1d1a22"))
-	panel_text.add_theme_font_size_override("normal_font_size", 20)
-	panel_text.add_theme_font_size_override("bold_font_size", 22)
-	panel.add_child(panel_text)
+	panel = ProvPanel.new()
 	add_child(panel)
 	panel.hide()
-	upgrade_btn = Button.new()
-	upgrade_btn.add_theme_font_size_override("font_size", 20)
-	upgrade_btn.pressed.connect(func(): game.start_upgrade(prov))
-	panel_text.get_parent().remove_child(panel_text)
-	var pcol := VBoxContainer.new()
-	pcol.add_child(panel_text)
-	pcol.add_child(upgrade_btn)
-	parts_row = HFlowContainer.new()
-	parts_row.add_theme_constant_override("h_separation", 6)
-	pcol.add_child(parts_row)
-	actions = VBoxContainer.new()
-	pcol.add_child(actions)
-	panel.add_child(pcol)
+	actions = panel.actions
 	_build_research()
 	_build_tutorial()
 	panel.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT, Control.PRESET_MODE_MINSIZE, 16)
@@ -100,25 +79,38 @@ func _ready() -> void:
 	panel.offset_top = panel.offset_bottom
 	# the command card
 	GRID_KEYS = GameData.c("GRID_KEYS")
-	var cpanel := PanelContainer.new()
-	cpanel.add_theme_stylebox_override("panel", _box(Color("#2a2433", 0.92)))
-	add_child(cpanel)
-	cpanel.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT, Control.PRESET_MODE_MINSIZE, 20)
-	cpanel.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-	cpanel.grow_vertical = Control.GROW_DIRECTION_BEGIN
-	card = GridContainer.new()
-	card.columns = 4
-	cpanel.add_child(card)
-	for i in 16:
-		var b := Button.new()
-		b.custom_minimum_size = Vector2(124, 64)
-		b.add_theme_font_size_override("font_size", 15)
-		b.clip_text = true
-		b.pressed.connect(press.bind(i))
-		card.add_child(b)
-		card_buttons.append(b)
-		card_cmds.append(null)
-	card.tooltip_text = "Select a unit, building or province to see its actions here"
+	card = CommandCard.new()
+	card.on_press = press
+	card.tip_of = cmd_tip
+	add_child(card)
+	card.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT, Control.PRESET_MODE_MINSIZE, 16)
+	card.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	card.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	card.tooltip_text = " "   # (the card's own tooltip names each cell)
+	card_cmds.resize(16)
+	tip = PanelContainer.new()
+	tip.add_theme_stylebox_override("panel", TopBar.paper(3, 2))
+	tip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tip_text = RichTextLabel.new()
+	tip_text.bbcode_enabled = true
+	tip_text.fit_content = true
+	tip_text.autowrap_mode = TextServer.AUTOWRAP_OFF
+	tip_text.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tip_text.add_theme_color_override("default_color", UiKit.INK)
+	tip_text.add_theme_font_size_override("normal_font_size", 15)
+	tip_text.add_theme_font_size_override("bold_font_size", 18)
+	tip.add_child(tip_text)
+	add_child(tip)
+	tip.hide()
+	pick = PickMenu.new()
+	pick.hud = self
+	sel_line = Label.new()
+	sel_line.add_theme_stylebox_override("normal", TopBar.paper(3, 2))
+	sel_line.add_theme_color_override("font_color", UiKit.INK)
+	sel_line.add_theme_font_size_override("font_size", 17)
+	sel_line.mouse_filter = Control.MOUSE_FILTER_PASS
+	add_child(sel_line)
+	call_deferred("add_child", pick)   # (over every other panel)
 	flags = FlagBar.new()
 	add_child(flags)
 	flags.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP, Control.PRESET_MODE_MINSIZE)   # hung under the research strip (web: #nflags)
@@ -460,9 +452,7 @@ func _process(_delta: float) -> void:
 		return
 	paused_label.visible = game.paused
 	if prov >= 0:
-		panel_text.text = _province_text(prov)
-		_refresh_parts()
-	upgrade_btn.visible = false   # Upgrade to Fort is on the command card now, with the settlement selected
+		panel.refresh(self, game, prov)
 	_refresh_actions()
 	_refresh_tutorial()
 	if research.visible:
@@ -473,13 +463,17 @@ func _process(_delta: float) -> void:
 		select_province(prov if prov >= 0 and game.explored.has(prov) else -1)   # the building is gone
 	# the command card is always there; empty when nothing of yours is selected (web: game.js renderCmd)
 	card_cmds = commands_of(unit) if unit != null and unit.owner == Game.ME else part_commands()
-	for i in 16:
-		var c = card_cmds[i]
-		var b: Button = card_buttons[i]
-		b.text = "" if c == null else "%s [%s]" % [c.label, GRID_KEYS[i].to_upper()]
-		b.disabled = c == null or (c.why != null and not c.get("live", false))
-		b.tooltip_text = "" if c == null else cmd_tip(c)
+	for c in card_cmds:
+		if c != null and not c.is_empty():
+			_decorate(c)
+	card.set_cells(card_cmds, _card_tabs())
+	_refresh_sel_line()
+	_hover_tip()
 	minimap.position = Vector2(16, topbar.size.y - Minimap.SIZE.y - 16)
+	sel_line.position = Vector2(16 + Minimap.SIZE.x + 12, topbar.size.y - sel_line.size.y - 14)
+	if panel.visible:   # the province menu stands on the minimap's toggles, growing upward (web: #prov)
+		panel.reset_size()
+		panel.position = Vector2(16, topbar.size.y - 16 - Minimap.SIZE.y - 56 - panel.size.y)
 	# the flags hang from the research strip, centered (web: #nflags, top 100px)
 	flags.offset_top = topbar.bottom() + 8.0
 	flags.offset_bottom = flags.offset_top + flags.get_combined_minimum_size().y
@@ -678,15 +672,6 @@ static func _box(c: Color) -> StyleBoxFlat:
 func _refresh_actions() -> void:
 	var key := ""
 	var rows := []
-	if prov >= 0 and game.owned(prov):
-		# the province menu keeps the development level and Develop (web: v106.js the province menu); training,
-		# upgrades, walls and tearing down are on the command card with the building selected
-		var dr = game.dev_rec(prov)
-		if dr != null and dr.job != null:
-			rows.append({"label": "Developing to level %d: %d%%" % [dr.lv + 1, int(dr.job.done / GameData.c("DEV").time * 100)]})
-		elif dr == null or dr.lv < GameData.c("DEV").max:
-			var lv: int = dr.lv if dr != null else 0
-			rows.append({"btn": "Develop to level %d (%s, 5 min)" % [lv + 1, Game.cost_text(game.dev_cost(lv))], "why": game.dev_why(prov), "do": game.start_develop.bind(prov), "tip": _dev_desc(lv)})
 	if unit != null and game.is_caster(unit) and unit.prov == prov:
 		rows.append({"label": "%s: %d / %d mana%s" % [unit.name, int(Game.mana_of(unit)), game.mana_cap(), (" · casting " + str(unit.cast.spell).trim_prefix("q:")) if unit.get("cast") != null else ""]})
 		for q in game.all_nbr[prov]:
@@ -716,13 +701,13 @@ func _refresh_actions() -> void:
 		if r.has("label"):
 			var l := Label.new()
 			l.text = r.label
-			l.add_theme_color_override("font_color", Color("#1d1a22"))
-			l.add_theme_font_size_override("font_size", 18)
+			l.add_theme_color_override("font_color", Color("#5a6475"))
+			l.add_theme_font_size_override("font_size", 13)
 			actions.add_child(l)
 		else:
 			var b := Button.new()
 			b.text = r.btn
-			b.add_theme_font_size_override("font_size", 17)
+			b.add_theme_font_size_override("font_size", 14)
 			b.disabled = r.why != null
 			var tip := UiKit.wrap(str(r.get("tip", ""))) if r.get("tip", "") != "" else ""
 			if r.why != null:
@@ -731,6 +716,183 @@ func _refresh_actions() -> void:
 			var f: Callable = r.do
 			b.pressed.connect(func(): f.call())
 			actions.add_child(b)
+
+
+# --- the command card's look: icons, colors and progress (web: game.js cmdInfo(...).icon, v78.js cmdBg) ---
+
+const BUILD_BG := {"outpost": "#a3a9b3", "farm": "#2aa198", "lumber": "#2e6b34", "goldmine": "#f0a62e", "barracks": "#ef2b2b", "stable": "#8c1c3a", "market": "#d9bf8f",
+	"granary": "#36d6e8", "storehouse": "#b58a58", "bank": "#ffe62e", "forge": "#e8552a", "magetower": "#3f6fe0", "temple": "#9a5fd6"}
+static var _tex := {}
+
+
+static func icon(path: String) -> Texture2D:
+	if not _tex.has(path):
+		var full := "res://assets/art/" + path
+		_tex[path] = load(full) if ResourceLoader.exists(full) else null
+	return _tex[path]
+
+
+## A unit's portrait (web: game.js portrait)
+func unit_icon(kind: String) -> Texture2D:
+	var t := icon("icons/realm/unit_%s.png" % kind.replace(":", "_").replace("-", "_").to_lower())
+	if t == null:
+		t = icon("icons/realm/unit_mage_a.png") if kind == game.MAGE else icon("icons/realm/unit_d_sword.png")
+	return t
+
+
+func _decorate(c: Dictionary) -> void:
+	var id: String = c.get("id", "")
+	var tex: Texture2D = null
+	if id.begins_with("queue:"):
+		tex = unit_icon(c.kind)
+	elif c.has("icon_path"):
+		tex = icon(c.icon_path)
+	elif id.begins_with("build:"):
+		var type := id.substr(6)
+		tex = icon("icons/common/cmd_build_%s.png" % type)
+		var d: Dictionary = game.BUILD_DEFS.get(type, {})
+		if BUILD_BG.has(type) and (d.get("tech") == null or game.has_tech(d.tech)):
+			c.bg = Color(BUILD_BG[type])
+	elif id.begins_with("train:"):
+		tex = unit_icon(id.substr(6))
+	elif id.begins_with("spell:"):
+		tex = icon("icons/realm/tech_%s.png" % game.line_tech(id.substr(6)))
+	elif id.begins_with("spell2:"):
+		tex = icon("icons/common/cmd_%s.png" % id.substr(7))
+	elif id == "fly":
+		tex = icon("icons/common/ui_slippers.png")
+	elif id in ["upgrade", "cancelup"]:
+		tex = icon("icons/realm/settle_1.png")
+	elif id in ["destroy", "dismantle"]:
+		tex = icon("icons/common/cmd_destroy.png")
+	elif id == "develop":
+		tex = icon("icons/common/ui_dev.png")
+	elif id == "xpath":
+		tex = icon("icons/common/cmd_path.png")
+	else:
+		tex = icon("icons/common/cmd_%s.png" % id)
+	c.icon = tex
+
+
+## The tabs over the card: what is selected (web: game.js #cmdTabs)
+func _card_tabs() -> Array:
+	if unit != null and unit.owner == Game.ME:
+		var nm: String = "Army" if unit.kind == "army" else str(game.unit_defs[unit.kind].name) if game.unit_defs.has(unit.kind) else unit.kind
+		var pk: String = unit.kind
+		if unit.kind == "army":
+			for k in unit.troops:
+				if unit.troops[k] > 0:
+					pk = k
+					break
+		return [{"text": nm, "icon": unit_icon(pk), "on": true}]
+	if prov >= 0 and part != "" and game.owned(prov):
+		if part == "settlement":
+			var b: Dictionary = game.buildings[prov]
+			return [{"text": "Conquered Capital" if b.get("cc", false) else STAGE_NAME[b.stage], "icon": icon("icons/realm/settle_%d.png" % (2 if b.get("cc", false) else b.stage)), "on": true}]
+		var e = part_extra()
+		if e != null:
+			var d: Dictionary = game.BUILD_DEFS[e.type]
+			var lv: int = e.get("level", 1)
+			var nm2: String = str(d.levels[lv - 1]) if d.has("levels") else ("Farm: " + Ai.crop_name(Ai.crop_of(e))) if e.type == "farm" else str(d.name)
+			var ic := icon("icons/realm/build_%s_l%d.png" % [e.type, lv]) if d.has("levels") else icon("icons/realm/build_%s.png" % e.type)
+			return [{"text": nm2, "icon": ic, "on": true}]
+	return []
+
+
+## web: game.js selUI, unitStatus
+func _refresh_sel_line() -> void:
+	var txt := ""
+	if unit != null and unit.owner == Game.ME:
+		if unit.kind == "army":
+			var st := "in battle" if unit.get("battle") != null and not unit.get("retreating", false) else "retreating" if unit.get("retreating", false) else _status(unit)
+			var parts := []
+			for k in unit.troops:
+				if unit.troops[k] > 0:
+					parts.append("%d %s" % [unit.troops[k], game.unit_defs[k].name if game.unit_defs.has(k) else k])
+			txt = "%s · %s · %s · power %s" % [unit.name, st, ", ".join(parts), UiKit.num(maxf(1, roundf(game.raw_strength([unit]) * 10)))]
+			sel_line.tooltip_text = "Right-click a province to move. R retreats from a battle. Hold Shift to queue moves."
+		else:
+			var role := (" the " + str(game.unit_defs[unit.kind].name)) if unit.kind in [game.WAYFINDER, Game.MASON] else ""
+			txt = "%s%s · %s" % [unit.name, role, _status(unit)]
+			sel_line.tooltip_text = "Can enter unexplored land. Right-click to move. Q surveys the province he is in." if unit.kind == game.WAYFINDER \
+				else "Walks on explored land only. Right-click to move. Q builds an outpost." if unit.kind == Game.MASON else "Walks on explored land only. Right-click a province to move."
+	elif prov >= 0 and part_src() != "":
+		var n: int = game.queues.get("%s:%d" % [part_src(), prov], []).size()
+		txt = "%s · %s" % [{"capital": "Capital", "barracks": "Barracks", "magetower": "Mage Tower"}[part_src()], ("%d in training" % n) if n else "ready to train"]
+		sel_line.tooltip_text = "Train units from the command card. Hover a button for its cost."
+	sel_line.visible = txt != ""
+	if sel_line.text != txt:
+		sel_line.text = txt
+		sel_line.reset_size()
+
+
+## The province under the mouse, in a card by the pointer. web: game.js hoverAt
+func _hover_tip() -> void:
+	var over_ui := get_viewport().gui_get_hovered_control() != null
+	var p := -1
+	if not over_ui and map != null and not dragging_map():
+		p = map.province_at(map.get_global_mouse_position())
+	if p < 0:
+		tip.hide()
+		tip_key = ""
+		return
+	var st := game.fog_state(p)
+	var P: Dictionary = game.G.provs[p]
+	var b = game.buildings.get(p) if game.visible.has(p) else null
+	var y: Dictionary = game.yields[p]
+	var k := "%d|%s|%s|%s|%s" % [p, st, b, game.surveyed.has(p), game.extras_in(p).size() if game.visible.has(p) else -1]
+	if k != tip_key:
+		tip_key = k
+		var t := ""
+		if st == "unexplored":
+			t = "[b]Unexplored[/b]\nOnly a Wayfinder can go here."
+		else:
+			t = "[b]%s[/b]\n%s%s" % [str(P.terrain).capitalize(), "Visible" if st == "visible" else "Explored · contents unknown", (" · " + ("Conquered Capital" if b.get("cc", false) else STAGE_NAME[b.stage])) if b != null else ""]
+			if not game.owned(p):
+				t += "\n" + ("Outpost allowed here" if game.borders_owned(p) else "Too far from your land for an outpost")
+			else:
+				var ex := game.extras_in(p)
+				t += "\nYours · %d/%d buildings%s" % [ex.size(), game.plot_cap(p), (": " + ", ".join(ex.map(func(e): return game.BUILD_DEFS[e.type].name))) if not ex.is_empty() else ""]
+			if game.surveyed.has(p):
+				t += "\nEvery 10 s: " + ", ".join(["gold", "wood", "food"].map(func(r): return "%d %s%s" % [y[r], r, (" (bonus +%d)" % y.bonus[r]) if y.get("bonus", {}).get(r, 0) else ""]))
+				if y.get("deposit", false):
+					t += "\n[color=#a67c00]Hidden Gold Deposit · a Gold Mine can be built[/color]"
+			else:
+				t += "\nResources unknown · survey it with a Wayfinder"
+			if game.visible.has(p) and game.owned(p) and game.extras_in(p).any(func(e): return game.BUILD_DEFS[e.type].get("gives") != null):
+				var x := game.extras_bonus(p)
+				t += "\n[color=#1f7a2e]Buildings add %s[/color]" % ", ".join(["gold", "wood", "food"].filter(func(r): return x[r]).map(func(r): return "+%d %s" % [x[r], r]))
+			var tb: int = game.tree_border[p]
+			if tb:
+				t += "\n%d tree border%s · room for %d Lumber Mill%s" % [tb, "s" if tb > 1 else "", tb, "s" if tb > 1 else ""]
+		tip_text.text = t
+		tip.reset_size()
+	tip.show()
+	var mp := get_viewport().get_mouse_position()
+	var vs := get_viewport().get_visible_rect().size
+	tip.position = Vector2(minf(mp.x + 18, vs.x - tip.size.x - 30), minf(mp.y + 18, vs.y - tip.size.y - 30))
+
+
+func dragging_map() -> bool:
+	return main != null and main.get("dragging") == true and main.get("drag_moved") > 6.0
+
+
+## What a worker is doing. web: game.js unitStatus
+func _status(u: Dictionary) -> String:
+	if u.get("scouting") != null:
+		return "exploring (takes orders once done)"
+	if u.get("survey") != null:
+		return "surveying"
+	if u.get("build") != null:
+		var bt: String = u.build.type
+		return "building " + ("an outpost" if bt == "outpost" else "a wall back up" if bt == "rewall" else ("a " + bt) if bt in ["road", "wall", "bridge"] else str(game.BUILD_DEFS[bt].name) if game.BUILD_DEFS.has(bt) else bt)
+	if u.get("pending") != null:
+		return "going to build"
+	if u.get("cast") != null:
+		return "casting"
+	if u.moving:
+		return "marching" if u.kind == "army" else "walking"
+	return "idle"
 
 
 func _dev_desc(lv: int) -> String:
@@ -782,7 +944,8 @@ func part_commands() -> Array:
 			var q: Dictionary = Q[i]
 			var nm: String = game.unit_defs[q.kind].name
 			var f := 0.0 if q.t0 == null else clampf((game.t - q.t0) / Game.train_time(q.kind, q), 0, 1)
-			out[12 + i] = {"id": "queue:%d" % i, "label": "%d. %s%s" % [i + 1, nm, ("\n%d%%" % int(f * 100)) if i == 0 else ""], "why": null,
+			out[12 + i] = {"id": "queue:%d" % i, "label": "%d. %s%s" % [i + 1, nm, ("\n%d%%" % int(f * 100)) if i == 0 else ""], "why": null, "q": true, "n": i + 1,
+				"icon_path": "", "prog": f if i == 0 else null, "kind": q.kind,
 				"name": "%s%s in %s" % ["Retrofit to " if q.get("retro", false) else "", nm, "training" if i == 0 else "the queue"], "desc": "Click to cancel and get back what was paid.", "ok": "Click to cancel"}
 		if Q.size() > 4:
 			out[15] = {"id": "noop", "label": "+%d more" % (Q.size() - 3), "why": "", "name": "%d more in the queue" % (Q.size() - 3)}
@@ -796,7 +959,7 @@ func part_commands() -> Array:
 		if b.stage == 0:
 			if up != null:
 				var left := ceili(FU.time - (game.t - up.t0))
-				out[0] = {"id": "cancelup", "label": "Upgrading\n%d s · cancel" % left, "why": null, "name": "Upgrading to Fort", "cost": up.paid,
+				out[0] = {"id": "cancelup", "label": "Upgrading\n%d s · cancel" % left, "why": null, "name": "Upgrading to Fort", "cost": up.paid, "prog": clampf((game.t - up.t0) / FU.time, 0, 1),
 					"desc": "Ready in %d s. Click to cancel and get the resources back." % left, "ok": "Click to cancel"}
 			else:
 				out[0] = {"id": "upgrade", "label": "Upgrade to Fort\n%s" % _short_cost(FU.cost), "why": game.upgrade_why(prov), "name": "Upgrade to Fort", "cost": FU.cost,
@@ -813,7 +976,7 @@ func part_commands() -> Array:
 		var dr = game.dev_rec(prov)
 		var lv: int = dr.lv if dr != null else 0
 		if dr != null and dr.job != null:
-			out[1] = {"id": "develop", "label": "Developing\n%d%%" % int(dr.job.done / GameData.c("DEV").time * 100), "why": "Already developing", "name": "Developing to level %d…" % (lv + 1),
+			out[1] = {"id": "develop", "label": "Developing\n%d%%" % int(dr.job.done / GameData.c("DEV").time * 100), "why": "Already developing", "q": true, "prog": dr.job.done / GameData.c("DEV").time, "name": "Developing to level %d…" % (lv + 1),
 				"desc": "%d s left%s." % [ceili(GameData.c("DEV").time - dr.job.done), " (stalled: hostile soldiers in the province)" if dr.job.get("stall", false) else ""]}
 		elif lv >= GameData.c("DEV").max:
 			out[1] = {"id": "develop", "label": "Fully\ndeveloped", "why": "Fully developed", "name": "Fully developed"}
@@ -823,12 +986,94 @@ func part_commands() -> Array:
 	var e = part_extra()
 	if e == null:
 		return out
+	if e.type == "farm":   # web: v104.js the Farm's card: its crop, and "Apply to all" with a confirm
+		out[0] = _crop_cmd(e, "crop")
+		out[4] = _crop_cmd(e, "cropall")
+		if _crop_armed():
+			out[5] = _crop_cmd(e, "cropok")
 	if game.BUILD_DEFS[e.type].has("levels"):   # a Forge: its next upgrade
 		out[0] = _xup_cmd(e)
 	var nm2: String = game.BUILD_DEFS[e.type].name
 	out[15] = {"id": "destroy", "label": "Tear down", "why": null, "name": "Tear down the " + nm2,
 		"desc": "Tear down this %s to free its plot. No refund; its upkeep stops. Click twice to confirm." % nm2}
 	return out
+
+
+func _crop_armed() -> bool:
+	return not crop_arm.is_empty() and crop_arm.p == prov and part.ends_with("@%d" % crop_arm.slot) and Time.get_ticks_msec() - crop_arm.t < 8000
+
+
+static func _crop_line(g: Game, c: String) -> String:
+	var gv := Ai.crop_gives(c, g.gives_of("farm"))
+	var up := Ai.crop_up(g, c)
+	return ", ".join(gv.keys().map(func(k): return "+%d %s" % [gv[k], k])) + ((", %d wood upkeep" % up) if up else ", no upkeep")
+
+
+## web: v104.js cmdInfo('crop' | 'cropall' | 'cropok')
+func _crop_cmd(e: Dictionary, id: String) -> Dictionary:
+	var t := Ai.crop_target(e)
+	var nm := Ai.crop_name(t)
+	if id == "crop":
+		var desc := ""
+		for c in ["staple", "cash", "fiber"]:
+			desc += "\n%s (%s): %s%s" % [Ai.crop_name(c), Ai.CROP_KIND[c].to_lower(), _crop_line(game, c), ". One per province" if c == "fiber" else ". Farm research adds to it" if c == "staple" else ""]
+		desc += "\nA new crop takes %d s and counts from the payout after that." % int(Ai.CROP_DELAY)
+		return {"id": "crop", "label": "Crop\n" + nm, "why": null, "name": "Crop: %s%s" % [Ai.crop_name(Ai.crop_of(e)), (" → %s in %d s" % [nm, maxi(0, ceili(e.cropAt - game.t))]) if e.has("cropNext") else ""],
+			"desc": desc.strip_edges(), "ok": "Click to choose a crop", "icon_path": "icons/common/ui_crop_%s.png" % t,
+			"prog": clampf(1 - (e.cropAt - game.t) / Ai.CROP_DELAY, 0, 1) if e.has("cropNext") else null}
+	var plan: Dictionary = Ai.crop_all_plan(game, t)
+	var n: int = plan.plan.size()
+	var why = null if n else (("Every province with a Farm already grows " + nm) if t == "fiber" else ("Every Farm already grows " + nm))
+	var dtxt := ", ".join(["gold", "wood", "food"].filter(func(k): return plan.d[k] != 0).map(func(k): return "%s%d %s" % ["+" if plan.d[k] > 0 else "−", absi(plan.d[k]), k]))
+	if dtxt == "":
+		dtxt = "no change"
+	if id == "cropall":
+		return {"id": "cropall", "label": "Apply\nto all", "why": why, "name": "Apply to all: " + nm, "icon_path": "icons/common/ui_crop_all.png", "glow": _crop_armed(),
+			"desc": "Plant %s in every Farm you own%s. %d Farm%s would change: %s every 10 s." % [nm, " (one per province, the Farm that loses the least food)" if t == "fiber" else "", n, "" if n == 1 else "s", dtxt],
+			"ok": "Click the green button next to it to confirm" if _crop_armed() else "Click, then confirm"}
+	return {"id": "cropok", "label": "Confirm", "why": why, "name": "Confirm: %d Farm%s to %s" % [n, "" if n == 1 else "s", nm], "icon_path": "icons/common/ui_crop_ok.png", "glow": true,
+		"desc": "Every 10 s: %s%s. Takes %d s." % [dtxt, ". Your food income would be negative." if game.income.food + plan.d.food < 0 else "", int(Ai.CROP_DELAY)], "ok": "Click to apply"}
+
+
+## The crop choice beside the card. web: v104.js cmdUse('crop'), popNearCard
+func _open_crop_menu(e: Dictionary) -> void:
+	var p0 := prov
+	var items := []
+	for c in ["staple", "cash", "fiber"]:
+		var no := ("%s already grows %s" % [game.prov_name(p0), Ai.crop_name("fiber")]) if c == "fiber" and Ai.crop_target(e) != "fiber" and Ai.fiber_taken(game, p0, e) else ""
+		var cur := " · grows now" if Ai.crop_of(e) == c else " · on its way" if e.get("cropNext") == c else ""
+		items.append({"icon": icon("icons/common/ui_crop_%s.png" % c), "name": Ai.crop_name(c) + cur, "small": "%s: %s%s" % [Ai.CROP_KIND[c], _crop_line(game, c), " · one per province" if c == "fiber" else ""],
+			"why": no if no != "" else null, "do": func():
+				Ai.set_crop(game, e, c)
+				add_toast(("The Farm keeps growing %s." % Ai.crop_name(c)) if Ai.crop_of(e) == c and not e.has("cropNext") else ("The Farm will grow %s in %d s." % [Ai.crop_name(c), int(Ai.CROP_DELAY)]))})
+	pick.open("Crop for this Farm", "%s · changes in %d s" % [game.prov_name(p0), int(Ai.CROP_DELAY)], items, card.global_position - Vector2(400, 40))
+
+
+## Build on an empty plot: the nearest free Mason walks over. web: game.js openPlotMenu
+func open_plot_menu(p0: int, slot: int, anchor: Control) -> void:
+	var m = game.nearest_mason(p0)
+	var T: String = str(game.G.provs[p0].terrain).capitalize()
+	var order: Array = GameData.c("BUILD_ORDER").filter(func(t): return game.BUILD_DEFS.has(t))
+	order.sort_custom(func(a, b): return int(game.build_check(p0, a) == null) > int(game.build_check(p0, b) == null))
+	var items := []
+	for type in order:
+		var d: Dictionary = game.BUILD_DEFS[type]
+		var why = "No free Mason" if m == null else game.build_check(p0, type)
+		var cap_note := (" · %d/%d here" % [game.count_of(p0, type), game.build_cap(p0, type)]) if game.build_cap(p0, type) > 1 else ""
+		var gv := game.gives_of(type)
+		var extra := (" · " + ", ".join(gv.keys().map(func(k): return "+%d %s" % [gv[k], k]))) if not gv.is_empty() else (" · " + str(d.note)) if d.get("note") else ""
+		var small := "" if m == null else ("%s · %d s%s%s" % ["Build now" if m.prov == p0 else "Send " + m.name, int(game.build_time(type)), cap_note, extra])
+		var tt: String = type
+		items.append({"icon": icon("icons/realm/build_%s.png" % type), "bg": Color(BUILD_BG[type]) if BUILD_BG.has(type) and (d.get("tech") == null or game.has_tech(d.tech)) else Color(0, 0, 0, 0),
+			"name": d.name, "small": small, "cost": d.cost, "why": why, "do": func():
+				var mm = game.nearest_mason(p0)
+				if mm == null:
+					add_toast("Every Mason is busy.", true)
+					return
+				game.order_build(mm, p0, tt, slot)})
+	var at := Vector2(panel.global_position.x + panel.size.x + 10, anchor.global_position.y - 40)
+	pick.open("Build on plot %d" % (slot + 1), "%s · %s" % [T, ((m.name + " is here") if m.prov == p0 else (m.name + " will walk over")) if m != null else "every Mason is busy"], items, at,
+		"" if m != null else "Train a Mason at your capital, or wait for one to finish.")
 
 
 func _xup_cmd(e) -> Dictionary:
@@ -840,11 +1085,12 @@ func _xup_cmd(e) -> Dictionary:
 	if game.xup.has(k):
 		var xu: Dictionary = game.xup[k]
 		var left := ceili(d.ups[xu.to - 1].time - (game.t - xu.t0))
-		return {"id": "xcancel", "label": "Upgrading\n%d s · cancel" % left, "why": null, "name": "Upgrading to " + str(d.levels[lv]), "cost": xu.get("paid"),
+		return {"id": "xcancel", "label": "Upgrading\n%d s · cancel" % left, "why": null, "name": "Upgrading to " + str(d.levels[lv]), "cost": xu.get("paid"), "prog": clampf((game.t - xu.t0) / d.ups[xu.to - 1].time, 0, 1),
+			"icon_path": "icons/realm/build_%s_l%d.png" % [e.type, lv + 1],
 			"desc": "Ready in %d s. Click to cancel and get the resources back." % left, "ok": "Click to cancel"}
 	if lv >= d.levels.size():
 		return {"id": "xup", "label": "Fully\nupgraded", "why": "Fully upgraded", "name": str(d.levels[lv - 1])}
-	return {"id": "xup", "label": "Upgrade\n%s" % _short_cost(d.ups[lv].cost), "why": game.xup_why(prov, e), "name": "Upgrade to " + str(d.levels[lv]), "cost": d.ups[lv].cost,
+	return {"id": "xup", "label": "Upgrade\n%s" % _short_cost(d.ups[lv].cost), "why": game.xup_why(prov, e), "icon_path": "icons/realm/build_%s_l%d.png" % [e.type, lv + 1], "name": "Upgrade to " + str(d.levels[lv]), "cost": d.ups[lv].cost,
 		"desc": "Raises %s research to Tier %s and to %d points every 10 s. Takes %d s; no Mason needed." % ["Military" if e.type == "forge" else "Magic", ["", "I", "II", "III"][mini(lv + 1, 3)], [0, 2, 4, 6][mini(lv + 1, 3)], d.ups[lv].time]}
 
 
@@ -864,6 +1110,23 @@ func _press_part(c: Dictionary) -> void:
 			add_toast(str(c.why), true)
 		return
 	var src := part_src()
+	if id in ["crop", "cropall", "cropok"]:
+		var fe = part_extra()
+		if fe == null:
+			return
+		if id == "crop":
+			_open_crop_menu(fe)
+		elif id == "cropall":
+			crop_arm = {} if _crop_armed() else {"p": prov, "slot": fe.slot, "t": Time.get_ticks_msec()}
+		else:
+			var t := Ai.crop_target(fe)
+			var plan: Array = Ai.crop_all_plan(game, t).plan
+			for pf in plan:
+				Ai.set_crop(game, pf[1], t)
+			crop_arm = {}
+			if not plan.is_empty():
+				add_toast("%d Farm%s will grow %s in %d s." % [plan.size(), "" if plan.size() == 1 else "s", Ai.crop_name(t), int(Ai.CROP_DELAY)])
+		return
 	if id.begins_with("train:"):
 		game.train(src, prov, id.substr(6))
 	elif id.begins_with("queue:"):
@@ -892,37 +1155,6 @@ func _press_part(c: Dictionary) -> void:
 		if e != null:
 			var nm: String = game.BUILD_DEFS[e.type].name
 			_confirm("destroy:%d@%d" % [prov, e.slot], "Tear down the %s? Press again to confirm." % nm, game.destroy_extra.bind(prov, e.slot))
-
-
-## The province panel's row of buildings: click one to select it (web: game.js the province menu's .pm-b buttons).
-func _refresh_parts() -> void:
-	var list := []
-	if prov >= 0 and game.owned(prov):
-		var b: Dictionary = game.buildings[prov]
-		list.append(["settlement", "Conquered Capital" if b.get("cc", false) else STAGE_NAME[b.stage]])
-		for e in game.extras_in(prov):
-			list.append(["%s@%d" % [e.type, e.slot], game.BUILD_DEFS[e.type].name])
-	var k := str(prov) + "|" + part + "|" + str(list)
-	if k == parts_key:
-		return
-	parts_key = k
-	for c in parts_row.get_children():
-		c.queue_free()
-	for it in list:
-		var bt := Button.new()
-		bt.text = it[1]
-		bt.toggle_mode = true
-		bt.button_pressed = it[0] == part
-		bt.add_theme_font_size_override("font_size", 16)
-		bt.tooltip_text = "Select the %s: its actions are on the command card" % it[1]
-		var prt: String = it[0]
-		bt.pressed.connect(func():
-			select_unit(null)
-			if map:
-				map.selected_unit = null
-				map.selected_prov = prov
-			select_province(prov, prt))
-		parts_row.add_child(bt)
 
 
 # web: game.js the resource bar's title: what you hold, what comes in and what goes out

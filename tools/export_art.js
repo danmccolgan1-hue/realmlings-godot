@@ -80,6 +80,46 @@
       return out;
     }
   };
+  // the interface's icons, as the web game's command card, outliner and province panel show them: unit portraits,
+  // settlement and building thumbnails, and every command's icon (cmdInfo(id).icon with a unit of that kind selected)
+  jobs.uiicons = async () => {
+    const out = [];
+    const toPng = async u => {
+      if (!u) return null;
+      if (u.toDataURL) return u.toDataURL();
+      if (typeof u === 'string' && u.startsWith('data:image/png')) return u;
+      const im = new Image(); im.src = u; await im.decode();
+      const k = document.createElement('canvas'); k.width = k.height = 88; k.getContext('2d').drawImage(im, 0, 0, 88, 88); return k.toDataURL();
+    };
+    const put = async (file, get, extra) => {
+      try { const png = await toPng(get()); if (!png) return out.push({ file, error: 'none' }); out.push(Object.assign({ file, png, ax: 0, ay: 0, scale: 1 }, extra || {})); }
+      catch (e) { out.push({ file, error: String(e) }); }
+    };
+    const portrait = E('portrait'), settlementThumb = E('settlementThumb'), buildThumb = E('buildThumb'), xIcon = E('xIcon'), cmdInfo = E('cmdInfo');
+    for (const k of ['pioneer:B', 'mason:A', 'army', 'd-spear', 'd-sword', 'd-club', 'd-rider', 'mage:A', 'thug:A', 'rng-realm', 'm-ent', 'm-zombie', 'm-jackal'])
+      await put(`icons/realm/unit_${snake(k)}.png`, () => portrait(k), { kind: k });
+    for (const st of [0, 1, 2]) await put(`icons/realm/settle_${st}.png`, () => settlementThumb(st), { stage: st });
+    for (const type of Object.keys(BUILD_DEFS)) {
+      const d = BUILD_DEFS[type]; if ((d.race && d.race !== 'realm') || !d.levels) continue;
+      for (let lv = 1; lv <= d.levels.length; lv++) await put(`icons/realm/build_${snake(type)}_l${lv}.png`, () => buildThumb(type, lv), { type, level: lv });
+    }
+    for (const [file, fn] of [['dev', 'devIcon()'], ['rally', 'rallyIcon()'], ['autobld_off', 'autoBldIcon(null)'], ['follow', 'followIco()'], ['rows', 'rowsIcon()'],
+      ['slippers', "artIcon('slippers')"], ['crop_all', 'cropAllIcon()'], ['crop_ok', 'cropOkIcon()'], ['crop_staple', "cropIcon('staple')"], ['crop_cash', "cropIcon('cash')"], ['crop_fiber', "cropIcon('fiber')"], ['thug', 'thugIcon()']])
+      await put(`icons/common/ui_${file}.png`, () => E(fn), {});
+    for (const kind of ['retrofit', 'rest', 'path', 'inspect', 'shock', 'quake', 'rewall', 'split', 'combine', 'retreat', 'cancel', 'fly'])
+      await put(`icons/common/cmd_${snake(kind)}.png`, () => xIcon(kind), { kind });
+    // every command of the card, with a unit of its kind selected
+    const CMD = E('CMD'), S = E('S'), ME = E('ME');
+    const keep = S.selected;
+    for (const kind of Object.keys(CMD)) {
+      let u = S.units.find(v => v.owner === ME && v.kind === kind);
+      if (!u) { const m = S.units.find(v => v.owner === ME && v.kind === E('MASON')); u = Object.assign({}, m, { kind }); }
+      S.selected = [u];
+      for (const a of CMD[kind]) await put(`icons/common/cmd_${snake(a.id)}.png`, () => cmdInfo(a.id).icon, { id: a.id });
+    }
+    S.selected = keep;
+    return out;
+  };
   window.__exportArt = name => jobs[name]();
   window.__exportArtJobs = Object.keys(jobs);
 })();

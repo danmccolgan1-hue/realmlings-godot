@@ -348,6 +348,43 @@ static func fiber_taken(g: Game, p: int, except = null) -> bool:
 	return g.extras_in(p).any(func(x): return not is_same(x, except) and x.type == "farm" and ((crop_of(x) == "fiber" and not x.has("cropNext")) or x.get("cropNext") == "fiber"))
 
 
+const CROP_NAMES := {"staple": "Corn", "cash": "Wheat", "fiber": "Straw"}   # (the Realmlings' names)
+const CROP_KIND := {"staple": "Staple crop", "cash": "Cash crop", "fiber": "Fiber crop"}
+
+
+static func crop_name(crop: String) -> String:
+	return CROP_NAMES.get(crop, crop)
+
+
+# web: v104.js cropAllPlan: which of your Farms "Apply to all" would change, and what it does to income
+static func crop_all_plan(g: Game, crop: String) -> Dictionary:
+	var st := g.gives_of("farm")
+	var plan := []
+	for p in g.buildings:
+		if g.buildings[p].owner != Game.ME or g.occ.has(p):
+			continue
+		var fs := g.extras_in(p).filter(func(e): return e.type == "farm")
+		if fs.is_empty():
+			continue
+		if crop == "fiber":
+			if fiber_taken(g, p):
+				continue
+			fs.sort_custom(func(a, b): return crop_gives(crop_target(a), st).get("food", 0) < crop_gives(crop_target(b), st).get("food", 0))
+			plan.append([p, fs[0]])
+		else:
+			for f in fs:
+				if crop_target(f) != crop:
+					plan.append([p, f])
+	var d := {"gold": 0, "wood": 0, "food": 0}
+	for pf in plan:
+		var a := crop_gives(crop_of(pf[1]), st)
+		var z := crop_gives(crop, st)
+		for k in d:
+			d[k] += z.get(k, 0) - a.get(k, 0)
+		d.wood += crop_up(g, crop_of(pf[1])) - crop_up(g, crop)
+	return {"plan": plan, "d": d}
+
+
 # web: v104.js setCrop
 static func set_crop(g: Game, e: Dictionary, crop: String) -> void:
 	if crop_of(e) == crop:
@@ -2673,6 +2710,7 @@ static func step_crops(g: Game) -> void:
 		return
 	g.crop_scan_at = g.t + 0.5
 	var touched := {}
+	var mine := []
 	for p in g.extras:
 		for e in g.extras[p]:
 			if e.has("cropNext") and g.t >= e.cropAt:
@@ -2681,11 +2719,16 @@ static func step_crops(g: Game) -> void:
 				e.erase("cropAt")
 				var o := g.nation_of(p)
 				if o == Game.ME:
-					g.compute_income()
+					mine.append([p, e])
 				elif g.nations.has(o):
 					touched[o] = true
 	for o in touched:
 		g.nations[o].income = income(g, g.nations[o])
+	if not mine.is_empty():
+		g.compute_income()
+		var c := crop_of(mine[0][1])
+		var same := mine.all(func(pe): return crop_of(pe[1]) == c)
+		g.toast(("The Farm in %s now grows %s." % [g.prov_name(mine[0][0]), crop_name(c)]) if mine.size() == 1 else ("%d Farms now grow %s." % [mine.size(), crop_name(c)]) if same else ("%d Farms changed their crop." % mine.size()))
 
 
 static func wood_scarce(g: Game, N: Dictionary) -> bool:

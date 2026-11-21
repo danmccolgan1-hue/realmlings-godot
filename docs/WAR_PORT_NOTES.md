@@ -135,6 +135,26 @@ The plan after milestone 1. Each step is tested against the web game, then commi
      Upgrade to Fort and cancelling it, Rebuild walls, Develop, Dismantle fort (v96), Forge and Mage Tower upgrades,
      tearing down. The province panel keeps the information and Develop only. Not yet: icons on the card, the
      Stable and Thieves' Den cards.
+10. **Batch F: the main screen** — done (`tests/test_ui.gd` crops):
+   - Command card (`scripts/ui/command_card.gd`): the web game's 4×4 grid of icon cells with hotkey badges, building
+     colors (v78 BUILD_BG), striped cells when a command can't be used, progress bars, queue slots, a tab naming what is
+     selected, an empty dashed grid when nothing is. Icons come from a new `uiicons` job in `tools/export_art.js`
+     (`python3 tools/export_art.py <art> --jobs=uiicons`): unit portraits, settlement and building thumbnails, every
+     command's own icon (cmdInfo(id).icon), crop and development icons. `tools/export_ui_buttons.py` renders the
+     Armory and Diplomacy button pictures.
+   - Selection line by the minimap (web selUI); province hover card (web hoverAt).
+   - Outliner (`scripts/ui/roster.gd`): Workers / Provinces / Armies tabs with portraits, status dots, army power,
+     Mages against their limit, Barracks and Mage Towers; sections fold; Hide full; click selects, double-click goes.
+   - Province menu (`scripts/ui/prov_panel.gd`): head with owner, resources with what buildings add, Development
+     pips and the Develop Province card (or Build Outpost on free land, sending the nearest Mason), research made,
+     tags, set-piece note, the plot grid: click a building to select it, click an empty plot to build there
+     (`scripts/ui/pick_menu.gd`, web openPlotMenu).
+   - Map: resource plaques under surveyed provinces, province names, nation names over their land
+     (`scripts/view/map_labels.gd`); the minimap's four toggles (resources, names, nation names, nation colors),
+     remembered in Settings; your own units ringed, the selection ring, Mages' mana bars, workers hopping as they walk.
+   - Crops (v104) for the player, in the rules: Cash and Fiber crops change a Farm's income and upkeep, Harvest by
+     crop, Ultanitous' +1 by crop (was missing for the player); the Farm's card picks a crop and applies it to all.
+   - Rules helpers added: `Game.nearest_mason`, `Game.outpost_btn_why`, `Ai.crop_all_plan`.
 
 ## Things to remember
 

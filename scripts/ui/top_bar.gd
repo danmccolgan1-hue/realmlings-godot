@@ -214,18 +214,21 @@ func _ready() -> void:
 	nb.resized.connect(func(): nb.custom_minimum_size.x = nrow.get_combined_minimum_size().x + 22)
 	nrow.resized.connect(func(): nb.custom_minimum_size.x = nrow.get_combined_minimum_size().x + 22)
 	top_row.add_child(nb)
-	left.add_child(paper_button("Armory  [G]", "", "Armory [G]: design your soldiers' gear and set the Army Training Order", func(): hud.armory.toggle(), 46.0))
-	dip_btn = paper_button("Diplomacy  [Y]", "", "Diplomacy [Y]: wars, peace, alliances and every other nation", func(): hud.diplomacy.toggle(), 46.0)
+	# Armory and Diplomacy: picture buttons, as the web game's left column (web: #armBtn, #dip)
+	var arm := paper_button("", "", "Armory (G): design your soldiers' gear and set the Army Training Order", func(): hud.armory.toggle(), 54.0)
+	_icon_on(arm, "icons/common/ui_armory.png")
+	left.add_child(arm)
+	dip_btn = paper_button("", "", "Diplomacy (Y): wars, peace, alliances and every other nation", func(): hud.diplomacy.toggle(), 54.0)
+	_icon_on(dip_btn, "icons/common/ui_dove.png")
 	war_g = Glyph.make("war", 22.0, RED)
 	war_g.hide()
 	dip_btn.add_child(war_g)
-	war_g.set_anchors_and_offsets_preset(Control.PRESET_RIGHT_WIDE, Control.PRESET_MODE_KEEP_SIZE, 10)
+	war_g.set_anchors_and_offsets_preset(Control.PRESET_RIGHT_WIDE, Control.PRESET_MODE_KEEP_SIZE, 8)
 	war_g.offset_left = war_g.offset_right - 24
 	left.add_child(dip_btn)
-	for b in left.get_children():
-		if b is Button:
-			b.alignment = HORIZONTAL_ALIGNMENT_LEFT
-			b.custom_minimum_size.x = 190
+	for b in [arm, dip_btn]:
+		b.custom_minimum_size = Vector2(140, 54)
+		b.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 
 
 func _counter(row: HBoxContainer, glyph: String, tip: String) -> Label:
@@ -311,8 +314,17 @@ func _process(_dt: float) -> void:
 		tree_pts[tr].text = str(g.tech_rate(tr)) if g.tech[tr].tier else "–"
 	var n := g.wars_of(Game.ME).size()
 	war_g.visible = n > 0
-	dip_btn.add_theme_color_override("font_color", RED if n else INK)
 	dip_btn.tooltip_text = ("At war with %d nation%s. " % [n, "s" if n > 1 else ""] if n else "") + "Diplomacy [Y]: wars, peace, alliances and every other nation"
+
+
+static func _icon_on(b: Button, path: String) -> void:
+	var r := TextureRect.new()
+	r.texture = load("res://assets/art/" + path) if ResourceLoader.exists("res://assets/art/" + path) else null
+	r.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	r.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	r.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	b.add_child(r)
+	r.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT, Control.PRESET_MODE_MINSIZE, 7)
 
 
 ## Where things below the bar can start (the flags hang from here).

@@ -25,6 +25,27 @@
    "scale": 1,
    "type": "forge"
   },
+  "build_forge_l1.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "type": "forge",
+   "level": 1
+  },
+  "build_forge_l2.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "type": "forge",
+   "level": 2
+  },
+  "build_forge_l3.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "type": "forge",
+   "level": 3
+  },
   "build_goldmine.png": {
    "ax": 0,
    "ay": 0,
@@ -49,6 +70,27 @@
    "scale": 1,
    "type": "magetower"
   },
+  "build_magetower_l1.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "type": "magetower",
+   "level": 1
+  },
+  "build_magetower_l2.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "type": "magetower",
+   "level": 2
+  },
+  "build_magetower_l3.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "type": "magetower",
+   "level": 3
+  },
   "build_market.png": {
    "ax": 0,
    "ay": 0,
@@ -72,6 +114,24 @@
    "ay": 0,
    "scale": 1,
    "type": "temple"
+  },
+  "settle_0.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "stage": 0
+  },
+  "settle_1.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "stage": 1
+  },
+  "settle_2.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "stage": 2
   },
   "tech_a_chain1.png": {
    "ax": 44,
@@ -672,6 +732,84 @@
    "ay": 44,
    "scale": 1,
    "tech": "warforge"
+  },
+  "unit_army.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "army"
+  },
+  "unit_d_club.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "d-club"
+  },
+  "unit_d_rider.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "d-rider"
+  },
+  "unit_d_spear.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "d-spear"
+  },
+  "unit_d_sword.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "d-sword"
+  },
+  "unit_m_ent.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "m-ent"
+  },
+  "unit_m_jackal.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "m-jackal"
+  },
+  "unit_m_zombie.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "m-zombie"
+  },
+  "unit_mage_a.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "mage:A"
+  },
+  "unit_mason_a.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "mason:A"
+  },
+  "unit_pioneer_b.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "pioneer:B"
+  },
+  "unit_rng_realm.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "rng-realm"
+  },
+  "unit_thug_a.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "thug:A"
   }
  }
 }
