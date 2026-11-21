@@ -7,7 +7,7 @@ Windows-1252 and strings came out as "players‚Äô" / "â€™" instead of "p
 import json, glob, sys
 from pathlib import Path
 
-MARKS = ('â€', 'Ã', 'Â')
+MARKS = ('â€', 'âˆ', 'â†', 'â–', 'âœ', 'â˜', 'â', 'Ã', 'Â', 'ð')
 
 def fix(s):
     if not any(m in s for m in MARKS):
@@ -28,5 +28,5 @@ for f in sorted(glob.glob(str(root / 'data' / 'web' / '*.json'))):
     txt = Path(f).read_text(encoding='utf-8')
     if not any(m in txt for m in MARKS): continue
     data = json.loads(txt)
-    Path(f).write_text(json.dumps(walk(data), indent=1, ensure_ascii=False, sort_keys=True) + '\n', encoding='utf-8')
+    Path(f).write_text(json.dumps(walk(data), indent=1, ensure_ascii=False) + '\n', encoding='utf-8')
     print('fixed', Path(f).name)

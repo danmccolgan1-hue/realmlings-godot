@@ -194,7 +194,7 @@ func _ready() -> void:
 	top_row.add_theme_constant_override("separation", 8)
 	left.add_child(top_row)
 	top_row.add_child(paper_button("", "gear", "Menu and settings [Esc]", func(): hud.toggle_menu()))
-	var nb := paper_button("", "", "Your nation", func(): pass)
+	var nb := paper_button("", "", "Your nation", func(): hud.country.toggle())
 	nb.custom_minimum_size = Vector2(0, 46)
 	var nrow := HBoxContainer.new()
 	nrow.mouse_filter = Control.MOUSE_FILTER_IGNORE

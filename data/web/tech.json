@@ -1673,7 +1673,7 @@
    "cost": 100,
    "req": "a-chain1",
    "name": "Plate I Armor",
-   "blurb": "Plate I armor for the Armory: 8 armor, âˆ’15% speed.",
+   "blurb": "Plate I armor for the Armory: 8 armor, −15% speed.",
    "race": "realm"
   },
   {
@@ -1683,7 +1683,7 @@
    "cost": 100,
    "req": "a-plate1",
    "name": "Plate II Armor",
-   "blurb": "Plate II armor for the Armory: 14 armor, âˆ’15% speed.",
+   "blurb": "Plate II armor for the Armory: 14 armor, −15% speed.",
    "race": "realm"
   },
   {
@@ -1775,7 +1775,7 @@
    "cost": 200,
    "req": "a-plate2",
    "name": "Plate III Armor",
-   "blurb": "Plate III armor for the Armory: 20 armor, âˆ’15% speed.",
+   "blurb": "Plate III armor for the Armory: 20 armor, −15% speed.",
    "race": "realm"
   },
   {
@@ -1785,7 +1785,7 @@
    "cost": 200,
    "req": "a-plate3",
    "name": "Plate IV Armor",
-   "blurb": "Plate IV armor for the Armory: 26 armor, âˆ’15% speed.",
+   "blurb": "Plate IV armor for the Armory: 26 armor, −15% speed.",
    "race": "realm"
   },
   {
@@ -1892,7 +1892,7 @@
    "cost": 100,
    "req": "a-wyvern1",
    "name": "Dragonbone I Armor",
-   "blurb": "Dragonbone I armor for the Armory: 7.2 armor, âˆ’6.5% speed.",
+   "blurb": "Dragonbone I armor for the Armory: 7.2 armor, −6.5% speed.",
    "race": "swamp"
   },
   {
@@ -1902,7 +1902,7 @@
    "cost": 100,
    "req": "a-dragon1",
    "name": "Dragonbone II Armor",
-   "blurb": "Dragonbone II armor for the Armory: 12.6 armor, âˆ’6.5% speed.",
+   "blurb": "Dragonbone II armor for the Armory: 12.6 armor, −6.5% speed.",
    "race": "swamp"
   },
   {
@@ -1942,7 +1942,7 @@
    "cost": 200,
    "req": "a-dragon2",
    "name": "Dragonbone III Armor",
-   "blurb": "Dragonbone III armor for the Armory: 18 armor, âˆ’6.5% speed.",
+   "blurb": "Dragonbone III armor for the Armory: 18 armor, −6.5% speed.",
    "race": "swamp"
   },
   {
@@ -1952,7 +1952,7 @@
    "cost": 200,
    "req": "a-dragon3",
    "name": "Dragonbone IV Armor",
-   "blurb": "Dragonbone IV armor for the Armory: 23.4 armor, âˆ’6.5% speed.",
+   "blurb": "Dragonbone IV armor for the Armory: 23.4 armor, −6.5% speed.",
    "race": "swamp"
   },
   {
@@ -2038,7 +2038,7 @@
    "cost": 100,
    "req": "a-mithril1",
    "name": "Ornate I Armor",
-   "blurb": "Ornate I armor for the Armory: 8 armor, âˆ’15% speed.",
+   "blurb": "Ornate I armor for the Armory: 8 armor, −15% speed.",
    "race": "wood"
   },
   {
@@ -2048,7 +2048,7 @@
    "cost": 100,
    "req": "a-ornate1",
    "name": "Ornate II Armor",
-   "blurb": "Ornate II armor for the Armory: 14 armor, âˆ’15% speed.",
+   "blurb": "Ornate II armor for the Armory: 14 armor, −15% speed.",
    "race": "wood"
   },
   {
@@ -2088,7 +2088,7 @@
    "cost": 200,
    "req": "a-ornate2",
    "name": "Ornate III Armor",
-   "blurb": "Ornate III armor for the Armory: 20 armor, âˆ’15% speed.",
+   "blurb": "Ornate III armor for the Armory: 20 armor, −15% speed.",
    "race": "wood"
   },
   {
@@ -2098,7 +2098,7 @@
    "cost": 200,
    "req": "a-ornate3",
    "name": "Ornate IV Armor",
-   "blurb": "Ornate IV armor for the Armory: 26 armor, âˆ’15% speed.",
+   "blurb": "Ornate IV armor for the Armory: 26 armor, −15% speed.",
    "race": "wood"
   },
   {
@@ -4048,7 +4048,7 @@
    "cost": 100,
    "req": "a-chain1",
    "name": "Plate I Armor",
-   "blurb": "Plate I armor for the Armory: 8 armor, âˆ’15% speed.",
+   "blurb": "Plate I armor for the Armory: 8 armor, −15% speed.",
    "race": "realm"
   },
   "a-plate2": {
@@ -4058,7 +4058,7 @@
    "cost": 100,
    "req": "a-plate1",
    "name": "Plate II Armor",
-   "blurb": "Plate II armor for the Armory: 14 armor, âˆ’15% speed.",
+   "blurb": "Plate II armor for the Armory: 14 armor, −15% speed.",
    "race": "realm"
   },
   "horse-training": {
@@ -4150,7 +4150,7 @@
    "cost": 200,
    "req": "a-plate2",
    "name": "Plate III Armor",
-   "blurb": "Plate III armor for the Armory: 20 armor, âˆ’15% speed.",
+   "blurb": "Plate III armor for the Armory: 20 armor, −15% speed.",
    "race": "realm"
   },
   "a-plate4": {
@@ -4160,7 +4160,7 @@
    "cost": 200,
    "req": "a-plate3",
    "name": "Plate IV Armor",
-   "blurb": "Plate IV armor for the Armory: 26 armor, âˆ’15% speed.",
+   "blurb": "Plate IV armor for the Armory: 26 armor, −15% speed.",
    "race": "realm"
   },
   "battleforge": {
@@ -4267,7 +4267,7 @@
    "cost": 100,
    "req": "a-wyvern1",
    "name": "Dragonbone I Armor",
-   "blurb": "Dragonbone I armor for the Armory: 7.2 armor, âˆ’6.5% speed.",
+   "blurb": "Dragonbone I armor for the Armory: 7.2 armor, −6.5% speed.",
    "race": "swamp"
   },
   "a-dragon2": {
@@ -4277,7 +4277,7 @@
    "cost": 100,
    "req": "a-dragon1",
    "name": "Dragonbone II Armor",
-   "blurb": "Dragonbone II armor for the Armory: 12.6 armor, âˆ’6.5% speed.",
+   "blurb": "Dragonbone II armor for the Armory: 12.6 armor, −6.5% speed.",
    "race": "swamp"
   },
   "a-stag4": {
@@ -4317,7 +4317,7 @@
    "cost": 200,
    "req": "a-dragon2",
    "name": "Dragonbone III Armor",
-   "blurb": "Dragonbone III armor for the Armory: 18 armor, âˆ’6.5% speed.",
+   "blurb": "Dragonbone III armor for the Armory: 18 armor, −6.5% speed.",
    "race": "swamp"
   },
   "a-dragon4": {
@@ -4327,7 +4327,7 @@
    "cost": 200,
    "req": "a-dragon3",
    "name": "Dragonbone IV Armor",
-   "blurb": "Dragonbone IV armor for the Armory: 23.4 armor, âˆ’6.5% speed.",
+   "blurb": "Dragonbone IV armor for the Armory: 23.4 armor, −6.5% speed.",
    "race": "swamp"
   },
   "dualwield": {
@@ -4413,7 +4413,7 @@
    "cost": 100,
    "req": "a-mithril1",
    "name": "Ornate I Armor",
-   "blurb": "Ornate I armor for the Armory: 8 armor, âˆ’15% speed.",
+   "blurb": "Ornate I armor for the Armory: 8 armor, −15% speed.",
    "race": "wood"
   },
   "a-ornate2": {
@@ -4423,7 +4423,7 @@
    "cost": 100,
    "req": "a-ornate1",
    "name": "Ornate II Armor",
-   "blurb": "Ornate II armor for the Armory: 14 armor, âˆ’15% speed.",
+   "blurb": "Ornate II armor for the Armory: 14 armor, −15% speed.",
    "race": "wood"
   },
   "a-spirit4": {
@@ -4463,7 +4463,7 @@
    "cost": 200,
    "req": "a-ornate2",
    "name": "Ornate III Armor",
-   "blurb": "Ornate III armor for the Armory: 20 armor, âˆ’15% speed.",
+   "blurb": "Ornate III armor for the Armory: 20 armor, −15% speed.",
    "race": "wood"
   },
   "a-ornate4": {
@@ -4473,7 +4473,7 @@
    "cost": 200,
    "req": "a-ornate3",
    "name": "Ornate IV Armor",
-   "blurb": "Ornate IV armor for the Armory: 26 armor, âˆ’15% speed.",
+   "blurb": "Ornate IV armor for the Armory: 26 armor, −15% speed.",
    "race": "wood"
   },
   "twohand": {

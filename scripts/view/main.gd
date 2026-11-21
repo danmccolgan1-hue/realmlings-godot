@@ -460,8 +460,8 @@ func _maybe_screenshot() -> void:
 	if OS.get_cmdline_user_args().has("--request") and not game.nations.is_empty():   # a computer nation's alliance offer
 		var ids: Array = game.nations.keys()
 		game.dip_request(ids[0], "alliance", {"vs": ids[-1]})
-	if OS.get_cmdline_user_args().has("--dip"):
-		hud.diplomacy.open()
+	if OS.get_cmdline_user_args().has("--dip"):   # the first nation's section open
+		hud.diplomacy.open(game.nations.keys()[0] if not game.nations.is_empty() else 0)
 	if OS.get_cmdline_user_args().has("--research"):
 		hud.toggle_research()
 	elif spells or battle:
@@ -478,6 +478,10 @@ func _maybe_screenshot() -> void:
 		hud.armory.open()
 	if OS.get_cmdline_user_args().has("--orders"):
 		hud.armory.open(1)
+	if OS.get_cmdline_user_args().has("--school"):
+		hud.school.open()
+	if OS.get_cmdline_user_args().has("--country"):
+		hud.country.open()
 	var b := map.bounds()
 	go_home()   # the game opens on your capital, as the web game's home button frames it
 	for a in OS.get_cmdline_user_args():
@@ -615,6 +619,10 @@ func _unhandled_input(ev: InputEvent) -> void:
 				hud.settings.close()
 			elif hud.dialog.visible:
 				hud.dialog.pick("close")
+			elif hud.school.visible:
+				hud.school.hide()
+			elif hud.country.visible:
+				hud.country.hide()
 			elif hud.armory.visible:
 				hud.armory.close()
 			elif hud.diplomacy.win.panel.visible:

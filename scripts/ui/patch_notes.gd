@@ -5,6 +5,11 @@ extends Control
 ## web: v106.js renderPatchNotes
 
 const PORT_NOTES := [
+	{"v": "Godot 0.7", "date": "November 21, 2026", "items": [
+		["Armory", "Laid out as the web game’s: your designs with portraits and stats, a spinning preview, stat bars, and the gear as picture buttons under Weapons, Armor and Horses tabs. Equip every Mage with staves, wands and shields, and retrofit your armies from the Armory."],
+		["Magic", "Choose your school of magic when your first Mage Tower stands. Abandon Magic School now works: the school and its spells are forgotten and you choose again."],
+		["Country Breakdown", "Click your flag and name, top left: your leader, land, where your resources come from and go, your artifacts and your wars."],
+		["Diplomacy", "One section per nation you have met, with its leader’s portrait and likes, what you know of it, the agreements between you, the war and its peace terms, and the diplomatic actions as picture buttons. Hover a nation to see its opinion of you."]]},
 	{"v": "Godot 0.6", "date": "November 21, 2026", "items": [
 		["Start screen", "The web game’s title card: a parade of your folk, Continue, New Game, Tutorial, Multiplayer, Patch Notes, Load a save file, Recorded games, Settings and How to play, over a drifting island."],
 		["New Game", "Choose your seed and nation name (with dice), leader from portrait cards, color, flag, start position, the island’s shape with peninsulas, coves and trees, and each of the seven opponent slots. Your choices are remembered."],

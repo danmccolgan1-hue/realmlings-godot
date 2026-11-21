@@ -72,7 +72,8 @@
     icons: () => {
       const out = [];
       for (const k of RES) { const c = document.createElement('canvas'); c.width = c.height = 80; resIcon(c.getContext('2d'), k, 40, 42, 3.4); out.push(icon(`icons/common/res_${k}.png`, c, { res: k })); }
-      for (const t of TECHS) { if (t.race && t.race !== 'realm') continue; try { const c = techIcon(t.id); if (c && c.toDataURL) out.push(icon(`icons/realm/tech_${snake(t.id)}.png`, c, { tech: t.id })); else if (typeof c === 'string') out.push({ file: `icons/realm/tech_${snake(t.id)}.png`, png: c.startsWith('data:image/png') ? c : (() => { const im = new Image(); im.src = c; const k = document.createElement('canvas'); k.width = k.height = 88; k.getContext('2d').drawImage(im, 0, 0, 88, 88); return k.toDataURL(); })(), ax: 44, ay: 44, scale: 1, tech: t.id }); else out.push({ file: `icons/realm/tech_${snake(t.id)}.png`, error: 'type ' + typeof c }); } catch (e) { out.push({ file: `icons/realm/tech_${snake(t.id)}.png`, error: String(e) }); } }
+      for (const t of TECHS) { if (t.race && t.race !== 'realm' && !(Array.isArray(t.race) && t.race.includes('realm'))) continue;   // (a race list such as ['realm', 'wood'] includes the Realmlings)
+        try { const c = techIcon(t.id); if (c && c.toDataURL) out.push(icon(`icons/realm/tech_${snake(t.id)}.png`, c, { tech: t.id })); else if (typeof c === 'string') out.push({ file: `icons/realm/tech_${snake(t.id)}.png`, png: c.startsWith('data:image/png') ? c : (() => { const im = new Image(); im.src = c; const k = document.createElement('canvas'); k.width = k.height = 88; k.getContext('2d').drawImage(im, 0, 0, 88, 88); return k.toDataURL(); })(), ax: 44, ay: 44, scale: 1, tech: t.id }); else out.push({ file: `icons/realm/tech_${snake(t.id)}.png`, error: 'type ' + typeof c }); } catch (e) { out.push({ file: `icons/realm/tech_${snake(t.id)}.png`, error: String(e) }); } }
       for (const type of Object.keys(BUILD_DEFS)) { if (BUILD_DEFS[type].race && BUILD_DEFS[type].race !== 'realm') continue; try { const u = buildThumb(type); out.push({ file: `icons/realm/build_${snake(type)}.png`, png: typeof u === 'string' ? u : u.toDataURL(), ax: 0, ay: 0, scale: 1, type }); } catch (e) { out.push({ file: `icons/realm/build_${snake(type)}.png`, error: String(e) }); } }
       for (const kind of Object.keys(E('XICON')).concat(['dismiss', 'destroy', 'road', 'wall', 'rally', 'survey', 'gate', 'bridge', 'rewalls', 'demolish', 'upgrade'])) {
         try { const u = xIcon(kind); if (u) out.push({ file: `icons/common/cmd_${snake(kind)}.png`, png: typeof u === 'string' ? u : u.toDataURL(), ax: 0, ay: 0, scale: 1, kind }); } catch (e) {}
@@ -112,6 +113,15 @@
     // the leaders' portraits (New Game page, country window)
     const LEADERS = E('LEADERS'), portraitOf = E('portraitOf');
     for (const id of Object.keys(LEADERS)) if (LEADERS[id].race === 'realm') await put(`icons/realm/leader_${snake(id)}.png`, () => portraitOf(id), { leader: id });
+    // the Armory's gear (every weapon, Mage weapon, shield, armor and horse), the Diplomacy window's action icons,
+    // the artifacts
+    const equipIcon = E('equipIcon');
+    for (const [kind, table] of [['weapon', 'WEAPONS'], ['weapon', 'MAGE_WEAPONS'], ['shield', 'SHIELD_DEFS'], ['armor', 'ARMORS'], ['horse', 'HORSES']])
+      for (const k of Object.keys(E(table))) { const it = E(table)[k]; if (it.race && it.race !== 'realm') continue; await put(`icons/common/gear_${kind}_${snake(k)}.png`, () => equipIcon(kind, k), { kind, key: k }); }
+    const DX_ICON = E('DX_ICON'), dxIconURL = E('dxIconURL');
+    for (const k of Object.keys(DX_ICON)) await put(`icons/common/dx_${snake(k)}.png`, () => dxIconURL(k), { dx: k });
+    const ARTIFACTS = E('ARTIFACTS'), artIcon = E('artIcon');
+    for (const k of Object.keys(ARTIFACTS)) await put(`icons/common/art_${snake(k)}.png`, () => artIcon(k), { artifact: k });
     // every command of the card, with a unit of its kind selected
     const CMD = E('CMD'), S = E('S'), ME = E('ME');
     const keep = S.selected;

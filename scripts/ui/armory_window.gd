@@ -1,81 +1,116 @@
 class_name ArmoryWindow
 extends Control
-## The Armory (G): design soldiers from the gear you have researched, and place Army Training Orders: many soldiers
-## at once, trained by every Barracks, gathered into one army. web: equip.js Armory panel, v106.js Training Orders tab.
+## The Armory (G), laid out as the web game's: the designs on the left (grouped Infantry, Cavalry, Mages, each with
+## its portrait and stats), the edited design on the right (a spinning preview, name, stat bars, cost, note, buttons)
+## and its gear as picture buttons under Weapons / Armor / Horses tabs. The second tab places Army Training Orders.
+## web: equip.js renderArmory / renderMageEditor / drawArmPreview, v96.js armTabs, v106.js renderOrderView.
 ## Views only: every change goes through the game's own functions.
+
+const LINE := Color("#cdbf9e")
+const SEL := Color("#fff1b8")
+const CARD := Color("#fbf6e8")
+const MUTED := Color("#6b6257")
+const BLUE := Color("#4a8fdc")
+const GREEN := Color("#7ac74f")
 
 var game: Game
 var hud
 var win: Dictionary
-var tabs: TabContainer
-var list: VBoxContainer
+var sub: Label
+var mode := 0                 # 0: Designs, 1: Army Training Order
+var mode_btns := []
+var content: Control
 var draft := {}
-var editor: VBoxContainer
-var preview: RichTextLabel
-var order_box: VBoxContainer
+var sel := ""                 # the design being edited ("mage" for the Mage gear, "" for a new one)
+var gear_tab := "Weapons"
+var name_edit: LineEdit
+var key := ""
 var order_draft := {}
 var order_rally := -1
-var order_info: RichTextLabel
-var order_btn: Button
-var orders_list: RichTextLabel
-var key := ""
+var order_key := ""
 
-const GEAR := {"weapon": "WEAPONS", "shield": "SHIELD_DEFS", "armor": "ARMORS", "horse": "HORSES"}
+
+## The spinning preview on its green patch (web: equip.js drawArmPreview). The port has art for the starting
+## designs only, so a design shows the starting soldier of its weapon family (see Art.design_art).
+class Preview extends Control:
+	var kind := "d-sword"
+	var game
+
+	func _process(_dt: float) -> void:
+		if is_visible_in_tree():
+			queue_redraw()
+
+	func _draw() -> void:
+		var ctr := Vector2(size.x / 2, size.y * 0.8)
+		var pts := PackedVector2Array()
+		for i in 48:
+			var a := TAU * i / 48.0
+			pts.append(ctr + Vector2(cos(a) * size.x * 0.37, sin(a) * size.y * 0.11))
+		draw_colored_polygon(pts, Color("#9bd95f"))
+		pts.append(pts[0])
+		draw_polyline(pts, UiKit.INK, 3.0, true)
+		var dir := int(Time.get_ticks_msec() / 1000.0 * 0.6 / (PI / 4)) % 8
+		var sp = Art.get_sprite("units", "realm", Art.unit_file(Art.design_art(game, kind), "d%d" % dir))
+		if sp == null:
+			return
+		var tex: Texture2D = sp.tex
+		var s := size.y * (0.78 if game.DSTATS.get(kind, {}).get("cav", false) else 0.66) / tex.get_height()
+		draw_set_transform(ctr - Vector2(sp.ax, sp.ay) * s, 0.0, Vector2(s, s))
+		draw_texture(tex, Vector2.ZERO)
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+
+## A small padlock on locked gear (the bundled fonts have no 🔒).
+class Lock extends Control:
+	func _draw() -> void:
+		draw_arc(Vector2(7, 7), 4.0, PI, TAU, 12, UiKit.INK, 2.0, true)
+		draw_line(Vector2(3, 7), Vector2(3, 9), UiKit.INK, 2.0)
+		draw_line(Vector2(11, 7), Vector2(11, 9), UiKit.INK, 2.0)
+		draw_rect(Rect2(1, 8, 12, 8), Color("#e8c547"))
+		draw_rect(Rect2(1, 8, 12, 8), UiKit.INK, false, 1.5)
 
 
 func setup(g: Game, h) -> void:
 	game = g
 	hud = h
+	draft = {}
+	sel = ""
+	order_draft = {}
 	if not win.is_empty():   # (a new game reuses the window)
-		win.panel.hide()
+		hide()
 		return
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	win = UiKit.window("Armory", 860, func(): close())
+	win = UiKit.window("Armory", 1060, func(): close())
 	add_child(win.panel)
-	win.panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER, Control.PRESET_MODE_MINSIZE)
-	tabs = TabContainer.new()
-	tabs.add_theme_font_size_override("font_size", 18)
-	tabs.custom_minimum_size = Vector2(820, 520)
-	tabs.add_theme_stylebox_override("panel", UiKit.box(UiKit.PAPER.darkened(0.06), 8))
-	win.body.add_child(tabs)
-	# designs
-	var row := HBoxContainer.new()
-	row.name = "Designs"
-	row.add_theme_constant_override("separation", 16)
-	tabs.add_child(row)
-	var left := VBoxContainer.new()
-	left.custom_minimum_size = Vector2(250, 0)
-	row.add_child(left)
-	list = VBoxContainer.new()
-	left.add_child(list)
-	left.add_child(UiKit.button("+ New design", 18, func(): edit({"id": null, "name": "New Footman", "type": "inf", "weapon": "shortsword", "shield": null, "armor": "leather1", "horse": null})))
-	editor = VBoxContainer.new()
-	editor.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_child(editor)
-	# training orders
-	var ob := VBoxContainer.new()
-	ob.name = "Army Training Order"
-	tabs.add_child(ob)
-	order_box = VBoxContainer.new()
-	ob.add_child(order_box)
-	order_info = UiKit.rich(18, 760)
-	ob.add_child(order_info)
-	order_btn = UiKit.button("Place the order", 20, func(): _place())
-	ob.add_child(order_btn)
-	orders_list = UiKit.rich(17, 760)
-	ob.add_child(orders_list)
+	var head: HBoxContainer = win.title.get_parent()
+	win.title.size_flags_horizontal = 0
+	sub = UiKit.ink(15)
+	sub.add_theme_color_override("font_color", MUTED)
+	sub.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	sub.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	head.add_child(sub)
+	head.move_child(sub, 1)
+	var bar := HBoxContainer.new()
+	bar.add_theme_constant_override("separation", 4)
+	win.body.add_child(bar)
+	for i in 2:
+		var b := UiKit.button(["Designs", "Army Training Order"][i], 15, func(): _mode(i))
+		bar.add_child(b)
+		mode_btns.append(b)
+	content = VBoxContainer.new()
+	win.body.add_child(content)
 	hide()
 
 
 func open(tab := 0) -> void:
 	show()
-	tabs.current_tab = tab
-	key = ""
+	mode = tab
 	if draft.is_empty():
-		edit(game.designs[0])
-	order_rally = hud.prov if hud.prov >= 0 and game.owned(hud.prov) else game.capital
-	_refresh()
+		edit(game.designs[0].id if not game.designs.is_empty() else "mage")
+	if order_rally < 0 or not game.owned(order_rally):
+		order_rally = game.capital if game.capital >= 0 and game.owned(game.capital) else -1
+	_rebuild()
 	UiKit.center.call_deferred(win.panel)
 
 
@@ -87,155 +122,705 @@ func toggle() -> void:
 	if visible:
 		close()
 	else:
-		open()
+		open(mode)
 
 
-func edit(d: Dictionary) -> void:
-	draft = d.duplicate()
+func _mode(i: int) -> void:
+	mode = i
+	_rebuild()
+	UiKit.center.call_deferred(win.panel)
+
+
+# web: equip.js editDesign
+func edit(id: String) -> void:
+	if id == "mage":
+		sel = "mage"
+		draft = {"id": "mage", "type": "mage", "name": game.unit_defs[game.MAGE].name, "weapon": game.mage_gear.weapon, "shield": game.mage_gear.shield}
+	else:
+		var d = game.design_by_id(id)
+		if d == null:
+			return
+		sel = id
+		draft = d.duplicate()
 	key = ""
-	_build_editor()
-	_refresh()
+	if visible:
+		_rebuild()
 
 
-func _build_editor() -> void:
-	UiKit.clear(editor)
-	var name_row := HBoxContainer.new()
-	var nl := UiKit.ink(18)
-	nl.text = "Name"
-	name_row.add_child(nl)
-	var ne := LineEdit.new()
-	ne.text = draft.name
-	ne.max_length = 24
-	ne.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	ne.add_theme_font_size_override("font_size", 18)
-	ne.text_changed.connect(func(t): draft.name = t)
-	name_row.add_child(ne)
-	editor.add_child(name_row)
-	var type_row := HBoxContainer.new()
-	for ty in [["inf", "Infantry"], ["cav", "Cavalry"]]:
-		var b := UiKit.button(ty[1], 18, func():
-			draft.type = ty[0]
-			draft.horse = "riding" if ty[0] == "cav" else null
-			_build_editor()
-			_refresh())
-		b.toggle_mode = true
-		b.button_pressed = draft.type == ty[0]
-		type_row.add_child(b)
-	editor.add_child(type_row)
-	for kind in ["weapon", "shield", "armor", "horse"]:
-		if kind == "horse" and draft.type != "cav":
-			continue
-		if kind == "shield" and GameData.c("WEAPONS")[draft.weapon].twoH:
-			var l := UiKit.ink(16)
-			l.text = "Shield: none (two-handed weapon)"
-			editor.add_child(l)
-			continue
-		var r := HBoxContainer.new()
-		var l := UiKit.ink(18)
-		l.text = kind.capitalize()
-		l.custom_minimum_size = Vector2(90, 0)
-		r.add_child(l)
-		var opt := OptionButton.new()
-		opt.add_theme_font_size_override("font_size", 17)
-		opt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		var keys := []
-		if kind == "shield":
-			keys.append(null)
-			opt.add_item("No shield")
-		var table: Dictionary = GameData.c(GEAR[kind])
-		for k in table:
-			var rc = table[k].get("race")
-			if rc != null and rc != "realm":
+# web: equip.js newDesign (Realmlings)
+func new_design(type: String) -> void:
+	var n := 1 + game.designs.filter(func(d): return d.type == type and d.get("race", "realm") == "realm").size()
+	draft = {"id": null, "name": ("Cavalry " if type == "cav" else "Infantry ") + str(n), "type": type, "weapon": "spear", "shield": null,
+		"armor": "leather1", "horse": "riding" if type == "cav" else null, "race": "realm"}
+	sel = ""
+	_rebuild()
+
+
+func _rebuild() -> void:
+	key = _key()
+	order_key = ""
+	for i in mode_btns.size():
+		_tab_style(mode_btns[i], i == mode)
+	UiKit.clear(content)
+	content.custom_minimum_size = Vector2.ZERO
+	if mode == 1:
+		sub.text = "Order a whole army: every Barracks trains its share, and they gather in one province."
+		_build_orders()
+	else:
+		sub.text = "Design the soldiers your Barracks train. Better gear costs more."
+		_build_designs()
+	win.panel.reset_size()
+
+
+# the redraw key (web: armKey): research done and the designs' names; the draft changes rebuild the window directly
+func _key() -> String:
+	var n := 0
+	for t in game.tech:
+		n += game.tech[t].done.size()
+	return "%d|%d|%s" % [n, game.designs.size(), ",".join(game.designs.map(func(d): return d.name))]
+
+
+# ---------------------------------------------------------------- Designs
+
+func _build_designs() -> void:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+	content.add_child(row)
+	row.add_child(_design_list())
+	var ed := VBoxContainer.new()
+	ed.add_theme_constant_override("separation", 6)
+	ed.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(ed)
+	if draft.type == "mage":
+		_mage_editor(ed)
+	else:
+		_design_editor(ed)
+
+
+func _design_list() -> Control:
+	var col := VBoxContainer.new()
+	col.custom_minimum_size = Vector2(232, 0)
+	col.add_theme_constant_override("separation", 5)
+	for type in ["inf", "cav"]:
+		col.add_child(_group_head(GameData.c("UNIT_BASE")[type].name))
+		for d in game.designs:
+			if d.type != type or d.get("race", "realm") != "realm":
 				continue
-			var why = game.gear_why(kind, k)
-			keys.append(k)
-			opt.add_item("%s%s" % [table[k].name, "" if why == null else "  (%s)" % why])
-			opt.set_item_disabled(opt.item_count - 1, why != null)
-		opt.select(maxi(0, keys.find(draft.get(kind))))
-		opt.item_selected.connect(func(i):
-			draft[kind] = keys[i]
-			_build_editor()
-			_refresh())
-		r.add_child(opt)
-		editor.add_child(r)
-	preview = UiKit.rich(18)
-	editor.add_child(preview)
-	var btns := HBoxContainer.new()
-	btns.add_child(UiKit.button("Save design", 18, func():
-		var d := game.save_design(draft)
-		edit(d)))
-	var del := UiKit.button("Delete", 18, func():
-		if draft.get("id") != null and game.delete_design(draft.id):
-			edit(game.designs[0]))
-	del.disabled = draft.get("id") == null or game.design_by_id(draft.id) == null or game.design_by_id(draft.id).builtin
-	btns.add_child(del)
-	editor.add_child(btns)
+			var s: Dictionary = game.DSTATS[d.id]
+			col.add_child(_card(hud.unit_icon(d.id), d.name, s, sel == d.id, edit.bind(d.id)))
+		var nb := UiKit.button("＋ New %s design" % ("cavalry" if type == "cav" else "infantry"), 14, new_design.bind(type))
+		_style(nb, Color(1, 1, 1, 0.25), 2, UiKit.INK)
+		nb.add_theme_color_override("font_color", UiKit.INK)
+		nb.add_theme_color_override("font_hover_color", UiKit.INK)
+		nb.custom_minimum_size = Vector2(0, 34)
+		col.add_child(nb)
+	col.add_child(_group_head(game.unit_defs[game.MAGE].name + "s"))
+	col.add_child(_card(hud.unit_icon(game.MAGE), game.unit_defs[game.MAGE].name + " gear", game.DSTATS[game.MAGE], sel == "mage", edit.bind("mage")))
+	return col
 
 
-func _refresh() -> void:
-	if not visible:
-		return
-	UiKit.clear(list)
-	for d in game.designs:
-		var b := UiKit.button(d.name, 17, edit.bind(d))
-		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		b.toggle_mode = true
-		b.button_pressed = d.id == draft.get("id")
-		list.add_child(b)
+func _group_head(t: String) -> Label:
+	var l := UiKit.ink(13)
+	l.text = t.to_upper()
+	l.add_theme_color_override("font_color", MUTED)
+	return l
+
+
+# a design in the list: portrait, name, and "⚔atk ♥hp 🛡red% ➜speed"
+func _card(tex: Texture2D, title: String, s: Dictionary, on: bool, f: Callable) -> Button:
+	var b := Button.new()
+	b.custom_minimum_size = Vector2(0, 50)
+	_style(b, SEL if on else CARD, 2 if on else 1, UiKit.INK if on else LINE)
+	b.pressed.connect(f)
+	var m := MarginContainer.new()
+	m.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	m.add_theme_constant_override("margin_left", 6)
+	m.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	b.add_child(m)
+	var h := HBoxContainer.new()
+	h.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	m.add_child(h)
+	h.add_child(_tex(tex, 38))
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", -2)
+	v.alignment = BoxContainer.ALIGNMENT_CENTER
+	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	h.add_child(v)
+	var n := UiKit.ink(16)
+	n.text = title
+	v.add_child(n)
+	v.add_child(_stat_line(s, 13))
+	return b
+
+
+func _stat_line(s: Dictionary, size: int) -> HBoxContainer:
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 2)
+	h.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var a := UiKit.ink(size)
+	a.text = "⚔%s ♥%s " % [UiKit.num(s.atk), UiKit.num(s.hp)]
+	h.add_child(a)
+	h.add_child(_tex(Hud.icon("icons/common/gear_shield_round.png"), size))
+	var r := UiKit.ink(size)
+	r.text = "%d%% ➜%s" % [roundi(s.red * 100), ("%.2f" % s.speed) if s.get("fam") == "magic" else UiKit.num(snappedf(s.speed, 0.01))]
+	h.add_child(r)
+	return h
+
+
+func _tex(tex: Texture2D, px: int) -> TextureRect:
+	var t := TextureRect.new()
+	t.texture = tex
+	t.custom_minimum_size = Vector2(px, px)
+	t.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	t.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	t.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return t
+
+
+# the top of the editor: preview, then name / kind / stat bars / cost / note / buttons beside it
+func _top(ed: VBoxContainer, st: Dictionary, kind_text: String, named: bool) -> VBoxContainer:
+	var top := HBoxContainer.new()
+	top.add_theme_constant_override("separation", 12)
+	ed.add_child(top)
+	var frame := PanelContainer.new()
+	frame.add_theme_stylebox_override("panel", _box(Color("#eef6e0"), 2, UiKit.INK, 0))
+	top.add_child(frame)
+	var pv := Preview.new()
+	pv.game = game
+	pv.kind = game.MAGE if draft.type == "mage" else (draft.id if draft.get("id") != null else _draft_art())
+	pv.custom_minimum_size = Vector2(176, 176)
+	frame.add_child(pv)
+	var sm := VBoxContainer.new()
+	sm.add_theme_constant_override("separation", 3)
+	sm.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	top.add_child(sm)
+	if named:
+		var nr := HBoxContainer.new()
+		var nl := UiKit.ink(13)
+		nl.text = "NAME"
+		nl.add_theme_color_override("font_color", MUTED)
+		nl.custom_minimum_size = Vector2(50, 0)
+		nr.add_child(nl)
+		name_edit = LineEdit.new()
+		name_edit.text = draft.name
+		name_edit.max_length = 24
+		name_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		name_edit.add_theme_font_size_override("font_size", 17)
+		name_edit.add_theme_color_override("font_color", UiKit.INK)
+		name_edit.add_theme_stylebox_override("normal", _box(Color.WHITE, 1, UiKit.INK, 4))
+		name_edit.add_theme_stylebox_override("focus", _box(Color.WHITE, 2, UiKit.INK, 4))
+		name_edit.text_changed.connect(func(t): draft.name = t)
+		nr.add_child(name_edit)
+		sm.add_child(nr)
+	var kl := UiKit.ink(14 if named else 16)
+	kl.text = kind_text
+	kl.add_theme_color_override("font_color", MUTED if named else UiKit.INK)
+	sm.add_child(kl)
+	sm.add_child(_bar("Attack", st.atk, 18, UiKit.num(st.atk)))
+	sm.add_child(_bar("Health", st.hp, 75, UiKit.num(st.hp)))
+	sm.add_child(_bar("Armor", st.red, 0.65, "%d%%" % roundi(st.red * 100)))
+	sm.add_child(_bar("Speed", st.speed, 2, ("%.2f" % st.speed) if draft.type == "mage" else UiKit.num(snappedf(st.speed, 0.01))))
+	return sm
+
+
+# web: equip.js statBar
+func _bar(label: String, v: float, mx: float, txt: String) -> HBoxContainer:
+	var h := HBoxContainer.new()
+	var l := UiKit.ink(14)
+	l.text = label
+	l.custom_minimum_size = Vector2(60, 0)
+	h.add_child(l)
+	var pb := ProgressBar.new()
+	pb.show_percentage = false
+	pb.max_value = 1.0
+	pb.step = 0.0
+	pb.value = clampf(v / mx, 0, 1)
+	pb.custom_minimum_size = Vector2(0, 14)
+	pb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	pb.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	pb.add_theme_stylebox_override("background", _box(Color("#f4f6fa"), 1, Color("#8a8f99"), 0))
+	pb.add_theme_stylebox_override("fill", _box(BLUE, 0, BLUE, 0))
+	h.add_child(pb)
+	var t := UiKit.ink(14)
+	t.text = txt
+	t.custom_minimum_size = Vector2(48, 0)
+	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	h.add_child(t)
+	return h
+
+
+func _cost_line(sm: VBoxContainer, l1: String, c1: Dictionary, l2: String, c2: Dictionary) -> void:
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 6)
+	for p in [[l1, c1], [l2, c2]]:
+		var l := UiKit.ink(13)
+		l.text = p[0].to_upper()
+		l.add_theme_color_override("font_color", MUTED)
+		h.add_child(l)
+		h.add_child(CostRow.make(p[1], 15))
+	sm.add_child(h)
+
+
+func _note(sm: VBoxContainer, t: String) -> void:
+	var l := UiKit.ink(14)
+	l.text = t
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	l.custom_minimum_size = Vector2(560, 0)
+	sm.add_child(l)
+
+
+# the art kind a new (unsaved) design shows: the starting design of its weapon family
+func _draft_art() -> String:
+	if draft.type == "cav":
+		return "d-rider"
+	return {"pole": "d-spear", "blunt": "d-club"}.get(GameData.c("WEAPONS")[draft.weapon].fam, "d-sword")
+
+
+# web: equip.js renderArmory (Realmlings: no Ogres, Champions or off-hands)
+func _design_editor(ed: VBoxContainer) -> void:
 	var st := game.design_stats(draft)
-	var locked := []
-	for kind in ["weapon", "shield", "armor", "horse"]:
-		if draft.get(kind) != null and (kind != "horse" or draft.type == "cav"):
-			var why = game.gear_why(kind, draft[kind])
-			if why != null:
-				locked.append(why)
 	var W: Dictionary = GameData.c("WEAPONS")[draft.weapon]
-	preview.text = "[b]Attack[/b] %s   [b]Health[/b] %d   [b]Armor[/b] %d (blocks %d%%)   [b]Speed[/b] %s\n[b]Cost[/b] %s   [b]Upkeep[/b] %s food\n%s%s" % [
-		st.atk, st.hp, st.armor, roundi(st.red * 100), st.speed, UiKit.cost_line(st.cost), st.upkeep.food, GameData.c("FAMILY")[W.fam].note,
-		"" if locked.is_empty() else "\n[color=#b3261e]Locked: %s[/color]" % "; ".join(locked)]
-	_refresh_orders()
+	var cur = game.design_by_id(draft.id) if draft.get("id") != null else null
+	var in_use: bool = cur != null and game.design_in_use(cur.id)
+	var kt: String = GameData.c("UNIT_BASE")[draft.type].name + (" · starting design" if cur != null and cur.builtin else (" · in use" if in_use else ""))
+	var sm := _top(ed, st, kt, true)
+	_cost_line(sm, "Cost", st.cost, "Upkeep", st.upkeep)
+	var H = GameData.c("HORSES")[draft.get("horse") if draft.get("horse") != null else "riding"]
+	_note(sm, GameData.c("FAMILY")[W.fam].note + "." + ((" " + H.note + " Needs a Barracks and a Stable.") if st.cav else ""))
+	var btns := HBoxContainer.new()
+	btns.add_theme_constant_override("separation", 8)
+	sm.add_child(btns)
+	btns.add_child(_btn("Save changes" if cur != null and not cur.builtin and not in_use else "Save as new design", UiKit.GOLD, _save))
+	if cur != null:
+		var rb := _btn("Retrofit armies", Color("#dff0d0"), _retrofit)
+		rb.tooltip_text = UiKit.wrap("Re-equip every %s soldier standing in your own provinces with this design; you pay the difference in gear cost" % ("cavalry" if cur.type == "cav" else "infantry"))
+		btns.add_child(rb)
+	if cur != null and not cur.builtin:
+		btns.add_child(_btn("Delete", Color("#f3d6d2"), _delete))
+	# the gear, under tabs (web: v96.js armTabs)
+	var tabs := ["Weapons", "Armor"] + (["Horses"] if draft.type == "cav" else [])
+	if not tabs.has(gear_tab):
+		gear_tab = "Weapons"
+	ed.add_child(_gear_tabs(tabs))
+	var grid := VBoxContainer.new()
+	grid.add_theme_constant_override("separation", 2)
+	ed.add_child(grid)
+	if gear_tab == "Weapons":
+		for f in GameData.c("FAMILY"):
+			var F: Dictionary = GameData.c("FAMILY")[f]
+			if not _realm(F.get("race")):
+				continue
+			grid.add_child(_gear_row(F.name, F.note, F.order.map(func(w): return _eq("weapon", w, GameData.c("WEAPONS")[w], draft.weapon == w, game.gear_why("weapon", w)))))
+		var sh := [_eq_none(draft.get("shield") == null or W.twoH)]
+		var SD: Dictionary = GameData.c("SHIELD_DEFS")
+		for k in SD:
+			sh.append(_eq("shield", k, SD[k], draft.get("shield") == k and not W.twoH, "Two-handed weapon" if W.twoH else game.gear_why("shield", k)))
+		grid.add_child(_gear_row("Shield", W.name + " needs both hands" if W.twoH else "One-handed weapons only", sh))
+	elif gear_tab == "Armor":
+		var AT: Dictionary = GameData.c("ARMOR_TYPES")
+		for t in AT:
+			if not _realm(AT[t].get("race")):
+				continue
+			var row := []
+			for lv in [1, 2, 3, 4]:
+				var k := "%s%d" % [t, lv]
+				row.append(_eq("armor", k, GameData.c("ARMORS")[k], draft.armor == k, game.gear_why("armor", k)))
+			grid.add_child(_gear_row(AT[t].name, AT[t].note, row))
+	else:
+		var HS: Dictionary = GameData.c("HORSES")
+		var row := []
+		for k in HS:
+			row.append(_eq("horse", k, HS[k], draft.get("horse") == k, game.gear_why("horse", k)))
+		grid.add_child(_gear_row("Mount", "Each breed trades speed, toughness, charge and cost", row))
 
 
-func _refresh_orders() -> void:
+# web: equip.js renderMageEditor (Realmling Mages: staves and wands, and a shield with a wand)
+func _mage_editor(ed: VBoxContainer) -> void:
+	var st := game.mage_stats(draft)
+	var MW: Dictionary = GameData.c("MAGE_WEAPONS")
+	var W: Dictionary = MW[draft.weapon]
+	var M: String = game.unit_defs[game.MAGE].name
+	var sm := _top(ed, st, "%s gear · every %s" % [M, M], false)
+	_cost_line(sm, "Train", game.unit_defs[game.MAGE].cost, "Upkeep", game.unit_defs[game.MAGE].upkeep)
+	_note(sm, "%ss are trained at a %s. Their gear is shared: changing it re-equips every %s. %s" % [M, game.BUILD_DEFS.magetower.name if game.BUILD_DEFS.has("magetower") else "Mage Tower", M, st.blurb])
+	var btns := HBoxContainer.new()
+	sm.add_child(btns)
+	btns.add_child(_btn("Equip all %ss" % M, UiKit.GOLD, func():
+		game.set_mage_gear({"weapon": draft.weapon, "shield": draft.get("shield")})
+		edit("mage")))
+	gear_tab = "Weapons"
+	ed.add_child(_gear_tabs(["Weapons"]))
+	var grid := VBoxContainer.new()
+	grid.add_theme_constant_override("separation", 2)
+	ed.add_child(grid)
+	for ln in [["stave", "Staves", "Two-handed, the stronger attack"], ["wand", "Wands", "One-handed: leaves room for a shield"]]:
+		var row := []
+		for k in MW:
+			if MW[k].line == ln[0]:
+				row.append(_eq("weapon", k, MW[k], draft.weapon == k, game.mage_gear_why("weapon", k)))
+		grid.add_child(_gear_row(ln[1], ln[2], row))
+	var sh := [_eq_none(draft.get("shield") == null or W.twoH)]
+	var SD: Dictionary = GameData.c("SHIELD_DEFS")
+	for k in SD:
+		sh.append(_eq("shield", k, SD[k], draft.get("shield") == k and not W.twoH, "Two-handed stave" if W.twoH else game.mage_gear_why("shield", k)))
+	grid.add_child(_gear_row("Shield", "Staves need both hands" if W.twoH else "Wands only", sh))
+
+
+func _gear_tabs(names: Array) -> HBoxContainer:
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 4)
+	for n in names:
+		var b := UiKit.button(n.to_upper(), 14, func():
+			gear_tab = n
+			_rebuild())
+		_tab_style(b, n == gear_tab)
+		h.add_child(b)
+	return h
+
+
+func _gear_row(title: String, note: String, buttons: Array) -> HBoxContainer:
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 6)
+	var v := VBoxContainer.new()
+	v.custom_minimum_size = Vector2(190, 0)
+	v.alignment = BoxContainer.ALIGNMENT_CENTER
+	v.add_theme_constant_override("separation", 0)
+	var t := UiKit.ink(16)
+	t.text = title
+	v.add_child(t)
+	var n := UiKit.ink(12)
+	n.text = note
+	n.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	n.custom_minimum_size = Vector2(190, 0)
+	n.add_theme_color_override("font_color", MUTED)
+	v.add_child(n)
+	h.add_child(v)
+	for b in buttons:
+		h.add_child(b)
+	return h
+
+
+# a gear button: its picture and name; locked gear is faded with a padlock and says why when pressed
+# (web: equip.js equipButton)
+func _eq(kind: String, k: String, item: Dictionary, on: bool, why) -> Button:
+	var b := _eq_frame(on, item.name + ("" if why == null else " · " + why))
+	var v: VBoxContainer = b.get_child(0)
+	var ic := _tex(Hud.icon("icons/common/gear_%s_%s.png" % [kind, k]), 40)
+	v.add_child(ic)
+	var l := _eq_label(item.name)
+	v.add_child(l)
+	if why != null:
+		ic.modulate.a = 0.4
+		l.add_theme_color_override("font_color", MUTED)
+		var lk := Lock.new()
+		lk.position = Vector2(64, 3)
+		lk.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		b.add_child(lk)
+	b.pressed.connect(func():
+		if why != null:
+			game.toast(item.name + " · " + why, true)
+			return
+		_pick(kind, k))
+	return b
+
+
+func _eq_none(on: bool) -> Button:
+	var b := _eq_frame(on, "None")
+	var v: VBoxContainer = b.get_child(0)
+	var d := UiKit.ink(22)
+	d.text = "—"
+	d.custom_minimum_size = Vector2(40, 40)
+	d.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	d.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	v.add_child(d)
+	v.add_child(_eq_label("None"))
+	b.pressed.connect(func(): _pick("shield", ""))
+	return b
+
+
+func _eq_frame(on: bool, tip: String) -> Button:
+	var b := Button.new()
+	b.custom_minimum_size = Vector2(82, 66)
+	b.tooltip_text = tip
+	_style(b, Color.WHITE if on else Color("#f3ead4"), 2 if on else 1, UiKit.INK if on else LINE)
+	var v := VBoxContainer.new()
+	v.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	v.offset_top = 3
+	v.add_theme_constant_override("separation", 0)
+	v.alignment = BoxContainer.ALIGNMENT_CENTER
+	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	b.add_child(v)
+	return b
+
+
+func _eq_label(t: String) -> Label:
+	var l := UiKit.ink(12)
+	l.text = t
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.clip_text = true
+	l.custom_minimum_size = Vector2(80, 0)
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return l
+
+
+# web: equip.js the [data-eq] click
+func _pick(kind: String, k: String) -> void:
+	if kind == "weapon":
+		draft.weapon = k
+		var W: Dictionary = GameData.c("MAGE_WEAPONS")[k] if draft.type == "mage" else GameData.c("WEAPONS")[k]
+		if W.twoH:
+			draft.shield = null
+	elif kind == "shield":
+		draft.shield = null if k == "" else k
+	else:
+		draft[kind] = k
+	_rebuild()
+
+
+func _save() -> void:
+	var d := game.save_design(draft)
+	edit(d.id)
+
+
+func _delete() -> void:
+	if draft.get("id") != null and game.delete_design(draft.id):
+		edit(game.designs[0].id)
+
+
+# web: features.js armoryRetroArmies + retrofitArmies
+func _retrofit() -> void:
+	if draft.get("id") == null or game.design_by_id(draft.id) == null:
+		return
+	game.retrofit_armies(game.units.filter(func(v): return v.kind == "army" and v.owner == Game.ME and v.get("battle") == null and not v.get("exiting", false)), draft.id)
+
+
+# ---------------------------------------------------------------- Army Training Order (web: v106.js renderOrderView)
+
+func _build_orders() -> void:
+	var cols := HBoxContainer.new()
+	cols.add_theme_constant_override("separation", 16)
+	content.add_child(cols)
+	var left := VBoxContainer.new()
+	left.custom_minimum_size = Vector2(500, 0)
+	left.add_theme_constant_override("separation", 5)
+	cols.add_child(left)
+	left.add_child(_group_head("Soldiers"))
 	var kinds := game.to_kinds()
-	var k := "%s|%s|%d" % [kinds, order_draft, order_rally]
-	if k != key:
-		key = k
-		UiKit.clear(order_box)
-		if kinds.is_empty():
-			var l := UiKit.ink(18)
-			l.text = "Build a Barracks to train soldiers."
-			order_box.add_child(l)
-		for kind in kinds:
-			var r := HBoxContainer.new()
-			var l := UiKit.ink(18)
-			l.text = "%s (%s)" % [game.unit_defs[kind].name, UiKit.cost_line(game.unit_defs[kind].cost)]
-			l.custom_minimum_size = Vector2(420, 0)
-			r.add_child(l)
-			for step in [-5, -1, 1, 5]:
-				r.add_child(UiKit.button(("%+d" % step), 17, func():
-					order_draft[kind] = maxi(0, order_draft.get(kind, 0) + step)
-					_refresh_orders()))
-			var n := UiKit.ink(20)
-			n.text = "  × %d" % order_draft.get(kind, 0)
-			r.add_child(n)
-			order_box.add_child(r)
+	if kinds.is_empty():
+		var l := UiKit.ink(14)
+		l.text = "Nothing to train yet." if not game.to_buildings().is_empty() else "Build a Barracks first."
+		l.add_theme_color_override("font_color", MUTED)
+		left.add_child(l)
+	for k in kinds:
+		left.add_child(_order_unit(k))
+	var right := VBoxContainer.new()
+	right.custom_minimum_size = Vector2(500, 0)
+	right.add_theme_constant_override("separation", 6)
+	cols.add_child(right)
+	right.add_child(_group_head("The order"))
+	var rr := HBoxContainer.new()
+	var rl := UiKit.ink(15)
+	rl.text = "Gather in"
+	rr.add_child(rl)
+	var opt := OptionButton.new()
+	opt.add_theme_font_size_override("font_size", 15)
+	opt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var provs := []
+	for p in game.world.provinces.size():
+		if game.owned(p):
+			provs.append(p)
+			opt.add_item(game.prov_name(p) + (" (capital)" if game.buildings.has(p) and game.buildings[p].stage == 2 else ""))
+	if order_rally < 0 and not provs.is_empty():
+		order_rally = provs[0]
+	opt.select(provs.find(order_rally))
+	opt.item_selected.connect(func(i):
+		order_rally = provs[i]
+		_rebuild())
+	rr.add_child(opt)
+	right.add_child(rr)
+	var n := 0
+	for k in order_draft:
+		n += order_draft[k]
+	var sum := HBoxContainer.new()
+	var sl := UiKit.ink(15)
+	sl.text = "%d soldier%s from %d building%s" % [n, "" if n == 1 else "s", game.to_buildings().size(), "" if game.to_buildings().size() == 1 else "s"]
+	sl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	sum.add_child(sl)
+	var cl := UiKit.ink(15)
+	cl.text = "Cost " + ("—" if not n else "")
+	sum.add_child(cl)
+	if n:
+		sum.add_child(CostRow.make(game.to_cost(order_draft), 15))
+	right.add_child(sum)
+	var note := UiKit.ink(13)
+	note.text = "This rally point is the order's own: it doesn't change the rally points of your buildings."
+	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	note.add_theme_color_override("font_color", MUTED)
+	right.add_child(note)
 	var why = game.to_why(order_draft, order_rally)
-	order_info.text = "Gather in [b]%s[/b] (click one of your provinces on the map to change it).\nCost: %s%s" % [
-		game.prov_name(order_rally) if order_rally >= 0 else "?", UiKit.cost_line(game.to_cost(order_draft)), "" if why == null else "\n[color=#b3261e]%s[/color]" % why]
-	order_btn.disabled = why != null
-	var lines := []
-	for O in game.train_orders:
-		var pr := game.order_progress(O)
-		lines.append("Order %d → %s: %s" % [O.id, game.prov_name(O.rally.prov), "complete" if O.done else "%d of %d trained, %d gathered" % [pr.made, O.total, pr.there]])
-	orders_list.text = "\n".join(lines)
-
-
-func _place() -> void:
-	if game.purchase_order(order_draft, order_rally) >= 0:
+	var btns := HBoxContainer.new()
+	btns.add_theme_constant_override("separation", 8)
+	var buy := _btn("Purchase order", UiKit.GOLD, func():
+		if game.purchase_order(order_draft, order_rally) >= 0:
+			order_draft = {}
+		_rebuild())
+	if why != null:
+		buy.modulate.a = 0.6
+		buy.tooltip_text = why
+	btns.add_child(buy)
+	btns.add_child(_btn("Clear", Color("#f3d6d2"), func():
 		order_draft = {}
-		key = ""
-	_refresh_orders()
+		_rebuild()))
+	right.add_child(btns)
+	if why != null and n:
+		var w := UiKit.ink(13)
+		w.text = why
+		w.add_theme_color_override("font_color", UiKit.BAD)
+		right.add_child(w)
+	var active := game.train_orders.filter(func(O): return not O.done or game.t - O.get("doneT", game.t) < 60)
+	if not active.is_empty():
+		right.add_child(_group_head("Orders"))
+	for O in active:
+		right.add_child(_order_row(O))
+	order_key = _order_key()
+
+
+func _order_unit(k: String) -> PanelContainer:
+	var pc := PanelContainer.new()
+	pc.add_theme_stylebox_override("panel", _box(CARD, 1, LINE, 3))
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 6)
+	pc.add_child(h)
+	h.add_child(_tex(hud.unit_icon(k), 34))
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", -2)
+	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	h.add_child(v)
+	var nl := UiKit.ink(15)
+	nl.text = game.unit_defs[k].name
+	v.add_child(nl)
+	var st: Dictionary = game.DSTATS.get(k, {})
+	var sr := HBoxContainer.new()
+	var tl := UiKit.ink(13)
+	tl.add_theme_color_override("font_color", MUTED)
+	tl.text = ("Ranged" if st.get("ranged", false) else ("Cavalry" if st.get("cav", false) else "Infantry")) + " ·" if not st.is_empty() else "·"
+	sr.add_child(tl)
+	sr.add_child(CostRow.make(game.unit_defs[k].cost, 13))
+	v.add_child(sr)
+	var q := HBoxContainer.new()
+	q.add_theme_constant_override("separation", 4)
+	h.add_child(q)
+	q.add_child(_qbtn("−", func(): _order_add(k, -1)))
+	var nb := UiKit.ink(16)
+	nb.text = str(order_draft.get(k, 0))
+	nb.custom_minimum_size = Vector2(28, 0)
+	nb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	q.add_child(nb)
+	q.add_child(_qbtn("+", func(): _order_add(k, 1)))
+	q.add_child(_qbtn("+5", func(): _order_add(k, 5)))
+	return pc
+
+
+func _qbtn(t: String, f: Callable) -> Button:
+	var b := _btn(t, Color.WHITE, f)
+	b.custom_minimum_size = Vector2(34, 28)
+	return b
+
+
+func _order_add(k: String, d: int) -> void:
+	order_draft[k] = maxi(0, order_draft.get(k, 0) + d)
+	if not order_draft[k]:
+		order_draft.erase(k)
+	_rebuild()
+
+
+func _order_row(O: Dictionary) -> PanelContainer:
+	var g := game.order_progress(O)
+	var pc := PanelContainer.new()
+	pc.add_theme_stylebox_override("panel", _box(CARD, 1, LINE, 3))
+	if O.done:
+		pc.modulate.a = 0.7
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 1)
+	pc.add_child(v)
+	var mix := []
+	for k in O.mix:
+		var x: int = int(O.mix[k])
+		if x:
+			mix.append("%d %s" % [x, _plural(game.unit_defs[k].name) if x > 1 else game.unit_defs[k].name])
+	var l := UiKit.rich(14)
+	l.text = "[b]Order %d[/b]  %s → %s" % [O.id, ", ".join(mix), game.prov_name(O.rally.prov)]
+	v.add_child(l)
+	var s := UiKit.ink(12)
+	s.add_theme_color_override("font_color", MUTED)
+	s.text = "Complete" if O.done else "%d/%d trained · %d gathered" % [g.made, O.total, g.there]
+	v.add_child(s)
+	var pb := ProgressBar.new()
+	pb.show_percentage = false
+	pb.max_value = 1.0
+	pb.step = 0.0
+	pb.value = float(g.made) / maxf(1, O.total)
+	pb.custom_minimum_size = Vector2(0, 6)
+	pb.add_theme_stylebox_override("background", _box(Color("#e3e7ee"), 0, LINE, 0))
+	pb.add_theme_stylebox_override("fill", _box(GREEN, 0, GREEN, 0))
+	v.add_child(pb)
+	return pc
+
+
+# web: equip.js raceIs (for the Realmlings)
+static func _realm(r) -> bool:
+	return r == null or r == "realm" or (r is Array and r.has("realm"))
+
+
+# web: equip.js PLURAL_OF
+static func _plural(n: String) -> String:
+	if n.ends_with("man"):
+		return n.left(-3) + "men"
+	if n.ends_with("s"):
+		return n
+	if n.ends_with("Thief"):
+		return n.left(-1) + "ves"
+	return n + "s"
+
+
+func _order_key() -> String:
+	var st := []
+	for r in ["gold", "wood", "food"]:
+		st.append(floori(game.stock.get(r, 0) / 10.0))
+	return "%s|%s|%s|%d|%s" % [game.to_kinds(), game.to_buildings().size(), st,
+		range(game.world.provinces.size()).filter(func(p): return game.owned(p)).size(), game.train_orders.map(func(O): return [O.id, O.done, game.order_progress(O)])]
+
+
+# ---------------------------------------------------------------- look
+
+func _box(bg: Color, border: int, bc: Color, pad := 6) -> StyleBoxFlat:
+	var b := UiKit.box(bg, 4, border, bc)
+	b.content_margin_left = pad
+	b.content_margin_right = pad
+	b.content_margin_top = pad
+	b.content_margin_bottom = pad
+	return b
+
+
+func _style(b: Button, bg: Color, border: int, bc: Color) -> void:
+	for st in [["normal", bg], ["hover", bg.lightened(0.25)], ["pressed", bg.darkened(0.08)], ["focus", bg], ["disabled", bg]]:
+		b.add_theme_stylebox_override(st[0], _box(st[1], border, bc, 4))
+
+
+func _btn(t: String, bg: Color, f: Callable) -> Button:
+	var b := UiKit.button(t, 15, f)
+	_style(b, bg, 2, UiKit.INK)
+	for c in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
+		b.add_theme_color_override(c, UiKit.INK)
+	b.custom_minimum_size = Vector2(0, 32)
+	return b
+
+
+func _tab_style(b: Button, on: bool) -> void:
+	_style(b, UiKit.GOLD if on else Color("#eef2f7"), 1, UiKit.INK)
+	for c in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
+		b.add_theme_color_override(c, UiKit.INK if on else MUTED)
+	b.custom_minimum_size = Vector2(0, 30)
 
 
 func _ready() -> void:
@@ -244,9 +829,9 @@ func _ready() -> void:
 
 
 func _process(_dt: float) -> void:
-	if game == null:
+	if game == null or not visible:
 		return
-	if visible and tabs.current_tab == 1:
-		if hud.prov >= 0 and game.owned(hud.prov):
-			order_rally = hud.prov
-		_refresh_orders()
+	if mode == 0 and _key() != key:
+		_rebuild()
+	elif mode == 1 and _order_key() != order_key:
+		_rebuild()

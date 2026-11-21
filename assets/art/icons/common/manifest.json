@@ -1,6 +1,60 @@
 {
  "note": "ax, ay: the anchor pixel (where the game places the art: province center, plot, feet). scale: image pixels per world unit.",
  "images": {
+  "art_blueskull.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "artifact": "blueskull"
+  },
+  "art_crown.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "artifact": "crown"
+  },
+  "art_eye.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "artifact": "eye"
+  },
+  "art_flame.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "artifact": "flame"
+  },
+  "art_goldskull.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "artifact": "goldskull"
+  },
+  "art_grips.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "artifact": "grips"
+  },
+  "art_redskull.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "artifact": "redskull"
+  },
+  "art_slippers.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "artifact": "slippers"
+  },
+  "art_stump.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "artifact": "stump"
+  },
   "cmd_auto.png": {
    "ax": 0,
    "ay": 0,
@@ -125,7 +179,7 @@
    "ax": 0,
    "ay": 0,
    "scale": 1,
-   "id": "dismiss"
+   "kind": "dismiss"
   },
   "cmd_fly.png": {
    "ax": 0,
@@ -203,7 +257,7 @@
    "ax": 0,
    "ay": 0,
    "scale": 1,
-   "id": "road"
+   "kind": "road"
   },
   "cmd_rows.png": {
    "ax": 0,
@@ -239,7 +293,7 @@
    "ax": 0,
    "ay": 0,
    "scale": 1,
-   "id": "survey"
+   "kind": "survey"
   },
   "cmd_thugin.png": {
    "ax": 0,
@@ -264,6 +318,344 @@
    "ay": 0,
    "scale": 1,
    "id": "xpath"
+  },
+  "dx_access.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "dx": "access"
+  },
+  "dx_ally.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "dx": "ally"
+  },
+  "dx_bribe.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "dx": "bribe"
+  },
+  "dx_crime.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "dx": "crime"
+  },
+  "dx_enemy.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "dx": "enemy"
+  },
+  "dx_flirt.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "dx": "flirt"
+  },
+  "dx_gift.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "dx": "gift"
+  },
+  "dx_growl.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "dx": "growl"
+  },
+  "dx_revoke.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "dx": "revoke"
+  },
+  "dx_spy.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "dx": "spy"
+  },
+  "dx_trade.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "dx": "trade"
+  },
+  "dx_war.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "dx": "war"
+  },
+  "gear_armor_chain1.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "armor",
+   "key": "chain1"
+  },
+  "gear_armor_chain2.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "armor",
+   "key": "chain2"
+  },
+  "gear_armor_chain3.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "armor",
+   "key": "chain3"
+  },
+  "gear_armor_chain4.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "armor",
+   "key": "chain4"
+  },
+  "gear_armor_leather1.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "armor",
+   "key": "leather1"
+  },
+  "gear_armor_leather2.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "armor",
+   "key": "leather2"
+  },
+  "gear_armor_leather3.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "armor",
+   "key": "leather3"
+  },
+  "gear_armor_leather4.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "armor",
+   "key": "leather4"
+  },
+  "gear_armor_plate1.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "armor",
+   "key": "plate1"
+  },
+  "gear_armor_plate2.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "armor",
+   "key": "plate2"
+  },
+  "gear_armor_plate3.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "armor",
+   "key": "plate3"
+  },
+  "gear_armor_plate4.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "armor",
+   "key": "plate4"
+  },
+  "gear_horse_arabian.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "horse",
+   "key": "arabian"
+  },
+  "gear_horse_friesian.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "horse",
+   "key": "friesian"
+  },
+  "gear_horse_mongolian.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "horse",
+   "key": "mongolian"
+  },
+  "gear_horse_percheron.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "horse",
+   "key": "percheron"
+  },
+  "gear_horse_riding.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "horse",
+   "key": "riding"
+  },
+  "gear_shield_kite.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "shield",
+   "key": "kite"
+  },
+  "gear_shield_round.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "shield",
+   "key": "round"
+  },
+  "gear_shield_tower.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "shield",
+   "key": "tower"
+  },
+  "gear_weapon_club.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "weapon",
+   "key": "club"
+  },
+  "gear_weapon_crypticwand.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "weapon",
+   "key": "crypticwand"
+  },
+  "gear_weapon_enigmaticwand.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "weapon",
+   "key": "enigmaticwand"
+  },
+  "gear_weapon_grandstave.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "weapon",
+   "key": "grandstave"
+  },
+  "gear_weapon_greatsword.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "weapon",
+   "key": "greatsword"
+  },
+  "gear_weapon_halberd.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "weapon",
+   "key": "halberd"
+  },
+  "gear_weapon_longsword.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "weapon",
+   "key": "longsword"
+  },
+  "gear_weapon_mace.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "weapon",
+   "key": "mace"
+  },
+  "gear_weapon_morningstar.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "weapon",
+   "key": "morningstar"
+  },
+  "gear_weapon_mythicstave.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "weapon",
+   "key": "mythicstave"
+  },
+  "gear_weapon_pike.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "weapon",
+   "key": "pike"
+  },
+  "gear_weapon_polearm.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "weapon",
+   "key": "polearm"
+  },
+  "gear_weapon_shortsword.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "weapon",
+   "key": "shortsword"
+  },
+  "gear_weapon_spear.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "weapon",
+   "key": "spear"
+  },
+  "gear_weapon_stave.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "weapon",
+   "key": "stave"
+  },
+  "gear_weapon_sword.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "weapon",
+   "key": "sword"
+  },
+  "gear_weapon_wand.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "weapon",
+   "key": "wand"
+  },
+  "gear_weapon_warhammer.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "weapon",
+   "key": "warhammer"
   },
   "res_food.png": {
    "w": 80,

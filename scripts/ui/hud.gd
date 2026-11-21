@@ -44,6 +44,8 @@ var map: MapView
 var cam: Camera2D
 var armory: ArmoryWindow
 var diplomacy: DiplomacyWindow
+var school: SchoolPopup
+var country: CountryWindow
 var requests: RequestBox
 var flags: FlagBar
 var settings: SettingsWindow
@@ -153,6 +155,10 @@ func _ready() -> void:
 	add_child(armory)
 	diplomacy = DiplomacyWindow.new()
 	add_child(diplomacy)
+	school = SchoolPopup.new()
+	add_child(school)
+	country = CountryWindow.new()
+	add_child(country)
 	requests = RequestBox.new()
 	requests.set_anchors_preset(Control.PRESET_CENTER_TOP)
 	requests.position = Vector2(-260, 70)
@@ -177,6 +183,8 @@ func set_game(g: Game) -> void:
 		dialog.ask(title, text, choices, f if f.is_valid() else func(_id): pass)
 	armory.setup(g, self)
 	diplomacy.setup(g, self)
+	school.setup(g, self)
+	country.setup(g, self)
 	requests.setup(g, self)
 	flags.setup(g, self)
 	g.on_game_over = func(w):   # web: war.js gameOver
@@ -473,6 +481,9 @@ func _process(_delta: float) -> void:
 	if not game:
 		return
 	paused_label.visible = game.paused
+	if game.school_popup:
+		game.school_popup = false
+		school.open()
 	if prov >= 0:
 		panel.refresh(self, game, prov)
 	_refresh_actions()
@@ -770,6 +781,8 @@ static func icon(path: String) -> Texture2D:
 ## A unit's portrait (web: game.js portrait)
 func unit_icon(kind: String) -> Texture2D:
 	var t := icon("icons/realm/unit_%s.png" % kind.replace(":", "_").replace("-", "_").to_lower())
+	if t == null:   # an Armory design: the portrait of the starting design of its weapon family
+		t = icon("icons/realm/unit_%s.png" % Art.design_art(game, kind).replace("-", "_"))
 	if t == null:
 		t = icon("icons/realm/unit_mage_a.png") if kind == game.MAGE else icon("icons/realm/unit_d_sword.png")
 	return t

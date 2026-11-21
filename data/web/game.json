@@ -607,10 +607,10 @@
    "note": "Open ground: cavalry +20%"
   },
   "forest": {
-   "note": "Forest: defenders +25%, cavalry âˆ’25%"
+   "note": "Forest: defenders +25%, cavalry −25%"
   },
   "swamp": {
-   "note": "Swamp: everyone âˆ’20%, cavalry âˆ’30%"
+   "note": "Swamp: everyone −20%, cavalry −30%"
   },
   "desert": {
    "note": "Desert: no modifiers"

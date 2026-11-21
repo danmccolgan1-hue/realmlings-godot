@@ -12,6 +12,9 @@ func run() -> Array:
 	_fort_cmds(errs)
 	_crops(errs)
 	_new_game_choices(errs)
+	_mage_gear(errs)
+	_country(errs)
+	_school(errs)
 	var pn: Array = GameData.c("PATCH_NOTES")
 	if pn.is_empty() or pn[0].v != "v106":
 		errs.append("patch notes: the web game's v106 notes are missing")
@@ -295,3 +298,67 @@ func _new_game_choices(errs: Array) -> void:
 	var pr := Game.new_practice("ember", "", {}, nat)
 	if pr.player_info(Game.ME).name != "The Thistle Crown":
 		errs.append("new game: the practice island ignores your nation's name")
+
+
+# the Armory's Mage gear (web: magic.js mageStats, values from the web game) and that it survives a save
+func _mage_gear(errs: Array) -> void:
+	var g := Game.new_practice("ember", "cormac")
+	var want := {"stave|": [4, 0.0769, 0.8, "Stave."], "grandstave|": [6, 0.0769, 0.8, "Grand Stave. Spells cast 10% faster."],
+		"wand|round": [2, 0.25, 0.8, "Wand and Round Shield."], "crypticwand|tower": [3, 0.4783, 0.736, "Cryptic Wand and Tower Shield. Spells cost 10% less mana."]}
+	for k in want:
+		var p: PackedStringArray = k.split("|")
+		var st := g.mage_stats({"weapon": p[0], "shield": p[1] if p[1] != "" else null})
+		var w: Array = want[k]
+		if st.atk != w[0] or absf(st.red - w[1]) > 0.001 or absf(st.speed - w[2]) > 0.001 or st.blurb != w[3] or st.hp != 25:
+			errs.append("Mage gear %s: got atk %s red %.4f speed %.3f %s" % [k, st.atk, st.red, st.speed, st.blurb])
+	if g.mage_gear_why("weapon", "grandstave") == null:
+		errs.append("Mage gear: the Grand Stave isn't locked behind its research")
+	g.set_mage_gear({"weapon": "crypticwand", "shield": "tower"})
+	if absf(g.DSTATS[g.MAGE].speed - 0.736) > 0.001 or g.UNIT_SPEED[g.MAGE] != g.DSTATS[g.MAGE].speed:
+		errs.append("Mage gear: equipping doesn't change every Mage's stats")
+	g.set_mage_gear({"weapon": "stave", "shield": "tower"})
+	if g.mage_gear.shield != null:
+		errs.append("Mage gear: a two-handed stave keeps its shield")
+	g.set_mage_gear({"weapon": "wand", "shield": "round"})
+	var g2 := Game.from_save(JSON.parse_string(JSON.stringify(g.to_save())))
+	if g2.mage_gear.weapon != "wand" or absf(g2.DSTATS[g2.MAGE].red - 0.25) > 0.001:
+		errs.append("Mage gear: not kept by a save")
+	# a design made in the Armory is drawn as the starting soldier of its weapon family
+	var d := g.add_design({"name": "Maceman", "type": "inf", "weapon": "mace", "armor": "chain2"})
+	var c := g.add_design({"name": "Lancer", "type": "cav", "weapon": "spear", "armor": "leather1", "horse": "riding"})
+	if Art.design_art(g, d.id) != "d-club" or Art.design_art(g, c.id) != "d-rider" or Art.design_art(g, "d-spear") != "d-spear":
+		errs.append("Armory: a design's art isn't its family's starting soldier")
+
+
+# the Country Breakdown: gross income less building and unit upkeep is the net income (web: v78.js upkeepSplit)
+func _country(errs: Array) -> void:
+	var g := Game.new_world("ember", "cormac", ["moderate"], "center")
+	g.compute_income()
+	var sp := g.upkeep_split()
+	var gross: Dictionary = g.income_parts.gross
+	for k in Game.RES:
+		if absf(gross[k] - sp.units[k] - sp.blds[k] - g.income[k]) > 0.01:
+			errs.append("country: %s gross %s − units %s − buildings %s ≠ net %s" % [k, gross[k], sp.units[k], sp.blds[k], g.income[k]])
+	if CountryWindow.clock(65) != "1:05" or CountryWindow.clock(3725) != "1:02:05":
+		errs.append("country: the game clock reads %s / %s" % [CountryWindow.clock(65), CountryWindow.clock(3725)])
+
+
+# the school of magic: offered when Magic research unlocks, picked as the research, forgotten when abandoned
+func _school(errs: Array) -> void:
+	var g := Game.new_practice("ember", "cormac")
+	g.tech.mag.tier = 0
+	g.extras[g.capital] = g.extras_in(g.capital) + [{"type": "magetower", "slot": 4}]
+	g.tech_payday()
+	if not g.school_popup:
+		errs.append("school: no school choice when the first Mage Tower stands")
+	if not g.pick_school("arcane") or g.tech.mag.cur != "school-arcane":
+		errs.append("school: picking Arcane doesn't make it the Magic research (cur %s)" % g.tech.mag.cur)
+	g.tech.mag.prog = 99999.0
+	g.finish_tech("mag")
+	if g.current_school() != "arcane":
+		errs.append("school: Arcane not learned")
+	g.tech.mag.done.append("arcscouts")
+	g.tech.mag.cur = "abandon"
+	g.finish_tech("mag")
+	if g.current_school() != null or g.tech.mag.done.has("arcscouts") or g.tech.mag.done.has("abandon") or not g.school_popup:
+		errs.append("school: abandoning keeps the school or its spells (done %s)" % [g.tech.mag.done])

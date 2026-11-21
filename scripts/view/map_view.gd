@@ -422,7 +422,7 @@ func _draw_game() -> void:
 			var side := "d2" if cos(u.th) >= 0 else "d6"
 			sp = Art.get_sprite("units", "common", Art.unit_file("monster-" + kind, side))
 		if sp == null and kind.begins_with("d"):
-			sp = Art.get_sprite("units", "realm", Art.unit_file("d-sword", _dir(u.th)))   # Armory designs without art yet
+			sp = Art.get_sprite("units", "realm", Art.unit_file(Art.design_art(game, kind), _dir(u.th)))   # Armory designs without art yet
 		if sp:
 			Art.draw(self, sp, at)
 			if u.kind == game.MAGE:   # v99: the Mage's mana, just over his hat
@@ -550,7 +550,7 @@ func _army(u: Dictionary) -> void:
 	for sp_ in spots:
 		var sp = Art.get_sprite("units", "realm", Art.unit_file(sp_.k, _dir(u.th)))
 		if sp == null and str(sp_.k).begins_with("d"):
-			sp = Art.get_sprite("units", "realm", Art.unit_file("d-sword", _dir(u.th)))
+			sp = Art.get_sprite("units", "realm", Art.unit_file(Art.design_art(game, sp_.k), _dir(u.th)))
 		if sp:
 			Art.draw(self, sp, Vector2(sp_.x, sp_.y + hop), 0.85 if _is_cav(sp_.k) else 1.0)
 		else:

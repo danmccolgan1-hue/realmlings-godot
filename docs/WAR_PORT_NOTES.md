@@ -170,6 +170,25 @@ The plan after milestone 1. Each step is tested against the web game, then commi
    - How to Play window with the web game's full guide (`data/web/howto.json`, `tools/export_howto.py`).
    - Renaming provinces (✎ in the province menu, with Original) and units (✎ by the selection line).
    - Game over: the web game's text and its Show me / OK / Start over buttons. Version 0.6.0.
+12. **Batch H: the windows in full** — done (`tests/test_ui.gd` Mage gear, country, school):
+   - Armory (`scripts/ui/armory_window.gd`) as the web's: designs grouped Infantry / Cavalry / Mages with portraits
+     and ⚔ ♥ armor ➜ stats, New infantry / cavalry design, a spinning preview on its green patch, name box, stat bars
+     (Attack /18, Health /75, Armor /0.65, Speed /2), cost and upkeep, the family's note, Save / Save changes,
+     Retrofit armies, Delete, and the gear as picture buttons under Weapons / Armor / Horses tabs (locked gear faded
+     with a padlock; pressing it says what to research). The Mage editor equips every Mage (staves, wands, shields).
+     The Army Training Order tab follows v106 renderOrderView (− / + / +5, Gather in, summary, orders with bars).
+     The port has art for the starting designs only, so a design is drawn (map, preview, portrait) as the starting
+     soldier of its weapon family (`Art.design_art`); a gear-accurate look comes with the pixel art.
+   - School of magic (`scripts/ui/school_popup.gd`): offered when Magic research unlocks and after abandoning a school
+     (`Game.school_popup`, polled by the HUD); a school-locked leader offers only his school.
+   - Country Breakdown (`scripts/ui/country_window.gd`): click your flag and name. Leader portrait and bonus,
+     provinces, land, resources (gross, building upkeep, unit upkeep, net), artifacts, the war log.
+   - Diplomacy (`scripts/ui/diplomacy_window.gd`) in the v105 layout; the peace terms stay inside the war block.
+   - Rules: `mage_stats`, `set_mage_gear`, `register_mage`, `mage_gear_why`, `pick_school`, `abandon_school` (the
+     Abandon Magic School research did nothing before), `upkeep_split`.
+   - Exports: gear, diplomacy and artifact icons in the `uiicons` job; tech icons for techs whose race is a list
+     (Herbomancy, Necromancy and their spells were missing); `tools/fix_text_encoding.py` now also repairs "−" and
+     other symbols (the plate armor note read "âˆ’15% speed").
 
 ## Things to remember
 

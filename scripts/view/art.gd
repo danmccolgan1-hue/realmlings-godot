@@ -39,6 +39,17 @@ static func unit_file(kind: String, dir := "d0") -> String:
 	return "%s_%s.png" % [kind.replace(":", "_").replace("-", "_").to_lower(), dir]
 
 
+## The art an Armory design is drawn with. The port has art for the starting designs only, so a design made in the
+## Armory shows the starting soldier of its weapon family (Rider for cavalry); a gear-accurate look comes later.
+static func design_art(game, kind: String) -> String:
+	if kind.begins_with("d-") or not game.DSTATS.has(kind) or game.DSTATS[kind].get("fam") == "magic":
+		return kind
+	var st: Dictionary = game.DSTATS[kind]
+	if st.get("cav", false):
+		return "d-rider"
+	return {"pole": "d-spear", "blunt": "d-club"}.get(st.get("fam"), "d-sword")
+
+
 static var _flag_cache := {}
 
 ## A nation's flag image: its color with its emblem (web: v78.js ownerFlag / features.js flagURL); null if none.

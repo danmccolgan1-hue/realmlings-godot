@@ -475,7 +475,7 @@
   "plate": {
    "name": "Plate",
    "speed": 0.85,
-   "note": "âˆ’15% speed",
+   "note": "−15% speed",
    "armor": [
     8,
     14,
@@ -531,7 +531,7 @@
   "dragon": {
    "name": "Dragonbone",
    "speed": 0.935,
-   "note": "âˆ’6.5% speed",
+   "note": "−6.5% speed",
    "armor": [
     7.2,
     12.6,
@@ -588,7 +588,7 @@
   "ornate": {
    "name": "Ornate",
    "speed": 0.85,
-   "note": "âˆ’15% speed",
+   "note": "−15% speed",
    "armor": [
     8,
     14,

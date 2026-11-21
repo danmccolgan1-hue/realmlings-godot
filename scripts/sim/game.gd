@@ -61,6 +61,7 @@ var cd := {}                 # spell -> game time when ready again
 var paths := {}              # edge index -> "forest" | "tunnel"
 var harvest_by = null        # web: S.harvest
 var trap = null
+var school_popup := false    # the view should offer the school choice (web: setTimeout(openSchoolPopup))
 var reveals := []
 var eyes := []
 var haunts := []
@@ -633,6 +634,47 @@ func register_design(d: Dictionary) -> void:
 	UNIT_SPEED[d.id] = st.speed
 
 
+# web: magic.js mageStats (+ v102.js the stave's and wand's spell bonus in the blurb)
+func mage_stats(gear: Dictionary) -> Dictionary:
+	var MW: Dictionary = GameData.c("MAGE_WEAPONS")
+	var W: Dictionary = MW[gear.weapon]
+	var Sh = GameData.c("SHIELD_DEFS")[gear.shield] if gear.get("shield") != null and not W.twoH else null
+	var armor: float = 1 + (Sh.armor if Sh else 0)
+	var md: Dictionary = unit_defs[MAGE]
+	var st := {"cav": false, "rough": false, "fam": "magic", "line": W.line, "atk": W.atk, "hp": 25, "armor": armor, "shieldArmor": Sh.armor if Sh else 0,
+		"red": armor / (armor + float(GameData.c("ARMOR_K"))), "parry": 0, "speed": 0.8 * (Sh.speed if Sh else 1.0), "cost": md.cost, "upkeep": md.upkeep,
+		"blurb": "%s%s." % [W.name, (" and " + Sh.name) if Sh else ""]}
+	var add := []
+	if STAVE_CAST.has(gear.weapon):
+		add.append("Spells cast %d%% faster." % roundi((1 - STAVE_CAST[gear.weapon]) * 100))
+	if WAND_MANA.has(gear.weapon):
+		add.append("Spells cost %d%% less mana." % roundi((1 - WAND_MANA[gear.weapon]) * 100))
+	if not add.is_empty():
+		st.blurb += " " + " ".join(add)
+	return st
+
+
+## Equip every Mage with this gear (the Armory's "Equip all Mages"). web: equip.js saveDraft (type mage), magic.js registerMage
+func set_mage_gear(gear: Dictionary) -> void:
+	var W: Dictionary = GameData.c("MAGE_WEAPONS")[gear.weapon]
+	mage_gear = {"weapon": gear.weapon, "shield": null if W.twoH else gear.get("shield")}
+	register_mage()
+	var sh = mage_gear.shield
+	toast("%ss now carry a %s%s." % [unit_defs[MAGE].name, W.name, (" and a " + GameData.c("SHIELD_DEFS")[sh].name) if sh != null else ""])
+
+
+func register_mage() -> void:
+	DSTATS[MAGE] = mage_stats(mage_gear)
+	UNIT_SPEED[MAGE] = DSTATS[MAGE].speed
+
+
+## Why a Mage weapon or shield can't be chosen yet (a technology to research), or null.
+func mage_gear_why(kind: String, k: String):
+	var item: Dictionary = GameData.c("MAGE_WEAPONS")[k] if kind == "weapon" else GameData.c("SHIELD_DEFS")[k]
+	var tch = item.get("tech")
+	return null if tch == null or has_tech(tch) else "Research " + TECH_BY_ID[tch].name
+
+
 func design_by_id(id: String):
 	for d in designs:
 		if d.id == id:
@@ -807,6 +849,38 @@ func free_plot(p: int) -> int:
 # web: game.js buildCap()
 func build_cap(p: int, type: String) -> int:
 	return 4 if type == "farm" else tree_border[p] if type == "lumber" else 1
+
+
+## Your upkeep split into units and buildings (the Country Breakdown's table). web: v78.js upkeepSplit
+func upkeep_split() -> Dictionary:
+	var us := {"gold": 0, "wood": 0, "food": 0}
+	var bl := {"gold": 0, "wood": 0, "food": 0}
+	for v in units:
+		if v.owner != ME:
+			continue
+		if v.kind == "army":
+			for tk in v.troops:
+				var d = unit_defs.get(tk)
+				if d != null:
+					for k in d.get("upkeep", {}):
+						us[k] += d.upkeep[k] * v.troops[tk]
+			continue
+		var d = unit_defs.get(v.kind)
+		if d != null:
+			for k in d.get("upkeep", {}):
+				us[k] += d.upkeep[k]
+	for p in buildings:
+		var b: Dictionary = buildings[p]
+		if b.owner != ME:
+			continue
+		for e in extras_in(p):
+			var up: Dictionary = BUILD_DEFS[e.type].get("upkeep", {})
+			for k in up:
+				bl[k] += up[k]
+		if b.stage == 0:
+			for k in OUTPOST_UPKEEP:
+				bl[k] += OUTPOST_UPKEEP[k]
+	return {"units": us, "blds": bl}
 
 
 func provs_of(o := ME) -> Array:
@@ -2723,6 +2797,48 @@ func current_school():
 	return null
 
 
+# web: magic.js abandonSchool: the school, its spells and its repeatables are forgotten; choose a new school
+func abandon_school() -> void:
+	var sc = current_school()
+	if sc == null:
+		return
+	var st: Dictionary = tech.mag
+	st.done = st.done.filter(func(id): return not (TECH_BY_ID[id].get("school") == sc or id == "school-" + sc or id == "abandon"))
+	for x in TECH_BY_ID.values():
+		if x.get("rep", false) and x.get("school") == sc:
+			rep.erase(x.id)
+	for c in units:
+		if c.get("cast") != null:
+			cancel_cast(c)
+	harvest_by = null
+	if sc == "arcane":
+		trap = null
+	draw_options("mag")
+	compute_income()
+	toast("The School of %s is abandoned and its spells forgotten. Choose a new school." % GameData.c("SCHOOLS")[sc].name, true)
+	school_popup = true
+
+
+# web: magic.js pickSchool (+ v105.js a school-locked leader allows only his school)
+func pick_school(k: String) -> bool:
+	var L = leader_of(ME)
+	if L != null and L.get("school") != null and L.school != k:
+		toast("%s only allows %s." % [L.full, GameData.c("SCHOOL_WORD")[L.school]], true)
+		return false
+	var id := "school-" + k
+	if not TECH_BY_ID.has(id) or not tech_for(TECH_BY_ID[id]):
+		return false
+	var st: Dictionary = tech.mag
+	if not st.opts.has(id) and st.cur != id:
+		draw_options("mag")
+	if not st.opts.has(id) and st.cur != id:
+		st.opts.append(id)
+	if st.cur != id and not pick_tech(id):
+		return false
+	toast("Researching the School of %s. You can switch in the Research panel until it finishes." % GameData.c("SCHOOLS")[k].name)
+	return true
+
+
 func techs_left(tree: String) -> int:
 	var st: Dictionary = tech[tree]
 	var sc = current_school() if tree == "mag" else null
@@ -2911,6 +3027,9 @@ func finish_tech(tree: String) -> void:
 					top_up_options(t2)
 				else:
 					draw_options(t2)
+	if x.id == "abandon":
+		abandon_school()
+		return
 	if x.id.begins_with("school-"):
 		draw_options(tree)
 		compute_income()
@@ -2937,6 +3056,8 @@ func tech_payday() -> void:
 			if T > st.tier:
 				var nm: String = GameData.c("TECH_TREES")[tree].name
 				toast("%s research unlocked! Open Research (T) to pick a technology." % nm if st.tier == 0 else "%s Tier %s technologies are now available." % [nm, ["", "I", "II", "III"][T]])
+			if tree == "mag" and st.tier == 0 and T > 0 and current_school() == null:
+				school_popup = true
 			st.tier = T
 			if st.cur == null or st.opts.is_empty():
 				draw_options(tree)
@@ -4599,6 +4720,8 @@ static func from_save(d: Dictionary, map: Dictionary = {}) -> Game:
 		if d.has(f):   # (an older save may not have every field: the new game's default stays)
 			g.set(f, d[f])
 	g.my_nation.color = int(g.my_nation.get("color", 0))   # (JSON numbers come back as floats)
+	if g.mage_gear.weapon != "stave" or g.mage_gear.get("shield") != null:
+		g.register_mage()
 	for x in g.designs:
 		if not x.get("builtin", false):
 			g.register_design(x)

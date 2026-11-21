@@ -277,6 +277,12 @@
    "scale": 1,
    "tech": "apprentice"
   },
+  "tech_arboreal.png": {
+   "ax": 44,
+   "ay": 44,
+   "scale": 1,
+   "tech": "arboreal"
+  },
   "tech_arcanum.png": {
    "ax": 44,
    "ay": 44,
@@ -294,6 +300,12 @@
    "ay": 44,
    "scale": 1,
    "tech": "arcvision"
+  },
+  "tech_armyofdeath.png": {
+   "ax": 44,
+   "ay": 44,
+   "scale": 1,
+   "tech": "armyofdeath"
   },
   "tech_arrowslits.png": {
    "ax": 44,
@@ -325,17 +337,71 @@
    "scale": 1,
    "tech": "battleforge"
   },
+  "tech_bountiful.png": {
+   "ax": 44,
+   "ay": 44,
+   "scale": 1,
+   "tech": "bountiful"
+  },
   "tech_bridges.png": {
    "ax": 44,
    "ay": 44,
    "scale": 1,
    "tech": "bridges"
   },
+  "tech_charon.png": {
+   "ax": 44,
+   "ay": 44,
+   "scale": 1,
+   "tech": "charon"
+  },
   "tech_clearthoughts.png": {
    "ax": 44,
    "ay": 44,
    "scale": 1,
    "tech": "clearthoughts"
+  },
+  "tech_commune.png": {
+   "ax": 44,
+   "ay": 44,
+   "scale": 1,
+   "tech": "commune"
+  },
+  "tech_crypticwand.png": {
+   "ax": 44,
+   "ay": 44,
+   "scale": 1,
+   "tech": "crypticwand"
+  },
+  "tech_curse1.png": {
+   "ax": 44,
+   "ay": 44,
+   "scale": 1,
+   "tech": "curse1"
+  },
+  "tech_curse2.png": {
+   "ax": 44,
+   "ay": 44,
+   "scale": 1,
+   "tech": "curse2"
+  },
+  "tech_curse3.png": {
+   "ax": 44,
+   "ay": 44,
+   "scale": 1,
+   "tech": "curse3"
+  },
+  "tech_deathtax.png": {
+   "ax": 44,
+   "ay": 44,
+   "scale": 1,
+   "tech": "deathtax"
+  },
+  "tech_diamondskin.png": {
+   "ax": 44,
+   "ay": 44,
+   "scale": 1,
+   "tech": "diamondskin"
   },
   "tech_earthquake.png": {
    "ax": 44,
@@ -349,11 +415,29 @@
    "scale": 1,
    "tech": "effadmin"
   },
+  "tech_enigmaticwand.png": {
+   "ax": 44,
+   "ay": 44,
+   "scale": 1,
+   "tech": "enigmaticwand"
+  },
+  "tech_eyesforest.png": {
+   "ax": 44,
+   "ay": 44,
+   "scale": 1,
+   "tech": "eyesforest"
+  },
   "tech_farsight.png": {
    "ax": 44,
    "ay": 44,
    "scale": 1,
    "tech": "farsight"
+  },
+  "tech_forest.png": {
+   "ax": 44,
+   "ay": 44,
+   "scale": 1,
+   "tech": "forest"
   },
   "tech_forge.png": {
    "ax": 44,
@@ -379,11 +463,59 @@
    "scale": 1,
    "tech": "forts3"
   },
+  "tech_granary.png": {
+   "ax": 44,
+   "ay": 44,
+   "scale": 1,
+   "tech": "granary"
+  },
   "tech_grandstave.png": {
    "ax": 44,
    "ay": 44,
    "scale": 1,
    "tech": "grandstave"
+  },
+  "tech_graverob.png": {
+   "ax": 44,
+   "ay": 44,
+   "scale": 1,
+   "tech": "graverob"
+  },
+  "tech_hallways.png": {
+   "ax": 44,
+   "ay": 44,
+   "scale": 1,
+   "tech": "hallways"
+  },
+  "tech_harvest.png": {
+   "ax": 44,
+   "ay": 44,
+   "scale": 1,
+   "tech": "harvest"
+  },
+  "tech_haunt.png": {
+   "ax": 44,
+   "ay": 44,
+   "scale": 1,
+   "tech": "haunt"
+  },
+  "tech_horde.png": {
+   "ax": 44,
+   "ay": 44,
+   "scale": 1,
+   "tech": "horde"
+  },
+  "tech_horse_breeding.png": {
+   "ax": 44,
+   "ay": 44,
+   "scale": 1,
+   "tech": "horse-breeding"
+  },
+  "tech_horse_training.png": {
+   "ax": 44,
+   "ay": 44,
+   "scale": 1,
+   "tech": "horse-training"
   },
   "tech_magetower.png": {
    "ax": 44,
@@ -403,11 +535,23 @@
    "scale": 1,
    "tech": "magicwell"
   },
+  "tech_magnificent.png": {
+   "ax": 44,
+   "ay": 44,
+   "scale": 1,
+   "tech": "magnificent"
+  },
   "tech_market.png": {
    "ax": 44,
    "ay": 44,
    "scale": 1,
    "tech": "market"
+  },
+  "tech_mending.png": {
+   "ax": 44,
+   "ay": 44,
+   "scale": 1,
+   "tech": "mending"
   },
   "tech_mindread.png": {
    "ax": 44,
@@ -432,6 +576,12 @@
    "ay": 44,
    "scale": 1,
    "tech": "mythicstave"
+  },
+  "tech_necro.png": {
+   "ax": 44,
+   "ay": 44,
+   "scale": 1,
+   "tech": "necro"
   },
   "tech_planar.png": {
    "ax": 44,
@@ -469,6 +619,12 @@
    "scale": 1,
    "tech": "refmines"
   },
+  "tech_rejuvenation.png": {
+   "ax": 44,
+   "ay": 44,
+   "scale": 1,
+   "tech": "rejuvenation"
+  },
   "tech_rep_admin.png": {
    "ax": 44,
    "ay": 44,
@@ -487,11 +643,41 @@
    "scale": 1,
    "tech": "rep-blunt"
   },
+  "tech_rep_cavhp.png": {
+   "ax": 44,
+   "ay": 44,
+   "scale": 1,
+   "tech": "rep-cavhp"
+  },
+  "tech_rep_curse.png": {
+   "ax": 44,
+   "ay": 44,
+   "scale": 1,
+   "tech": "rep-curse"
+  },
   "tech_rep_forts.png": {
    "ax": 44,
    "ay": 44,
    "scale": 1,
    "tech": "rep-forts"
+  },
+  "tech_rep_graverob.png": {
+   "ax": 44,
+   "ay": 44,
+   "scale": 1,
+   "tech": "rep-graverob"
+  },
+  "tech_rep_harvest.png": {
+   "ax": 44,
+   "ay": 44,
+   "scale": 1,
+   "tech": "rep-harvest"
+  },
+  "tech_rep_horsespeed.png": {
+   "ax": 44,
+   "ay": 44,
+   "scale": 1,
+   "tech": "rep-horsespeed"
   },
   "tech_rep_lumber.png": {
    "ax": 44,
@@ -535,6 +721,12 @@
    "scale": 1,
    "tech": "rep-shockcast"
   },
+  "tech_rep_skin.png": {
+   "ax": 44,
+   "ay": 44,
+   "scale": 1,
+   "tech": "rep-skin"
+  },
   "tech_rep_stasis.png": {
    "ax": 44,
    "ay": 44,
@@ -571,11 +763,23 @@
    "scale": 1,
    "tech": "rep-trading"
   },
+  "tech_rep_wand.png": {
+   "ax": 44,
+   "ay": 44,
+   "scale": 1,
+   "tech": "rep-wand"
+  },
   "tech_rep_wayfinders.png": {
    "ax": 44,
    "ay": 44,
    "scale": 1,
    "tech": "rep-wayfinders"
+  },
+  "tech_restoration.png": {
+   "ax": 44,
+   "ay": 44,
+   "scale": 1,
+   "tech": "restoration"
   },
   "tech_retained.png": {
    "ax": 44,
@@ -594,6 +798,12 @@
    "ay": 44,
    "scale": 1,
    "tech": "rift"
+  },
+  "tech_risen.png": {
+   "ax": 44,
+   "ay": 44,
+   "scale": 1,
+   "tech": "risen"
   },
   "tech_roads.png": {
    "ax": 44,
@@ -643,11 +853,35 @@
    "scale": 1,
    "tech": "school-arcane"
   },
+  "tech_school_death.png": {
+   "ax": 44,
+   "ay": 44,
+   "scale": 1,
+   "tech": "school-death"
+  },
+  "tech_school_life.png": {
+   "ax": 44,
+   "ay": 44,
+   "scale": 1,
+   "tech": "school-life"
+  },
   "tech_scoutsight.png": {
    "ax": 44,
    "ay": 44,
    "scale": 1,
    "tech": "scoutsight"
+  },
+  "tech_sealed.png": {
+   "ax": 44,
+   "ay": 44,
+   "scale": 1,
+   "tech": "sealed"
+  },
+  "tech_skin.png": {
+   "ax": 44,
+   "ay": 44,
+   "scale": 1,
+   "tech": "skin"
   },
   "tech_sophfarms.png": {
    "ax": 44,
@@ -667,6 +901,12 @@
    "scale": 1,
    "tech": "sophmines"
   },
+  "tech_stable.png": {
+   "ax": 44,
+   "ay": 44,
+   "scale": 1,
+   "tech": "stable"
+  },
   "tech_stasis.png": {
    "ax": 44,
    "ay": 44,
@@ -685,6 +925,24 @@
    "scale": 1,
    "tech": "stockmarket"
   },
+  "tech_stoneskin.png": {
+   "ax": 44,
+   "ay": 44,
+   "scale": 1,
+   "tech": "stoneskin"
+  },
+  "tech_storehouse.png": {
+   "ax": 44,
+   "ay": 44,
+   "scale": 1,
+   "tech": "storehouse"
+  },
+  "tech_terrascape.png": {
+   "ax": 44,
+   "ay": 44,
+   "scale": 1,
+   "tech": "terrascape"
+  },
   "tech_traderoutes.png": {
    "ax": 44,
    "ay": 44,
@@ -696,6 +954,12 @@
    "ay": 44,
    "scale": 1,
    "tech": "trading"
+  },
+  "tech_underworld.png": {
+   "ax": 44,
+   "ay": 44,
+   "scale": 1,
+   "tech": "underworld"
   },
   "tech_w_bastard.png": {
    "ax": 44,
