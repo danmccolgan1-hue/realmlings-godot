@@ -221,6 +221,20 @@ The plan after milestone 1. Each step is tested against the web game, then commi
      while paused, M to mute; switches and volumes on the start screen and in Settings. Tutorial voice lines play
      from `assets/audio/tutorial/t<step>.mp3` when they exist (the web game has none yet).
 
+14. **Swamplings and Woodlings** — done (`tests/test_races.gd`, 32 economy fixtures `tests/fixtures/econ/*_{aarg..zariel}.json`):
+   - `Races.apply(g, race)` gives each game its own `BUILD_DEFS`, `TECHS`, `TECH_BY_ID`, `TECH_TREES`, `UNIT_BASE`,
+     `BUILD_ORDER` and `CMD` with the race's names (the web game changes its globals instead); a load re-applies it.
+     The race comes from the New Game page, else the leader (`Game.new_practice(seed, leader, map, nation, race)`).
+   - Rules: Swamp Taxes, Thugs (`thug_gold`, dens hold 2-4), Supply Cache, Highwaymen, Community, swamp +20% damage
+     and speed (no Ogre penalty there), forest +20% armor and +10% speed, `race_build_why`, Ogre Caves train Ogres,
+     Thug Dens train Thugs, Spiked Walls, Fireball, dual wielding, Ogres (OGRE_ARMOR 0.8), Champions, two-handing
+     (TWO_BURST 2.5 every other round), Taal / Marl / Zaarg / Zariel bonuses, the new leader starts.
+   - Magic: Pyromancy and Elemental magic with v98's mana and 3-second casts. Not yet: the Grand Elemental.
+   - Computer nations: `slot_races` (New Game: R / S / W / ? per opponent; "realm" by default so fixtures hold).
+   - Art: `tools/export_art.py <out> --race=swamp` writes `<category>/swamp/…`; `Art.race_sprite` falls back to the
+     Realmlings' art; `Hud.icon` looks in the player's race folder first. No building animation frames for the
+     other races yet.
+
 ## Things to remember
 
 - **Always grep for wrappers** (`name = function`) before porting a function: later web files replace many of them.

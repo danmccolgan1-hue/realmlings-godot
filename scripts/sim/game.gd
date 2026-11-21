@@ -1089,6 +1089,10 @@ func province_income(p: int, b: Dictionary) -> Dictionary:
 		y[k] = yields[p][k] + (CAPITAL_BONUS[k] if b.stage == 2 or b.get("cc", false) else 0) + x[k]
 	if b.stage == 2 and b.owner == ME:
 		y.gold += trade_gold()   # Trade Routes: markets the capital reaches by road
+	if units.any(func(c): return c.owner == b.owner and c.prov == p and c.get("cast") != null and c.cast.spell == "q:fspirit"):   # web: v98.js Forest Spirit
+		for k in y:
+			if y[k] > 0:
+				y[k] *= 2
 	for P in sacreds:   # web: v98.js (a Sacred Pyre: +110 gold there every payout)
 		if P.prov == p and P.owner == b.owner and P.until > t:
 			y.gold += SACRED.gold
@@ -2792,6 +2796,10 @@ func compute_fog() -> void:
 	for h in haunts:
 		if h.until > t:
 			vis[h.prov] = true
+	for r in wrocks:
+		if r.owner == ME and r.until > t:
+			vis[r.a] = true
+			vis[r.b] = true
 	for P in spyres:   # web: swamp.js pyreSight
 		if P.owner == ME and P.until > t:
 			vis[P.prov] = true
@@ -4552,7 +4560,10 @@ const LINES := {"harvest": ["harvest", "bountiful", "magnificent"], "skin": ["sk
 	"trading": ["trading", "stockmarket", "planar"], "stasis": ["stasis", "prison"], "rift": ["rift", "portal"],
 	"eyes": ["eyesforest"], "haunt": ["haunt"],
 	"fiery": ["fiery1", "fiery2", "fiery3"], "ftrap": ["firetrap", "blazetrap", "molttrap"], "spyre": ["scoutpyre"], "pfire": ["pathfire", "pathflame", "pathinferno"],
-	"sacred": ["sacredpyre"]}
+	"sacred": ["sacredpyre"], "rock": ["rockarmor"], "wrocks": ["wrocks"], "tportal": ["townportal"], "fspirit": ["forestspirit"]}
+# web: wood.js Elemental magic (+ v98.js mana and casting times)
+const ROCK_PCT := 0.1
+const PORTAL_CD := 300.0
 # web: swamp.js / v98.js Pyromancy
 const FIERY := [0.0, 0.05, 0.10, 0.15]
 const FIRE_DMG := [0, 150, 300, 450]
@@ -4571,7 +4582,7 @@ const MANA_START := 25.0
 const MANA_CAPS := [100, 150, 200]
 const MANA_REGEN := [0, 1, 2, 3]
 const SPELL_MANA := {"harvest": "drain", "mending": 25, "graverob": "all", "haunt": 25, "trading": "all", "mind": 50, "stasis": 50, "rift": 100, "eyes": 25,
-	"spyre": 25, "ftrap": 50, "pfire": 50, "sacred": 100}
+	"spyre": 25, "ftrap": 50, "pfire": 50, "sacred": 100, "wrocks": 25, "tportal": 100, "fspirit": "drain"}
 const PATHS_MANA := 200
 const CAST_TIME := 3.0
 const GRAVE_RATE := [0, 1, 2, 3]
@@ -4582,7 +4593,8 @@ const SEE_TIME := 60.0
 const STAVE_CAST := {"grandstave": 0.9, "mythicstave": 0.8}
 const WAND_MANA := {"crypticwand": 0.9, "enigmaticwand": 0.8}
 ## The spells a caster can cast from the command card, in order.
-const SPELLS := ["harvest", "mending", "graverob", "trading", "mind", "stasis", "rift", "eyes", "haunt", "spyre", "ftrap", "pfire", "sacred"]
+const SPELLS := ["harvest", "mending", "graverob", "trading", "mind", "stasis", "rift", "eyes", "haunt", "spyre", "ftrap", "pfire", "sacred", "wrocks", "tportal", "fspirit"]
+var wrocks := []    # Whispering Rocks {owner, a, b, edge, t0, until}
 var spyres := []    # Scouting Pyres {prov, owner, t0, until}
 var ftraps := []    # fire traps {prov, owner, lv, mult, t0, ignore}
 var sacreds := []   # Sacred Pyres {prov, owner, t0, until}
@@ -4691,6 +4703,8 @@ func cancel_cast(c: Dictionary, why := "") -> void:
 		return
 	var sp: String = c.cast.spell
 	c.cast = null
+	if sp == "q:fspirit":
+		compute_income()
 	if sp == "harvest":
 		harvest_by = null
 		compute_income()
@@ -4711,8 +4725,8 @@ func mending_target(c: Dictionary):
 	return null
 
 
-func see_nbrs(c: Dictionary) -> Array:
-	return all_nbr[c.prov].filter(func(q): return _edge_between(c.prov, q, "trees", null) >= 0)
+func see_nbrs(c: Dictionary, style := "trees") -> Array:
+	return all_nbr[c.prov].filter(func(q): return _edge_between(c.prov, q, style, null) >= 0)
 
 
 func _edge_between(p: int, q: int, style, open) -> int:
@@ -4755,6 +4769,17 @@ func _spell_why(c: Dictionary, k: String):
 			return null if not see_nbrs(c).is_empty() else "No border of trees here"
 		"spyre":
 			return "Ready in %d s" % ceili(cd_left("spyre%d" % c.id)) if cd_left("spyre%d" % c.id) > 0 else null
+		"wrocks":
+			return null if not see_nbrs(c, "mountains").is_empty() else "No mountain border here"
+		"tportal":
+			if capital < 0 or c.prov == capital:
+				return "Already at the capital"
+			return "Ready in %d s" % ceili(cd_left("tportal%d" % c.id)) if cd_left("tportal%d" % c.id) > 0 else null
+		"fspirit":
+			if not owned(c.prov) or occ.has(c.prov):
+				return "Channel it in a province of yours"
+			if units.any(func(v): return v != c and v.get("cast") != null and v.cast.spell == "q:fspirit" and v.prov == c.prov):
+				return "A Forest Spirit is already channeled here"
 		"ftrap":
 			var mine := ftraps.filter(func(x): return x.owner == ME)
 			if mine.any(func(x): return x.prov == c.prov):
@@ -4841,6 +4866,22 @@ func cast_spell(c: Dictionary, k: String, target := -1) -> bool:
 				return false
 			begin_cast(c, "eyes", {"to": q})
 			toast("Eyes of the Forest: 3 s of casting.")
+		"wrocks":
+			var wl := see_nbrs(c, "mountains")
+			var wq: int = target if target >= 0 else (wl[0] if wl.size() == 1 else -1)
+			if wq < 0 or not wl.has(wq):
+				toast("Whispering Rocks: pick the neighbouring province across the mountains.", true)
+				return false
+			begin_cast(c, "wrocks", {"to": wq})
+			toast("Whispering Rocks toward %s: 3 s of casting." % prov_name(wq))
+		"tportal":
+			spend_mana(c, SPELL_MANA.tportal)
+			start_cast(c, "q:tportal", CAST_TIME)
+			toast("%s opens a Town Portal to %s: 3 s of casting." % [c.name, prov_name(capital)])
+		"fspirit":
+			start_cast(c, "q:fspirit", INF)
+			compute_income()
+			toast("%s channels a Forest Spirit: %s makes twice the resources while he keeps it up (1 mana a second)." % [c.name, prov_name(c.prov)])
 		"spyre":
 			begin_cast(c, "spyre")
 			toast("%s builds up a Scouting Pyre: 3 s of casting." % c.name)
@@ -4997,6 +5038,18 @@ func _finish_q(c: Dictionary, k: String, cs: Dictionary, now: float) -> void:
 			teleport(c, cs.to)
 			cd["rift"] = now + RIFT_CD[maxi(1, lvl("rift"))]
 			toast("%s steps through the rift." % c.name)
+		"wrocks":
+			if not see_nbrs(c, "mountains").has(cs.to):
+				return
+			wrocks.append({"owner": ME, "a": c.prov, "b": cs.to, "edge": _edge_between(c.prov, cs.to, "mountains", null), "t0": now, "until": now + SEE_TIME})
+			compute_fog()
+			toast("Whispering Rocks: %s and %s are in sight for 1 minute." % [prov_name(c.prov), prov_name(cs.to)])
+		"tportal":
+			if capital < 0 or capital == c.prov:
+				return
+			teleport(c, capital)
+			cd["tportal%d" % c.id] = now + PORTAL_CD / maxf(1, mages_in(c))
+			toast("%s steps through the Town Portal to %s." % [c.name, prov_name(capital)])
 		"spyre":
 			spyres.append({"prov": c.prov, "owner": ME, "t0": now, "until": now + SPYRE.dur})
 			cd["spyre%d" % c.id] = now + SPYRE.cd / maxf(1, mages_in(c))
@@ -5098,10 +5151,11 @@ func step_magic(now: float, dt: float) -> void:
 		var cs = c.get("cast")
 		if cs == null or not is_caster(c):
 			continue
-		if cs.spell == "harvest" and not c.moving:
+		if (cs.spell == "harvest" or cs.spell == "q:fspirit") and not c.moving:   # (a Forest Spirit drains 1 mana a second too)
 			c.mana = maxf(0.0, mana_of(c) - dt)
 			if c.mana <= 0:
 				cancel_cast(c, "%s has run out of mana." % c.name)
+				compute_income()
 				continue
 		if not cs.spell.begins_with("q:") or not is_finite(cs.dur) or c.moving or now - cs.t0 < cs.dur:
 			continue
@@ -5172,7 +5226,7 @@ const SAVE_FIELDS := ["battles", "bandit_count", "monster_count", "leader", "cap
 	"army_counter", "tech", "rep", "surveyed", "unit_defs", "designs", "exhaust", "exhaust_ok", "harvest", "devel", "upgrades",
 	"xup", "auto_tech", "roads", "walls", "wall_hp", "artifacts", "gift_vault", "quakes", "quake_seq", "wall_max", "wall_crack", "broken_walls", "rewall_jobs", "gate_own", "fort_walled", "gpc_slow_t", "dev_t", "cd", "paths",
 	"harvest_by", "trap", "reveals", "eyes", "haunts", "mana_pool", "mana_prev_t", "mage_gear", "finds", "treasure_rolled",
-	"sp_found", "slot_races", "spyres", "ftraps", "sacreds", "setpieces", "travelers", "train_orders", "train_order_seq", "design_seq", "prov_rename", "nations", "players", "my_nation", "race_of", "wars", "truces", "allies", "war_seq", "met", "occ", "occ_prog", "dipl", "war_log", "war_ever", "war_lock", "ai_met", "fallen", "ally_check", "bandit_next", "bandit_waves", "ally_ask", "crop_scan_at", "ai_scout_t", "wf", "known", "explored", "visible", "queues", "rally", "military", "UNIT_SPEED", "open_nbr", "all_nbr",
+	"sp_found", "slot_races", "spyres", "ftraps", "sacreds", "wrocks", "setpieces", "travelers", "train_orders", "train_order_seq", "design_seq", "prov_rename", "nations", "players", "my_nation", "race_of", "wars", "truces", "allies", "war_seq", "met", "occ", "occ_prog", "dipl", "war_log", "war_ever", "war_lock", "ai_met", "fallen", "ally_check", "bandit_next", "bandit_waves", "ally_ask", "crop_scan_at", "ai_scout_t", "wf", "known", "explored", "visible", "queues", "rally", "military", "UNIT_SPEED", "open_nbr", "all_nbr",
 	"yields", "tree_border", "debug_cap", "debug_tech", "reveal_all", "rec", "t", "next_tick", "paused", "last", "started"]
 
 
@@ -5773,6 +5827,30 @@ func apply_damage(b: Dictionary, armies: Array, dmg: float, now: float, pierce :
 		total += troop_count(a)
 	if not total:
 		return
+	var sh := armies.filter(func(x): return x.get("rock") != null and x.rock.hp > 0)
+	if not sh.is_empty() and dmg > 0:   # web: wood.js applyDamage (Rock Armor soaks the blows first)
+		var mx := side_mix(armies)
+		if is_wd(armies[0].owner) and world.provinces[b.prov].terrain == "forest" and mx.red > 0 and mx.red < 1:
+			var ak0: float = GameData.c("ARMOR_K")
+			var A0: float = mx.red * ak0 / (1 - mx.red) * 1.2
+			mx.red = A0 / (A0 + ak0)
+		var fct := maxf(0.01, (1 - mx.red * (1 - 0.5 * pierce)) * (1 - mx.parry))
+		var pool := 0.0
+		for x in sh:
+			pool += x.rock.hp
+		var post := dmg * fct
+		var soak := minf(pool, post)
+		for x in sh:
+			x.rock.hp -= soak * x.rock.hp / pool
+			x.rockHit = now
+			if x.rock.hp < 0.5:
+				x.rock.hp = 0
+				x.rockBroke = now
+				if x.owner == ME:
+					toast("%s: the Rock Armor shatters." % x.name, true)
+		dmg = (post - soak) / fct
+		if dmg <= 0.001:
+			return
 	var mix := side_mix(armies)
 	if is_wd(armies[0].owner) and world.provinces[b.prov].terrain == "forest" and mix.red > 0 and mix.red < 1:   # web: game.js applyDamage (Woodlings: +20% armor in a forest)
 		var ak: float = GameData.c("ARMOR_K")
@@ -5947,6 +6025,19 @@ func on_battle_join(a: Dictionary, now: float) -> void:
 			toast("%s: %s (+%d%% damage)." % [a.name, TECH_BY_ID[line_tech("curse")].name, JS.round_js(CURSE[cu].pct * 100)])
 		if ri and _auto_on(a, "risen") and a.get("risenCd", 0.0) <= now:
 			a.risen = 1
+	a.rock = null
+	a.twoOn = true
+	a.twoT = -1.0
+	if is_caster(a) and not poor and lvl("rock") and _auto_on(a, "rock"):   # web: wood.js raiseRock + v98.js (50 mana, no cooldown)
+		var hp := 0.0
+		for k in a.troops:
+			if a.troops[k] > 0:
+				hp += a.troops[k] * hp_of(a, k)
+		var rh := JS.round_js(hp * ROCK_PCT * pow(1.1, rep_lv("rep-rock")))
+		if rh > 0:
+			a.rock = {"hp": rh, "max": rh, "t0": now}
+			spend_mana(a, AUTO_MANA)
+			toast("%s: Rock Armor (a stone shield worth %d health)." % [a.name, rh])
 	a.fiery = 0.0
 	if is_caster(a) and not poor and lvl("fiery") and _auto_on(a, "fiery"):   # web: swamp.js onBattleJoin (Fiery Weapons) + v98.js (50 mana, no cooldown)
 		a.fiery = FIERY[lvl("fiery")] * (1 + 0.1 * rep_lv("rep-fiery"))
@@ -9807,6 +9898,10 @@ func step_pyromancy(now: float) -> void:
 	if spyres.size() != before:
 		compute_fog()
 	sacreds = sacreds.filter(func(P): return P.until > now - 20)
+	var nw := wrocks.size()
+	wrocks = wrocks.filter(func(r): return r.until > now)
+	if wrocks.size() != nw:
+		compute_fog()
 	for T in ftraps.duplicate():
 		T.ignore = T.ignore.filter(func(id): return units.any(func(v): return v.id == id and v.prov == T.prov))
 		var foe = null

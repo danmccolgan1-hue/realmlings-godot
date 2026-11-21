@@ -5,6 +5,13 @@ extends Control
 ## web: v106.js renderPatchNotes
 
 const PORT_NOTES := [
+	{"v": "Godot 0.9", "date": "November 21, 2026", "items": [
+		["Swamplings", "Play as the Swamplings: start in a swamp with three Axe Berserkers, fight 20% harder and move 20% faster there, and tax your swamp settlements. Swampwrights, Swampstriders and Warlocks; Ogre Caves (mountain borders), Thug Dens with Thugs who earn gold, Supply Caches and Hot Springs; no Granaries, Storehouses or roads. Mushroom Farming from the start, Spiked Walls, the Fireball."],
+		["Swampling war and magic", "Axes, Staghide, Wyvern-Scaled and Dragonbone armor, dual wielding (the off hand hits for half), and Ogres in five breeds. Pyromancy: Fiery Weapons, Scouting Pyres, fire traps, Path of Fire and Sacred Pyres."],
+		["Woodlings", "Play as the Woodlings: start in a forest, 20% tougher and 10% quicker there; Scouts slip through borders of trees. Architects, Druids, Groves, Bazaars with Community, Shrines and the Hall of Champions; no shields or roads. Protectors with thrusting swords and a two-handed grip, Champions, Spiritweave, Mithril and Ornate armor."],
+		["Woodling magic", "The School of the Elements: Rock Armor, Whispering Rocks, Town Portal and the Forest Spirit."],
+		["New Game", "Choose your race; the leaders follow it, with all eight Swampling and eight Woodling leaders and their starts and bonuses. Each opponent can be a Realmling, Swampling, Woodling or a random race, with their own names, designs and schools."],
+		["Look", "Swampling mud huts and Woodling tree houses, their buildings, soldiers, workers, townsfolk, icons and leader portraits; the Armory shows your race's gear."]]},
 	{"v": "Godot 0.8", "date": "November 21, 2026", "items": [
 		["Orders", "Drag a box to select several units, Shift-click to add or remove one. Right-click sends them all, spread out around the spot; hold Shift to queue orders. Ctrl+right-click opens the survey and build menu (or turn on Quick queue in Settings). Drag with the right mouse to move the map."],
 		["On the map", "A golden mark where you sent units, numbered markers for queued surveys and moves, the survey's loop and stakes, rally points, and the provinces of your selected units."],

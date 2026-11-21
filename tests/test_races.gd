@@ -39,6 +39,17 @@ func run() -> Array:
 	var wf: Dictionary = w.units.filter(func(u): return u.kind == GameData.c("WAYFINDER"))[0]
 	var tn := w.tree_nbr(w.capital)
 	chk.call(w.path_nbr(wf, w.capital).size() == w.open_nbr[w.capital].size() + tn.size(), "Scouts slip through borders of trees")
+	# Elemental magic: Rock Armor soaks blows; a Forest Spirit doubles a province
+	w.grant_tech("school-elemental") if w.has_method("grant_tech") else null
+	for id in ["school-elemental", "rockarmor", "forestspirit"]:
+		w.add_start_tech(id)
+	var da := w.new_army(w.capital, {"d-wd-sword": 4, w.MAGE: 1})
+	da.mana = 100.0
+	w.on_battle_join(da, 1.0)
+	chk.call(da.get("rock") != null and da.rock.hp > 0, "Rock Armor raises a stone shield")
+	var y1: int = w.province_income(w.capital, w.buildings[w.capital]).wood
+	da.cast = {"spell": "q:fspirit", "t0": 0.0, "dur": INF}
+	chk.call(w.province_income(w.capital, w.buildings[w.capital]).wood == y1 * 2, "a Forest Spirit doubles the province")
 	# --- a full island with one opponent of each race ---
 	var f := _world_with(["swamp", "wood", "realm"])
 	var races := {}

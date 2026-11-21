@@ -503,7 +503,7 @@ func press(i: int) -> void:
 			add_toast("Click a neighboring province behind an enemy wall. Right-click cancels.")
 	elif id.begins_with("spell:"):
 		var k := id.substr(6)
-		if k in ["rift"] or (k == "eyes" and game.see_nbrs(unit).size() > 1):
+		if k in ["rift"] or (k == "eyes" and game.see_nbrs(unit).size() > 1) or (k == "wrocks" and game.see_nbrs(unit, "mountains").size() > 1):
 			aim = {"unit": unit, "spell": k}
 			add_toast("Click the province to target. Right-click cancels.")
 		else:
