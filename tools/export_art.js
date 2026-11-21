@@ -89,7 +89,8 @@
       if (u.toDataURL) return u.toDataURL();
       if (typeof u === 'string' && u.startsWith('data:image/png')) return u;
       const im = new Image(); im.src = u; await im.decode();
-      const k = document.createElement('canvas'); k.width = k.height = 88; k.getContext('2d').drawImage(im, 0, 0, 88, 88); return k.toDataURL();
+      const w = im.naturalWidth || 88, h = im.naturalHeight || 88, s = Math.max(1, 176 / Math.max(w, h));
+      const k = document.createElement('canvas'); k.width = Math.round(w * s); k.height = Math.round(h * s); k.getContext('2d').drawImage(im, 0, 0, k.width, k.height); return k.toDataURL();
     };
     const put = async (file, get, extra) => {
       try { const png = await toPng(get()); if (!png) return out.push({ file, error: 'none' }); out.push(Object.assign({ file, png, ax: 0, ay: 0, scale: 1 }, extra || {})); }
@@ -108,6 +109,9 @@
       await put(`icons/common/ui_${file}.png`, () => E(fn), {});
     for (const kind of ['retrofit', 'rest', 'path', 'inspect', 'shock', 'quake', 'rewall', 'split', 'combine', 'retreat', 'cancel', 'fly'])
       await put(`icons/common/cmd_${snake(kind)}.png`, () => xIcon(kind), { kind });
+    // the leaders' portraits (New Game page, country window)
+    const LEADERS = E('LEADERS'), portraitOf = E('portraitOf');
+    for (const id of Object.keys(LEADERS)) if (LEADERS[id].race === 'realm') await put(`icons/realm/leader_${snake(id)}.png`, () => portraitOf(id), { leader: id });
     // every command of the card, with a unit of its kind selected
     const CMD = E('CMD'), S = E('S'), ME = E('ME');
     const keep = S.selected;

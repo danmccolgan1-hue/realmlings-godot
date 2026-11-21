@@ -148,10 +148,11 @@ func _init() -> void:
 
 ## A new Practice-island game, as menu.js startGame() runs it for a Realmling player with every computer slot closed.
 ## leader: a Realmling leader id ("havva", "finn", ...) or "" for a random one.
-static func new_practice(seed: String, leader_id := "", map: Dictionary = {}) -> Game:
+static func new_practice(seed: String, leader_id := "", map: Dictionary = {}, nation: Dictionary = {}) -> Game:
 	var g := Game.new()
 	g.world = map if not map.is_empty() else RealmGen.scale_world(RealmGen.generate_practice(seed))
 	g.G = WorldPrep.prep(g.world)
+	g.set_nation(nation)
 	g.setup_game()
 	g.place_setpieces()
 	var skip := {}
@@ -177,6 +178,41 @@ static func new_practice(seed: String, leader_id := "", map: Dictionary = {}) ->
 # setup
 
 # web: game.js setupGame() (the player's land is grassland). where: "center", "edge" or "random" (menu Start position)
+# web: features.js NATION / applyNation: your nation's name, color and flag (chosen on the New Game page)
+var my_nation := {"name": "My Realm", "color": 0, "emblem": "crown"}
+
+
+func set_nation(n: Dictionary) -> void:
+	var NAT: Dictionary = GameData.c("NATION")
+	my_nation = {"name": str(n.get("name", NAT.get("name", "My Realm"))).strip_edges().left(24), "color": int(n.get("color", NAT.color)), "emblem": str(n.get("emblem", NAT.emblem))}
+	if my_nation.name == "":
+		my_nation.name = "My Realm"
+	var NC: Array = GameData.c("NATION_COLORS")
+	var c: Array = NC[clampi(my_nation.color, 0, NC.size() - 1)]
+	if players.is_empty():
+		players = GameData.c("PLAYERS").duplicate(true)
+	players[str(ME)] = {"name": my_nation.name, "color": c[0], "light": c[1]}
+
+
+# web: menu.js mapMode / mapOptsOf: "normal" is the classic island (2 peninsulas, 2 coves, the usual trees);
+# anything else is "map:<shape>:<peninsulas>:<coves>:<trees>"
+static func map_mode(o: Dictionary) -> String:
+	if o.is_empty():
+		return "normal"
+	var shape: String = o.get("shape", "classic")
+	var pens: int = o.get("pens", 2)
+	var coves: int = o.get("coves", 2)
+	var trees: int = o.get("trees", 0)
+	return "normal" if shape == "classic" and pens == 2 and coves == 2 and trees == 0 else "map:%s:%d:%d:%d" % [shape, pens, coves, trees]
+
+
+static func map_opts_of(mode: String) -> Dictionary:
+	var m := mode.split(":")
+	if m.size() == 5 and m[0] == "map":
+		return {"shape": m[1], "pens": int(m[2]), "coves": int(m[3]), "trees": int(m[4])}
+	return {"shape": "classic", "pens": 2, "coves": 2, "trees": 0}
+
+
 func setup_game(where := "center") -> void:
 	open_nbr = []
 	all_nbr = []
@@ -4512,7 +4548,7 @@ const SAVE_FIELDS := ["battles", "bandit_count", "monster_count", "leader", "cap
 	"army_counter", "tech", "rep", "surveyed", "unit_defs", "designs", "exhaust", "exhaust_ok", "harvest", "devel", "upgrades",
 	"xup", "auto_tech", "roads", "walls", "wall_hp", "artifacts", "gift_vault", "quakes", "quake_seq", "wall_max", "wall_crack", "broken_walls", "rewall_jobs", "gate_own", "fort_walled", "gpc_slow_t", "dev_t", "cd", "paths",
 	"harvest_by", "trap", "reveals", "eyes", "haunts", "mana_pool", "mana_prev_t", "mage_gear", "finds", "treasure_rolled",
-	"sp_found", "setpieces", "travelers", "train_orders", "train_order_seq", "design_seq", "prov_rename", "nations", "players", "race_of", "wars", "truces", "allies", "war_seq", "met", "occ", "occ_prog", "dipl", "war_log", "war_ever", "war_lock", "ai_met", "fallen", "ally_check", "bandit_next", "bandit_waves", "ally_ask", "crop_scan_at", "ai_scout_t", "wf", "known", "explored", "visible", "queues", "rally", "military", "UNIT_SPEED", "open_nbr", "all_nbr",
+	"sp_found", "setpieces", "travelers", "train_orders", "train_order_seq", "design_seq", "prov_rename", "nations", "players", "my_nation", "race_of", "wars", "truces", "allies", "war_seq", "met", "occ", "occ_prog", "dipl", "war_log", "war_ever", "war_lock", "ai_met", "fallen", "ally_check", "bandit_next", "bandit_waves", "ally_ask", "crop_scan_at", "ai_scout_t", "wf", "known", "explored", "visible", "queues", "rally", "military", "UNIT_SPEED", "open_nbr", "all_nbr",
 	"yields", "tree_border", "debug_cap", "debug_tech", "reveal_all", "rec", "t", "next_tick", "paused", "last", "started"]
 
 
@@ -4547,9 +4583,10 @@ static func from_save(d: Dictionary, map: Dictionary = {}) -> Game:
 	if not migrate_save(d):
 		return null
 	var g := Game.new()
-	if d.get("mode", "practice") == "normal":
-		g.world = map if not map.is_empty() else RealmGen.scale_world(RealmGen.generate_world(d.seed, null, true))
-		g.world.mode = "normal"
+	var md: String = d.get("mode", "practice")
+	if md == "normal" or md.begins_with("map:"):
+		g.world = map if not map.is_empty() else RealmGen.scale_world(RealmGen.generate_world(d.seed, null if md == "normal" else map_opts_of(md), true))
+		g.world.mode = md
 	else:
 		g.world = map if not map.is_empty() else RealmGen.scale_world(RealmGen.generate_practice(d.seed))
 	g.G = WorldPrep.prep(g.world)   # province shapes come from the map as generated, before walls and paths
@@ -4561,6 +4598,7 @@ static func from_save(d: Dictionary, map: Dictionary = {}) -> Game:
 	for f in SAVE_FIELDS:
 		if d.has(f):   # (an older save may not have every field: the new game's default stays)
 			g.set(f, d[f])
+	g.my_nation.color = int(g.my_nation.get("color", 0))   # (JSON numbers come back as floats)
 	for x in g.designs:
 		if not x.get("builtin", false):
 			g.register_design(x)
@@ -5511,7 +5549,7 @@ var bandit_next := -1.0
 var bandit_waves := 0
 
 func step_bandit_waves(now: float) -> void:
-	if world.get("mode", "") != "normal":
+	if world.get("mode", "practice") == "practice":   # web: v96.js (every full map, whatever its shape)
 		return
 	if bandit_next < 0:
 		bandit_next = BANDIT_WAVE.start
@@ -6631,15 +6669,14 @@ func player_info(o: int) -> Dictionary:
 
 ## A full-size game: the island with its unique provinces, you, and the computer nations in `slots`
 ## ("easy" / "moderate" / "difficult" / "closed"). web: menu.js startGame
-static func new_world(seed: String, leader_id := "", slots := [], start := "center", map: Dictionary = {}) -> Game:
+static func new_world(seed: String, leader_id := "", slots := [], start := "center", map: Dictionary = {}, opts: Dictionary = {}, nation: Dictionary = {}) -> Game:
 	var g := Game.new()
-	g.world = map if not map.is_empty() else RealmGen.scale_world(RealmGen.generate_world(seed, null, true))
-	g.world.mode = "normal"
+	var mode := map_mode(opts)
+	g.world = map if not map.is_empty() else RealmGen.scale_world(RealmGen.generate_world(seed, map_opts_of(mode) if mode != "normal" else null, true))
+	g.world.mode = mode
 	g.G = WorldPrep.prep(g.world)
 	g.players = GameData.c("PLAYERS").duplicate(true)
-	var NC: Array = GameData.c("NATION_COLORS")
-	var NAT: Dictionary = GameData.c("NATION")
-	g.players["1"] = {"name": NAT.get("name", "My Realm"), "color": NC[NAT.color][0], "light": NC[NAT.color][1]}
+	g.set_nation(nation)
 	g.setup_game(start)
 	g.spawn_ai_nations(slots)
 	g.place_setpieces()
@@ -6694,7 +6731,7 @@ func spawn_ai_nations(slots: Array) -> void:
 	var key := ",".join(slots.map(func(x): return str(x)))
 	var r := Mulberry32.from_string(str(world.seed) + ":nations:" + key)
 	var NC: Array = GameData.c("NATION_COLORS")
-	var NAT: Dictionary = GameData.c("NATION")
+	var NAT: Dictionary = my_nation
 	var colors := range(NC.size()).filter(func(i): return i != NAT.color)
 	# Array.sort(() => r() - 0.5): V8's TimSort with a random comparator, reproduced by JS.sort_random
 	var places: Array = JS.sort_random(GameData.c("AI_PLACES").duplicate(), r)

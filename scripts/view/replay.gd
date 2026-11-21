@@ -28,8 +28,9 @@ static func from_dict(d):
 	var r := Replay.new()
 	r.rec = d
 	var g := Game.new()
-	g.world = RealmGen.scale_world(RealmGen.generate_world(str(d.header.seed), null, true))
-	g.world.mode = "normal"
+	var md: String = str(d.header.get("mode", "normal"))
+	g.world = RealmGen.scale_world(RealmGen.generate_world(str(d.header.seed), Game.map_opts_of(md) if md.begins_with("map:") else null, true))
+	g.world.mode = md
 	g.G = WorldPrep.prep(g.world)
 	g.setup_game("center")
 	g.players = d.header.players

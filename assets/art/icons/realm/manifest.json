@@ -115,6 +115,54 @@
    "scale": 1,
    "type": "temple"
   },
+  "leader_aithne.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "leader": "aithne"
+  },
+  "leader_alma.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "leader": "alma"
+  },
+  "leader_cormac.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "leader": "cormac"
+  },
+  "leader_finn.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "leader": "finn"
+  },
+  "leader_havva.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "leader": "havva"
+  },
+  "leader_hisola.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "leader": "hisola"
+  },
+  "leader_niall.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "leader": "niall"
+  },
+  "leader_weylyn.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "leader": "weylyn"
+  },
   "settle_0.png": {
    "ax": 0,
    "ay": 0,

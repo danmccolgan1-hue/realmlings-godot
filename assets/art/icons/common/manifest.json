@@ -289,6 +289,13 @@
    "scale": 1,
    "res": "wood"
   },
+  "ui_armory.png": {
+   "w": 140,
+   "h": 136,
+   "ax": 70,
+   "ay": 68,
+   "scale": 1
+  },
   "ui_autobld_off.png": {
    "ax": 0,
    "ay": 0,
@@ -324,6 +331,13 @@
    "ay": 0,
    "scale": 1
   },
+  "ui_dove.png": {
+   "w": 140,
+   "h": 136,
+   "ax": 70,
+   "ay": 68,
+   "scale": 1
+  },
   "ui_follow.png": {
    "ax": 0,
    "ay": 0,
@@ -347,20 +361,6 @@
   "ui_thug.png": {
    "ax": 0,
    "ay": 0,
-   "scale": 1
-  },
-  "ui_armory.png": {
-   "w": 140,
-   "h": 136,
-   "ax": 70,
-   "ay": 68,
-   "scale": 1
-  },
-  "ui_dove.png": {
-   "w": 140,
-   "h": 136,
-   "ax": 70,
-   "ay": 68,
    "scale": 1
   }
  }

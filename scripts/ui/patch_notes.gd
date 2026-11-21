@@ -5,6 +5,12 @@ extends Control
 ## web: v106.js renderPatchNotes
 
 const PORT_NOTES := [
+	{"v": "Godot 0.6", "date": "November 21, 2026", "items": [
+		["Start screen", "The web game’s title card: a parade of your folk, Continue, New Game, Tutorial, Multiplayer, Patch Notes, Load a save file, Recorded games, Settings and How to play, over a drifting island."],
+		["New Game", "Choose your seed and nation name (with dice), leader from portrait cards, color, flag, start position, the island’s shape with peninsulas, coves and trees, and each of the seven opponent slots. Your choices are remembered."],
+		["Saves", "Export a game to a file and load it again, from the menu and the in-game menu."],
+		["Renaming", "Rename provinces and your units with the ✎ buttons."],
+		["Main screen", "The icon command card, the outliner’s tabs, the province menu with its plots, resource badges and names on the map, the minimap’s toggles, crops on Farms, and the hidden landmarks: Death Mountain, the Oasis, the Heart of the Forest, set pieces, ruins, treasure and travelers."]]},
 	{"v": "Godot 0.5", "date": "November 20, 2026", "items": [
 		["Flags", "Notification flags hang above the command card: idle research, Army Exhaustion, open plots, upgrades, quakes, truces ending, warscore at 100, white peace coming, spells ready, requests waiting, war news and the province limit. Left-click deals with one, right-click dismisses it."],
 		["Tooltips", "Every command, training and building button explains what it does, what it costs and why it can’t be used yet. The resource bar shows what comes in and what upkeep takes."],

@@ -118,6 +118,18 @@ func _build() -> void:
 	sw.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	head.add_child(sw)
 	head.add_child(_lbl(game.prov_name(p), 22))
+	var rn := Button.new()
+	rn.text = "✎"
+	rn.focus_mode = Control.FOCUS_NONE
+	rn.tooltip_text = "Rename this province"
+	rn.custom_minimum_size = Vector2(26, 26)
+	rn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	for st in ["normal", "hover", "pressed"]:
+		rn.add_theme_stylebox_override(st, Roster._sb(CHIP_HI, 1, 4, 0))
+	rn.add_theme_color_override("font_color", INK)
+	rn.add_theme_color_override("font_hover_color", INK)
+	rn.pressed.connect(func(): hud.renamer.open(game, "prov:%d" % p))
+	head.add_child(rn)
 	var tl := _lbl(T[1], 13, MUTED)
 	tl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	tl.size_flags_horizontal = Control.SIZE_EXPAND_FILL

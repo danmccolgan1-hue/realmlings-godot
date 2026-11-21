@@ -113,6 +113,8 @@
   "HORSES": "data/web/equip.json",
   "HOUSE_K": "data/web/content.json",
   "HOUSE_LOOKS": "data/web/content.json",
+  "HOWTO_GUIDE": "data/web/howto.json",
+  "HOWTO_SHORT": "data/web/howto.json",
   "ICO": "data/web/techicons.json",
   "ICON_SIZE": "data/web/techicons.json",
   "INK": "data/web/v105.json",

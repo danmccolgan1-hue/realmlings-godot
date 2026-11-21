@@ -46,7 +46,7 @@ static func nation_flag(game, o: int):
 	var col := str(game.player_info(o).color).trim_prefix("#").to_lower()
 	var em := "swords"
 	if o == Game.ME:
-		em = str(GameData.c("NATION").get("emblem", "crown"))
+		em = str(game.my_nation.get("emblem", "crown")) if game is Game else str(GameData.c("NATION").get("emblem", "crown"))
 	elif game.nations.has(o):
 		em = str(game.nations[o].get("emblem", "swords"))
 	var key := col + "_" + em

@@ -11,6 +11,7 @@ func run() -> Array:
 	_gate_road(errs)
 	_fort_cmds(errs)
 	_crops(errs)
+	_new_game_choices(errs)
 	var pn: Array = GameData.c("PATCH_NOTES")
 	if pn.is_empty() or pn[0].v != "v106":
 		errs.append("patch notes: the web game's v106 notes are missing")
@@ -267,3 +268,30 @@ func _crops(errs: Array) -> void:
 	var plan: Dictionary = Ai.crop_all_plan(g, "staple")
 	if plan.plan.size() != 2:
 		errs.append("crops: Apply to all (Corn) would change %d Farms, not 2" % plan.plan.size())
+
+
+## The New Game page's choices reach the game: your nation's name, color and flag, the island's shape (a "map:" mode),
+## and computer nations never take your color or flag; a save keeps them all (web: menu.js startGame, mapMode;
+## features.js applyNation).
+func _new_game_choices(errs: Array) -> void:
+	var opts := {"shape": "ring", "pens": 1, "coves": 3, "trees": 2}
+	if Game.map_mode(opts) != "map:ring:1:3:2" or Game.map_mode({"shape": "classic", "pens": 2, "coves": 2, "trees": 0}) != "normal":
+		errs.append("new game: map modes are %s / %s" % [Game.map_mode(opts), Game.map_mode({"shape": "classic", "pens": 2, "coves": 2, "trees": 0})])
+	if Game.map_opts_of("map:ring:1:3:2") != opts:
+		errs.append("new game: map_opts_of doesn't read the mode back")
+	var nat := {"name": "The Thistle Crown", "color": 3, "emblem": "wolf"}
+	var g := Game.new_world("lantern-fable-63", "cormac", ["easy", "moderate"], "center", {}, opts, nat)
+	var NC: Array = GameData.c("NATION_COLORS")
+	if g.world.mode != "map:ring:1:3:2":
+		errs.append("new game: the world's mode is %s" % g.world.mode)
+	if g.player_info(Game.ME).name != "The Thistle Crown" or g.player_info(Game.ME).color != NC[3][0] or g.my_nation.emblem != "wolf":
+		errs.append("new game: your nation is %s / %s" % [g.player_info(Game.ME), g.my_nation])
+	for o in g.nations:
+		if g.player_info(o).color == NC[3][0] or g.nations[o].get("emblem") == "wolf":
+			errs.append("new game: nation %d took your color or flag" % o)
+	var back := Game.from_save(JSON.parse_string(JSON.stringify(g.to_save())))
+	if back == null or back.world.mode != g.world.mode or back.my_nation != g.my_nation or back.G.provs.size() != g.G.provs.size():
+		errs.append("new game: a save loses the island or your nation")
+	var pr := Game.new_practice("ember", "", {}, nat)
+	if pr.player_info(Game.ME).name != "The Thistle Crown":
+		errs.append("new game: the practice island ignores your nation's name")

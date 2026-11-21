@@ -16,6 +16,8 @@ var part := ""               # the selected building of `prov`: "settlement" or 
 var tip: PanelContainer      # the province under the mouse (web: #tip)
 var tip_text: RichTextLabel
 var tip_key := ""
+var renamer: RenameBox
+var sel_rename: Button        # ✎ beside the selection line
 var pick: PickMenu           # the build-on-a-plot and crop menus
 var crop_arm := {}           # web: v104.js cropAllArm, {p, slot, t}: "Apply to all" waits 8 s for its confirm
 var unit = null
@@ -111,6 +113,20 @@ func _ready() -> void:
 	sel_line.mouse_filter = Control.MOUSE_FILTER_PASS
 	add_child(sel_line)
 	call_deferred("add_child", pick)   # (over every other panel)
+	renamer = RenameBox.new()
+	call_deferred("add_child", renamer)
+	sel_rename = Button.new()
+	sel_rename.text = "✎"
+	sel_rename.focus_mode = Control.FOCUS_NONE
+	sel_rename.tooltip_text = "Rename"
+	sel_rename.add_theme_stylebox_override("normal", TopBar.paper(3, 2))
+	sel_rename.add_theme_stylebox_override("hover", TopBar.paper(3, 2))
+	sel_rename.add_theme_color_override("font_color", UiKit.INK)
+	sel_rename.add_theme_color_override("font_hover_color", UiKit.INK)
+	sel_rename.pressed.connect(func():
+		if unit != null and unit.owner == Game.ME:
+			renamer.open(game, "unit:%d" % unit.id))
+	add_child(sel_rename)
 	flags = FlagBar.new()
 	add_child(flags)
 	flags.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP, Control.PRESET_MODE_MINSIZE)   # hung under the research strip (web: #nflags)
@@ -163,12 +179,18 @@ func set_game(g: Game) -> void:
 	diplomacy.setup(g, self)
 	requests.setup(g, self)
 	flags.setup(g, self)
-	g.on_game_over = func(_w):
+	g.on_game_over = func(w):   # web: war.js gameOver
 		if main:
 			main.save_recording()
-		dialog.ask("Your realm has fallen", "Every province you held is gone. The other nations play on without you.",
-		[{"id": "menu", "label": "Main menu", "why": null}, {"id": "watch", "label": "Watch", "why": null}],
-		func(id): if id == "menu" and main: main.to_main_menu())
+		var who := ("The %s annexed every province you held." % game.player_info(w).name) if w != null and int(w) > 0 else "You hold no land."
+		dialog.ask("Your realm has fallen", who,
+		[{"id": "look", "label": "Show me", "why": null}, {"id": "ok", "label": "OK", "why": null}, {"id": "again", "label": "Start over", "why": null}],
+		func(id):
+			if id == "look" and game.capital >= 0:
+				look_at_prov(game.capital)
+			elif id == "again" and main:
+				main.to_main_menu()
+				main.menu.show_screen("setup"))
 	roster.setup(g, self)
 	if map and cam:
 		minimap.setup(g, map, cam)
@@ -471,6 +493,9 @@ func _process(_delta: float) -> void:
 	_hover_tip()
 	minimap.position = Vector2(16, topbar.size.y - Minimap.SIZE.y - 16)
 	sel_line.position = Vector2(16 + Minimap.SIZE.x + 12, topbar.size.y - sel_line.size.y - 14)
+	sel_rename.visible = sel_line.visible and unit != null and unit.owner == Game.ME
+	sel_rename.position = sel_line.position + Vector2(sel_line.size.x + 4, 0)
+	sel_rename.size = Vector2(sel_line.size.y, sel_line.size.y)
 	if panel.visible:   # the province menu stands on the minimap's toggles, growing upward (web: #prov)
 		panel.reset_size()
 		panel.position = Vector2(16, topbar.size.y - 16 - Minimap.SIZE.y - 56 - panel.size.y)
@@ -575,8 +600,18 @@ func _build_menu() -> void:
 		if main:
 			toggle_menu()
 			main.load_from(main.QUICKSAVE)))
+	b.add_child(UiKit.button("Export a save file", 20, func():
+		if main and game.tutorial == null:
+			main.export_save()))
+	b.add_child(UiKit.button("Import a save file", 20, func():
+		if main:
+			toggle_menu()
+			main.import_save()))
 	b.add_child(UiKit.button("Settings", 20, func(): settings.open(game)))
-	b.add_child(UiKit.button("Main menu", 20, func():
+	b.add_child(UiKit.button("How to Play", 20, func():
+		if main:
+			main.how_to.open()))
+	b.add_child(UiKit.button("Return to main menu", 20, func():
 		if main:
 			toggle_menu()
 			main.to_main_menu()))

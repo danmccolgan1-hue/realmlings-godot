@@ -42,6 +42,7 @@ The web game in `reference/web-v106/` is the source of truth. This spec says **w
 | 19. Shipping | Windows export preset and icon, save versions with migration, version on screen | `tests/test_build.gd`; build steps in `docs/BUILDING.md` |
 | 20. Playtest fixes (batch E) | Done: top bar and research strip, flags, fonts, research window, army figures, walls and gates, landmarks (unique provinces, set pieces, ruins, treasure, travelers, lair outlines), building selection and its command card | `tests/test_ui.gd` (gate roads, fort upgrade cancel and dismantle); screenshots |
 | 21. Main screen (batch F) | Done: icon command card, outliner tabs, province menu with plot grid and Develop card, build-on-plot menu, selection line, hover card, resource plaques and labels, minimap toggles, unit rings and mana bars, the player's crops (v104) | `tests/test_ui.gd` (crops); screenshots |
+| 22. Start screen and menus (batch G) | Done: title card, New Game page (nation, leader cards, island options, 7 slots), your nation's name, color and flag in the rules, island-shape modes in saves, save file export and import, How to Play, renaming, game over | `tests/test_ui.gd` (new game choices); screenshots |
 | 3. Economy, later | Crops and Harvest, Trade Routes, Sawyer Guilds, artifacts, research points and mana at payday, deep gold mines | arrive with the systems that switch them on |
 
 Left out of milestone 1 for now: the technology the Intact Ruins grant is picked at random in the web game (tests remove the ruins and check their placement).

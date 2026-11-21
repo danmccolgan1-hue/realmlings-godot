@@ -11,17 +11,8 @@ const SEED_WORDS := ["ember", "oak", "river", "banner", "moss", "crown", "lanter
 var map: MapView
 var cam: Camera2D
 var hud: Hud
-var menu: PanelContainer
-var seed_edit: LineEdit
-var leader_pick: OptionButton
-var leader_ids := [""]
-var map_pick: OptionButton
-var opp_box: VBoxContainer
-var opp_count: OptionButton
-var opp_diff: OptionButton
-var start_pick: OptionButton
-const DIFFS := ["easy", "moderate", "difficult"]
-var shot_slots := []
+var menu: StartScreen        # the title card and the New Game page
+var shot_slots := []        # (pictures: --world=moderate,easy… sets the opponent slots)
 var status: Label
 var thread: Thread
 var game: Game
@@ -53,22 +44,21 @@ func _ready() -> void:
 	_build_menu()
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--seed="):
-			seed_edit.text = a.substr(7)
+			menu.opts.seed = a.substr(7)
+			menu.seed_edit.text = a.substr(7)
 		elif a.begins_with("--leader="):
-			var i := leader_ids.find(a.substr(9))
-			if i >= 0:
-				leader_pick.selected = i
+			menu.opts.leader = a.substr(9)
 		elif a.begins_with("--world="):   # a full map: --world=moderate,difficult,easy
-			map_pick.selected = 1
-			opp_box.visible = true
 			shot_slots = a.substr(8).split(",")
+		elif a == "--newgame":   # pictures: the New Game page
+			menu.show_screen("setup")
 		elif a == "--tutorial":
-			_on_ready.call_deferred(Tutorial.start(), false)
+			start_tutorial.call_deferred()
 		elif a == "--record":   # record this game (for pictures of a replay), without changing the saved setting
 			Settings.record_games = true
 		elif a.begins_with("--replay=") and Array(OS.get_cmdline_user_args()).any(func(x): return x.begins_with("--shot=")):
 			start_replay.call_deferred(a.substr(9))
-		elif a.begins_with("--shot=") and OS.get_cmdline_user_args().has("--menu"):
+		elif a.begins_with("--shot=") and (OS.get_cmdline_user_args().has("--menu") or OS.get_cmdline_user_args().has("--newgame")):
 			_menu_shot.call_deferred(a.substr(7), false)
 		elif a.begins_with("--shot=") and (OS.get_cmdline_user_args().has("--patch") or Array(OS.get_cmdline_user_args()).any(func(x): return x.begins_with("--replay="))):
 			if OS.get_cmdline_user_args().has("--patch"):
@@ -80,109 +70,10 @@ func _ready() -> void:
 func _build_menu() -> void:
 	var ui := CanvasLayer.new()
 	add_child(ui)
-	menu = PanelContainer.new()
-	menu.set_anchors_preset(Control.PRESET_CENTER)
-	menu.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	menu.grow_vertical = Control.GROW_DIRECTION_BOTH
-	menu.add_theme_stylebox_override("panel", Hud._box(Color("#faf1dc")))
+	menu = StartScreen.new()
+	menu.main = self
 	ui.add_child(menu)
-	var col := VBoxContainer.new()
-	col.add_theme_constant_override("separation", 14)
-	col.custom_minimum_size = Vector2(560, 0)
-	menu.add_child(col)
-	var title := Label.new()
-	title.text = "Realmlings"
-	title.add_theme_font_size_override("font_size", 56)
-	title.add_theme_color_override("font_color", Color("#1d1a22"))
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	col.add_child(title)
-	col.add_child(_dark("Map"))
-	map_pick = OptionButton.new()
-	map_pick.add_item("Practice island — 10 provinces, just you")
-	map_pick.add_item("Full map — computer nations, wars and diplomacy")
-	map_pick.item_selected.connect(func(i): opp_box.visible = i == 1)
-	col.add_child(map_pick)
-	opp_box = VBoxContainer.new()
-	var orow := HBoxContainer.new()
-	orow.add_theme_constant_override("separation", 10)
-	var ol := _dark("Opponents")
-	orow.add_child(ol)
-	opp_count = OptionButton.new()
-	for n in range(1, 7):
-		opp_count.add_item(str(n))
-	opp_count.selected = 2
-	orow.add_child(opp_count)
-	opp_diff = OptionButton.new()
-	for d in ["Easy", "Moderate", "Difficult", "Mixed"]:
-		opp_diff.add_item(d)
-	opp_diff.selected = 1
-	orow.add_child(opp_diff)
-	start_pick = OptionButton.new()
-	for d in ["Start in the center", "Start at the edge", "Random start"]:
-		start_pick.add_item(d)
-	orow.add_child(start_pick)
-	opp_box.add_child(orow)
-	opp_box.visible = false
-	col.add_child(opp_box)
-	col.add_child(_dark("Seed"))
-	seed_edit = LineEdit.new()
-	seed_edit.text = SEED_WORDS.pick_random()
-	col.add_child(seed_edit)
-	col.add_child(_dark("Leader"))
-	leader_pick = OptionButton.new()
-	leader_pick.add_item("Random")
-	var L: Dictionary = GameData.c("LEADERS")
-	for id in L:
-		if L[id].race == "realm":
-			leader_ids.append(id)
-			leader_pick.add_item("%s — %s" % [L[id].full, L[id].bonus.split(".")[0]])
-	col.add_child(leader_pick)
-	var start := Button.new()
-	start.text = "Start"
-	start.add_theme_font_size_override("font_size", 28)
-	start.pressed.connect(_start)
-	UiKit.style_button(start, true)
-	col.add_child(start)
-	var tut := Button.new()
-	tut.text = "Basic Tutorial"
-	tut.add_theme_font_size_override("font_size", 22)
-	tut.pressed.connect(func(): _on_ready(Tutorial.start(), false))
-	UiKit.style_button(tut)
-	col.add_child(tut)
-	var cont := Button.new()
-	cont.text = "Continue (last autosave)"
-	cont.add_theme_font_size_override("font_size", 22)
-	cont.pressed.connect(func(): load_from(AUTOSAVE))
-	cont.visible = FileAccess.file_exists(AUTOSAVE)
-	UiKit.style_button(cont)
-	col.add_child(cont)
-	var quick := Button.new()
-	quick.text = "Load quicksave (F9)"
-	quick.add_theme_font_size_override("font_size", 22)
-	quick.pressed.connect(func(): load_from(QUICKSAVE))
-	quick.visible = FileAccess.file_exists(QUICKSAVE)
-	UiKit.style_button(quick)
-	col.add_child(quick)
-	var more := HBoxContainer.new()
-	more.add_theme_constant_override("separation", 10)
-	more.alignment = BoxContainer.ALIGNMENT_CENTER
-	for b in [["Recorded games", func(): recordings.open()], ["Settings", func(): menu_settings.toggle(null)], ["Patch Notes", func(): patch_notes.open()]]:
-		var mb := Button.new()
-		mb.text = b[0]
-		mb.add_theme_font_size_override("font_size", 20)
-		mb.pressed.connect(b[1])
-		UiKit.style_button(mb)
-		more.add_child(mb)
-	col.add_child(more)
-	status = _dark("F5 saves, F9 loads, the game autosaves every 5 minutes.")
-	status.add_theme_font_size_override("font_size", 17)
-	status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	col.add_child(status)
-	var ver := _dark("Version %s · follows the web game %s" % [ProjectSettings.get_setting("application/config/version"), GameData.c("GAME_VERSION")])
-	ver.add_theme_font_size_override("font_size", 15)
-	ver.add_theme_color_override("font_color", Color("#6b5a44"))
-	ver.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	col.add_child(ver)
+	status = menu.status
 	if DisplayServer.get_name() != "headless":
 		DisplayServer.window_set_title("Realmlings %s" % ProjectSettings.get_setting("application/config/version"))
 	menu_settings = SettingsWindow.new()
@@ -192,8 +83,87 @@ func _build_menu() -> void:
 	recordings = RecordingsWindow.new()
 	ui.add_child(recordings)
 	recordings.on_watch = start_replay
+	how_to = HowToWindow.new()
+	ui.add_child(how_to)
+	files = FileDialog.new()
+	files.access = FileDialog.ACCESS_FILESYSTEM
+	files.use_native_dialog = true
+	files.filters = PackedStringArray(["*.realmsave ; Realmlings saved game", "*.json ; Saved game (JSON)"])
+	files.file_selected.connect(_on_file)
+	ui.add_child(files)
 	replay_hud = ReplayHud.new()
 	add_child(replay_hud)
+	_menu_backdrop()
+
+
+var how_to: HowToWindow
+var files: FileDialog
+var files_mode := ""        # "import" or "export"
+var backdrop_t := 0.0
+
+
+## The title card's island: a practice island for a fixed seed, all of it shown, the camera drifting over it.
+## web: menu.js bootMenu, showAllLand, menuDrift
+func _menu_backdrop() -> void:
+	var w := RealmGen.scale_world(RealmGen.generate_practice("lantern"))
+	map.game = null
+	map.set_world(w)
+	backdrop_t = 0.0
+	_drift(0.0)
+	var z := map.fit_zoom() * 2.6   # (close enough that the drifting clouds have faded)
+	cam.zoom = Vector2(z, z)
+
+
+func _drift(dt: float) -> void:
+	backdrop_t += dt
+	var b := map.bounds()
+	cam.position = b.get_center() + Vector2(cos(backdrop_t * 0.05) * b.size.x * 0.22, sin(backdrop_t * 0.07) * b.size.y * 0.18)
+
+
+## Start a game with the New Game page's choices. web: menu.js startGame
+func start_from_menu(o: Dictionary) -> void:
+	if thread and thread.is_alive():
+		return
+	var practice: bool = o.practice and shot_slots.is_empty()
+	var slots := Array(shot_slots) if not shot_slots.is_empty() else ([] if practice else Array(o.slots))
+	var leader: String = "" if o.leader == "random" else o.leader
+	status.text = "Raising the island…" if practice else "Raising the world and its nations…"
+	thread = Thread.new()
+	thread.start(_gen.bind(o.seed, leader, slots, o.start, o.map, o.nation, practice))
+
+
+func start_tutorial() -> void:
+	_on_ready(Tutorial.start(), false)
+
+
+## Load a game from a file the player picks (web: save.js importSave, the menu's "Load a save file").
+func import_save() -> void:
+	files_mode = "import"
+	files.file_mode = FileDialog.FILE_MODE_OPEN_FILE
+	files.title = "Load a saved game"
+	files.popup_centered_ratio(0.6)
+
+
+## Write the game to a file the player picks (web: save.js exportSave).
+func export_save() -> void:
+	if game == null:
+		return
+	files_mode = "export"
+	files.file_mode = FileDialog.FILE_MODE_SAVE_FILE
+	files.title = "Export this game"
+	var nm := str(game.player_info(Game.ME).name).to_lower()
+	var safe := ""
+	for ch in nm:
+		safe += ch if (ch >= "a" and ch <= "z") or (ch >= "0" and ch <= "9") else "-"
+	files.current_file = "realmlings-%s-%d.realmsave" % [safe, int(game.t)]
+	files.popup_centered_ratio(0.6)
+
+
+func _on_file(path: String) -> void:
+	if files_mode == "export" and game != null:
+		save_to(path)
+	elif files_mode == "import":
+		load_from(path)
 
 
 ## Leave the game for the start screen (from the in-game menu).
@@ -206,6 +176,8 @@ func to_main_menu() -> void:
 	hud.hide()
 	map.game = null
 	menu.show()
+	menu.show_screen("main")
+	_menu_backdrop()
 
 
 func _dark(txt: String) -> Label:
@@ -218,22 +190,11 @@ func _dark(txt: String) -> Label:
 
 
 func _start() -> void:
-	if thread and thread.is_alive():
-		return
-	var seed := seed_edit.text.strip_edges()
-	if seed == "":
-		seed = SEED_WORDS.pick_random()
-	var slots := Array(shot_slots)
-	if map_pick.selected == 1 and slots.is_empty():
-		for i in opp_count.selected + 1:
-			slots.append(DIFFS[i % 3] if opp_diff.selected == 3 else DIFFS[opp_diff.selected])
-	status.text = "Raising the island…" if slots.is_empty() else "Raising the world and its nations…"
-	thread = Thread.new()
-	thread.start(_gen.bind(seed, leader_ids[leader_pick.selected], slots, ["center", "edge", "random"][start_pick.selected]))
+	menu.start_game()
 
 
-func _gen(seed: String, leader_id: String, slots := [], start := "center") -> void:
-	var g := Game.new_practice(seed, leader_id) if slots.is_empty() else Game.new_world(seed, leader_id, slots, start)
+func _gen(seed: String, leader_id: String, slots := [], start := "center", opts := {}, nation := {}, practice := false) -> void:
+	var g := Game.new_practice(seed, leader_id, {}, nation) if practice else Game.new_world(seed, leader_id, slots, start, {}, opts, nation)
 	if Settings.record_games and not slots.is_empty():
 		Recorder.start(g, "new game")
 	call_deferred("_on_ready", g)
@@ -243,6 +204,7 @@ func _on_ready(g: Game, from_thread := true) -> void:
 	if from_thread:
 		thread.wait_to_finish()
 	game = g
+	menu.reset_start()
 	next_autosave = (floor(g.t / AUTOSAVE_EVERY) + 1) * AUTOSAVE_EVERY
 	menu.hide()
 	map.set_game(g)
@@ -356,6 +318,7 @@ func exit_replay() -> void:
 	replay_hud.hide()
 	map.game = null
 	menu.show()
+	_menu_backdrop()
 
 
 func _process(delta: float) -> void:
@@ -363,6 +326,8 @@ func _process(delta: float) -> void:
 		_camera(delta)
 		replay_hud.step(delta)
 		return
+	if game == null and menu.visible:
+		_drift(delta)
 	if game:
 		_camera(delta)
 		game.update(Time.get_ticks_msec() / 1000.0)

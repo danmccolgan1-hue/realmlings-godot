@@ -155,6 +155,21 @@ The plan after milestone 1. Each step is tested against the web game, then commi
    - Crops (v104) for the player, in the rules: Cash and Fiber crops change a Farm's income and upkeep, Harvest by
      crop, Ultanitous' +1 by crop (was missing for the player); the Farm's card picks a crop and applies it to all.
    - Rules helpers added: `Game.nearest_mason`, `Game.outpost_btn_why`, `Ai.crop_all_plan`.
+11. **Batch G: start screen and menus** — done (`tests/test_ui.gd` new game choices):
+   - Start screen (`scripts/ui/start_screen.gd`): the web title card over a drifting island, with the parade, music
+     and sound switches (remembered for the audio batch), Continue, New Game, Tutorial (Basic; Combat later),
+     Multiplayer (Coming Soon), Patch Notes, Load a save file, Recorded games, Settings, How to play.
+   - New Game page: seed and nation name with dice, race (Realmlings; the others are greyed for their milestone),
+     leader portrait cards with start, bonus, likes and dislikes, Full or Practice island, start position, color, flag,
+     island shape and the peninsula, cove and tree sliders, the 7 opponent slots and quick buttons. Remembered in
+     Settings.menu. Leader portraits come from the `uiicons` export job.
+   - Rules: `Game.set_nation` / `my_nation` (your name, color and flag; computer nations avoid them, as the web's
+     NATION), `Game.map_mode` / `map_opts_of` ("map:<shape>:<pens>:<coves>:<trees>"), saves and replays rebuild
+     such islands; bandit waves now come on every full map (web v96 checks only for the practice island).
+   - Save files: Export a save file and Import a save file (native file dialogs), from the menu and the in-game menu.
+   - How to Play window with the web game's full guide (`data/web/howto.json`, `tools/export_howto.py`).
+   - Renaming provinces (✎ in the province menu, with Original) and units (✎ by the selection line).
+   - Game over: the web game's text and its Show me / OK / Start over buttons. Version 0.6.0.
 
 ## Things to remember
 
