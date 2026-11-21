@@ -13,6 +13,7 @@ from playwright.async_api import async_playwright
 OUT = sys.argv[1] if len(sys.argv) > 1 else 'assets/art'
 ONLY = [a[7:].split(',') for a in sys.argv[2:] if a.startswith('--jobs=')]   # --jobs=uiicons: only these, merged into the manifests
 ONLY = ONLY[0] if ONLY else None
+RACE = ([a[7:] for a in sys.argv[2:] if a.startswith('--race=')] or ['realm'])[0]   # --race=swamp: that race's art, into <category>/swamp/
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 
@@ -25,10 +26,11 @@ async def main():
         await pg.wait_for_timeout(1500)
         await pg.evaluate("document.querySelector('#mNew').click()")
         await pg.wait_for_timeout(200)
-        await pg.evaluate("document.querySelector('#mRace [data-race=\"realm\"]').click()")
+        await pg.evaluate(f"document.querySelector('#mRace [data-race=\"{RACE}\"]').click()")
         await pg.wait_for_timeout(200)
         await pg.evaluate("document.querySelector('#mStart').click()")
         await pg.wait_for_timeout(3500)
+        await pg.evaluate(f'window.__RACE = {json.dumps(RACE)}')
         await pg.evaluate(open(os.path.join(HERE, 'export_art.js')).read())
         jobs = await pg.evaluate('window.__exportArtJobs')
         if ONLY:

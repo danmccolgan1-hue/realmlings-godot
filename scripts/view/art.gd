@@ -45,9 +45,28 @@ static func design_art(game, kind: String) -> String:
 	if kind.begins_with("d-") or not game.DSTATS.has(kind) or game.DSTATS[kind].get("fam") == "magic":
 		return kind
 	var st: Dictionary = game.DSTATS[kind]
+	var rc: String = str(st.get("race", "realm"))
+	var A: Dictionary = DESIGN_ART.get(rc, DESIGN_ART.realm)
 	if st.get("cav", false):
-		return "d-rider"
-	return {"pole": "d-spear", "blunt": "d-club"}.get(st.get("fam"), "d-sword")
+		return A.cav
+	return A.get(st.get("fam"), A.other)
+
+
+# the starting design whose figure an Armory design borrows, by race and weapon family
+const DESIGN_ART := {"realm": {"cav": "d-rider", "pole": "d-spear", "blunt": "d-club", "other": "d-sword"},
+	"swamp": {"cav": "d-sw-ogre", "pole": "d-sw-spear", "blunt": "d-sw-club", "other": "d-sw-axe"},
+	"wood": {"cav": "d-wd-champ", "pole": "d-wd-spear", "blunt": "d-wd-club", "other": "d-wd-sword"}}
+## the player's race: whose icons the interface shows (set when a game starts)
+static var player_race := "realm"
+
+
+## A sprite from a race's folder, else the Realmlings' (the races share what they don't draw differently).
+static func race_sprite(category: String, race: String, file: String):
+	if race != "realm":
+		var sp = get_sprite(category, race, file)
+		if sp != null:
+			return sp
+	return get_sprite(category, "realm", file)
 
 
 static var _flag_cache := {}

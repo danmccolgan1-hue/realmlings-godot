@@ -10,13 +10,17 @@ const ME := 1
 const RES := ["gold", "wood", "food"]
 const MASON := "mason:A"
 const MAGE := "mage:A"
-const OUTPOST_UPKEEP := {"wood": 1}   # web: govtech.js (declared with OUTPOSTS_PER_FORT; not in the export)
+const OUTPOST_UPKEEP := {"wood": 1}
+const THUG := "thug:A"
+const TWO_BURST := 2.5   # web: equip.js   # web: govtech.js (declared with OUTPOSTS_PER_FORT; not in the export)
 ## Designs a leader starts with that the Armory would create (web: v105.js leaderDesign → equip.js addDesign).
 ## Cost and upkeep as the web game computes them (tests/fixtures/econ); they move to the Armory port later.
 const LEADER_DESIGNS := {
 	"Shield Footman": {"name": "Shield Footman", "cost": {"gold": 90, "wood": 10}, "upkeep": {"food": 2}, "design": true, "speed": 0.83,
 		"blurb": "Short Sword and Round Shield, Leather I armor. Parry: take 10% less damage.",
 		"spec": {"type": "inf", "weapon": "shortsword", "shield": "round", "armor": "leather1", "race": "realm"}},
+	"Twin-Axe Berserker": {"name": "Twin-Axe Berserker", "spec": {"type": "inf", "weapon": "handaxe", "off": "handaxe", "armor": "stag1", "race": "swamp"}},
+	"Two-Handed Protector": {"name": "Two-Handed Protector", "spec": {"type": "inf", "weapon": "dirk", "armor": "spirit1", "race": "wood", "two": true}},
 }
 
 # --- world ---
@@ -107,6 +111,12 @@ var BUILD_DEFS: Dictionary
 var CAPITAL_BONUS: Dictionary
 var TICK: float
 var TECH_BY_ID := {}
+# this game's own copies, with the player's race's names (web: swamp.js / wood.js applyRace change the globals)
+var TECHS: Array
+var TECH_TREES: Dictionary
+var UNIT_BASE: Dictionary
+var BUILD_ORDER: Array
+var CMD: Dictionary
 var LEADERS: Dictionary
 var DSTATS: Dictionary
 var SLOTS: Array
@@ -120,7 +130,7 @@ func _init() -> void:
 	BUILD_DEFS = GameData.c("BUILD_DEFS")
 	CAPITAL_BONUS = GameData.c("CAPITAL_BONUS")
 	TICK = GameData.c("TICK")
-	for x in GameData.c("TECHS"):
+	for x in TECHS:
 		TECH_BY_ID[x.id] = x
 	LEADERS = GameData.c("LEADERS")
 	DSTATS = GameData.c("DSTATS").duplicate()   # this game's designs are added to it
@@ -139,6 +149,7 @@ func _init() -> void:
 	for d in [["d-spear", "inf", "spear"], ["d-sword", "inf", "shortsword"], ["d-club", "inf", "club"], ["d-rider", "cav", "spear"]]:
 		designs.append({"id": d[0], "name": unit_defs[d[0]].name, "type": d[1], "weapon": d[2], "shield": null, "armor": "leather1",
 			"horse": "riding" if d[1] == "cav" else null, "builtin": true, "race": "realm"})
+	Races.apply(self, "realm")
 	stock = GameData.c("START_STOCK").duplicate()
 	dev_rand = rng.randf
 	battle_rand = rng.randf
@@ -149,8 +160,9 @@ func _init() -> void:
 
 ## A new Practice-island game, as menu.js startGame() runs it for a Realmling player with every computer slot closed.
 ## leader: a Realmling leader id ("havva", "finn", ...) or "" for a random one.
-static func new_practice(seed: String, leader_id := "", map: Dictionary = {}, nation: Dictionary = {}) -> Game:
+static func new_practice(seed: String, leader_id := "", map: Dictionary = {}, nation: Dictionary = {}, race := "") -> Game:
 	var g := Game.new()
+	g.pick_race(race, leader_id)
 	g.world = map if not map.is_empty() else RealmGen.scale_world(RealmGen.generate_practice(seed))
 	g.G = WorldPrep.prep(g.world)
 	g.set_nation(nation)
@@ -173,6 +185,28 @@ static func new_practice(seed: String, leader_id := "", map: Dictionary = {}, na
 	g.last = 0.0
 	g.next_tick = 0.0
 	return g
+
+
+## The player's race: the one asked for, else the leader's, else Realmlings (web: menu.js startGame → applyRace)
+func pick_race(race: String, leader_id := "") -> void:
+	if race == "" and LEADERS.has(leader_id):
+		race = LEADERS[leader_id].race
+	if not race in ["realm", "swamp", "wood"]:
+		race = "realm"
+	Races.apply(self, race)
+
+
+# --- races (web: swamp.js raceOf / isSw, wood.js isWd) ---
+func race(o := ME) -> String:
+	return race_of.get(o, "realm")
+
+
+func is_sw(o := ME) -> bool:
+	return race(o) == "swamp"
+
+
+func is_wd(o := ME) -> bool:
+	return race(o) == "wood"
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -231,7 +265,7 @@ func setup_game(where := "center") -> void:
 	var bd: Array = G.bounds
 	var mx: float = (bd[0] + bd[2]) / 2.0
 	var my: float = (bd[1] + bd[3]) / 2.0
-	var home_ter := "grassland"
+	var home_ter: String = Races.HOME[race()]
 	var home := []
 	for i in G.provs.size():
 		if G.provs[i].terrain == home_ter:
@@ -265,8 +299,10 @@ func setup_game(where := "center") -> void:
 	tech = {}
 	for tr in ["gov", "mil", "mag"]:
 		tech[tr] = {"cur": null, "prog": 0, "bank": 0, "opts": [], "done": [], "tier": 1 if tr == "gov" else 0, "sticky": []}
+	if is_sw():   # web: swamp.js applyRace (Swamplings know Mushroom Farming from the start)
+		tech.gov.done.append("mushroom")
 	draw_options("gov")
-	units = [mk_unit(1, GameData.c("WAYFINDER"), "Wayfinder", best, 3), mk_unit(2, MASON, "Mason", best, 4)]
+	units = [mk_unit(1, GameData.c("WAYFINDER"), unit_defs[GameData.c("WAYFINDER")].name, best, 3), mk_unit(2, MASON, unit_defs[MASON].name, best, 4)]
 	next_id = maxi(next_id, 3)
 	new_army(best, {footman_of(): 3})
 	compute_income()
@@ -396,21 +432,21 @@ static func ordinal(n: int) -> String:
 	return str(n) + suf
 
 
-# web: equip.js footmanOf() (Realmlings)
-func footman_of() -> String:
-	return "d-sword"
+# web: equip.js footmanOf()
+func footman_of(o := ME) -> String:
+	return Races.FOOTMAN[race(o)]
 
 
 # ---------------------------------------------------------------------------------------------------------------
 # leaders (web: v105.js assignLeaders / applyLeaderStart, v106.js applyLeaderStart wrapper)
 
 func assign_leader(id: String) -> void:
-	if LEADERS.has(id) and LEADERS[id].race == "realm":
+	if LEADERS.has(id) and LEADERS[id].race == race():
 		leader = id
 		return
 	var pool := []
 	for k in LEADERS:
-		if LEADERS[k].race == "realm":
+		if LEADERS[k].race == race():
 			pool.append(k)
 	leader = pool[rng.randi() % pool.size()]
 
@@ -431,7 +467,7 @@ func dx_shuffle(arr: Array) -> Array:
 # web: v105.js pickLeader / assignLeaders: every computer nation gets a leader nobody else has
 func pick_leader(o: int, taken: Dictionary) -> String:
 	var sc = null if o == ME else nations[o].school
-	var ok := LEADERS.keys().filter(func(k): return LEADERS[k].race == "realm" and (LEADERS[k].get("school") == null or sc == null or LEADERS[k].school == sc))
+	var ok := LEADERS.keys().filter(func(k): return LEADERS[k].race == race(o) and (LEADERS[k].get("school") == null or sc == null or LEADERS[k].school == sc))
 	var fresh := ok.filter(func(k): return not taken.has(k))
 	var pool: Array = fresh if not fresh.is_empty() else ok
 	return dx_shuffle(pool)[0]
@@ -488,13 +524,42 @@ func apply_leader_start0(o := ME) -> void:
 			add_start_tech("autoscout", o)
 			add_start_tech("stealth", o)
 			add_start_tech("farsight", o)
+		"ogres":
+			add_start_tech("stable", o)
+			set_start_army({"d-sw-ogre": 2}, o)
+		"twin":
+			add_start_extra(cap, "barracks")
+			add_start_tech("dualwield", o)
+			set_start_army({leader_design_for(o, LEADER_DESIGNS["Twin-Axe Berserker"]): 6}, o)
+		"navigator":
+			add_start_scouts(3, o)
+			set_start_army({"rng-swamp": 3}, o)
+		"champion":
+			add_start_tech("stable", o)
+			set_start_army({"d-wd-champ": 1}, o)
+		"twohand":
+			add_start_extra(cap, "barracks")
+			add_start_tech("twohand", o)
+			set_start_army({leader_design_for(o, LEADER_DESIGNS["Two-Handed Protector"]): 6}, o)
+		"farms":
+			add_start_extra(cap, "farm")
+			add_start_extra(cap, "farm")
+		"ranger":
+			add_start_scouts(2, o)
+			set_start_army({"rng-wood": 6}, o)
 	# v106: the Horsemistress starts with 4 riders, her Stable costs no upkeep, and the capital grows 7 more food
-	if L.start == "stable":
-		set_start_army({"d-rider": 4}, o)
+	if L.start == "stable" or L.start == "ogres":
+		set_start_army({"d-rider" if L.start == "stable" else "d-sw-ogre": 4}, o)
+		var found := false
 		for e in extras_in(cap):
 			if e.type == "stable":
 				e.freeFor = o
+				found = true
 				break
+		if not found and L.start == "ogres":
+			var e = add_start_extra(cap, "stable")
+			if e != null:
+				e.freeFor = o
 		yields[cap].food += GameData.c("LEADER_CAP_FOOD")
 		compute_income()
 
@@ -573,26 +638,59 @@ func add_start_scouts(total: int, o := ME) -> void:
 		have += 1
 
 
-# web: equip.js designStats (infantry and cavalry; Woodling Champions, Ogres and dual wielding belong to other races)
+# web: equip.js designStats + champStats (Swampling dual wielding and Ogres, Woodling Champions and two-handing)
+const OGRE_ARMOR := 0.8
+const CHAMP := {"hp": 70, "speed": 0.72, "armor": 4, "cost": {"gold": 300}, "upkeep": {"food": 4}}
+
 func design_stats(d: Dictionary) -> Dictionary:
-	var B: Dictionary = GameData.c("UNIT_BASE")[d.type]
-	var W: Dictionary = GameData.c("WEAPONS")[d.weapon]
-	var A: Dictionary = GameData.c("ARMORS")[d.armor]
-	var Sh = GameData.c("SHIELD_DEFS")[d.shield] if d.get("shield") != null and not W.twoH else null
-	var H = GameData.c("HORSES")[d.get("horse", "riding") if d.get("horse") != null else "riding"] if d.type == "cav" else null
-	var armor: float = A.armor + (Sh.armor if Sh else 0) + (H.armor if H else 0)
+	var rc: String = d.get("race", "realm") if d.get("race") != null else "realm"
+	var WS: Dictionary = GameData.c("WEAPONS")
+	var AS: Dictionary = GameData.c("ARMORS")
+	var FAM: Dictionary = GameData.c("FAMILY")
+	var ak: float = GameData.c("ARMOR_K")
+	if rc == "wood" and d.type == "cav":
+		var W: Dictionary = WS[d.weapon] if WS.has(d.weapon) and WS[d.weapon].get("champ", false) else WS.champsword
+		var A: Dictionary = AS[d.armor] if AS.has(d.armor) and AS[d.armor].type == "ornate" else AS.ornate1
+		var armor: float = A.armor + CHAMP.armor
+		var cost := _add_cost(_add_cost(CHAMP.cost, W.cost), A.cost)
+		var st := {"cav": true, "champ": true, "ogre": false, "race": "wood", "rough": true, "plate": true, "fam": W.fam, "atk": W.atk,
+			"hp": CHAMP.hp + W.get("hp", 0) + GameData.c("ARMOR_HP")[int(A.level)], "armor": armor, "shieldArmor": 0, "red": armor / (armor + ak),
+			"parry": 0.1 if W.fam == "thrust" or W.fam == "sword" else 0.0, "crit": 0.1 if W.fam == "axe" else 0.0,
+			"speed": float(JS.to_fixed(CHAMP.speed * A.speed * W.get("spd", 1.0), 2)), "cost": cost, "upkeep": CHAMP.upkeep.duplicate(), "two": d.get("two", false)}
+		st.blurb = "%s, %s armor. %s.%s" % [W.name, A.name, FAM[W.fam].note, " Two-handed swings: heavy blows every other round (125% damage over time)." if d.get("two", false) else ""]
+		return st
+	var sw := rc == "swamp"
+	var B: Dictionary = UNIT_BASE[d.type] if UNIT_BASE else GameData.c("UNIT_BASE")[d.type]
+	var W: Dictionary = WS[d.weapon]
+	var A: Dictionary = AS[d.armor]
+	var Sh = GameData.c("SHIELD_DEFS")[d.shield] if rc == "realm" and d.get("shield") != null and not W.twoH else null
+	var H = (GameData.c("OGRES") if sw else GameData.c("HORSES"))[d.get("horse") if d.get("horse") != null else "riding"] if d.type == "cav" else null
+	var Off = WS[d.off] if sw and d.get("off") != null and not W.twoH and WS.has(d.off) and not WS[d.off].twoH else null
+	var armor: float = A.armor * (OGRE_ARMOR if sw and d.type == "cav" else 1.0) + (Sh.armor if Sh else 0) + (H.armor if H else 0)
 	var cost := {}
-	for c in [B.cost, W.cost, A.cost, Sh.cost if Sh else {}, H.cost if H else {}]:
-		for k in c:
-			cost[k] = cost.get(k, 0) + c[k]
+	for c in [B.cost, W.cost, A.cost, Sh.cost if Sh else {}, H.cost if H else {}, Off.cost if Off else {}]:
+		cost = _add_cost(cost, c)
 	cost.erase("food")
 	var speed: float = float(JS.to_fixed((H.speed if H else B.speed) * A.speed * (Sh.speed if Sh else 1), 2))
 	var lv: int = int(A.level)
-	return {"cav": d.type == "cav", "ogre": false, "race": d.get("race", "realm"), "rough": H != null and H.get("rough", false),
-		"plate": A.type in GameData.c("PLATE_TYPES"), "fam": W.fam, "atk": float(JS.to_fixed(W.atk + (H.get("atk", 0) if H else 0), 1)),
+	var st := {"cav": d.type == "cav", "ogre": sw and d.type == "cav", "race": rc, "rough": H != null and H.get("rough", false),
+		"plate": A.type in GameData.c("PLATE_TYPES"), "fam": W.fam, "atk": float(JS.to_fixed(W.atk + (Off.atk * 0.5 if Off else 0.0) + (H.get("atk", 0) if H else 0), 1)),
 		"hp": B.hp + (H.get("hp", 0) if H else 0) + GameData.c("ARMOR_HP")[lv], "armor": armor, "shieldArmor": Sh.armor if Sh else 0,
-		"red": armor / (armor + 12), "parry": 0.1 if W.fam == "sword" or W.fam == "thrust" else 0.0, "crit": 0.1 if W.fam == "axe" else 0.0,
+		"red": armor / (armor + ak), "parry": 0.1 if W.fam == "sword" or W.fam == "thrust" else 0.0, "crit": 0.1 if W.fam == "axe" else 0.0,
 		"speed": speed, "cost": cost, "upkeep": {"food": maxf(0, B.upkeep.food + (H.get("upFood", 0) if H else 0))}}
+	st.blurb = "%s%s%s, %s armor%s. %s.%s" % [W.name, (" and " + Off.name + " (off hand, half damage)") if Off else "", (" and " + Sh.name) if Sh else "",
+		A.name, (", " + H.name) if H else "", FAM[W.fam].note, (" No " + ("Ogre" if sw else "cavalry") + " penalty in forest or swamp.") if H and H.get("rough", false) else ""]
+	if rc == "wood" and d.get("two", false):
+		st.two = true
+		st.blurb += " Two-handed grip: heavy blows every other round (125% damage over time)."
+	return st
+
+
+static func _add_cost(a: Dictionary, b: Dictionary) -> Dictionary:
+	var c := a.duplicate()
+	for k in b:
+		c[k] = c.get(k, 0) + b[k]
+	return c
 
 
 # web: v105.js leaderDesign() for the player: reuse a design of that name, else add it to the Armory
@@ -610,9 +708,12 @@ var design_seq := 0
 
 func add_design(o: Dictionary) -> Dictionary:
 	design_seq += 1
-	var d := {"id": "d%d" % design_seq, "name": o.name, "type": o.type, "weapon": o.weapon, "shield": o.get("shield"),
-		"armor": o.armor, "horse": o.get("horse", "riding") if o.type == "cav" else null, "builtin": false, "race": o.get("race", "realm")}
-	if d.type == "cav" and d.horse == null:
+	var rc: String = o.get("race", "realm") if o.get("race") != null else "realm"
+	var d := {"id": "d%d" % design_seq, "name": o.name, "type": o.type, "weapon": o.weapon, "shield": o.get("shield") if rc == "realm" else null,
+		"off": o.get("off"), "armor": o.armor, "horse": o.get("horse", "riding") if o.type == "cav" and rc != "wood" else null, "builtin": false, "race": rc}
+	if o.get("two", false):
+		d.two = true
+	if d.type == "cav" and d.horse == null and rc != "wood":
 		d.horse = "riding"
 	designs.append(d)
 	register_design(d)
@@ -622,13 +723,7 @@ func add_design(o: Dictionary) -> Dictionary:
 func register_design(d: Dictionary) -> void:
 	var st := design_stats(d)
 	DSTATS[d.id] = st
-	var W: Dictionary = GameData.c("WEAPONS")[d.weapon]
-	var Sh = GameData.c("SHIELD_DEFS")[d.shield] if d.get("shield") != null and not W.twoH else null
-	var H = GameData.c("HORSES")[d.horse] if d.get("horse") != null and d.type == "cav" else null
-	var blurb: String = "%s%s, %s armor%s. %s." % [W.name, " and " + Sh.name if Sh else "", GameData.c("ARMORS")[d.armor].name,
-		", " + H.name if H else "", GameData.c("FAMILY")[W.fam].note]
-	if H and H.get("rough", false):
-		blurb += " No cavalry penalty in forest or swamp."
+	var blurb: String = st.blurb
 	unit_defs[d.id] = {"name": d.name, "cost": st.cost, "upkeep": st.upkeep, "blurb": blurb, "design": true}
 	military[d.id] = true
 	UNIT_SPEED[d.id] = st.speed
@@ -945,7 +1040,7 @@ func tech_bonus() -> Dictionary:
 # web: govtech.js givesOf() + swamp.js (Markets: MARKET_GIVES for Realmlings) + v105.js (Lumber leaders +1 wood)
 func gives_of(type: String) -> Dictionary:
 	if type == "market":
-		return GameData.c("MARKET_GIVES").duplicate()
+		return {} if is_sw() else GameData.c("MARKET_GIVES").duplicate()
 	var base: Dictionary = BUILD_DEFS[type].get("gives", {}).duplicate()
 	var tg = GameData.c("TECH_GIVES").get(type)
 	if tg != null:
@@ -992,12 +1087,63 @@ func province_income(p: int, b: Dictionary) -> Dictionary:
 		y[k] = yields[p][k] + (CAPITAL_BONUS[k] if b.stage == 2 or b.get("cc", false) else 0) + x[k]
 	if b.stage == 2 and b.owner == ME:
 		y.gold += trade_gold()   # Trade Routes: markets the capital reaches by road
+	if is_sw(b.owner):   # web: swamp.js provinceIncome (Swamp Taxes, Thugs)
+		var tx = swamp_tax(p, b)
+		if tx != null:
+			y.gold += tx.gold
+			y.food += tx.food
+		y.gold += thug_gold(p, b.owner)
 	return y
+
+
+# web: swamp.js swampTax: a Swampling settlement in a swamp makes +1 gold and +2 food per level
+func swamp_tax(p: int, b: Dictionary):
+	if is_sw(b.owner) and world.provinces[p].terrain == "swamp":
+		return {"gold": b.stage + 1, "food": 2 * (b.stage + 1)}
+	return null
+
+
+# web: swamp.js denCap / thugGold (v105: +1 per Organized Crime Agreement)
+func den_cap(o := ME) -> int:
+	var n := 2 + (1 if tech_of(o, "thugs2") else 0) + (1 if tech_of(o, "thugs3") else 0)
+	if has_method("crime_slots"):
+		n += call("crime_slots", o)
+	return n
+
+
+func den_borders(p: int, o: int) -> bool:
+	for q in all_nbr[p]:
+		var n := nation_of(q)
+		if n >= 0 and n != o and is_nation(n):
+			return true
+	return false
+
+
+func thug_gold(p: int, o: int, full := false) -> int:
+	var g := 0
+	for e in extras_in(p):
+		if e.type == "market":
+			g += (den_cap(o) if full else int(e.get("thugs", 0))) * (2 if tech_of(o, "traderoutes") and den_borders(p, o) else 1)
+	var rp: int = rep_lv("rep-trade") if o == ME else (int(nations[o].rep.get("rep-trade", 0)) if nations.has(o) else 0)
+	return int(JS.round_js(g * (1 + 0.05 * rp)))
 
 
 # web: content.js tradeMarkets / tradeGold + v105.js (a Trade Network: +10% each): the capital earns +1 gold for every
 # Marketplace it reaches along roads, through your own unoccupied provinces
 func trade_gold() -> int:
+	if is_sw():   # web: swamp.js (Highwaymen: no roads, no market gold)
+		return 0
+	if is_wd():   # web: wood.js (Community: +1 gold per Bazaar for each other building in its province)
+		if not has_tech("traderoutes"):
+			return 0
+		var nb := 0
+		for p in extras:
+			if not owned(p) or occ.has(p):
+				continue
+			var bz: int = extras[p].filter(func(e): return e.type == "market").size()
+			if bz:
+				nb += bz * (extras[p].size() - 1)
+		return int(JS.round_js(nb * (1 + 0.05 * rep_lv("rep-trade"))))
 	if not has_tech("traderoutes") or capital < 0 or not owned(capital):
 		return 0
 	var adj := {}
@@ -1104,7 +1250,7 @@ func upkeep() -> Dictionary:
 # web: v106.js leaderUpkeepCut(): the Horsemistress' cavalry eat at most 3 food each
 func leader_upkeep_cut(troops: Dictionary, o := ME) -> int:
 	var L = leader_of(o)
-	if L == null or L.id != "hisola":
+	if L == null or not (L.id in ["hisola", "taal"]):
 		return 0
 	var cut := 0
 	for k in troops:
@@ -1112,7 +1258,7 @@ func leader_upkeep_cut(troops: Dictionary, o := ME) -> int:
 		if not n or not unit_defs.has(k) or not unit_defs[k].has("upkeep"):
 			continue
 		var f: int = unit_defs[k].upkeep.get("food", 0)
-		if DSTATS.has(k) and DSTATS[k].get("cav", false):
+		if DSTATS.has(k) and DSTATS[k].get("cav", false) and (L.id == "hisola" or DSTATS[k].get("ogre", false)):
 			cut += maxi(0, f - 3) * n
 	return cut
 
@@ -1161,10 +1307,17 @@ func storage_cap(k: String) -> int:
 	for p in extras:
 		if owned(p):
 			for e in extras[p]:
-				var st = BUILD_DEFS[e.type].get("store")
+				var st = store_of(e.type, ME)
 				if st != null and st.has(k):
 					n += st[k]
 	return n
+
+
+# web: swamp.js storeOf: a Swampling Bank is a Supply Cache
+func store_of(type: String, o: int):
+	if type == "bank":
+		return Races.SUPPLY_STORE if is_sw(o) else Races.BANK_STORE
+	return BUILD_DEFS[type].get("store") if BUILD_DEFS.has(type) else null
 
 
 # web: govtech.js clampStock()
@@ -1560,6 +1713,13 @@ func speed_mod(u: Dictionary) -> float:
 			m *= b / a
 	if has_art(u.owner, "redskull"):
 		m *= 1.25
+	if u.get("pathFire") != null and u.pathFire.until > t:   # web: swamp.js speedMod (Path of Fire)
+		m *= u.pathFire.mult
+	var ter: String = world.provinces[u.prov].terrain if u.prov >= 0 and u.prov < world.provinces.size() else ""
+	if ter == "swamp" and is_sw(u.owner):   # Swamplings: 20% faster in a swamp
+		m *= 1.2
+	if ter == "forest" and is_wd(u.owner):   # web: wood.js (Woodlings: 10% faster in a forest)
+		m *= 1.1
 	return m
 
 
@@ -2028,7 +2188,7 @@ func survey_finds(u: Dictionary) -> void:
 	if f != null and f.id == "ruins" and not f.done:
 		f.done = true
 		var pick := []
-		for x in GameData.c("TECHS"):
+		for x in TECHS:
 			if x.tree == "gov" and x.get("tier") == 1 and not x.get("rep", false) and not tech.gov.done.has(x.id) and req_met(x, tech.gov):
 				pick.append(x)
 		var note := ""
@@ -2054,7 +2214,7 @@ func survey_finds(u: Dictionary) -> void:
 
 # web: tech.js reqMet() for Realmlings (reqOf: `req`; `reqSw` is for the other races). The tech trees come in step 7.
 func req_met(x: Dictionary, st: Dictionary) -> bool:
-	var req = x.get("req")
+	var req = x.get("reqSw") if x.get("reqSw") != null and race() != "realm" else x.get("req")   # web: tech.js reqOf
 	if req == null:
 		return true
 	for r in (req if req is Array else [req]):
@@ -2142,6 +2302,66 @@ func farm_land(p: int) -> bool:
 ## Why the player can't build `type` in province p now, or null. web: game.js buildCheck (+ swamp.js race rules:
 ## none apply to Realmlings)
 func build_check(p: int, type: String):
+	var why = build_check0(p, type)
+	if type == "outpost":
+		return why
+	if why != null and not str(why).begins_with("Need "):   # research, ownership and room come first; then the race's own rules; then the cost
+		return why
+	var r = race_build_why(p, type, ME)
+	return r if r != null else why
+
+
+# web: swamp.js raceBuildWhy
+func race_build_why(p: int, type: String, o: int):
+	var sw := is_sw(o)
+	if type == "pyre":
+		if not sw:
+			return "Swamplings only"
+		var w := warlock_count(o)
+		var n := pyre_count(o)
+		if n >= w:
+			return "One Sacred Pyre per living Warlock (%d/%d)" % [n, w]
+	if not sw:
+		return null
+	if type == "granary" or type == "storehouse":
+		return "Swamplings don’t build these"
+	if type == "stable" and not mountain_border(p):
+		return "An Ogre Cave needs a mountain border"
+	if type == "temple" and world.provinces[p].terrain != "swamp":
+		return "Hot Springs only bubble up in a swamp"
+	return null
+
+
+func mountain_border(p: int) -> bool:
+	for e in world.edges:
+		if e.style == "mountains" and (e.a == p or e.b == p):
+			return true
+	return false
+
+
+func warlock_count(o: int) -> int:
+	var n := 0
+	for v in units:
+		if v.owner == o:
+			if v.kind == MAGE:
+				n += 1
+			elif v.kind == "army":
+				n += int(v.troops.get(MAGE, 0))
+	return n
+
+
+func pyre_count(o: int) -> int:
+	var n := 0
+	for p in extras:
+		if nation_of(p) == o:
+			n += extras[p].filter(func(e): return e.type == "pyre").size()
+	for u in units:
+		if u.owner == o and ((u.get("build") != null and u.build.get("type") == "pyre") or (u.get("pending") != null and u.pending.get("type") == "pyre")):
+			n += 1
+	return n
+
+
+func build_check0(p: int, type: String):
 	if tutorial != null and tutorial.build_why(type) != null:
 		return tutorial.build_why(type)
 	if type == "outpost":
@@ -2617,16 +2837,20 @@ func trainable(src: String, prov: int) -> Array:
 		return GameData.c("TRAINS").capital
 	if src == "magetower":
 		return [GameData.c("MAGE")]
+	if src == "market":   # web: swamp.js trainable (a Thug Den trains Thugs)
+		return [THUG] if is_sw() else []
+	if src == "stable":   # Swamplings: Ogres at the Ogre Cave (no Barracks needed there)
+		return designs.filter(func(d): return d.get("race", "realm") == "swamp" and d.type == "cav").slice(0, 12).map(func(d): return d.id) if is_sw() else []
 	if src != "barracks":
 		return []
-	var has_stable := extras_in(prov).any(func(e): return e.type == "stable")
+	var has_stable: bool = not is_sw() and extras_in(prov).any(func(e): return e.type == "stable")
 	var list := []
 	for d in designs:
-		if d.get("race", "realm") == "realm" and (d.type == "inf" or has_stable):
+		if d.get("race", "realm") == race() and (d.type == "inf" or has_stable):
 			list.append(d.id)
 	list = list.slice(0, 12)
 	if _has_forge():
-		var k: String = GameData.c("RANGED").realm.id
+		var k: String = GameData.c("RANGED")[race()].id
 		if not list.has(k):
 			list = (list.slice(0, 11) if list.size() >= 12 else list) + [k]
 			military[k] = true
@@ -2864,10 +3088,7 @@ const REP_LEFT := 5
 
 
 func tech_for(x: Dictionary) -> bool:
-	var r = x.get("race")
-	if r is Array:
-		return r.has("realm")
-	return r == null or r == "realm"
+	return Races.race_is(x.get("race"), race())
 
 
 # web: game.js levelsOf(type)
@@ -3035,7 +3256,7 @@ func avail_techs(tree: String) -> Array:
 	var T := tech_tier(tree)
 	var rep_open := techs_left(tree) < REP_LEFT
 	var out := []
-	for x in GameData.c("TECHS"):
+	for x in TECHS:
 		if x.tree == tree and x.get("tier", 0) <= T and tech_for(x) and not st.done.has(x.id) and x.id != st.cur and req_met(x, st) \
 				and forge_ready(x, st) and (not x.get("rep", false) or rep_open) and (not x.get("afterT3", false) or tier3_done(tree)):
 			out.append(x)
@@ -3170,7 +3391,7 @@ func finish_tech(tree: String) -> void:
 	st.cur = null
 	if not x.id.begins_with("school-"):
 		sfx("pr_research_magic" if tree == "mag" else "pr_research")
-	var tree_name: String = GameData.c("TECH_TREES")[tree].name
+	var tree_name: String = TECH_TREES[tree].name
 	if x.get("rep", false):
 		draw_options(tree)
 		compute_income()
@@ -3211,7 +3432,7 @@ func tech_payday() -> void:
 		var T := tech_tier(tree)
 		if T != st.tier:
 			if T > st.tier:
-				var nm: String = GameData.c("TECH_TREES")[tree].name
+				var nm: String = TECH_TREES[tree].name
 				toast("%s research unlocked! Open Research (T) to pick a technology." % nm if st.tier == 0 else "%s Tier %s technologies are now available." % [nm, ["", "I", "II", "III"][T]])
 			if tree == "mag" and st.tier == 0 and T > 0 and current_school() == null:
 				school_popup = true
@@ -3441,7 +3662,8 @@ func wall_owner(i: int) -> int:
 
 # web: v102.js wallType: Stone Walls once the builder has researched them, a wooden palisade before
 func wall_type(i: int) -> String:
-	return "stone" if tech_of(wall_owner(i), "walls2") else "wood"
+	var o = wall_owner(i)
+	return ("spiky" if is_sw(o) else "stone") if tech_of(o, "walls2") else "wood"   # web: v102.js wallType (Spiked Walls)
 
 
 func wall_life(i: int) -> Dictionary:
@@ -3575,7 +3797,7 @@ var quakes := []        # the banners: {id, from, to, by, kind} of casts by nati
 var quake_seq := 0
 
 func spell2_name(k: String) -> String:
-	return "Earthquake" if k == "quake" else "Shockwave"
+	return "Earthquake" if k == "quake" else "Fireball" if is_sw() else "Shockwave"   # web: gpc.js SHOCK
 
 
 func rep_of(o: int, id: String) -> int:
@@ -4845,7 +5067,7 @@ const SAVE_FIELDS := ["battles", "bandit_count", "monster_count", "leader", "cap
 	"army_counter", "tech", "rep", "surveyed", "unit_defs", "designs", "exhaust", "exhaust_ok", "harvest", "devel", "upgrades",
 	"xup", "auto_tech", "roads", "walls", "wall_hp", "artifacts", "gift_vault", "quakes", "quake_seq", "wall_max", "wall_crack", "broken_walls", "rewall_jobs", "gate_own", "fort_walled", "gpc_slow_t", "dev_t", "cd", "paths",
 	"harvest_by", "trap", "reveals", "eyes", "haunts", "mana_pool", "mana_prev_t", "mage_gear", "finds", "treasure_rolled",
-	"sp_found", "setpieces", "travelers", "train_orders", "train_order_seq", "design_seq", "prov_rename", "nations", "players", "my_nation", "race_of", "wars", "truces", "allies", "war_seq", "met", "occ", "occ_prog", "dipl", "war_log", "war_ever", "war_lock", "ai_met", "fallen", "ally_check", "bandit_next", "bandit_waves", "ally_ask", "crop_scan_at", "ai_scout_t", "wf", "known", "explored", "visible", "queues", "rally", "military", "UNIT_SPEED", "open_nbr", "all_nbr",
+	"sp_found", "slot_races", "setpieces", "travelers", "train_orders", "train_order_seq", "design_seq", "prov_rename", "nations", "players", "my_nation", "race_of", "wars", "truces", "allies", "war_seq", "met", "occ", "occ_prog", "dipl", "war_log", "war_ever", "war_lock", "ai_met", "fallen", "ally_check", "bandit_next", "bandit_waves", "ally_ask", "crop_scan_at", "ai_scout_t", "wf", "known", "explored", "visible", "queues", "rally", "military", "UNIT_SPEED", "open_nbr", "all_nbr",
 	"yields", "tree_border", "debug_cap", "debug_tech", "reveal_all", "rec", "t", "next_tick", "paused", "last", "started"]
 
 
@@ -4895,6 +5117,15 @@ static func from_save(d: Dictionary, map: Dictionary = {}) -> Game:
 	for f in SAVE_FIELDS:
 		if d.has(f):   # (an older save may not have every field: the new game's default stays)
 			g.set(f, d[f])
+	var rof := {}
+	for k in g.race_of:
+		rof[int(k)] = g.race_of[k]
+	g.race_of = rof
+	var keep_designs: Array = g.designs
+	var keep_tech: Dictionary = g.tech
+	Races.apply(g, g.race())   # the race's names on this game's tables (web: save.js → applyRace)
+	g.designs = keep_designs
+	g.tech = keep_tech
 	g.my_nation.color = int(g.my_nation.get("color", 0))   # (JSON numbers come back as floats)
 	if g.mage_gear.weapon != "stave" or g.mage_gear.get("shield") != null:
 		g.register_mage()
@@ -5080,6 +5311,18 @@ func art_stats(k: String, st: Dictionary, o := ME) -> Dictionary:
 		"aithne":
 			if r.get("ranged", false) and r.get("race") == "realm":
 				out = r.duplicate(); out.atk = r.atk + 1
+		"taal":
+			if r.get("ogre", false):
+				out = r.duplicate(); out.atk = r.atk * 1.1
+		"marl":
+			if inf and r.get("race") == "swamp":
+				out = r.duplicate(); out.crit = r.get("crit", 0.0) + 0.1
+		"zaarg":
+			if r.get("ranged", false) and r.get("race") == "swamp":
+				out = r.duplicate(); out.atk = r.atk + 3
+		"zariel":
+			if r.get("ranged", false) and r.get("race") == "wood":
+				out = r.duplicate(); out.atk = r.atk + 2
 	return out
 
 
@@ -5262,6 +5505,12 @@ func side_strength(armies: Array, prov: int, defender: bool, foe: Dictionary) ->
 	var ter: String = world.provinces[prov].terrain
 	var s := 0.0
 	for a in armies:
+		var home: bool = ter == "swamp" and is_sw(a.owner)   # web: game.js sideStrength (Swamplings at home in a swamp)
+		var crit := 1.0
+		if a.get("fiery", 0.0) and battle_rand.call() < a.fiery:   # web: swamp.js Fiery Weapons: a round's blows land twice as hard
+			crit = 2.0
+			a.fieryHit = t
+			a.fieryHits = a.get("fieryHits", 0) + 1
 		for k in a.troops:
 			var st := stats_of(k, a.owner)
 			var blows := row_deal(a, k)
@@ -5271,10 +5520,20 @@ func side_strength(armies: Array, prov: int, defender: bool, foe: Dictionary) ->
 					if battle_rand.call() < st.crit:
 						c += 1
 				blows += c
-			s += blows * st.atk * terrain_mod(ter, st.get("cav", false) and not st.get("rough", false), defender) \
+			s += blows * st.atk * terrain_mod(ter, st.get("cav", false) and not st.get("rough", false) and not home, defender) * (1.2 if home else 1.0) * crit \
 				* ((1 + 0.5 * foe.cavFrac) if st.get("fam") == "pole" else 1.0) * ((1 + 0.5 * foe.plateFrac) if st.get("fam") == "blunt" else 1.0) \
-				* (1 + a.get("curse", 0.0))
+				* (1 + a.get("curse", 0.0)) * (two_mul(a) if st.get("two", false) else 1.0)
 	return s
+
+
+# web: wood.js twoMul: a two-handed grip lands heavy blows every other round (150%, then 100%: 125% over time)
+func two_mul(a: Dictionary) -> float:
+	if a.get("twoT") != t:
+		a.twoT = t
+		a.twoOn = not a.get("twoOn", false)
+		if a.twoOn:
+			a.twoHit = t
+	return TWO_BURST if a.twoOn else 0.0
 
 
 func raw_strength(armies: Array) -> float:
@@ -5410,6 +5669,10 @@ func apply_damage(b: Dictionary, armies: Array, dmg: float, now: float, pierce :
 	if not total:
 		return
 	var mix := side_mix(armies)
+	if is_wd(armies[0].owner) and world.provinces[b.prov].terrain == "forest" and mix.red > 0 and mix.red < 1:   # web: game.js applyDamage (Woodlings: +20% armor in a forest)
+		var ak: float = GameData.c("ARMOR_K")
+		var A: float = mix.red * ak / (1 - mix.red) * 1.2
+		mix.red = A / (A + ak)
 	dmg *= (1 - mix.red * (1 - 0.5 * pierce)) * (1 - mix.parry)
 	var owner: int = armies[0].owner
 	fx.append({"kind": "num", "prov": b.prov, "owner": owner, "n": roundi(dmg), "t0": now})
@@ -6293,6 +6556,8 @@ func barracks_ok(p: int, cav: bool) -> bool:
 	if not extras.has(p) or not owned(p) or occ.has(p):
 		return false
 	var l: Array = extras[p]
+	if cav and is_sw(nation_of(p)):   # web: gpc.js barracksOk (Swamplings retrofit Ogres at an Ogre Cave)
+		return l.any(func(e): return e.type == "stable")
 	return l.any(func(e): return e.type == "barracks") and (not cav or l.any(func(e): return e.type == "stable"))
 
 
@@ -7045,8 +7310,9 @@ func player_info(o: int) -> Dictionary:
 
 ## A full-size game: the island with its unique provinces, you, and the computer nations in `slots`
 ## ("easy" / "moderate" / "difficult" / "closed"). web: menu.js startGame
-static func new_world(seed: String, leader_id := "", slots := [], start := "center", map: Dictionary = {}, opts: Dictionary = {}, nation: Dictionary = {}) -> Game:
+static func new_world(seed: String, leader_id := "", slots := [], start := "center", map: Dictionary = {}, opts: Dictionary = {}, nation: Dictionary = {}, race := "") -> Game:
 	var g := Game.new()
+	g.pick_race(race, leader_id)
 	var mode := map_mode(opts)
 	g.world = map if not map.is_empty() else RealmGen.scale_world(RealmGen.generate_world(seed, map_opts_of(mode) if mode != "normal" else null, true))
 	g.world.mode = mode
@@ -7102,6 +7368,8 @@ func hops_list(src, nbr_list = null) -> Array:
 
 
 # web: ai.js spawnAINations (computer nations are Realmlings for now) and the v96.js wrapper
+var slot_races := []   # the New Game page's race for each opponent slot: "realm", "swamp", "wood" or "random"
+
 func spawn_ai_nations(slots: Array) -> void:
 	nations.clear()
 	var key := ",".join(slots.map(func(x): return str(x)))
@@ -7117,6 +7385,8 @@ func spawn_ai_nations(slots: Array) -> void:
 	var reach := hops_list(capital)
 	var k := 0
 	var kr := 0
+	var ks := 0
+	var kw := 0
 	var wd_names: Array = JS.sort_random(GameData.c("WD_AI_NAMES").duplicate(), r)
 	var AI_IDS: Array = GameData.c("AI_IDS")
 	var DIFF: Dictionary = GameData.c("AI_DIFF")
@@ -7126,13 +7396,28 @@ func spawn_ai_nations(slots: Array) -> void:
 		if not GameData.c("DIFF_NAME").has(diff):
 			continue
 		var id: int = AI_IDS[i]
-		var rc := "realm"
-		var cap := pick_ai_capital(caps, reach, r, "grassland")
+		# each opponent is Realmling, Swampling, Woodling or (Random) any of them (web: ai.js spawnAINations races[i])
+		var want: String = str(slot_races[i]) if i < slot_races.size() else "realm"
+		var rc: String = want if want in ["realm", "swamp", "wood"] else ["realm", "swamp", "wood"][int(floor(r.next() * 3))]
+		var cap := pick_ai_capital(caps, reach, r, Races.HOME[rc])
+		if cap < 0:
+			continue
 		race_of[id] = rc
 		caps.append(cap)
 		var cl: Array = NC[colors[k % colors.size()]]
-		var name: String = TITLES[int(floor(r.next() * TITLES.size()))] + " of " + places[kr % places.size()]
-		kr += 1
+		var name: String
+		if rc == "wood":
+			name = wd_names[kw % wd_names.size()]
+			kw += 1
+		elif rc == "swamp":
+			var SWT: Array = GameData.c("SW_AI_TITLES")
+			var tl: String = SWT[int(floor(r.next() * SWT.size()))]
+			var pl: String = sw_places[ks % sw_places.size()]
+			ks += 1
+			name = (pl + " " + tl) if r.next() < 0.5 else (tl + " of " + pl)
+		else:
+			name = TITLES[int(floor(r.next() * TITLES.size()))] + " of " + places[kr % places.size()]
+			kr += 1
 		players[str(id)] = {"name": name, "color": cl[0], "light": cl[1]}
 		var D: Dictionary = DIFF[diff]
 		var tech_state := {}
@@ -7140,12 +7425,24 @@ func spawn_ai_nations(slots: Array) -> void:
 			tech_state[tr] = {"cur": null, "prog": 0, "bank": 0, "opts": [], "done": [], "tier": 0, "sticky": []}
 		var warc := t + 60 + r.next() * 60
 		var fam: String = D.family if D.get("family") != null else ["sword", "pole", "blunt"][int(floor(r.next() * 3))]
+		fam = "axe" if rc == "swamp" and fam == "sword" else "thrust" if rc == "wood" and fam == "sword" else fam   # web: swamp.js swFamily
 		var school = D.school if D.get("school") != null else ["life", "death", "arcane"][int(floor(r.next() * 3))]
+		if rc == "swamp" and school == "life":   # web: swamp.js swSchool (no Herbomancy for Swamplings, no Necromancy for Woodlings)
+			school = ["death", "arcane", "pyro"][int(floor(r.next() * 3))]
+		elif rc == "wood" and (school == "death" or school == "pyro"):
+			school = ["life", "arcane", "elemental"][int(floor(r.next() * 3))]
+		var aline: String = D.armor
+		if rc == "swamp":   # web: swamp.js swArmorLine
+			aline = {"leather": "stag", "chain": "wyvern", "plate": "dragon"}.get(aline, "stag")
+		elif rc == "wood":
+			aline = {"leather": "spirit", "chain": "mithril", "plate": "ornate"}.get(aline, "spirit")
 		var N := {"id": id, "diff": diff, "name": name, "emblem": emblems[k % emblems.size()] if k < emblems.size() else GameData.c("FLAG_EMBLEMS")[k % GameData.c("FLAG_EMBLEMS").size()],
 			"alive": true, "capital": cap, "stock": GameData.c("START_STOCK").duplicate(), "rep": {}, "surveyed": {cap: true}, "exhaust": 0,
 			"ups": {}, "xups": {}, "tech": tech_state, "queue": [], "think": t + 1 + i * 0.37, "nextOutpost": 0, "phase": "grow",
-			"stuckSince": null, "warCheck": warc, "family": fam, "armorLine": D.armor, "race": rc, "school": null, "wantSchool": school,
-			"spellT": 0, "dv": 0, "design": {"inf": "d-sword", "cav": "d-rider"}, "armyN": 0, "income": {"gold": 0, "wood": 0, "food": 0}}
+			"stuckSince": null, "warCheck": warc, "family": fam, "armorLine": aline, "race": rc, "school": null, "wantSchool": school,
+			"spellT": 0, "dv": 0, "design": {"inf": "d-sw-axe", "cav": "d-sw-ogre"} if rc == "swamp" else {"inf": "d-sword", "cav": "d-rider"}, "armyN": 0, "income": {"gold": 0, "wood": 0, "food": 0}}
+		if rc == "swamp":
+			N.tech.gov.done.append("mushroom")
 		nations[id] = N
 		buildings[cap] = {"stage": 2, "born": -10, "owner": id}
 		var wf := mk_unit(next_id, GameData.c("WAYFINDER"), "", cap, 0)
@@ -7156,7 +7453,7 @@ func spawn_ai_nations(slots: Array) -> void:
 		next_id += 1
 		ms.owner = id
 		units.append(ms)
-		ai_new_army(N, cap, {"d-sword": 3})
+		ai_new_army(N, cap, {footman_of(id): 3})
 		ai_redesign(N)
 		k += 1
 	# v96: Moderate and Difficult nations pick their school at random
@@ -7233,6 +7530,9 @@ func ai_redesign(N: Dictionary) -> void:
 	var A: Dictionary = GameData.c("ARMORS")
 	var F: Dictionary = GameData.c("FAMILY")
 	var ok_w := func(w): return W[w].get("tech") == null or ai_has(N, W[w].tech)
+	if N.get("race") == "swamp" or N.get("race") == "wood":
+		_ai_redesign_race(N, W, A, F, ok_w)
+		return
 	var weapon: String = F[N.family].order.filter(ok_w).back()
 	var armor: String = N.armorLine + "1"
 	for lv in range(4, 0, -1):
@@ -7266,6 +7566,57 @@ func ai_redesign(N: Dictionary) -> void:
 	N.designs.append(inf)
 	N.designs.append(cav)
 
+
+
+# web: swamp.js / wood.js aiRedesign: Berserkers and Ogres; Protectors and Champions
+func _ai_redesign_race(N: Dictionary, W: Dictionary, A: Dictionary, F: Dictionary, ok_w: Callable) -> void:
+	var sw: bool = N.race == "swamp"
+	var fam: Dictionary = F.get(N.family, F.axe if sw else F.thrust)
+	var weapon: String = fam.order.filter(ok_w).back()
+	var armor := "stag1" if sw else "spirit1"
+	for lv in range(4, 0, -1):
+		var aid: String = N.armorLine + str(lv)
+		if A.has(aid) and (A[aid].get("tech") == null or ai_has(N, A[aid].tech)):
+			armor = aid
+			break
+	var inf: Dictionary
+	var cav: Dictionary
+	var sig: String
+	if sw:
+		var off = weapon if ai_has(N, "dualwield") and not W[weapon].twoH else null
+		var cav_w: String = F.blunt.order.filter(ok_w).back()
+		var horse := "friesian" if ai_has(N, "horse-training") else "mongolian" if ai_has(N, "horse-breeding") else "riding"
+		sig = "|".join([weapon, armor, str(off), cav_w, horse])
+		if sig == N.get("designSig", ""):
+			return
+		N.dv += 1
+		var role: String = {"pole": "Spear Berserker", "axe": "Axe Berserker", "blunt": "Club Berserker"}.get(N.family, "Berserker")
+		inf = {"id": "ai%di%d" % [N.id, N.dv], "name": role, "type": "inf", "weapon": weapon, "shield": null, "off": off, "armor": armor, "horse": null, "race": "swamp"}
+		cav = {"id": "ai%dc%d" % [N.id, N.dv], "name": GameData.c("OGRES")[horse].name, "type": "cav", "weapon": cav_w, "shield": null, "off": null, "armor": armor, "horse": horse, "race": "swamp"}
+	else:
+		var champ_a := "ornate1"
+		for lv in range(4, 0, -1):
+			if ai_has(N, "a-ornate%d" % lv):
+				champ_a = "ornate%d" % lv
+				break
+		var champ_w := ("oblivion" if N.family == "thrust" else "worldaxe") if ai_has(N, "horse-training") else ("wrathspear" if N.family == "pole" else "ancienthammer") if ai_has(N, "horse-breeding") else "champsword"
+		sig = "|".join([weapon, armor, champ_a, champ_w])
+		if sig == N.get("designSig", ""):
+			return
+		N.dv += 1
+		var role: String = {"pole": "Spear Protector", "thrust": "Sword Protector", "blunt": "Club Protector"}.get(N.family, "Protector")
+		inf = {"id": "ai%di%d" % [N.id, N.dv], "name": role, "type": "inf", "weapon": weapon, "shield": null, "off": null, "armor": armor, "horse": null, "race": "wood"}
+		if W[weapon].fam == "blunt" and not W[weapon].twoH:
+			inf.two = true
+		cav = {"id": "ai%dc%d" % [N.id, N.dv], "name": "Champion", "type": "cav", "weapon": champ_w, "shield": null, "off": null, "armor": champ_a, "horse": null, "race": "wood"}
+	N.designSig = sig
+	register_design(inf)
+	register_design(cav)
+	N.design = {"inf": inf.id, "cav": cav.id}
+	if not N.has("designs"):
+		N.designs = []
+	N.designs.append(inf)
+	N.designs.append(cav)
 
 
 # =================================================================================================================
@@ -9168,7 +9519,7 @@ func free_masons() -> Array:
 func open_plots() -> Array:
 	if free_masons().is_empty():
 		return []
-	var order: Array = GameData.c("BUILD_ORDER")
+	var order: Array = BUILD_ORDER
 	return provs_of(ME).filter(func(p): return used_slots(p).size() < plot_cap(p) and order.any(func(type): return BUILD_DEFS.has(type) and build_check(p, type) == null))
 
 
@@ -9229,7 +9580,7 @@ func debug_all_tech() -> void:
 		sc = "life"   # the first of SCHOOLS a Realmling can take
 		tech.mag.done.append("school-" + sc)
 	var n := 0
-	for x in GameData.c("TECHS"):
+	for x in TECHS:
 		if x.get("rep") or x.id == "abandon" or not tech_for(x):
 			continue
 		if x.tree == "mag" and (x.id.begins_with("school-") or (x.get("school") != null and x.school != "*" and x.school != sc)):

@@ -249,7 +249,7 @@ static func prov_count(g: Game, N: Dictionary) -> int:
 # web: ai.js aiGives + swamp.js (Markets: MARKET_GIVES) + v105.js (Lumber leaders +1 wood)
 static func gives(g: Game, N: Dictionary, type: String) -> Dictionary:
 	if type == "market":
-		return GameData.c("MARKET_GIVES").duplicate()
+		return {} if N.get("race") == "swamp" else GameData.c("MARKET_GIVES").duplicate()
 	var base: Dictionary = g.BUILD_DEFS[type].get("gives", {}).duplicate()
 	var tg = GameData.c("TECH_GIVES").get(type)
 	if tg != null:
@@ -281,6 +281,12 @@ static func prov_income(g: Game, N: Dictionary, p: int, b: Dictionary) -> Dictio
 	var r = g.dev_rec(p)
 	if r != null and r.deep and ex.any(func(e): return e.type == "goldmine"):
 		y.gold += GameData.c("DEV").deepGold
+	if N.get("race") == "swamp":   # web: swamp.js aiProvIncome (Swamp Taxes; AI dens are taken to be full)
+		var tx = g.swamp_tax(p, b)
+		if tx != null:
+			y.gold += tx.gold
+			y.food += tx.food
+		y.gold += g.thug_gold(p, N.id, true)
 	return y
 
 
@@ -472,7 +478,7 @@ static func storage(g: Game, N: Dictionary, k: String) -> int:
 	var n: int = GameData.c("BASE_CAP") + 500 * rep(N, "rep-storage")
 	for pe in extra_list(g, N):
 		var type: String = pe[1].type
-		var stv = BANK_STORE if type == "bank" else g.BUILD_DEFS[type].get("store")
+		var stv = g.store_of(type, N.id)
 		if stv != null and stv.has(k):
 			n += stv[k]
 	return n
@@ -639,12 +645,12 @@ static func techs_left(g: Game, N: Dictionary, tree: String) -> int:
 	var st: Dictionary = N.tech[tree]
 	var n := 0
 	if tree == "mil":
-		for x in GameData.c("TECHS"):
+		for x in g.TECHS:
 			if x.tree == "mil" and not x.get("rep", false) and not x.get("playerOnly", false) and tech_for(x, N.race) and not st.done.has(x.id) and not over_cap(N, x.id):
 				n += 1
 		return n
 	var sc = N.school if tree == "mag" else null
-	for x in GameData.c("TECHS"):
+	for x in g.TECHS:
 		if x.tree != tree or x.get("rep", false) or x.get("playerOnly", false) or not tech_for(x, N.race) or st.done.has(x.id) or x.id == "abandon":
 			continue
 		if tree == "mag":
@@ -670,7 +676,7 @@ static func draw_options(g: Game, N: Dictionary, tree: String) -> void:
 	var n := retained(g, N)
 	var rep_ok := techs_left(g, N, tree) < Game.REP_LEFT
 	var avail := []
-	for x in GameData.c("TECHS"):
+	for x in g.TECHS:
 		if x.tree == tree and x.tier <= T and tech_for(x, N.race) and not st.done.has(x.id) and x.id != st.cur and req_met(N, x, st) and g.forge_ready(x, st) and (not x.get("rep", false) or rep_ok) and x.id != "abandon" and not x.get("playerOnly", false):
 			avail.append(x)
 	if tree == "mag":
@@ -1029,6 +1035,8 @@ static func job_count_at(g: Game, p: int, self_u, type := "") -> int:
 static func build_why(g: Game, N: Dictionary, p: int, type: String, self_u = null) -> String:
 	if type == "pyre":
 		return "no"
+	if g.race_build_why(p, type, N.id) != null:   # web: swamp.js aiBuildWhy
+		return "race"
 	var d: Dictionary = g.BUILD_DEFS[type]
 	if d.get("tech") != null and not has(g, N, d.tech):
 		return "tech"
@@ -1722,7 +1730,7 @@ static func train(g: Game, N: Dictionary, P: Dictionary) -> void:
 
 # web: v104.js ranged share → v103.js mixed armies → v100.js counters → the standard design
 static func pick_kind(g: Game, N: Dictionary, P: Dictionary, stable: bool) -> String:
-	var rk: String = GameData.c("RANGED").realm.id
+	var rk: String = GameData.c("RANGED")[N.get("race", "realm")].id
 	if rng_forge(g, N.id):
 		var hv := 0
 		var tot := 0

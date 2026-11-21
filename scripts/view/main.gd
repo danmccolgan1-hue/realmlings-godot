@@ -57,6 +57,9 @@ func _ready() -> void:
 			menu.seed_edit.text = a.substr(7)
 		elif a.begins_with("--leader="):
 			menu.opts.leader = a.substr(9)
+			var LL: Dictionary = GameData.c("LEADERS")
+			if LL.has(menu.opts.leader):
+				menu.opts.race = LL[menu.opts.leader].race
 		elif a.begins_with("--world="):   # a full map: --world=moderate,difficult,easy
 			shot_slots = a.substr(8).split(",")
 		elif a == "--newgame":   # pictures: the New Game page
@@ -138,7 +141,7 @@ func start_from_menu(o: Dictionary) -> void:
 	var leader: String = "" if o.leader == "random" else o.leader
 	status.text = "Raising the island…" if practice else "Raising the world and its nations…"
 	thread = Thread.new()
-	thread.start(_gen.bind(o.seed, leader, slots, o.start, o.map, o.nation, practice))
+	thread.start(_gen.bind(o.seed, leader, slots, o.start, o.map, o.nation, practice, str(o.get("race", "realm"))))
 
 
 func start_tutorial() -> void:
@@ -202,8 +205,8 @@ func _start() -> void:
 	menu.start_game()
 
 
-func _gen(seed: String, leader_id: String, slots := [], start := "center", opts := {}, nation := {}, practice := false) -> void:
-	var g := Game.new_practice(seed, leader_id, {}, nation) if practice else Game.new_world(seed, leader_id, slots, start, {}, opts, nation)
+func _gen(seed: String, leader_id: String, slots := [], start := "center", opts := {}, nation := {}, practice := false, race := "realm") -> void:
+	var g := Game.new_practice(seed, leader_id, {}, nation, race) if practice else Game.new_world(seed, leader_id, slots, start, {}, opts, nation, race)
 	if Settings.record_games and not slots.is_empty():
 		Recorder.start(g, "new game")
 	call_deferred("_on_ready", g)
@@ -213,6 +216,7 @@ func _on_ready(g: Game, from_thread := true) -> void:
 	if from_thread:
 		thread.wait_to_finish()
 	game = g
+	Art.player_race = g.race()
 	menu.reset_start()
 	next_autosave = (floor(g.t / AUTOSAVE_EVERY) + 1) * AUTOSAVE_EVERY
 	menu.hide()

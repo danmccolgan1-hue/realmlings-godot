@@ -1,0 +1,1205 @@
+{
+ "note": "ax, ay: the anchor pixel (where the game places the art: province center, plot, feet). scale: image pixels per world unit.",
+ "images": {
+  "capital_desert_v0.png": {
+   "w": 453,
+   "h": 322,
+   "ax": 228,
+   "ay": 208,
+   "scale": 3,
+   "stage": 2,
+   "terrain": "desert",
+   "variant": 0
+  },
+  "capital_desert_v1.png": {
+   "w": 453,
+   "h": 322,
+   "ax": 228,
+   "ay": 208,
+   "scale": 3,
+   "stage": 2,
+   "terrain": "desert",
+   "variant": 1
+  },
+  "capital_desert_v2.png": {
+   "w": 453,
+   "h": 322,
+   "ax": 228,
+   "ay": 208,
+   "scale": 3,
+   "stage": 2,
+   "terrain": "desert",
+   "variant": 2
+  },
+  "capital_desert_v3.png": {
+   "w": 453,
+   "h": 322,
+   "ax": 228,
+   "ay": 208,
+   "scale": 3,
+   "stage": 2,
+   "terrain": "desert",
+   "variant": 3
+  },
+  "capital_desert_v4.png": {
+   "w": 453,
+   "h": 322,
+   "ax": 228,
+   "ay": 208,
+   "scale": 3,
+   "stage": 2,
+   "terrain": "desert",
+   "variant": 4
+  },
+  "capital_desert_v5.png": {
+   "w": 453,
+   "h": 322,
+   "ax": 228,
+   "ay": 208,
+   "scale": 3,
+   "stage": 2,
+   "terrain": "desert",
+   "variant": 5
+  },
+  "capital_desert_v6.png": {
+   "w": 453,
+   "h": 322,
+   "ax": 228,
+   "ay": 208,
+   "scale": 3,
+   "stage": 2,
+   "terrain": "desert",
+   "variant": 6
+  },
+  "capital_desert_v7.png": {
+   "w": 453,
+   "h": 322,
+   "ax": 228,
+   "ay": 208,
+   "scale": 3,
+   "stage": 2,
+   "terrain": "desert",
+   "variant": 7
+  },
+  "capital_desert_v8.png": {
+   "w": 453,
+   "h": 322,
+   "ax": 228,
+   "ay": 208,
+   "scale": 3,
+   "stage": 2,
+   "terrain": "desert",
+   "variant": 8
+  },
+  "capital_desert_v9.png": {
+   "w": 453,
+   "h": 322,
+   "ax": 228,
+   "ay": 208,
+   "scale": 3,
+   "stage": 2,
+   "terrain": "desert",
+   "variant": 9
+  },
+  "capital_forest_v0.png": {
+   "w": 453,
+   "h": 322,
+   "ax": 228,
+   "ay": 208,
+   "scale": 3,
+   "stage": 2,
+   "terrain": "forest",
+   "variant": 0
+  },
+  "capital_forest_v1.png": {
+   "w": 453,
+   "h": 322,
+   "ax": 228,
+   "ay": 208,
+   "scale": 3,
+   "stage": 2,
+   "terrain": "forest",
+   "variant": 1
+  },
+  "capital_forest_v2.png": {
+   "w": 453,
+   "h": 322,
+   "ax": 228,
+   "ay": 208,
+   "scale": 3,
+   "stage": 2,
+   "terrain": "forest",
+   "variant": 2
+  },
+  "capital_forest_v3.png": {
+   "w": 453,
+   "h": 322,
+   "ax": 228,
+   "ay": 208,
+   "scale": 3,
+   "stage": 2,
+   "terrain": "forest",
+   "variant": 3
+  },
+  "capital_forest_v4.png": {
+   "w": 453,
+   "h": 322,
+   "ax": 228,
+   "ay": 208,
+   "scale": 3,
+   "stage": 2,
+   "terrain": "forest",
+   "variant": 4
+  },
+  "capital_forest_v5.png": {
+   "w": 453,
+   "h": 322,
+   "ax": 228,
+   "ay": 208,
+   "scale": 3,
+   "stage": 2,
+   "terrain": "forest",
+   "variant": 5
+  },
+  "capital_forest_v6.png": {
+   "w": 453,
+   "h": 322,
+   "ax": 228,
+   "ay": 208,
+   "scale": 3,
+   "stage": 2,
+   "terrain": "forest",
+   "variant": 6
+  },
+  "capital_forest_v7.png": {
+   "w": 453,
+   "h": 322,
+   "ax": 228,
+   "ay": 208,
+   "scale": 3,
+   "stage": 2,
+   "terrain": "forest",
+   "variant": 7
+  },
+  "capital_forest_v8.png": {
+   "w": 453,
+   "h": 322,
+   "ax": 228,
+   "ay": 208,
+   "scale": 3,
+   "stage": 2,
+   "terrain": "forest",
+   "variant": 8
+  },
+  "capital_forest_v9.png": {
+   "w": 453,
+   "h": 322,
+   "ax": 228,
+   "ay": 208,
+   "scale": 3,
+   "stage": 2,
+   "terrain": "forest",
+   "variant": 9
+  },
+  "capital_grassland_v0.png": {
+   "w": 453,
+   "h": 322,
+   "ax": 228,
+   "ay": 208,
+   "scale": 3,
+   "stage": 2,
+   "terrain": "grassland",
+   "variant": 0
+  },
+  "capital_grassland_v1.png": {
+   "w": 453,
+   "h": 322,
+   "ax": 228,
+   "ay": 208,
+   "scale": 3,
+   "stage": 2,
+   "terrain": "grassland",
+   "variant": 1
+  },
+  "capital_grassland_v2.png": {
+   "w": 453,
+   "h": 322,
+   "ax": 228,
+   "ay": 208,
+   "scale": 3,
+   "stage": 2,
+   "terrain": "grassland",
+   "variant": 2
+  },
+  "capital_grassland_v3.png": {
+   "w": 453,
+   "h": 322,
+   "ax": 228,
+   "ay": 208,
+   "scale": 3,
+   "stage": 2,
+   "terrain": "grassland",
+   "variant": 3
+  },
+  "capital_grassland_v4.png": {
+   "w": 453,
+   "h": 322,
+   "ax": 228,
+   "ay": 208,
+   "scale": 3,
+   "stage": 2,
+   "terrain": "grassland",
+   "variant": 4
+  },
+  "capital_grassland_v5.png": {
+   "w": 453,
+   "h": 322,
+   "ax": 228,
+   "ay": 208,
+   "scale": 3,
+   "stage": 2,
+   "terrain": "grassland",
+   "variant": 5
+  },
+  "capital_grassland_v6.png": {
+   "w": 453,
+   "h": 322,
+   "ax": 228,
+   "ay": 208,
+   "scale": 3,
+   "stage": 2,
+   "terrain": "grassland",
+   "variant": 6
+  },
+  "capital_grassland_v7.png": {
+   "w": 453,
+   "h": 322,
+   "ax": 228,
+   "ay": 208,
+   "scale": 3,
+   "stage": 2,
+   "terrain": "grassland",
+   "variant": 7
+  },
+  "capital_grassland_v8.png": {
+   "w": 453,
+   "h": 322,
+   "ax": 228,
+   "ay": 208,
+   "scale": 3,
+   "stage": 2,
+   "terrain": "grassland",
+   "variant": 8
+  },
+  "capital_grassland_v9.png": {
+   "w": 453,
+   "h": 322,
+   "ax": 228,
+   "ay": 208,
+   "scale": 3,
+   "stage": 2,
+   "terrain": "grassland",
+   "variant": 9
+  },
+  "capital_swamp_v0.png": {
+   "w": 453,
+   "h": 322,
+   "ax": 228,
+   "ay": 208,
+   "scale": 3,
+   "stage": 2,
+   "terrain": "swamp",
+   "variant": 0
+  },
+  "capital_swamp_v1.png": {
+   "w": 453,
+   "h": 322,
+   "ax": 228,
+   "ay": 208,
+   "scale": 3,
+   "stage": 2,
+   "terrain": "swamp",
+   "variant": 1
+  },
+  "capital_swamp_v2.png": {
+   "w": 453,
+   "h": 322,
+   "ax": 228,
+   "ay": 208,
+   "scale": 3,
+   "stage": 2,
+   "terrain": "swamp",
+   "variant": 2
+  },
+  "capital_swamp_v3.png": {
+   "w": 453,
+   "h": 322,
+   "ax": 228,
+   "ay": 208,
+   "scale": 3,
+   "stage": 2,
+   "terrain": "swamp",
+   "variant": 3
+  },
+  "capital_swamp_v4.png": {
+   "w": 453,
+   "h": 322,
+   "ax": 228,
+   "ay": 208,
+   "scale": 3,
+   "stage": 2,
+   "terrain": "swamp",
+   "variant": 4
+  },
+  "capital_swamp_v5.png": {
+   "w": 453,
+   "h": 322,
+   "ax": 228,
+   "ay": 208,
+   "scale": 3,
+   "stage": 2,
+   "terrain": "swamp",
+   "variant": 5
+  },
+  "capital_swamp_v6.png": {
+   "w": 453,
+   "h": 322,
+   "ax": 228,
+   "ay": 208,
+   "scale": 3,
+   "stage": 2,
+   "terrain": "swamp",
+   "variant": 6
+  },
+  "capital_swamp_v7.png": {
+   "w": 453,
+   "h": 322,
+   "ax": 228,
+   "ay": 208,
+   "scale": 3,
+   "stage": 2,
+   "terrain": "swamp",
+   "variant": 7
+  },
+  "capital_swamp_v8.png": {
+   "w": 453,
+   "h": 322,
+   "ax": 228,
+   "ay": 208,
+   "scale": 3,
+   "stage": 2,
+   "terrain": "swamp",
+   "variant": 8
+  },
+  "capital_swamp_v9.png": {
+   "w": 453,
+   "h": 322,
+   "ax": 228,
+   "ay": 208,
+   "scale": 3,
+   "stage": 2,
+   "terrain": "swamp",
+   "variant": 9
+  },
+  "fort_desert_v0.png": {
+   "w": 351,
+   "h": 217,
+   "ax": 177,
+   "ay": 128,
+   "scale": 3,
+   "stage": 1,
+   "terrain": "desert",
+   "variant": 0
+  },
+  "fort_desert_v1.png": {
+   "w": 351,
+   "h": 217,
+   "ax": 177,
+   "ay": 128,
+   "scale": 3,
+   "stage": 1,
+   "terrain": "desert",
+   "variant": 1
+  },
+  "fort_desert_v2.png": {
+   "w": 351,
+   "h": 217,
+   "ax": 177,
+   "ay": 128,
+   "scale": 3,
+   "stage": 1,
+   "terrain": "desert",
+   "variant": 2
+  },
+  "fort_desert_v3.png": {
+   "w": 351,
+   "h": 217,
+   "ax": 177,
+   "ay": 128,
+   "scale": 3,
+   "stage": 1,
+   "terrain": "desert",
+   "variant": 3
+  },
+  "fort_desert_v4.png": {
+   "w": 351,
+   "h": 217,
+   "ax": 177,
+   "ay": 128,
+   "scale": 3,
+   "stage": 1,
+   "terrain": "desert",
+   "variant": 4
+  },
+  "fort_desert_v5.png": {
+   "w": 351,
+   "h": 217,
+   "ax": 177,
+   "ay": 128,
+   "scale": 3,
+   "stage": 1,
+   "terrain": "desert",
+   "variant": 5
+  },
+  "fort_desert_v6.png": {
+   "w": 351,
+   "h": 217,
+   "ax": 177,
+   "ay": 128,
+   "scale": 3,
+   "stage": 1,
+   "terrain": "desert",
+   "variant": 6
+  },
+  "fort_desert_v7.png": {
+   "w": 351,
+   "h": 217,
+   "ax": 177,
+   "ay": 128,
+   "scale": 3,
+   "stage": 1,
+   "terrain": "desert",
+   "variant": 7
+  },
+  "fort_desert_v8.png": {
+   "w": 351,
+   "h": 217,
+   "ax": 177,
+   "ay": 128,
+   "scale": 3,
+   "stage": 1,
+   "terrain": "desert",
+   "variant": 8
+  },
+  "fort_desert_v9.png": {
+   "w": 351,
+   "h": 217,
+   "ax": 177,
+   "ay": 128,
+   "scale": 3,
+   "stage": 1,
+   "terrain": "desert",
+   "variant": 9
+  },
+  "fort_forest_v0.png": {
+   "w": 351,
+   "h": 217,
+   "ax": 177,
+   "ay": 128,
+   "scale": 3,
+   "stage": 1,
+   "terrain": "forest",
+   "variant": 0
+  },
+  "fort_forest_v1.png": {
+   "w": 351,
+   "h": 217,
+   "ax": 177,
+   "ay": 128,
+   "scale": 3,
+   "stage": 1,
+   "terrain": "forest",
+   "variant": 1
+  },
+  "fort_forest_v2.png": {
+   "w": 351,
+   "h": 217,
+   "ax": 177,
+   "ay": 128,
+   "scale": 3,
+   "stage": 1,
+   "terrain": "forest",
+   "variant": 2
+  },
+  "fort_forest_v3.png": {
+   "w": 351,
+   "h": 217,
+   "ax": 177,
+   "ay": 128,
+   "scale": 3,
+   "stage": 1,
+   "terrain": "forest",
+   "variant": 3
+  },
+  "fort_forest_v4.png": {
+   "w": 351,
+   "h": 217,
+   "ax": 177,
+   "ay": 128,
+   "scale": 3,
+   "stage": 1,
+   "terrain": "forest",
+   "variant": 4
+  },
+  "fort_forest_v5.png": {
+   "w": 351,
+   "h": 217,
+   "ax": 177,
+   "ay": 128,
+   "scale": 3,
+   "stage": 1,
+   "terrain": "forest",
+   "variant": 5
+  },
+  "fort_forest_v6.png": {
+   "w": 351,
+   "h": 217,
+   "ax": 177,
+   "ay": 128,
+   "scale": 3,
+   "stage": 1,
+   "terrain": "forest",
+   "variant": 6
+  },
+  "fort_forest_v7.png": {
+   "w": 351,
+   "h": 217,
+   "ax": 177,
+   "ay": 128,
+   "scale": 3,
+   "stage": 1,
+   "terrain": "forest",
+   "variant": 7
+  },
+  "fort_forest_v8.png": {
+   "w": 351,
+   "h": 217,
+   "ax": 177,
+   "ay": 128,
+   "scale": 3,
+   "stage": 1,
+   "terrain": "forest",
+   "variant": 8
+  },
+  "fort_forest_v9.png": {
+   "w": 351,
+   "h": 217,
+   "ax": 177,
+   "ay": 128,
+   "scale": 3,
+   "stage": 1,
+   "terrain": "forest",
+   "variant": 9
+  },
+  "fort_grassland_v0.png": {
+   "w": 351,
+   "h": 217,
+   "ax": 177,
+   "ay": 128,
+   "scale": 3,
+   "stage": 1,
+   "terrain": "grassland",
+   "variant": 0
+  },
+  "fort_grassland_v1.png": {
+   "w": 351,
+   "h": 217,
+   "ax": 177,
+   "ay": 128,
+   "scale": 3,
+   "stage": 1,
+   "terrain": "grassland",
+   "variant": 1
+  },
+  "fort_grassland_v2.png": {
+   "w": 351,
+   "h": 217,
+   "ax": 177,
+   "ay": 128,
+   "scale": 3,
+   "stage": 1,
+   "terrain": "grassland",
+   "variant": 2
+  },
+  "fort_grassland_v3.png": {
+   "w": 351,
+   "h": 217,
+   "ax": 177,
+   "ay": 128,
+   "scale": 3,
+   "stage": 1,
+   "terrain": "grassland",
+   "variant": 3
+  },
+  "fort_grassland_v4.png": {
+   "w": 351,
+   "h": 217,
+   "ax": 177,
+   "ay": 128,
+   "scale": 3,
+   "stage": 1,
+   "terrain": "grassland",
+   "variant": 4
+  },
+  "fort_grassland_v5.png": {
+   "w": 351,
+   "h": 217,
+   "ax": 177,
+   "ay": 128,
+   "scale": 3,
+   "stage": 1,
+   "terrain": "grassland",
+   "variant": 5
+  },
+  "fort_grassland_v6.png": {
+   "w": 351,
+   "h": 217,
+   "ax": 177,
+   "ay": 128,
+   "scale": 3,
+   "stage": 1,
+   "terrain": "grassland",
+   "variant": 6
+  },
+  "fort_grassland_v7.png": {
+   "w": 351,
+   "h": 217,
+   "ax": 177,
+   "ay": 128,
+   "scale": 3,
+   "stage": 1,
+   "terrain": "grassland",
+   "variant": 7
+  },
+  "fort_grassland_v8.png": {
+   "w": 351,
+   "h": 217,
+   "ax": 177,
+   "ay": 128,
+   "scale": 3,
+   "stage": 1,
+   "terrain": "grassland",
+   "variant": 8
+  },
+  "fort_grassland_v9.png": {
+   "w": 351,
+   "h": 217,
+   "ax": 177,
+   "ay": 128,
+   "scale": 3,
+   "stage": 1,
+   "terrain": "grassland",
+   "variant": 9
+  },
+  "fort_swamp_v0.png": {
+   "w": 351,
+   "h": 217,
+   "ax": 177,
+   "ay": 128,
+   "scale": 3,
+   "stage": 1,
+   "terrain": "swamp",
+   "variant": 0
+  },
+  "fort_swamp_v1.png": {
+   "w": 351,
+   "h": 217,
+   "ax": 177,
+   "ay": 128,
+   "scale": 3,
+   "stage": 1,
+   "terrain": "swamp",
+   "variant": 1
+  },
+  "fort_swamp_v2.png": {
+   "w": 351,
+   "h": 217,
+   "ax": 177,
+   "ay": 128,
+   "scale": 3,
+   "stage": 1,
+   "terrain": "swamp",
+   "variant": 2
+  },
+  "fort_swamp_v3.png": {
+   "w": 351,
+   "h": 217,
+   "ax": 177,
+   "ay": 128,
+   "scale": 3,
+   "stage": 1,
+   "terrain": "swamp",
+   "variant": 3
+  },
+  "fort_swamp_v4.png": {
+   "w": 351,
+   "h": 217,
+   "ax": 177,
+   "ay": 128,
+   "scale": 3,
+   "stage": 1,
+   "terrain": "swamp",
+   "variant": 4
+  },
+  "fort_swamp_v5.png": {
+   "w": 351,
+   "h": 217,
+   "ax": 177,
+   "ay": 128,
+   "scale": 3,
+   "stage": 1,
+   "terrain": "swamp",
+   "variant": 5
+  },
+  "fort_swamp_v6.png": {
+   "w": 351,
+   "h": 217,
+   "ax": 177,
+   "ay": 128,
+   "scale": 3,
+   "stage": 1,
+   "terrain": "swamp",
+   "variant": 6
+  },
+  "fort_swamp_v7.png": {
+   "w": 351,
+   "h": 217,
+   "ax": 177,
+   "ay": 128,
+   "scale": 3,
+   "stage": 1,
+   "terrain": "swamp",
+   "variant": 7
+  },
+  "fort_swamp_v8.png": {
+   "w": 351,
+   "h": 217,
+   "ax": 177,
+   "ay": 128,
+   "scale": 3,
+   "stage": 1,
+   "terrain": "swamp",
+   "variant": 8
+  },
+  "fort_swamp_v9.png": {
+   "w": 351,
+   "h": 217,
+   "ax": 177,
+   "ay": 128,
+   "scale": 3,
+   "stage": 1,
+   "terrain": "swamp",
+   "variant": 9
+  },
+  "outpost_desert_v0.png": {
+   "w": 246,
+   "h": 168,
+   "ax": 123,
+   "ay": 105,
+   "scale": 3,
+   "stage": 0,
+   "terrain": "desert",
+   "variant": 0
+  },
+  "outpost_desert_v1.png": {
+   "w": 246,
+   "h": 168,
+   "ax": 123,
+   "ay": 105,
+   "scale": 3,
+   "stage": 0,
+   "terrain": "desert",
+   "variant": 1
+  },
+  "outpost_desert_v2.png": {
+   "w": 246,
+   "h": 168,
+   "ax": 123,
+   "ay": 105,
+   "scale": 3,
+   "stage": 0,
+   "terrain": "desert",
+   "variant": 2
+  },
+  "outpost_desert_v3.png": {
+   "w": 246,
+   "h": 168,
+   "ax": 123,
+   "ay": 105,
+   "scale": 3,
+   "stage": 0,
+   "terrain": "desert",
+   "variant": 3
+  },
+  "outpost_desert_v4.png": {
+   "w": 246,
+   "h": 168,
+   "ax": 123,
+   "ay": 105,
+   "scale": 3,
+   "stage": 0,
+   "terrain": "desert",
+   "variant": 4
+  },
+  "outpost_desert_v5.png": {
+   "w": 246,
+   "h": 168,
+   "ax": 123,
+   "ay": 105,
+   "scale": 3,
+   "stage": 0,
+   "terrain": "desert",
+   "variant": 5
+  },
+  "outpost_desert_v6.png": {
+   "w": 246,
+   "h": 168,
+   "ax": 123,
+   "ay": 105,
+   "scale": 3,
+   "stage": 0,
+   "terrain": "desert",
+   "variant": 6
+  },
+  "outpost_desert_v7.png": {
+   "w": 246,
+   "h": 168,
+   "ax": 123,
+   "ay": 105,
+   "scale": 3,
+   "stage": 0,
+   "terrain": "desert",
+   "variant": 7
+  },
+  "outpost_desert_v8.png": {
+   "w": 246,
+   "h": 168,
+   "ax": 123,
+   "ay": 105,
+   "scale": 3,
+   "stage": 0,
+   "terrain": "desert",
+   "variant": 8
+  },
+  "outpost_desert_v9.png": {
+   "w": 246,
+   "h": 168,
+   "ax": 123,
+   "ay": 105,
+   "scale": 3,
+   "stage": 0,
+   "terrain": "desert",
+   "variant": 9
+  },
+  "outpost_forest_v0.png": {
+   "w": 246,
+   "h": 168,
+   "ax": 123,
+   "ay": 105,
+   "scale": 3,
+   "stage": 0,
+   "terrain": "forest",
+   "variant": 0
+  },
+  "outpost_forest_v1.png": {
+   "w": 246,
+   "h": 168,
+   "ax": 123,
+   "ay": 105,
+   "scale": 3,
+   "stage": 0,
+   "terrain": "forest",
+   "variant": 1
+  },
+  "outpost_forest_v2.png": {
+   "w": 246,
+   "h": 168,
+   "ax": 123,
+   "ay": 105,
+   "scale": 3,
+   "stage": 0,
+   "terrain": "forest",
+   "variant": 2
+  },
+  "outpost_forest_v3.png": {
+   "w": 246,
+   "h": 168,
+   "ax": 123,
+   "ay": 105,
+   "scale": 3,
+   "stage": 0,
+   "terrain": "forest",
+   "variant": 3
+  },
+  "outpost_forest_v4.png": {
+   "w": 246,
+   "h": 168,
+   "ax": 123,
+   "ay": 105,
+   "scale": 3,
+   "stage": 0,
+   "terrain": "forest",
+   "variant": 4
+  },
+  "outpost_forest_v5.png": {
+   "w": 246,
+   "h": 168,
+   "ax": 123,
+   "ay": 105,
+   "scale": 3,
+   "stage": 0,
+   "terrain": "forest",
+   "variant": 5
+  },
+  "outpost_forest_v6.png": {
+   "w": 246,
+   "h": 168,
+   "ax": 123,
+   "ay": 105,
+   "scale": 3,
+   "stage": 0,
+   "terrain": "forest",
+   "variant": 6
+  },
+  "outpost_forest_v7.png": {
+   "w": 246,
+   "h": 168,
+   "ax": 123,
+   "ay": 105,
+   "scale": 3,
+   "stage": 0,
+   "terrain": "forest",
+   "variant": 7
+  },
+  "outpost_forest_v8.png": {
+   "w": 246,
+   "h": 168,
+   "ax": 123,
+   "ay": 105,
+   "scale": 3,
+   "stage": 0,
+   "terrain": "forest",
+   "variant": 8
+  },
+  "outpost_forest_v9.png": {
+   "w": 246,
+   "h": 168,
+   "ax": 123,
+   "ay": 105,
+   "scale": 3,
+   "stage": 0,
+   "terrain": "forest",
+   "variant": 9
+  },
+  "outpost_grassland_v0.png": {
+   "w": 246,
+   "h": 168,
+   "ax": 123,
+   "ay": 105,
+   "scale": 3,
+   "stage": 0,
+   "terrain": "grassland",
+   "variant": 0
+  },
+  "outpost_grassland_v1.png": {
+   "w": 246,
+   "h": 168,
+   "ax": 123,
+   "ay": 105,
+   "scale": 3,
+   "stage": 0,
+   "terrain": "grassland",
+   "variant": 1
+  },
+  "outpost_grassland_v2.png": {
+   "w": 246,
+   "h": 168,
+   "ax": 123,
+   "ay": 105,
+   "scale": 3,
+   "stage": 0,
+   "terrain": "grassland",
+   "variant": 2
+  },
+  "outpost_grassland_v3.png": {
+   "w": 246,
+   "h": 168,
+   "ax": 123,
+   "ay": 105,
+   "scale": 3,
+   "stage": 0,
+   "terrain": "grassland",
+   "variant": 3
+  },
+  "outpost_grassland_v4.png": {
+   "w": 246,
+   "h": 168,
+   "ax": 123,
+   "ay": 105,
+   "scale": 3,
+   "stage": 0,
+   "terrain": "grassland",
+   "variant": 4
+  },
+  "outpost_grassland_v5.png": {
+   "w": 246,
+   "h": 168,
+   "ax": 123,
+   "ay": 105,
+   "scale": 3,
+   "stage": 0,
+   "terrain": "grassland",
+   "variant": 5
+  },
+  "outpost_grassland_v6.png": {
+   "w": 246,
+   "h": 168,
+   "ax": 123,
+   "ay": 105,
+   "scale": 3,
+   "stage": 0,
+   "terrain": "grassland",
+   "variant": 6
+  },
+  "outpost_grassland_v7.png": {
+   "w": 246,
+   "h": 168,
+   "ax": 123,
+   "ay": 105,
+   "scale": 3,
+   "stage": 0,
+   "terrain": "grassland",
+   "variant": 7
+  },
+  "outpost_grassland_v8.png": {
+   "w": 246,
+   "h": 168,
+   "ax": 123,
+   "ay": 105,
+   "scale": 3,
+   "stage": 0,
+   "terrain": "grassland",
+   "variant": 8
+  },
+  "outpost_grassland_v9.png": {
+   "w": 246,
+   "h": 168,
+   "ax": 123,
+   "ay": 105,
+   "scale": 3,
+   "stage": 0,
+   "terrain": "grassland",
+   "variant": 9
+  },
+  "outpost_swamp_v0.png": {
+   "w": 246,
+   "h": 168,
+   "ax": 123,
+   "ay": 105,
+   "scale": 3,
+   "stage": 0,
+   "terrain": "swamp",
+   "variant": 0
+  },
+  "outpost_swamp_v1.png": {
+   "w": 246,
+   "h": 168,
+   "ax": 123,
+   "ay": 105,
+   "scale": 3,
+   "stage": 0,
+   "terrain": "swamp",
+   "variant": 1
+  },
+  "outpost_swamp_v2.png": {
+   "w": 246,
+   "h": 168,
+   "ax": 123,
+   "ay": 105,
+   "scale": 3,
+   "stage": 0,
+   "terrain": "swamp",
+   "variant": 2
+  },
+  "outpost_swamp_v3.png": {
+   "w": 246,
+   "h": 168,
+   "ax": 123,
+   "ay": 105,
+   "scale": 3,
+   "stage": 0,
+   "terrain": "swamp",
+   "variant": 3
+  },
+  "outpost_swamp_v4.png": {
+   "w": 246,
+   "h": 168,
+   "ax": 123,
+   "ay": 105,
+   "scale": 3,
+   "stage": 0,
+   "terrain": "swamp",
+   "variant": 4
+  },
+  "outpost_swamp_v5.png": {
+   "w": 246,
+   "h": 168,
+   "ax": 123,
+   "ay": 105,
+   "scale": 3,
+   "stage": 0,
+   "terrain": "swamp",
+   "variant": 5
+  },
+  "outpost_swamp_v6.png": {
+   "w": 246,
+   "h": 168,
+   "ax": 123,
+   "ay": 105,
+   "scale": 3,
+   "stage": 0,
+   "terrain": "swamp",
+   "variant": 6
+  },
+  "outpost_swamp_v7.png": {
+   "w": 246,
+   "h": 168,
+   "ax": 123,
+   "ay": 105,
+   "scale": 3,
+   "stage": 0,
+   "terrain": "swamp",
+   "variant": 7
+  },
+  "outpost_swamp_v8.png": {
+   "w": 246,
+   "h": 168,
+   "ax": 123,
+   "ay": 105,
+   "scale": 3,
+   "stage": 0,
+   "terrain": "swamp",
+   "variant": 8
+  },
+  "outpost_swamp_v9.png": {
+   "w": 246,
+   "h": 168,
+   "ax": 123,
+   "ay": 105,
+   "scale": 3,
+   "stage": 0,
+   "terrain": "swamp",
+   "variant": 9
+  }
+ }
+}

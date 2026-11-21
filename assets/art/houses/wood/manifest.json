@@ -1,0 +1,113 @@
+{
+ "note": "ax, ay: the anchor pixel (where the game places the art: province center, plot, feet). scale: image pixels per world unit.",
+ "images": {
+  "house_v0.png": {
+   "w": 58,
+   "h": 71,
+   "ax": 27,
+   "ay": 53,
+   "scale": 3,
+   "variant": 0,
+   "owned": false
+  },
+  "house_v0_owned.png": {
+   "w": 58,
+   "h": 71,
+   "ax": 27,
+   "ay": 53,
+   "scale": 3,
+   "variant": 0,
+   "owned": true
+  },
+  "house_v1.png": {
+   "w": 51,
+   "h": 62,
+   "ax": 24,
+   "ay": 44,
+   "scale": 3,
+   "variant": 1,
+   "owned": false
+  },
+  "house_v1_owned.png": {
+   "w": 51,
+   "h": 62,
+   "ax": 24,
+   "ay": 44,
+   "scale": 3,
+   "variant": 1,
+   "owned": true
+  },
+  "house_v2.png": {
+   "w": 66,
+   "h": 73,
+   "ax": 33,
+   "ay": 54,
+   "scale": 3,
+   "variant": 2,
+   "owned": false
+  },
+  "house_v2_owned.png": {
+   "w": 66,
+   "h": 73,
+   "ax": 33,
+   "ay": 54,
+   "scale": 3,
+   "variant": 2,
+   "owned": true
+  },
+  "house_v3.png": {
+   "w": 50,
+   "h": 62,
+   "ax": 24,
+   "ay": 44,
+   "scale": 3,
+   "variant": 3,
+   "owned": false
+  },
+  "house_v3_owned.png": {
+   "w": 50,
+   "h": 62,
+   "ax": 24,
+   "ay": 44,
+   "scale": 3,
+   "variant": 3,
+   "owned": true
+  },
+  "house_v4.png": {
+   "w": 62,
+   "h": 72,
+   "ax": 33,
+   "ay": 54,
+   "scale": 3,
+   "variant": 4,
+   "owned": false
+  },
+  "house_v4_owned.png": {
+   "w": 62,
+   "h": 72,
+   "ax": 33,
+   "ay": 54,
+   "scale": 3,
+   "variant": 4,
+   "owned": true
+  },
+  "house_v5.png": {
+   "w": 67,
+   "h": 74,
+   "ax": 32,
+   "ay": 54,
+   "scale": 3,
+   "variant": 5,
+   "owned": false
+  },
+  "house_v5_owned.png": {
+   "w": 67,
+   "h": 74,
+   "ax": 32,
+   "ay": 54,
+   "scale": 3,
+   "variant": 5,
+   "owned": true
+  }
+ }
+}

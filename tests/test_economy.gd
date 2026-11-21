@@ -71,7 +71,7 @@ static func compare_start(w: Dictionary, g: Game) -> Array:
 	chk.call("bounds", w.bounds, g.G.bounds)
 	chk.call("capital", w.capital, g.capital)
 	chk.call("yields", w.yields, g.yields)
-	if w.leader == "weylyn":   # its woodlines are picked with Math.random: only the capital's count is certain
+	if w.leader in ["weylyn", "roxx"]:   # its woodlines are picked with Math.random: only the capital's count is certain
 		chk.call("capTrees", w.capTrees, g.tree_border[g.capital])
 	else:
 		chk.call("treeBorder", w.treeBorder, g.tree_border)

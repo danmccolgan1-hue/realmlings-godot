@@ -258,9 +258,9 @@ func draw_battle(g: Game, b: Dictionary, t: float) -> void:
 	all.sort_custom(func(p, q): return p.y < q.y)
 	for f in all:
 		_disc(Vector2(f.x, f.y + 2), 12, 4.5, Color(Color(str(g.player_info(f.o).color)), 0.28))
-		var sp = Art.get_sprite("units", "realm", Art.unit_file(f.k, "d6" if f.dir < 0 else "d2"))
+		var sp = Art.race_sprite("units", Art.player_race, Art.unit_file(f.k, "d6" if f.dir < 0 else "d2"))
 		if sp == null:
-			sp = Art.get_sprite("units", "realm", Art.unit_file(Art.design_art(g, f.k), "d6" if f.dir < 0 else "d2"))
+			sp = Art.race_sprite("units", Art.player_race, Art.unit_file(Art.design_art(g, f.k), "d6" if f.dir < 0 else "d2"))
 		if sp == null and str(f.k).begins_with("m-"):
 			sp = Art.get_sprite("units", "common", Art.unit_file("monster-" + str(f.k).substr(2), "d6" if f.dir < 0 else "d2"))
 		if sp:
@@ -389,9 +389,9 @@ func _battle_fx(g: Game, t: float) -> void:
 			var x: float = c.x + dir * (36 + f.r * 30)
 			var y: float = c.y + 22 + f.r * 26
 			var a := maxf(0, 1 - dt / 1.4)
-			var sp = Art.get_sprite("units", "realm", Art.unit_file(str(f.unit), "d6" if dir < 0 else "d2"))
+			var sp = Art.race_sprite("units", Art.player_race, Art.unit_file(str(f.unit), "d6" if dir < 0 else "d2"))
 			if sp == null:
-				sp = Art.get_sprite("units", "realm", Art.unit_file(Art.design_art(g, str(f.unit)), "d6" if dir < 0 else "d2"))
+				sp = Art.race_sprite("units", Art.player_race, Art.unit_file(Art.design_art(g, str(f.unit)), "d6" if dir < 0 else "d2"))
 			if sp:
 				var rot := -dir * minf(1.4, dt * 4)
 				var tex: Texture2D = sp.tex

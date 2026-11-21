@@ -50,7 +50,7 @@ class Preview extends Control:
 		pts.append(pts[0])
 		draw_polyline(pts, UiKit.INK, 3.0, true)
 		var dir := int(Time.get_ticks_msec() / 1000.0 * 0.6 / (PI / 4)) % 8
-		var sp = Art.get_sprite("units", "realm", Art.unit_file(Art.design_art(game, kind), "d%d" % dir))
+		var sp = Art.race_sprite("units", game.race(), Art.unit_file(Art.design_art(game, kind), "d%d" % dir))
 		if sp == null:
 			return
 		var tex: Texture2D = sp.tex
@@ -202,7 +202,7 @@ func _design_list() -> Control:
 	col.custom_minimum_size = Vector2(232, 0)
 	col.add_theme_constant_override("separation", 5)
 	for type in ["inf", "cav"]:
-		col.add_child(_group_head(GameData.c("UNIT_BASE")[type].name))
+		col.add_child(_group_head(game.UNIT_BASE[type].name))
 		for d in game.designs:
 			if d.type != type or d.get("race", "realm") != "realm":
 				continue
@@ -382,7 +382,7 @@ func _design_editor(ed: VBoxContainer) -> void:
 	var W: Dictionary = GameData.c("WEAPONS")[draft.weapon]
 	var cur = game.design_by_id(draft.id) if draft.get("id") != null else null
 	var in_use: bool = cur != null and game.design_in_use(cur.id)
-	var kt: String = GameData.c("UNIT_BASE")[draft.type].name + (" · starting design" if cur != null and cur.builtin else (" · in use" if in_use else ""))
+	var kt: String = game.UNIT_BASE[draft.type].name + (" · starting design" if cur != null and cur.builtin else (" · in use" if in_use else ""))
 	var sm := _top(ed, st, kt, true)
 	_cost_line(sm, "Cost", st.cost, "Upkeep", st.upkeep)
 	var H = GameData.c("HORSES")[draft.get("horse") if draft.get("horse") != null else "riding"]

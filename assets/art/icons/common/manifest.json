@@ -419,6 +419,34 @@
    "kind": "armor",
    "key": "chain4"
   },
+  "gear_armor_dragon1.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "armor",
+   "key": "dragon1"
+  },
+  "gear_armor_dragon2.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "armor",
+   "key": "dragon2"
+  },
+  "gear_armor_dragon3.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "armor",
+   "key": "dragon3"
+  },
+  "gear_armor_dragon4.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "armor",
+   "key": "dragon4"
+  },
   "gear_armor_leather1.png": {
    "ax": 0,
    "ay": 0,
@@ -447,6 +475,62 @@
    "kind": "armor",
    "key": "leather4"
   },
+  "gear_armor_mithril1.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "armor",
+   "key": "mithril1"
+  },
+  "gear_armor_mithril2.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "armor",
+   "key": "mithril2"
+  },
+  "gear_armor_mithril3.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "armor",
+   "key": "mithril3"
+  },
+  "gear_armor_mithril4.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "armor",
+   "key": "mithril4"
+  },
+  "gear_armor_ornate1.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "armor",
+   "key": "ornate1"
+  },
+  "gear_armor_ornate2.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "armor",
+   "key": "ornate2"
+  },
+  "gear_armor_ornate3.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "armor",
+   "key": "ornate3"
+  },
+  "gear_armor_ornate4.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "armor",
+   "key": "ornate4"
+  },
   "gear_armor_plate1.png": {
    "ax": 0,
    "ay": 0,
@@ -474,6 +558,90 @@
    "scale": 1,
    "kind": "armor",
    "key": "plate4"
+  },
+  "gear_armor_spirit1.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "armor",
+   "key": "spirit1"
+  },
+  "gear_armor_spirit2.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "armor",
+   "key": "spirit2"
+  },
+  "gear_armor_spirit3.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "armor",
+   "key": "spirit3"
+  },
+  "gear_armor_spirit4.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "armor",
+   "key": "spirit4"
+  },
+  "gear_armor_stag1.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "armor",
+   "key": "stag1"
+  },
+  "gear_armor_stag2.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "armor",
+   "key": "stag2"
+  },
+  "gear_armor_stag3.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "armor",
+   "key": "stag3"
+  },
+  "gear_armor_stag4.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "armor",
+   "key": "stag4"
+  },
+  "gear_armor_wyvern1.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "armor",
+   "key": "wyvern1"
+  },
+  "gear_armor_wyvern2.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "armor",
+   "key": "wyvern2"
+  },
+  "gear_armor_wyvern3.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "armor",
+   "key": "wyvern3"
+  },
+  "gear_armor_wyvern4.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "armor",
+   "key": "wyvern4"
   },
   "gear_horse_arabian.png": {
    "ax": 0,
@@ -510,6 +678,41 @@
    "kind": "horse",
    "key": "riding"
   },
+  "gear_ogre_arabian.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "horse",
+   "key": "arabian"
+  },
+  "gear_ogre_friesian.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "horse",
+   "key": "friesian"
+  },
+  "gear_ogre_mongolian.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "horse",
+   "key": "mongolian"
+  },
+  "gear_ogre_percheron.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "horse",
+   "key": "percheron"
+  },
+  "gear_ogre_riding.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "horse",
+   "key": "riding"
+  },
   "gear_shield_kite.png": {
    "ax": 0,
    "ay": 0,
@@ -531,6 +734,34 @@
    "kind": "shield",
    "key": "tower"
   },
+  "gear_weapon_ancienthammer.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "weapon",
+   "key": "ancienthammer"
+  },
+  "gear_weapon_battleaxe.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "weapon",
+   "key": "battleaxe"
+  },
+  "gear_weapon_beardedaxe.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "weapon",
+   "key": "beardedaxe"
+  },
+  "gear_weapon_champsword.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "weapon",
+   "key": "champsword"
+  },
   "gear_weapon_club.png": {
    "ax": 0,
    "ay": 0,
@@ -545,12 +776,33 @@
    "kind": "weapon",
    "key": "crypticwand"
   },
+  "gear_weapon_dirk.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "weapon",
+   "key": "dirk"
+  },
   "gear_weapon_enigmaticwand.png": {
    "ax": 0,
    "ay": 0,
    "scale": 1,
    "kind": "weapon",
    "key": "enigmaticwand"
+  },
+  "gear_weapon_estoc.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "weapon",
+   "key": "estoc"
+  },
+  "gear_weapon_gladius.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "weapon",
+   "key": "gladius"
   },
   "gear_weapon_grandstave.png": {
    "ax": 0,
@@ -572,6 +824,13 @@
    "scale": 1,
    "kind": "weapon",
    "key": "halberd"
+  },
+  "gear_weapon_handaxe.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "weapon",
+   "key": "handaxe"
   },
   "gear_weapon_longsword.png": {
    "ax": 0,
@@ -601,6 +860,13 @@
    "kind": "weapon",
    "key": "mythicstave"
   },
+  "gear_weapon_oblivion.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "weapon",
+   "key": "oblivion"
+  },
   "gear_weapon_pike.png": {
    "ax": 0,
    "ay": 0,
@@ -614,6 +880,13 @@
    "scale": 1,
    "kind": "weapon",
    "key": "polearm"
+  },
+  "gear_weapon_rapier.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "weapon",
+   "key": "rapier"
   },
   "gear_weapon_shortsword.png": {
    "ax": 0,
@@ -650,12 +923,33 @@
    "kind": "weapon",
    "key": "wand"
   },
+  "gear_weapon_waraxe.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "weapon",
+   "key": "waraxe"
+  },
   "gear_weapon_warhammer.png": {
    "ax": 0,
    "ay": 0,
    "scale": 1,
    "kind": "weapon",
    "key": "warhammer"
+  },
+  "gear_weapon_worldaxe.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "weapon",
+   "key": "worldaxe"
+  },
+  "gear_weapon_wrathspear.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1,
+   "kind": "weapon",
+   "key": "wrathspear"
   },
   "res_food.png": {
    "w": 80,

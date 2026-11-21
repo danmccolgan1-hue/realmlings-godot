@@ -361,7 +361,7 @@ func _draw_game() -> void:
 		var b: Dictionary = game.buildings[p]
 		var P: Dictionary = game.G.provs[p]
 		var at := Vector2(P.ic[0], P.ic[1])
-		var sp = Art.get_sprite("settlements", "realm", "%s_%s_v%d.png" % [STAGE_ART[b.stage], P.terrain, p % 10])
+		var sp = Art.race_sprite("settlements", str(b.get("ccRace")) if b.get("cc", false) and b.get("ccRace") != null else game.race(b.owner), "%s_%s_v%d.png" % [STAGE_ART[b.stage], P.terrain, p % 10])
 		if sp:
 			Art.draw(self, sp, at)
 		else:
@@ -433,13 +433,14 @@ func _draw_game() -> void:
 		# a new unit pops up (web: drawUnitBody born); a sneaking Wayfinder is faint; one marching home is faded
 		var usc := _pop(game.t - u.born) if u.get("born") != null and game.t - u.born < 1.2 else 1.0
 		var ua := 0.55 if u.get("exiting", false) else (0.45 + sin(t2 * 3) * 0.08) if u.get("stealth", false) else 1.0
-		var sp = Art.get_sprite("units", "realm", Art.unit_file(kind, _dir(u.th)))
+		var urc: String = game.race(u.owner)
+		var sp = Art.race_sprite("units", urc, Art.unit_file(kind, _dir(u.th)))
 		if sp == null and u.get("monster") != null:
 			# monsters are drawn facing left or right only (web: art.js monster sprites)
 			var side := "d2" if cos(u.th) >= 0 else "d6"
 			sp = Art.get_sprite("units", "common", Art.unit_file("monster-" + kind, side))
 		if sp == null and kind.begins_with("d"):
-			sp = Art.get_sprite("units", "realm", Art.unit_file(Art.design_art(game, kind), _dir(u.th)))   # Armory designs without art yet
+			sp = Art.race_sprite("units", urc, Art.unit_file(Art.design_art(game, kind), _dir(u.th)))   # Armory designs without art yet
 		if sp:
 			Art.draw(self, sp, at, usc, ua)
 			if u.kind == game.MAGE:   # v99: the Mage's mana, just over his hat
@@ -599,9 +600,9 @@ func _army(u: Dictionary) -> void:
 		spots.append({"k": figs[i], "i": i, "x": base.x + (c - (in_row - 1) / 2.0) * gx + (gx * 0.35 if r % 2 else 0.0), "y": base.y + (rows - 1 - r) * gy - (rows - 1) * gy / 2 + 4 * K})
 	spots.sort_custom(func(a, b): return a.y < b.y)
 	for sp_ in spots:
-		var sp = Art.get_sprite("units", "realm", Art.unit_file(sp_.k, _dir(u.th)))
+		var sp = Art.race_sprite("units", game.race(u.owner), Art.unit_file(sp_.k, _dir(u.th)))
 		if sp == null and str(sp_.k).begins_with("d"):
-			sp = Art.get_sprite("units", "realm", Art.unit_file(Art.design_art(game, sp_.k), _dir(u.th)))
+			sp = Art.race_sprite("units", game.race(u.owner), Art.unit_file(Art.design_art(game, sp_.k), _dir(u.th)))
 		if sp:
 			var bob := -sin((tt + u.id + sp_.i * 0.7) * 3.2) * 1.3 * K * 0.5   # each soldier breathes (web: iso.js humanoid bob)
 			Art.draw(self, sp, Vector2(sp_.x, sp_.y + hop + bob), (0.85 if _is_cav(sp_.k) else 1.0) * sc, 0.55 if u.get("exiting", false) else 1.0)
@@ -712,14 +713,19 @@ func _army_power(u: Dictionary, at: Vector2) -> void:
 func _building(type: String, slot: int, p: int, ic: Array, f: float, level: int) -> void:
 	var o: Array = game.bslot_of(p, slot)
 	var at := Vector2(ic[0] + o[0], ic[1] + o[1])
-	var base := _building_art(type, level)
+	var brc: String = game.race(game.nation_of(p)) if game.nation_of(p) >= 0 else "realm"
+	if type == "pyre":
+		brc = "swamp"
+	var base := _building_art(type, level, brc)
 	var file := base + ".png"
 	if f < 1.0:
 		file = base + "_rise%d.png" % (25 if f < 0.375 else 50 if f < 0.625 else 75)
 	var sp = null
 	if f >= 1.0 and not Settings.calm_map:   # finished: its animation (smoke, flags, wheels, crystals), when it has one
 		var fr := int(fposmod(Time.get_ticks_msec() / 1000.0 + p * 0.37, BLD_LOOP) / BLD_LOOP * BLD_FRAMES)
-		sp = Art.get_sprite("buildings", "realm", "%s_a%02d.png" % [base, fr])
+		sp = Art.get_sprite("buildings", brc, "%s_a%02d.png" % [base, fr])
+	if sp == null:
+		sp = Art.get_sprite("buildings", brc, file)
 	if sp == null:
 		sp = Art.get_sprite("buildings", "realm", file)
 	if sp:
@@ -734,16 +740,17 @@ func _building(type: String, slot: int, p: int, ic: Array, f: float, level: int)
 const BLD_FRAMES := 32
 const BLD_LOOP := 2.0 / 0.35
 static var _art_names := {}
-func _building_art(type: String, level: int) -> String:
-	if type in ["forge", "magetower"]:
+func _building_art(type: String, level: int, rc := "realm") -> String:
+	if game.BUILD_DEFS.has(type) and game.BUILD_DEFS[type].get("levels") is Array:
 		return "%s_lv%d" % [type, level]
-	if not _art_names.has(type):
-		_art_names[type] = type + "_v0"
-		for v in ["_v0", "_v1", "_v2"]:
-			if Art.get_sprite("buildings", "realm", type + v + ".png") != null:
-				_art_names[type] = type + v
+	var key := rc + type
+	if not _art_names.has(key):
+		_art_names[key] = type + "_v0"
+		for v in ["_v0", "_v1", "_v2", "_v3"]:
+			if Art.get_sprite("buildings", rc, type + v + ".png") != null or Art.get_sprite("buildings", rc, type + v + "_a00.png") != null:
+				_art_names[key] = type + v
 				break
-	return _art_names[type]
+	return _art_names[key]
 
 
 ## Art direction from a facing angle (web th: 0 = toward the camera, then clockwise in eighths).

@@ -79,10 +79,10 @@ func show_screen(n: String) -> void:
 
 func _load_opts() -> Dictionary:
 	var NAT: Dictionary = GameData.c("NATION")
-	var d := {"seed": random_seed(), "nation": {"name": NAT.name, "color": NAT.color, "emblem": NAT.emblem}, "leader": "random", "start": "center", "practice": false,
+	var d := {"seed": random_seed(), "nation": {"name": NAT.name, "color": NAT.color, "emblem": NAT.emblem}, "leader": "random", "race": "realm", "start": "center", "practice": false,
 		"map": {"shape": "classic", "pens": 2, "coves": 2, "trees": 0}, "slots": ["easy", "easy", "moderate", "closed", "closed", "closed", "closed"]}
 	var m: Dictionary = Settings.menu
-	for k in ["nation", "leader", "start", "practice", "map", "slots"]:
+	for k in ["nation", "leader", "race", "start", "practice", "map", "slots"]:
 		if m.has(k) and typeof(m[k]) == typeof(d[k]):
 			d[k] = m[k]
 	if d.slots.size() != 7:
@@ -441,15 +441,23 @@ func _pick(k: String, val) -> void:
 	_refresh_setup()
 
 
+func _pick_race(r: String) -> void:
+	if opts.get("race", "realm") != r:
+		opts.leader = "random"
+	opts.race = r
+	_save_opts()
+	_refresh_setup()
+
+
 func _refresh_setup() -> void:
 	UiKit.clear(setup_box)
 	var practice: bool = opts.practice
-	# race: only the Realmlings for now
+	# race (web: menu.js #mRace): the leader list follows it
 	var race := HBoxContainer.new()
 	race.add_theme_constant_override("separation", 8)
-	race.add_child(_tog("Realmlings", true, Callable()))
-	race.add_child(_tog("Swamplings", false, Callable(), true, "Swamplings come in a later milestone"))
-	race.add_child(_tog("Woodlings", false, Callable(), true, "Woodlings come in a later milestone"))
+	for r in [["realm", "Realmlings", "Small, cheerful and sturdy: they start on grassland"], ["swamp", "Swamplings", "Fierce bog folk: they start in a swamp, fight and move better there, and raise Ogres"],
+			["wood", "Woodlings", "Tall forest folk: they start in a forest, are tougher and quicker there, and need no roads"]]:
+		race.add_child(_tog(r[1], opts.get("race", "realm") == r[0], _pick_race.bind(r[0]), false, r[2]))
 	_row("Race", race, setup_box)
 	_row("Leader", _leader_pick(), setup_box)
 	var mp := HBoxContainer.new()
@@ -460,7 +468,7 @@ func _refresh_setup() -> void:
 	var sp := HBoxContainer.new()
 	sp.add_theme_constant_override("separation", 8)
 	for s in [["center", "Center"], ["edge", "Edge"], ["random", "Random"]]:
-		sp.add_child(_tog(s[1], opts.start == s[0], _pick.bind("start", s[0]), practice, "Where your capital starts: Realmlings always start on grassland"))
+		sp.add_child(_tog(s[1], opts.start == s[0], _pick.bind("start", s[0]), practice, "Where your capital starts: %s always start on %s" % [Races.NAME[opts.get("race", "realm")], Races.HOME[opts.get("race", "realm")]]))
 	_row("Start position", sp, setup_box)
 	# color and flag
 	var NC: Array = GameData.c("NATION_COLORS")
@@ -620,14 +628,14 @@ func _leader_pick() -> Control:
 	var L: Dictionary = GameData.c("LEADERS")
 	var ids := ["random"]
 	for id in L:
-		if L[id].race == "realm":
+		if L[id].race == opts.get("race", "realm"):
 			ids.append(id)
 	for id in ids:
 		var on: bool = opts.leader == id
 		var b := Button.new()
 		b.custom_minimum_size = Vector2(66, 104)
 		b.focus_mode = Control.FOCUS_NONE
-		b.tooltip_text = "A random Realmling leader" if id == "random" else str(L[id].full)
+		b.tooltip_text = "A random %s leader" % CountryWindow.RACE_WORD[opts.get("race", "realm")] if id == "random" else str(L[id].full)
 		for st in ["normal", "hover", "pressed"]:
 			b.add_theme_stylebox_override(st, _sb(SUN if on else (Color("#fff7d9") if st == "hover" else CHIP_HI), 2, 2, 3))
 		var c := VBoxContainer.new()
@@ -644,7 +652,8 @@ func _leader_pick() -> Control:
 			c.add_child(q)
 		else:
 			var r := TextureRect.new()
-			r.texture = load("res://assets/art/icons/realm/leader_%s.png" % id) if ResourceLoader.exists("res://assets/art/icons/realm/leader_%s.png" % id) else null
+			var lp := "res://assets/art/icons/%s/leader_%s.png" % [L[id].race, id]
+			r.texture = load(lp) if ResourceLoader.exists(lp) else null
 			r.custom_minimum_size = Vector2(56, 66)
 			r.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 			r.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
@@ -673,7 +682,7 @@ func _leader_pick() -> Control:
 	leader_info.add_theme_font_size_override("bold_font_size", 15)
 	var cur = L.get(opts.leader)
 	if cur == null:
-		leader_info.text = "A random Realmling leader. Each leader has a start, a bonus and likes and dislikes that sway other nations’ opinion."
+		leader_info.text = "A random " + CountryWindow.RACE_WORD[opts.get("race", "realm")] + " leader. Each leader has a start, a bonus and likes and dislikes that sway other nations’ opinion."
 	else:
 		var likes: Array = leader_like_text(cur).map(func(x): return "[color=%s][b]%s[/b][/color] %s" % ["#1f7a2e" if x[0].begins_with("+") else "#b3261e", x[0], x[1]])
 		leader_info.text = "[b]%s[/b] (%s) · %s %s\nOpinion of other nations: %s" % [cur.full, "woman" if cur.sex == "f" else "man", cur.bonus, leader_start_text(cur), " · ".join(likes)]
@@ -682,8 +691,16 @@ func _leader_pick() -> Control:
 
 
 static func leader_start_text(L: Dictionary) -> String:
+	var r: String = str(L.get("race", "realm"))
+	var tower: String = {"swamp": "Warlock Tower", "wood": "Grove"}.get(r, "Mage Tower")
 	match str(L.get("start", "")):
-		"mage": return "Starts with a Mage Tower, a Mage and 200 more gold, wood and food, but no soldiers (and the Mage Tower technology not researched)."
+		"mage": return "Starts with a %s, a %s and 200 more gold, wood and food, but no soldiers (and the %s technology not researched)." % [tower, {"swamp": "Warlock", "wood": "Druid"}.get(r, "Mage"), tower]
+		"ogres": return "Starts with an Ogre Cave (technology researched, no upkeep) and 4 Ogres as its only soldiers."
+		"twin": return "Starts with a Barracks and 6 Berserkers wielding two axes (Dual Wielding researched)."
+		"navigator": return "Starts with 3 Swampstriders, and 3 Slingers as its only soldiers."
+		"champion": return "Starts with a Champion as its only soldier, and the Hall of Champions researched."
+		"twohand": return "Starts with a Barracks and 6 Protectors fighting two-handed (Two-Handed Grip researched)."
+		"ranger": return "Starts with 2 Scouts, and 6 Archers as its only soldiers."
 		"stable": return "Starts with a Stable (technology researched, no upkeep) and 4 Riders as its only soldiers."
 		"shield": return "Starts with a Barracks and 6 Footmen carrying Round Shields (researched)."
 		"forge": return "Starts with a Forge (technology researched)."

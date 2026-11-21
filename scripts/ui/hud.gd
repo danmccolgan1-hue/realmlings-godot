@@ -297,7 +297,7 @@ func commands_of(u) -> Array:
 	out.resize(16)
 	if u == null:
 		return out
-	var list: Array = GameData.c("CMD").get(u.kind, [])
+	var list: Array = game.CMD.get(u.kind, [])
 	if u.kind == "mage:A" or game.military.has(u.kind):
 		list = []
 	if game.is_caster(u):
@@ -821,6 +821,17 @@ static var _tex := {}
 
 
 static func icon(path: String) -> Texture2D:
+	if Art.player_race != "realm":   # the player's race's own icons first (Swampling buildings, Woodling units...)
+		var rp := ""
+		if path.begins_with("icons/realm/"):
+			rp = "icons/%s/%s" % [Art.player_race, path.substr(12)]
+		elif path.begins_with("icons/common/cmd_"):
+			rp = "icons/%s/%s" % [Art.player_race, path.substr(13)]
+		if rp != "":
+			if not _tex.has(rp):
+				_tex[rp] = load("res://assets/art/" + rp) if ResourceLoader.exists("res://assets/art/" + rp) else null
+			if _tex[rp] != null:
+				return _tex[rp]
 	if not _tex.has(path):
 		var full := "res://assets/art/" + path
 		_tex[path] = load(full) if ResourceLoader.exists(full) else null
@@ -1175,7 +1186,7 @@ func _open_crop_menu(e: Dictionary) -> void:
 func open_plot_menu(p0: int, slot: int, anchor: Control) -> void:
 	var m = game.nearest_mason(p0)
 	var T: String = str(game.G.provs[p0].terrain).capitalize()
-	var order: Array = GameData.c("BUILD_ORDER").filter(func(t): return game.BUILD_DEFS.has(t))
+	var order: Array = game.BUILD_ORDER.filter(func(t): return game.BUILD_DEFS.has(t))
 	order.sort_custom(func(a, b): return int(game.build_check(p0, a) == null) > int(game.build_check(p0, b) == null))
 	var items := []
 	for type in order:
@@ -1214,7 +1225,7 @@ func open_build_menu(p: int, at: Vector2, shift: bool, pt: Vector2) -> void:
 			w = v
 		if game.is_caster(v) and c == null:
 			c = v
-	var types: Array = [] if m == null or not game.explored.has(p) else (GameData.c("BUILD_ORDER").filter(func(ty): return game.BUILD_DEFS.has(ty)) if game.owned(p) else ["outpost"])
+	var types: Array = [] if m == null or not game.explored.has(p) else (game.BUILD_ORDER.filter(func(ty): return game.BUILD_DEFS.has(ty)) if game.owned(p) else ["outpost"])
 	var ws := sel.filter(func(v): return v.kind == game.WAYFINDER)
 	var items := []
 	var all_w := sel.all(func(v): return v.kind == game.WAYFINDER)
@@ -1507,7 +1518,7 @@ func _refresh_research() -> void:
 
 func _tree_column(tr: String) -> Control:
 	var st: Dictionary = game.tech[tr]
-	var T: Dictionary = GameData.c("TECH_TREES")[tr]
+	var T: Dictionary = game.TECH_TREES[tr]
 	var col_c := Color(T.color)
 	var pan := PanelContainer.new()
 	var ps := StyleBoxFlat.new()
@@ -1618,7 +1629,7 @@ func _tree_column(tr: String) -> Control:
 		now.add_child(_ink("Nothing being researched.%s%s" % [(" %d points saved." % int(st.bank)) if st.bank else "", " Pick one:" if not st.opts.is_empty() else ""], 15))
 	# the researched list, folded by default
 	var all := 0
-	for x in GameData.c("TECHS"):
+	for x in game.TECHS:
 		if x.tree == tr and game.tech_for(x) and not x.get("rep") and not str(x.id).begins_with("school-"):
 			all += 1
 	var open: bool = research_open_done.get(tr, false)
@@ -1675,7 +1686,7 @@ func _tech_card(x: Dictionary, col_c: Color) -> Control:
 	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var sp = Art.get_sprite("icons", "realm", "tech_%s.png" % str(x.id).replace("-", "_").to_lower())
+	var sp = Art.race_sprite("icons", Art.player_race, "tech_%s.png" % str(x.id).replace("-", "_").to_lower())
 	if sp:
 		icon.texture = sp.tex
 	row.add_child(icon)

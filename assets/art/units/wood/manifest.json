@@ -1,0 +1,725 @@
+{
+ "note": "ax, ay: the anchor pixel (where the game places the art: province center, plot, feet). scale: image pixels per world unit.",
+ "images": {
+  "d_wd_champ_d0.png": {
+   "w": 174,
+   "h": 347,
+   "ax": 87,
+   "ay": 325,
+   "scale": 4,
+   "id": "d-wd-champ",
+   "dir": "d0",
+   "th": 0
+  },
+  "d_wd_champ_d1.png": {
+   "w": 147,
+   "h": 350,
+   "ax": 86,
+   "ay": 328,
+   "scale": 4,
+   "id": "d-wd-champ",
+   "dir": "d1",
+   "th": -0.7853981633974483
+  },
+  "d_wd_champ_d2.png": {
+   "w": 121,
+   "h": 356,
+   "ax": 62,
+   "ay": 334,
+   "scale": 4,
+   "id": "d-wd-champ",
+   "dir": "d2",
+   "th": -1.5707963267948966
+  },
+  "d_wd_champ_d3.png": {
+   "w": 147,
+   "h": 358,
+   "ax": 86,
+   "ay": 336,
+   "scale": 4,
+   "id": "d-wd-champ",
+   "dir": "d3",
+   "th": -2.356194490192345
+  },
+  "d_wd_champ_d4.png": {
+   "w": 174,
+   "h": 352,
+   "ax": 87,
+   "ay": 330,
+   "scale": 4,
+   "id": "d-wd-champ",
+   "dir": "d4",
+   "th": 3.141592653589793
+  },
+  "d_wd_champ_d5.png": {
+   "w": 147,
+   "h": 345,
+   "ax": 61,
+   "ay": 323,
+   "scale": 4,
+   "id": "d-wd-champ",
+   "dir": "d5",
+   "th": 2.356194490192345
+  },
+  "d_wd_champ_d6.png": {
+   "w": 121,
+   "h": 343,
+   "ax": 59,
+   "ay": 321,
+   "scale": 4,
+   "id": "d-wd-champ",
+   "dir": "d6",
+   "th": 1.5707963267948966
+  },
+  "d_wd_champ_d7.png": {
+   "w": 147,
+   "h": 345,
+   "ax": 61,
+   "ay": 323,
+   "scale": 4,
+   "id": "d-wd-champ",
+   "dir": "d7",
+   "th": 0.7853981633974483
+  },
+  "d_wd_club_d0.png": {
+   "w": 80,
+   "h": 165,
+   "ax": 40,
+   "ay": 150,
+   "scale": 4,
+   "id": "d-wd-club",
+   "dir": "d0",
+   "th": 0
+  },
+  "d_wd_club_d1.png": {
+   "w": 80,
+   "h": 165,
+   "ax": 43,
+   "ay": 150,
+   "scale": 4,
+   "id": "d-wd-club",
+   "dir": "d1",
+   "th": -0.7853981633974483
+  },
+  "d_wd_club_d2.png": {
+   "w": 69,
+   "h": 165,
+   "ax": 30,
+   "ay": 150,
+   "scale": 4,
+   "id": "d-wd-club",
+   "dir": "d2",
+   "th": -1.5707963267948966
+  },
+  "d_wd_club_d3.png": {
+   "w": 69,
+   "h": 165,
+   "ax": 32,
+   "ay": 150,
+   "scale": 4,
+   "id": "d-wd-club",
+   "dir": "d3",
+   "th": -2.356194490192345
+  },
+  "d_wd_club_d4.png": {
+   "w": 80,
+   "h": 165,
+   "ax": 40,
+   "ay": 150,
+   "scale": 4,
+   "id": "d-wd-club",
+   "dir": "d4",
+   "th": 3.141592653589793
+  },
+  "d_wd_club_d5.png": {
+   "w": 81,
+   "h": 165,
+   "ax": 38,
+   "ay": 150,
+   "scale": 4,
+   "id": "d-wd-club",
+   "dir": "d5",
+   "th": 2.356194490192345
+  },
+  "d_wd_club_d6.png": {
+   "w": 71,
+   "h": 165,
+   "ax": 41,
+   "ay": 150,
+   "scale": 4,
+   "id": "d-wd-club",
+   "dir": "d6",
+   "th": 1.5707963267948966
+  },
+  "d_wd_club_d7.png": {
+   "w": 70,
+   "h": 165,
+   "ax": 38,
+   "ay": 150,
+   "scale": 4,
+   "id": "d-wd-club",
+   "dir": "d7",
+   "th": 0.7853981633974483
+  },
+  "d_wd_spear_d0.png": {
+   "w": 80,
+   "h": 256,
+   "ax": 40,
+   "ay": 241,
+   "scale": 4,
+   "id": "d-wd-spear",
+   "dir": "d0",
+   "th": 0
+  },
+  "d_wd_spear_d1.png": {
+   "w": 82,
+   "h": 258,
+   "ax": 45,
+   "ay": 243,
+   "scale": 4,
+   "id": "d-wd-spear",
+   "dir": "d1",
+   "th": -0.7853981633974483
+  },
+  "d_wd_spear_d2.png": {
+   "w": 72,
+   "h": 259,
+   "ax": 33,
+   "ay": 244,
+   "scale": 4,
+   "id": "d-wd-spear",
+   "dir": "d2",
+   "th": -1.5707963267948966
+  },
+  "d_wd_spear_d3.png": {
+   "w": 69,
+   "h": 259,
+   "ax": 32,
+   "ay": 244,
+   "scale": 4,
+   "id": "d-wd-spear",
+   "dir": "d3",
+   "th": -2.356194490192345
+  },
+  "d_wd_spear_d4.png": {
+   "w": 80,
+   "h": 258,
+   "ax": 40,
+   "ay": 243,
+   "scale": 4,
+   "id": "d-wd-spear",
+   "dir": "d4",
+   "th": 3.141592653589793
+  },
+  "d_wd_spear_d5.png": {
+   "w": 83,
+   "h": 253,
+   "ax": 38,
+   "ay": 238,
+   "scale": 4,
+   "id": "d-wd-spear",
+   "dir": "d5",
+   "th": 2.356194490192345
+  },
+  "d_wd_spear_d6.png": {
+   "w": 74,
+   "h": 250,
+   "ax": 41,
+   "ay": 235,
+   "scale": 4,
+   "id": "d-wd-spear",
+   "dir": "d6",
+   "th": 1.5707963267948966
+  },
+  "d_wd_spear_d7.png": {
+   "w": 70,
+   "h": 252,
+   "ax": 38,
+   "ay": 237,
+   "scale": 4,
+   "id": "d-wd-spear",
+   "dir": "d7",
+   "th": 0.7853981633974483
+  },
+  "d_wd_sword_d0.png": {
+   "w": 80,
+   "h": 165,
+   "ax": 40,
+   "ay": 150,
+   "scale": 4,
+   "id": "d-wd-sword",
+   "dir": "d0",
+   "th": 0
+  },
+  "d_wd_sword_d1.png": {
+   "w": 72,
+   "h": 165,
+   "ax": 35,
+   "ay": 150,
+   "scale": 4,
+   "id": "d-wd-sword",
+   "dir": "d1",
+   "th": -0.7853981633974483
+  },
+  "d_wd_sword_d2.png": {
+   "w": 69,
+   "h": 165,
+   "ax": 30,
+   "ay": 150,
+   "scale": 4,
+   "id": "d-wd-sword",
+   "dir": "d2",
+   "th": -1.5707963267948966
+  },
+  "d_wd_sword_d3.png": {
+   "w": 69,
+   "h": 165,
+   "ax": 32,
+   "ay": 150,
+   "scale": 4,
+   "id": "d-wd-sword",
+   "dir": "d3",
+   "th": -2.356194490192345
+  },
+  "d_wd_sword_d4.png": {
+   "w": 80,
+   "h": 165,
+   "ax": 40,
+   "ay": 150,
+   "scale": 4,
+   "id": "d-wd-sword",
+   "dir": "d4",
+   "th": 3.141592653589793
+  },
+  "d_wd_sword_d5.png": {
+   "w": 73,
+   "h": 165,
+   "ax": 38,
+   "ay": 150,
+   "scale": 4,
+   "id": "d-wd-sword",
+   "dir": "d5",
+   "th": 2.356194490192345
+  },
+  "d_wd_sword_d6.png": {
+   "w": 71,
+   "h": 165,
+   "ax": 41,
+   "ay": 150,
+   "scale": 4,
+   "id": "d-wd-sword",
+   "dir": "d6",
+   "th": 1.5707963267948966
+  },
+  "d_wd_sword_d7.png": {
+   "w": 70,
+   "h": 165,
+   "ax": 38,
+   "ay": 150,
+   "scale": 4,
+   "id": "d-wd-sword",
+   "dir": "d7",
+   "th": 0.7853981633974483
+  },
+  "mage_a_d0.png": {
+   "w": 80,
+   "h": 186,
+   "ax": 40,
+   "ay": 169,
+   "scale": 4,
+   "id": "mage:A",
+   "dir": "d0",
+   "th": 0
+  },
+  "mage_a_d1.png": {
+   "w": 83,
+   "h": 187,
+   "ax": 39,
+   "ay": 172,
+   "scale": 4,
+   "id": "mage:A",
+   "dir": "d1",
+   "th": -0.7853981633974483
+  },
+  "mage_a_d2.png": {
+   "w": 72,
+   "h": 188,
+   "ax": 30,
+   "ay": 173,
+   "scale": 4,
+   "id": "mage:A",
+   "dir": "d2",
+   "th": -1.5707963267948966
+  },
+  "mage_a_d3.png": {
+   "w": 83,
+   "h": 188,
+   "ax": 39,
+   "ay": 173,
+   "scale": 4,
+   "id": "mage:A",
+   "dir": "d3",
+   "th": -2.356194490192345
+  },
+  "mage_a_d4.png": {
+   "w": 80,
+   "h": 187,
+   "ax": 40,
+   "ay": 171,
+   "scale": 4,
+   "id": "mage:A",
+   "dir": "d4",
+   "th": 3.141592653589793
+  },
+  "mage_a_d5.png": {
+   "w": 83,
+   "h": 188,
+   "ax": 44,
+   "ay": 169,
+   "scale": 4,
+   "id": "mage:A",
+   "dir": "d5",
+   "th": 2.356194490192345
+  },
+  "mage_a_d6.png": {
+   "w": 72,
+   "h": 189,
+   "ax": 42,
+   "ay": 169,
+   "scale": 4,
+   "id": "mage:A",
+   "dir": "d6",
+   "th": 1.5707963267948966
+  },
+  "mage_a_d7.png": {
+   "w": 83,
+   "h": 189,
+   "ax": 44,
+   "ay": 169,
+   "scale": 4,
+   "id": "mage:A",
+   "dir": "d7",
+   "th": 0.7853981633974483
+  },
+  "mason_a_d0.png": {
+   "w": 94,
+   "h": 165,
+   "ax": 54,
+   "ay": 150,
+   "scale": 4,
+   "id": "mason:A",
+   "dir": "d0",
+   "th": 0
+  },
+  "mason_a_d1.png": {
+   "w": 88,
+   "h": 165,
+   "ax": 51,
+   "ay": 150,
+   "scale": 4,
+   "id": "mason:A",
+   "dir": "d1",
+   "th": -0.7853981633974483
+  },
+  "mason_a_d2.png": {
+   "w": 69,
+   "h": 165,
+   "ax": 30,
+   "ay": 150,
+   "scale": 4,
+   "id": "mason:A",
+   "dir": "d2",
+   "th": -1.5707963267948966
+  },
+  "mason_a_d3.png": {
+   "w": 69,
+   "h": 165,
+   "ax": 32,
+   "ay": 150,
+   "scale": 4,
+   "id": "mason:A",
+   "dir": "d3",
+   "th": -2.356194490192345
+  },
+  "mason_a_d4.png": {
+   "w": 94,
+   "h": 165,
+   "ax": 40,
+   "ay": 150,
+   "scale": 4,
+   "id": "mason:A",
+   "dir": "d4",
+   "th": 3.141592653589793
+  },
+  "mason_a_d5.png": {
+   "w": 89,
+   "h": 165,
+   "ax": 38,
+   "ay": 150,
+   "scale": 4,
+   "id": "mason:A",
+   "dir": "d5",
+   "th": 2.356194490192345
+  },
+  "mason_a_d6.png": {
+   "w": 71,
+   "h": 165,
+   "ax": 41,
+   "ay": 150,
+   "scale": 4,
+   "id": "mason:A",
+   "dir": "d6",
+   "th": 1.5707963267948966
+  },
+  "mason_a_d7.png": {
+   "w": 70,
+   "h": 165,
+   "ax": 38,
+   "ay": 150,
+   "scale": 4,
+   "id": "mason:A",
+   "dir": "d7",
+   "th": 0.7853981633974483
+  },
+  "pioneer_b_d0.png": {
+   "w": 80,
+   "h": 211,
+   "ax": 40,
+   "ay": 164,
+   "scale": 4,
+   "id": "pioneer:B",
+   "dir": "d0",
+   "th": 0
+  },
+  "pioneer_b_d1.png": {
+   "w": 86,
+   "h": 208,
+   "ax": 42,
+   "ay": 164,
+   "scale": 4,
+   "id": "pioneer:B",
+   "dir": "d1",
+   "th": -0.7853981633974483
+  },
+  "pioneer_b_d2.png": {
+   "w": 74,
+   "h": 207,
+   "ax": 32,
+   "ay": 164,
+   "scale": 4,
+   "id": "pioneer:B",
+   "dir": "d2",
+   "th": -1.5707963267948966
+  },
+  "pioneer_b_d3.png": {
+   "w": 76,
+   "h": 207,
+   "ax": 32,
+   "ay": 164,
+   "scale": 4,
+   "id": "pioneer:B",
+   "dir": "d3",
+   "th": -2.356194490192345
+  },
+  "pioneer_b_d4.png": {
+   "w": 80,
+   "h": 209,
+   "ax": 40,
+   "ay": 164,
+   "scale": 4,
+   "id": "pioneer:B",
+   "dir": "d4",
+   "th": 3.141592653589793
+  },
+  "pioneer_b_d5.png": {
+   "w": 86,
+   "h": 213,
+   "ax": 44,
+   "ay": 164,
+   "scale": 4,
+   "id": "pioneer:B",
+   "dir": "d5",
+   "th": 2.356194490192345
+  },
+  "pioneer_b_d6.png": {
+   "w": 74,
+   "h": 215,
+   "ax": 42,
+   "ay": 164,
+   "scale": 4,
+   "id": "pioneer:B",
+   "dir": "d6",
+   "th": 1.5707963267948966
+  },
+  "pioneer_b_d7.png": {
+   "w": 76,
+   "h": 214,
+   "ax": 44,
+   "ay": 164,
+   "scale": 4,
+   "id": "pioneer:B",
+   "dir": "d7",
+   "th": 0.7853981633974483
+  },
+  "rng_wood_d0.png": {
+   "w": 80,
+   "h": 166,
+   "ax": 40,
+   "ay": 150,
+   "scale": 4,
+   "id": "rng-wood",
+   "dir": "d0",
+   "th": 0
+  },
+  "rng_wood_d1.png": {
+   "w": 80,
+   "h": 165,
+   "ax": 43,
+   "ay": 150,
+   "scale": 4,
+   "id": "rng-wood",
+   "dir": "d1",
+   "th": -0.7853981633974483
+  },
+  "rng_wood_d2.png": {
+   "w": 69,
+   "h": 165,
+   "ax": 30,
+   "ay": 150,
+   "scale": 4,
+   "id": "rng-wood",
+   "dir": "d2",
+   "th": -1.5707963267948966
+  },
+  "rng_wood_d3.png": {
+   "w": 69,
+   "h": 165,
+   "ax": 32,
+   "ay": 150,
+   "scale": 4,
+   "id": "rng-wood",
+   "dir": "d3",
+   "th": -2.356194490192345
+  },
+  "rng_wood_d4.png": {
+   "w": 82,
+   "h": 165,
+   "ax": 40,
+   "ay": 150,
+   "scale": 4,
+   "id": "rng-wood",
+   "dir": "d4",
+   "th": 3.141592653589793
+  },
+  "rng_wood_d5.png": {
+   "w": 81,
+   "h": 169,
+   "ax": 38,
+   "ay": 150,
+   "scale": 4,
+   "id": "rng-wood",
+   "dir": "d5",
+   "th": 2.356194490192345
+  },
+  "rng_wood_d6.png": {
+   "w": 71,
+   "h": 171,
+   "ax": 41,
+   "ay": 150,
+   "scale": 4,
+   "id": "rng-wood",
+   "dir": "d6",
+   "th": 1.5707963267948966
+  },
+  "rng_wood_d7.png": {
+   "w": 70,
+   "h": 170,
+   "ax": 38,
+   "ay": 150,
+   "scale": 4,
+   "id": "rng-wood",
+   "dir": "d7",
+   "th": 0.7853981633974483
+  },
+  "wd_elem_d0.png": {
+   "w": 140,
+   "h": 258,
+   "ax": 70,
+   "ay": 241,
+   "scale": 4,
+   "id": "wd-elem",
+   "dir": "d0",
+   "th": 0
+  },
+  "wd_elem_d1.png": {
+   "w": 140,
+   "h": 258,
+   "ax": 70,
+   "ay": 241,
+   "scale": 4,
+   "id": "wd-elem",
+   "dir": "d1",
+   "th": -0.7853981633974483
+  },
+  "wd_elem_d2.png": {
+   "w": 140,
+   "h": 258,
+   "ax": 70,
+   "ay": 241,
+   "scale": 4,
+   "id": "wd-elem",
+   "dir": "d2",
+   "th": -1.5707963267948966
+  },
+  "wd_elem_d3.png": {
+   "w": 140,
+   "h": 258,
+   "ax": 70,
+   "ay": 241,
+   "scale": 4,
+   "id": "wd-elem",
+   "dir": "d3",
+   "th": -2.356194490192345
+  },
+  "wd_elem_d4.png": {
+   "w": 140,
+   "h": 258,
+   "ax": 70,
+   "ay": 241,
+   "scale": 4,
+   "id": "wd-elem",
+   "dir": "d4",
+   "th": 3.141592653589793
+  },
+  "wd_elem_d5.png": {
+   "w": 140,
+   "h": 258,
+   "ax": 70,
+   "ay": 241,
+   "scale": 4,
+   "id": "wd-elem",
+   "dir": "d5",
+   "th": 2.356194490192345
+  },
+  "wd_elem_d6.png": {
+   "w": 140,
+   "h": 258,
+   "ax": 70,
+   "ay": 241,
+   "scale": 4,
+   "id": "wd-elem",
+   "dir": "d6",
+   "th": 1.5707963267948966
+  },
+  "wd_elem_d7.png": {
+   "w": 140,
+   "h": 258,
+   "ax": 70,
+   "ay": 241,
+   "scale": 4,
+   "id": "wd-elem",
+   "dir": "d7",
+   "th": 0.7853981633974483
+  }
+ }
+}

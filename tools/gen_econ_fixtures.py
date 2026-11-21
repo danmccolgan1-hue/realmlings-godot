@@ -10,15 +10,22 @@ from playwright.async_api import async_playwright
 
 SEEDS = ['ember', 'oak', 'river', 'Practice']
 LEADERS = ['havva', 'alma', 'niall', 'hisola', 'cormac', 'finn', 'weylyn', 'aithne']
+SW_LEADERS = ['phlyo', 'aarg', 'nihaarg', 'taal', 'marl', 'glurg', 'roxx', 'zaarg']   # Swamplings (--swamp)
+WD_LEADERS = ['sariel', 'eliwen', 'naobrien', 'cerathon', 'paladomis', 'alathandrious', 'ultanitous', 'zariel']   # Woodlings (--wood)
+if '--swamp' in sys.argv:
+    SEEDS, LEADERS = ['ember', 'oak'], SW_LEADERS
+if '--wood' in sys.argv:
+    SEEDS, LEADERS = ['ember', 'oak'], WD_LEADERS
 OUT = Path(__file__).resolve().parent.parent / 'tests' / 'fixtures' / 'econ'
 
 SETUP = r"""(() => {
   const seed = %s, leader = %s;
-  menuOpts.race = 'realm'; menuOpts.slots = menuOpts.slots.map(() => 'closed'); menuOpts.practice = true; menuOpts.start = 'center';
-  leaderPick.realm = leader;
+  const race = LEADERS[leader] ? LEADERS[leader].race : 'realm';
+  menuOpts.race = race; menuOpts.slots = menuOpts.slots.map(() => 'closed'); menuOpts.practice = true; menuOpts.start = 'center';
+  leaderPick[race] = leader;
   regenerate(seed, 'practice');
   S.explored = new Set(); S.visible = new Set(); S.sig = '';
-  applyRace('realm'); setupGame(); spawnAINations(menuOpts.slots, menuOpts.races); setupContent(); setupV78(); setupV96(false);
+  applyRace(race); setupGame(); spawnAINations(menuOpts.slots, menuOpts.races); setupContent(); setupV78(); setupV96(false);
   S.started = true; S.last = 0; S.nextTick = 0; S.paused = false; S.t = 0;
   for (const u of S.units) if (u.kind === WAYFINDER) u.auto = false;   // no auto-scouting: this fixture is about the economy
   S.units = S.units.filter(u => u.owner === ME);   // no Bandit Gangs: milestone 1 has no battles

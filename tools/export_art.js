@@ -30,22 +30,24 @@
   const resIcon = E('resIcon'), techIcon = E('techIcon'), buildThumb = E('buildThumb'), xIcon = E('xIcon'), TECHS = E('TECHS');
   const MONSTERS = E('typeof MONSTERS !== "undefined" ? MONSTERS : {}'), drawMonster = E('typeof drawMonster === "function" ? drawMonster : null');
   const ME = E('ME'), UNITK = UK * 1.5;
+  const R = window.__RACE || 'realm', mine = x => !x || x === R || (Array.isArray(x) && x.includes(R));
+  const UNIT_IDS = { realm: ['pioneer:B', 'mason:A', 'mage:A', 'd-sword', 'd-spear', 'd-club', 'd-rider', 'rng-realm', 'thug:A'], swamp: ['pioneer:B', 'mason:A', 'mage:A', 'd-sw-spear', 'd-sw-axe', 'd-sw-club', 'd-sw-ogre', 'rng-swamp', 'thug:A'], wood: ['pioneer:B', 'mason:A', 'mage:A', 'd-wd-sword', 'd-wd-spear', 'd-wd-club', 'd-wd-champ', 'rng-wood', 'wd-elem'] }[R];
   const DIRS = [['d0', 0], ['d1', -Math.PI / 4], ['d2', -Math.PI / 2], ['d3', -3 * Math.PI / 4], ['d4', Math.PI], ['d5', 3 * Math.PI / 4], ['d6', Math.PI / 2], ['d7', Math.PI / 4]];
   const jobs = {
     settlements: () => {
       const out = [];
       for (const st of [0, 1, 2]) for (const ter of ['grassland', 'forest', 'desert', 'swamp']) for (let v = 0; v < 10; v++)
-        out.push(shoot(`settlements/realm/${['outpost', 'fort', 'capital'][st]}_${ter}_v${v}.png`, 3, c => { c.scale(KB, KB); settleArt(c, st, 0, { variant: v, terrain: ter }, 'realm'); }, { stage: st, terrain: ter, variant: v }));
+        out.push(shoot(`settlements/${R}/${['outpost', 'fort', 'capital'][st]}_${ter}_v${v}.png`, 3, c => { c.scale(KB, KB); settleArt(c, st, 0, { variant: v, terrain: ter }, R); }, { stage: st, terrain: ter, variant: v }));
       return out;
     },
     buildings: () => {
       const out = [];
       for (const [type, D] of Object.entries(BUILD_DEFS)) {
-        if (D.race && D.race !== 'realm') continue;
+        if (!mine(D.race)) continue;
         const vs = D.levels ? D.levels.map((_, i) => ['lv' + (i + 1), i]) : [['v' + (D.variant || 0), D.variant || 0]];
         for (const [vn, vi] of vs) {
-          out.push(shoot(`buildings/realm/${snake(type)}_${vn}.png`, 3, c => { c.scale(EB, EB); bldArt(c, type, vi, 0, 1, 'realm'); }, { type, variant: vn }));
-          for (const r of [0.25, 0.5, 0.75]) out.push(shoot(`buildings/realm/${snake(type)}_${vn}_rise${Math.round(r * 100)}.png`, 3, c => { c.scale(EB, EB); bldArt(c, type, vi, 0, r, 'realm'); }, { type, variant: vn, rise: r }));
+          out.push(shoot(`buildings/${R}/${snake(type)}_${vn}.png`, 3, c => { c.scale(EB, EB); bldArt(c, type, vi, 0, 1, R); }, { type, variant: vn }));
+          for (const r of [0.25, 0.5, 0.75]) out.push(shoot(`buildings/${R}/${snake(type)}_${vn}_rise${Math.round(r * 100)}.png`, 3, c => { c.scale(EB, EB); bldArt(c, type, vi, 0, r, R); }, { type, variant: vn, rise: r }));
         }
       }
       return out;
@@ -55,16 +57,16 @@
     bldanim: () => {
       const out = [], N = 32, LOOP = 2 * (1 / 0.35);
       for (const [type, D] of Object.entries(BUILD_DEFS)) {
-        if (D.race && D.race !== 'realm') continue;
+        if (!mine(D.race)) continue;
         const vs = D.levels ? D.levels.map((_, i) => ['lv' + (i + 1), i]) : [['v' + (D.variant || 0), D.variant || 0]];
         for (const [vn, vi] of vs) for (let f = 0; f < N; f++)
-          out.push(shoot(`buildings/realm/${snake(type)}_${vn}_a${String(f).padStart(2, '0')}.png`, 3, c => { c.scale(EB, EB); bldArt(c, type, vi, f * LOOP / N, 1, 'realm'); }, { type, variant: vn, frame: f, frames: N, loop: LOOP }));
+          out.push(shoot(`buildings/${R}/${snake(type)}_${vn}_a${String(f).padStart(2, '0')}.png`, 3, c => { c.scale(EB, EB); bldArt(c, type, vi, f * LOOP / N, 1, R); }, { type, variant: vn, frame: f, frames: N, loop: LOOP }));
       }
       return out;
     },
     units: () => {
-      const out = [], ids = ['pioneer:B', 'mason:A', 'mage:A', 'd-sword', 'd-spear', 'd-club', 'd-rider', 'rng-realm', 'thug:A'];
-      for (const id of ids) for (const [dn, th] of DIRS) out.push(shoot(`units/realm/${snake(id)}_${dn}.png`, 4, c => drawUnitFor(c, id, ME, false, th, 0, 0, 0, UNITK), { id, dir: dn, th }));
+      const out = [], ids = UNIT_IDS;
+      for (const id of ids) for (const [dn, th] of DIRS) out.push(shoot(`units/${R}/${snake(id)}_${dn}.png`, 4, c => drawUnitFor(c, id, ME, false, th, 0, 0, 0, UNITK), { id, dir: dn, th }));
       return out;
     },
     monsters: () => {
@@ -76,18 +78,18 @@
     houses: () => {
       const out = [], n = E('HOUSE_LOOKS').length;
       for (let v = 0; v < n; v++) for (const roof of [null, '#3f72d9']) {
-        const s = houseSprite(v, roof, 'realm'), k = HOUSE_K;
-        out.push(shoot(`houses/realm/house_v${v}${roof ? '_owned' : ''}.png`, 3, c => c.drawImage(s, -50 * k, -70 * k, 100 * k, 100 * k), { variant: v, owned: !!roof }));
+        const s = houseSprite(v, roof, R), k = HOUSE_K;
+        out.push(shoot(`houses/${R}/house_v${v}${roof ? '_owned' : ''}.png`, 3, c => c.drawImage(s, -50 * k, -70 * k, 100 * k, 100 * k), { variant: v, owned: !!roof }));
       }
       return out;
     },
     icons: () => {
       const out = [];
-      for (const k of RES) { const c = document.createElement('canvas'); c.width = c.height = 80; resIcon(c.getContext('2d'), k, 40, 42, 3.4); out.push(icon(`icons/common/res_${k}.png`, c, { res: k })); }
-      for (const t of TECHS) { if (t.race && t.race !== 'realm' && !(Array.isArray(t.race) && t.race.includes('realm'))) continue;   // (a race list such as ['realm', 'wood'] includes the Realmlings)
-        try { const c = techIcon(t.id); if (c && c.toDataURL) out.push(icon(`icons/realm/tech_${snake(t.id)}.png`, c, { tech: t.id })); else if (typeof c === 'string') out.push({ file: `icons/realm/tech_${snake(t.id)}.png`, png: c.startsWith('data:image/png') ? c : (() => { const im = new Image(); im.src = c; const k = document.createElement('canvas'); k.width = k.height = 88; k.getContext('2d').drawImage(im, 0, 0, 88, 88); return k.toDataURL(); })(), ax: 44, ay: 44, scale: 1, tech: t.id }); else out.push({ file: `icons/realm/tech_${snake(t.id)}.png`, error: 'type ' + typeof c }); } catch (e) { out.push({ file: `icons/realm/tech_${snake(t.id)}.png`, error: String(e) }); } }
-      for (const type of Object.keys(BUILD_DEFS)) { if (BUILD_DEFS[type].race && BUILD_DEFS[type].race !== 'realm') continue; try { const u = buildThumb(type); out.push({ file: `icons/realm/build_${snake(type)}.png`, png: typeof u === 'string' ? u : u.toDataURL(), ax: 0, ay: 0, scale: 1, type }); } catch (e) { out.push({ file: `icons/realm/build_${snake(type)}.png`, error: String(e) }); } }
-      for (const kind of Object.keys(E('XICON')).concat(['dismiss', 'destroy', 'road', 'wall', 'rally', 'survey', 'gate', 'bridge', 'rewalls', 'demolish', 'upgrade'])) {
+      if (R === 'realm') for (const k of RES) { const c = document.createElement('canvas'); c.width = c.height = 80; resIcon(c.getContext('2d'), k, 40, 42, 3.4); out.push(icon(`icons/common/res_${k}.png`, c, { res: k })); }
+      for (const t of TECHS) { if (!mine(t.race)) continue;   // (a race list such as ['realm', 'wood'] includes the Realmlings)
+        try { const c = techIcon(t.id); if (c && c.toDataURL) out.push(icon(`icons/${R}/tech_${snake(t.id)}.png`, c, { tech: t.id })); else if (typeof c === 'string') out.push({ file: `icons/${R}/tech_${snake(t.id)}.png`, png: c.startsWith('data:image/png') ? c : (() => { const im = new Image(); im.src = c; const k = document.createElement('canvas'); k.width = k.height = 88; k.getContext('2d').drawImage(im, 0, 0, 88, 88); return k.toDataURL(); })(), ax: 44, ay: 44, scale: 1, tech: t.id }); else out.push({ file: `icons/${R}/tech_${snake(t.id)}.png`, error: 'type ' + typeof c }); } catch (e) { out.push({ file: `icons/${R}/tech_${snake(t.id)}.png`, error: String(e) }); } }
+      for (const type of Object.keys(BUILD_DEFS)) { if (!mine(BUILD_DEFS[type].race)) continue; try { const u = buildThumb(type); out.push({ file: `icons/${R}/build_${snake(type)}.png`, png: typeof u === 'string' ? u : u.toDataURL(), ax: 0, ay: 0, scale: 1, type }); } catch (e) { out.push({ file: `icons/${R}/build_${snake(type)}.png`, error: String(e) }); } }
+      if (R === 'realm') for (const kind of Object.keys(E('XICON')).concat(['dismiss', 'destroy', 'road', 'wall', 'rally', 'survey', 'gate', 'bridge', 'rewalls', 'demolish', 'upgrade'])) {
         try { const u = xIcon(kind); if (u) out.push({ file: `icons/common/cmd_${snake(kind)}.png`, png: typeof u === 'string' ? u : u.toDataURL(), ax: 0, ay: 0, scale: 1, kind }); } catch (e) {}
       }
       return out;
@@ -110,30 +112,30 @@
       catch (e) { out.push({ file, error: String(e) }); }
     };
     const portrait = E('portrait'), settlementThumb = E('settlementThumb'), buildThumb = E('buildThumb'), xIcon = E('xIcon'), cmdInfo = E('cmdInfo');
-    for (const k of ['pioneer:B', 'mason:A', 'army', 'd-spear', 'd-sword', 'd-club', 'd-rider', 'mage:A', 'thug:A', 'rng-realm', 'm-ent', 'm-zombie', 'm-jackal'])
-      await put(`icons/realm/unit_${snake(k)}.png`, () => portrait(k), { kind: k });
-    for (const st of [0, 1, 2]) await put(`icons/realm/settle_${st}.png`, () => settlementThumb(st), { stage: st });
+    for (const k of ['army', ...UNIT_IDS, 'm-ent', 'm-zombie', 'm-jackal'])
+      await put(`icons/${R}/unit_${snake(k)}.png`, () => portrait(k), { kind: k });
+    for (const st of [0, 1, 2]) await put(`icons/${R}/settle_${st}.png`, () => settlementThumb(st), { stage: st });
     for (const type of Object.keys(BUILD_DEFS)) {
-      const d = BUILD_DEFS[type]; if ((d.race && d.race !== 'realm') || !d.levels) continue;
-      for (let lv = 1; lv <= d.levels.length; lv++) await put(`icons/realm/build_${snake(type)}_l${lv}.png`, () => buildThumb(type, lv), { type, level: lv });
+      const d = BUILD_DEFS[type]; if (!mine(d.race) || !d.levels) continue;
+      for (let lv = 1; lv <= d.levels.length; lv++) await put(`icons/${R}/build_${snake(type)}_l${lv}.png`, () => buildThumb(type, lv), { type, level: lv });
     }
-    for (const [file, fn] of [['dev', 'devIcon()'], ['rally', 'rallyIcon()'], ['autobld_off', 'autoBldIcon(null)'], ['follow', 'followIco()'], ['rows', 'rowsIcon()'],
+    if (R === 'realm') for (const [file, fn] of [['dev', 'devIcon()'], ['rally', 'rallyIcon()'], ['autobld_off', 'autoBldIcon(null)'], ['follow', 'followIco()'], ['rows', 'rowsIcon()'],
       ['slippers', "artIcon('slippers')"], ['crop_all', 'cropAllIcon()'], ['crop_ok', 'cropOkIcon()'], ['crop_staple', "cropIcon('staple')"], ['crop_cash', "cropIcon('cash')"], ['crop_fiber', "cropIcon('fiber')"], ['thug', 'thugIcon()']])
       await put(`icons/common/ui_${file}.png`, () => E(fn), {});
-    for (const kind of ['retrofit', 'rest', 'path', 'inspect', 'shock', 'quake', 'rewall', 'split', 'combine', 'retreat', 'cancel', 'fly'])
+    if (R === 'realm') for (const kind of ['retrofit', 'rest', 'path', 'inspect', 'shock', 'quake', 'rewall', 'split', 'combine', 'retreat', 'cancel', 'fly'])
       await put(`icons/common/cmd_${snake(kind)}.png`, () => xIcon(kind), { kind });
     // the leaders' portraits (New Game page, country window)
     const LEADERS = E('LEADERS'), portraitOf = E('portraitOf');
-    for (const id of Object.keys(LEADERS)) if (LEADERS[id].race === 'realm') await put(`icons/realm/leader_${snake(id)}.png`, () => portraitOf(id), { leader: id });
+    for (const id of Object.keys(LEADERS)) if (LEADERS[id].race === R) await put(`icons/${R}/leader_${snake(id)}.png`, () => portraitOf(id), { leader: id });
     // the Armory's gear (every weapon, Mage weapon, shield, armor and horse), the Diplomacy window's action icons,
     // the artifacts
     const equipIcon = E('equipIcon');
     for (const [kind, table] of [['weapon', 'WEAPONS'], ['weapon', 'MAGE_WEAPONS'], ['shield', 'SHIELD_DEFS'], ['armor', 'ARMORS'], ['horse', 'HORSES']])
-      for (const k of Object.keys(E(table))) { const it = E(table)[k]; if (it.race && it.race !== 'realm') continue; await put(`icons/common/gear_${kind}_${snake(k)}.png`, () => equipIcon(kind, k), { kind, key: k }); }
+      for (const k of Object.keys(E(table))) { const it = E(table)[k]; if (it.race && R === 'realm' && !mine(it.race)) continue; await put(`icons/common/gear_${kind === 'horse' && R === 'swamp' ? 'ogre' : kind}_${snake(k)}.png`, () => equipIcon(kind, k), { kind, key: k }); }
     const DX_ICON = E('DX_ICON'), dxIconURL = E('dxIconURL');
-    for (const k of Object.keys(DX_ICON)) await put(`icons/common/dx_${snake(k)}.png`, () => dxIconURL(k), { dx: k });
+    if (R === 'realm') for (const k of Object.keys(DX_ICON)) await put(`icons/common/dx_${snake(k)}.png`, () => dxIconURL(k), { dx: k });
     const ARTIFACTS = E('ARTIFACTS'), artIcon = E('artIcon');
-    for (const k of Object.keys(ARTIFACTS)) await put(`icons/common/art_${snake(k)}.png`, () => artIcon(k), { artifact: k });
+    if (R === 'realm') for (const k of Object.keys(ARTIFACTS)) await put(`icons/common/art_${snake(k)}.png`, () => artIcon(k), { artifact: k });
     // every command of the card, with a unit of its kind selected
     const CMD = E('CMD'), S = E('S'), ME = E('ME');
     const keep = S.selected;
@@ -141,7 +143,7 @@
       let u = S.units.find(v => v.owner === ME && v.kind === kind);
       if (!u) { const m = S.units.find(v => v.owner === ME && v.kind === E('MASON')); u = Object.assign({}, m, { kind }); }
       S.selected = [u];
-      for (const a of CMD[kind]) await put(`icons/common/cmd_${snake(a.id)}.png`, () => cmdInfo(a.id).icon, { id: a.id });
+      for (const a of CMD[kind]) await put(`icons/${R === 'realm' ? 'common' : R}/cmd_${snake(a.id)}.png`, () => cmdInfo(a.id).icon, { id: a.id });
     }
     S.selected = keep;
     return out;
