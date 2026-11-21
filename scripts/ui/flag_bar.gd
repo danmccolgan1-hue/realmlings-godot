@@ -30,8 +30,8 @@ func setup(g: Game, h) -> void:
 	ack.clear()
 	cycle.clear()
 	key = ""
-	add_theme_constant_override("separation", 4)
-	alignment = BoxContainer.ALIGNMENT_END
+	add_theme_constant_override("separation", 6)
+	alignment = BoxContainer.ALIGNMENT_CENTER
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 
@@ -186,44 +186,77 @@ func _process(_dt: float) -> void:
 
 
 func _flag_button(f: Dictionary) -> Control:
+	# web: flags.js .nf: a 52 × 65 banner swinging from its top (nfsway: ±4° over 2.6 s, each flag a little later),
+	# a count in a sun-yellow disc, a label on paper under it, a soft glow (red for warnings)
 	var b := Button.new()
 	b.flat = true
 	b.focus_mode = Control.FOCUS_NONE
 	b.tooltip_text = UiKit.wrap(f.tip)
-	b.custom_minimum_size = Vector2(72, 96)
+	var W := 62.0
+	var H := 78.0
+	b.custom_minimum_size = Vector2(W + (34.0 if f.get("label") else 0.0), H + (26.0 if f.get("label") else 0.0))
 	var sp = Art.get_sprite("flags", "common", "flag_%s.png" % f.img)
-	var col := VBoxContainer.new()
-	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	col.add_theme_constant_override("separation", 0)
-	col.set_anchors_preset(Control.PRESET_FULL_RECT)
-	b.add_child(col)
+	var swing := Control.new()   # turns about the top of the pole
+	swing.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	swing.size = Vector2(W, H)
+	swing.position = Vector2((b.custom_minimum_size.x - W) / 2, 0)
+	swing.pivot_offset = Vector2(W / 2, H * 0.08)
+	b.add_child(swing)
+	var glow := TextureRect.new()   # the glow: the banner again, blurred by scale and tinted
+	glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	glow.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	glow.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	glow.size = Vector2(W + 8, H + 8)
+	glow.position = Vector2(-4, -4)
+	glow.modulate = Color("#ff6b5b", 0.55) if f.get("warn") else Color("#ffc93c", 0.45)
 	var pic := TextureRect.new()
 	pic.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	pic.custom_minimum_size = Vector2(64, 80)
 	pic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	pic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	pic.size = Vector2(W, H)
 	if sp:
 		pic.texture = sp.tex
-	col.add_child(pic)
-	if f.get("label"):
-		var l := UiKit.label(13, Color("#ffd2c9") if f.get("warn") else Color.WHITE)
-		l.text = f.label
-		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		l.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		l.custom_minimum_size = Vector2(72, 0)
-		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		col.add_child(l)
-		b.custom_minimum_size.y = 118
+		glow.texture = sp.tex
+	swing.add_child(glow)
+	swing.add_child(pic)
 	if f.has("n"):
-		var badge := UiKit.label(18, Color("#ffc93c"))
+		var badge := Label.new()
 		badge.text = str(f.n)
+		badge.add_theme_font_size_override("font_size", 14)
+		badge.add_theme_color_override("font_color", UiKit.INK)
+		badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		var bs := StyleBoxFlat.new()
+		bs.bg_color = Color("#ffc93c")
+		bs.border_color = UiKit.INK
+		bs.set_border_width_all(2)
+		bs.set_corner_radius_all(12)
+		bs.content_margin_left = 5
+		bs.content_margin_right = 5
+		badge.add_theme_stylebox_override("normal", bs)
 		badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		badge.position = Vector2(46, 2)
-		b.add_child(badge)
-	if f.get("warn"):
-		var tw := b.create_tween().set_loops()
-		tw.tween_property(pic, "modulate", Color(1, 0.8, 0.8), 0.6)
-		tw.tween_property(pic, "modulate", Color.WHITE, 0.6)
+		badge.position = Vector2(W - 14, H - 34)
+		swing.add_child(badge)
+	if f.get("label"):
+		var l := Label.new()
+		l.text = f.label
+		l.add_theme_font_size_override("font_size", 13)
+		l.add_theme_color_override("font_color", UiKit.INK)
+		l.add_theme_stylebox_override("normal", TopBar.paper(2, 1))
+		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		l.custom_minimum_size = Vector2(b.custom_minimum_size.x, 0)
+		l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		l.position = Vector2(0, H + 2)
+		b.add_child(l)
+	var i := get_child_count()
+	var tw := swing.create_tween().set_loops()
+	tw.tween_property(swing, "rotation", deg_to_rad(4.0), 1.3).from(deg_to_rad(-4.0)).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT).set_delay(fmod(i * 0.37, 2.6) if i else 0.0)
+	tw.tween_property(swing, "rotation", deg_to_rad(-4.0), 1.3).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	var gt := glow.create_tween().set_loops()
+	gt.tween_property(glow, "modulate:a", 0.0, 0.65 if f.get("warn") else 1.3)
+	gt.tween_property(glow, "modulate:a", 0.55 if f.get("warn") else 0.45, 0.65 if f.get("warn") else 1.3)
+	b.mouse_entered.connect(func(): tw.pause())
+	b.mouse_exited.connect(func(): tw.play())
 	var id: String = f.id
 	b.gui_input.connect(func(ev):
 		if ev is InputEventMouseButton and ev.pressed:

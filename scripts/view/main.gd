@@ -37,6 +37,10 @@ var replay_hud: ReplayHud
 func _ready() -> void:
 	Settings.load_all()
 	Settings.apply(get_tree())
+	# symbols the built-in font lacks (✓ ✗ ✕ ▸ ▾ ⚒ ⚔ ✦ ☐ ✔ …) come from DejaVu Sans, bundled, so they show on every PC
+	var sym = load("res://assets/fonts/DejaVuSans.ttf")
+	if sym != null and ThemeDB.fallback_font != null:
+		ThemeDB.fallback_font.fallbacks = ThemeDB.fallback_font.fallbacks + [sym]
 	map = MapView.new()
 	add_child(map)
 	cam = Camera2D.new()
@@ -399,8 +403,8 @@ func _maybe_screenshot() -> void:
 			play = float(a.substr(7))
 	if shot == "":
 		return
-	hud.select_province(game.capital)
 	map.selected_prov = game.capital
+	hud.select_province(game.capital, "settlement" if OS.get_cmdline_user_args().has("--capital") else "")
 	var mason = null
 	var wfu = null
 	for u in game.units:
@@ -494,7 +498,7 @@ func _maybe_screenshot() -> void:
 	elif spells or battle:
 		map.selected_unit = army
 		hud.select_unit(army)
-	else:
+	elif not OS.get_cmdline_user_args().has("--capital"):
 		map.selected_unit = mason
 		hud.select_unit(mason)
 	if OS.get_cmdline_user_args().has("--record"):
@@ -506,12 +510,10 @@ func _maybe_screenshot() -> void:
 	if OS.get_cmdline_user_args().has("--orders"):
 		hud.armory.open(1)
 	var b := map.bounds()
-	var zoom := 0.55
+	go_home()   # the game opens on your capital, as the web game's home button frames it
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--zoom="):
-			zoom = float(a.substr(7))
-	cam.zoom = Vector2(zoom, zoom)
-	cam.position = Vector2(game.G.provs[game.capital].ic[0], game.G.provs[game.capital].ic[1] - 60)
+			cam.zoom = Vector2(float(a.substr(7)), float(a.substr(7)))
 	if OS.get_cmdline_user_args().has("--siege") and army != null:
 		cam.position = Vector2(army.x, army.y)
 	for a in OS.get_cmdline_user_args():
@@ -521,6 +523,27 @@ func _maybe_screenshot() -> void:
 			var c := game.capital_of(o)
 			if c >= 0:
 				cam.position = Vector2(game.G.provs[c].ic[0], game.G.provs[c].ic[1])
+		if a.begins_with("--landmark="):   # pictures: death | oasis | heart | setpiece | ruins | travelers | lair
+			var what := a.substr(11)
+			var p := -1
+			var U = game.uq()
+			if what in ["death", "oasis", "heart"] and U != null:
+				p = U[what]
+			elif what == "setpiece" and not game.setpieces.is_empty():
+				for q in game.setpieces:
+					game.sp_found[q] = true
+				p = game.setpieces.keys()[0]
+			elif what == "ruins" and not game.finds.is_empty():
+				p = game.finds.keys()[0]
+			elif what == "travelers" and not game.travelers.is_empty():
+				p = game.travelers[0].prov
+			elif what == "lair":
+				for u in game.units:
+					if u.get("bandit", false):
+						u.seen = true
+						p = u.prov
+			if p >= 0:
+				cam.position = Vector2(game.G.provs[p].ic[0], game.G.provs[p].ic[1] - 80)
 	for i in 3:
 		await get_tree().process_frame
 	if OS.get_cmdline_user_args().has("--fps"):   # how long frames take, playing at full speed, the whole map in view
@@ -582,9 +605,27 @@ func _camera(dt: float) -> void:
 	cam.position = cam.position.clamp(b.position, b.end)
 
 
+## Back to your capital (Home, and the house button top right).
+## Frame your capital's province at 62% of the screen. web: game.js home, fitView
+const MAX_Z := 6.0   # web: game.js MAX_Z
+
+
+func go_home() -> void:
+	if game == null or game.capital < 0:
+		return
+	var r := Rect2(map.polys[game.capital][0], Vector2.ZERO)
+	for v in map.polys[game.capital]:
+		r = r.expand(v)
+	var vs := get_viewport().get_visible_rect().size
+	var z := clampf(minf(vs.x * 0.62 / r.size.x, vs.y * 0.62 / r.size.y), map.fit_zoom() * 0.6, MAX_Z)
+	zoom_to = 0.0
+	cam.zoom = Vector2(z, z)
+	cam.position = r.get_center()
+
+
 func zoom_by(f: float) -> void:
 	var lo := map.fit_zoom() * 0.6
-	zoom_to = clampf((zoom_to if zoom_to > 0 else cam.zoom.x) * f, lo, 3.0)
+	zoom_to = clampf((zoom_to if zoom_to > 0 else cam.zoom.x) * f, lo, MAX_Z)
 
 
 func _unhandled_input(ev: InputEvent) -> void:
@@ -622,8 +663,11 @@ func _unhandled_input(ev: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 			return
 		if ev.keycode == KEY_HOME:
-			var P: Dictionary = game.G.provs[game.capital]
-			cam.position = Vector2(P.ic[0], P.ic[1])
+			go_home()
+			return
+		if ev.keycode == KEY_F11:
+			hud.toggle_fullscreen()
+			get_viewport().set_input_as_handled()
 			return
 		if ev.keycode == KEY_SPACE:
 			game.paused = not game.paused
@@ -664,13 +708,18 @@ func _unhandled_input(ev: InputEvent) -> void:
 							game.cast_spell(hud.aim.unit, hud.aim.spell, tp)
 					hud.aim = null
 				elif ev.button_index == MOUSE_BUTTON_LEFT and drag_moved < 6.0 and game:
+					# a unit first, then a building, then the province (web: game.js clickAt)
 					var at := get_global_mouse_position()
 					var u = map.unit_at(at)
+					var hit = null if u != null else map.part_at(at)
 					map.selected_unit = u
 					hud.select_unit(u)
-					var p: int = u.prov if u != null else map.province_at(at)
+					var p: int = u.prov if u != null else hit.prov if hit != null else map.province_at(at)
+					if hit == null and p >= 0 and not game.explored.has(p):
+						p = -1
 					map.selected_prov = p
-					hud.select_province(p)
+					map.selected_part = hit.part if hit != null else ""
+					hud.select_province(p, map.selected_part)
 		elif ev.button_index == MOUSE_BUTTON_RIGHT and ev.pressed and game and hud.aim != null:
 			hud.aim = null
 			hud.add_toast("Cancelled.")

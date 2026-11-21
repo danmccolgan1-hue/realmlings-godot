@@ -35,9 +35,9 @@ func _ready() -> void:
 	clock = UiKit.label(22)
 	clock.custom_minimum_size = Vector2(170, 0)
 	bar.add_child(clock)
-	bar.add_child(_btn("⏮", "Back to the start", func():
+	bar.add_child(_btn("Restart", "Back to the start", func():
 		replay.seek(replay.t0)))
-	play_btn = _btn("⏸ Pause", "Play or pause [Space]", func(): toggle_play())
+	play_btn = _btn("Pause", "Play or pause [Space]", func(): toggle_play())
 	bar.add_child(play_btn)
 	for s in SPEEDS:
 		var b := _btn("%d×" % s, "Play at %d times the game's speed" % s, func(): set_speed(s))
@@ -146,7 +146,7 @@ func step(dt: float) -> void:
 		replay.seek(replay.t + dt * speed)
 		if replay.t >= replay.t1:
 			playing = false
-	play_btn.text = "⏸ Pause" if playing else "▶ Play"
+	play_btn.text = "Pause" if playing else "Play"
 	clock.text = "%s / %s" % [Game.fmt_time(replay.t), Game.fmt_time(replay.t1)]
 	if not _sliding:
 		slider.set_value_no_signal(replay.t)

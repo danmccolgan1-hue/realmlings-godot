@@ -2143,6 +2143,60 @@ func start_upgrade(p: int) -> bool:
 	return true
 
 
+# web: game.js cancelUpgrade
+func cancel_upgrade(p: int) -> void:
+	var u = upgrades.get(p)
+	if u == null:
+		return
+	for k in u.paid:
+		stock[k] += u.paid[k]
+	upgrades.erase(p)
+	toast("Upgrade cancelled. Resources refunded.")
+
+
+# v96: dismantle a fort back to an outpost; every building in the province is torn down (web: v96.js dismantleWhy)
+func dismantle_why(p: int):
+	var b = buildings.get(p)
+	if b == null or b.owner != ME:
+		return "Not yours"
+	if b.stage != 1:
+		return "Only a fort can be dismantled"
+	if occ.has(p):
+		return "The province is occupied"
+	if battles.any(func(x): return x.prov == p):
+		return "Not during a battle"
+	return null
+
+
+# web: v96.js dismantleFort (the click-twice confirmation is the interface's)
+func dismantle_fort(p: int) -> void:
+	var why = dismantle_why(p)
+	if why != null:
+		toast("Can’t dismantle the fort: %s." % str(why).to_lower(), true)
+		return
+	var lost := extras_in(p).size()
+	extras.erase(p)
+	for k in xup.keys():
+		if int(k.split("@")[0]) == p:
+			xup.erase(k)
+	for v in units:
+		if v.owner == ME and v.build != null and v.build.prov == p and BUILD_DEFS.has(v.build.type) and v.build.type != "outpost":
+			cancel_build(v)
+	for key in queues.keys():
+		var parts: PackedStringArray = key.split(":")
+		if int(parts[1]) == p and parts[0] != "capital":
+			for e in queues[key]:
+				if e.get("paid") != null and not e.get("retro", false):
+					for r in e.paid:
+						stock[r] += e.paid[r]
+			queues.erase(key)
+	buildings[p].stage = 0
+	buildings[p].born = t
+	clamp_stock()
+	compute_income()
+	toast("The fort at %s is dismantled: it is an outpost again%s." % [prov_name(p), (", and its %d building%s gone" % [lost, " is" if lost == 1 else "s are"]) if lost else ""])
+
+
 func step_upgrades(now: float) -> void:
 	for k in xup.keys():
 		var parts: PackedStringArray = k.split("@")
@@ -3487,6 +3541,31 @@ func mason_border(m: Dictionary) -> int:
 		if d < bd:
 			bd = d
 			best = n.q
+	return best
+
+
+## The border a Mason would build a road across from where he stands: the nearest open border within reach, or,
+## failing that, the nearest wall between two of your provinces (v106: a road through your own gate; the web game
+## offers it in the Ctrl+right-click build menu, the port on the Road button).
+func mason_road_border(m: Dictionary) -> int:
+	var q := mason_border(m)
+	if q >= 0:
+		return q
+	var best := -1
+	var bd: float = GameData.c("ROAD_REACH")
+	for i in walls:
+		var e: Dictionary = world.edges[i]
+		if e.a != m.prov and e.b != m.prov:
+			continue
+		var other: int = e.b if e.a == m.prov else e.a
+		if not walled_own(m.prov, other):
+			continue
+		var va: Array = world.vertices[e.v[0]]
+		var vb: Array = world.vertices[e.v[1]]
+		var d := JS.hypot((va[0] + vb[0]) / 2.0 - m.x, (va[1] + vb[1]) / 2.0 - m.y)
+		if d < bd:
+			bd = d
+			best = other
 	return best
 
 

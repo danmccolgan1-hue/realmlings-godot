@@ -1,0 +1,364 @@
+{
+ "images": {
+  "flag_1f9fa5_crown.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_1f9fa5_dragon.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_1f9fa5_eagle.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_1f9fa5_horse.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_1f9fa5_lion.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_1f9fa5_shield.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_1f9fa5_snake.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_1f9fa5_swords.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_2f6fe0_crown.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_2f6fe0_dragon.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_2f6fe0_eagle.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_2f6fe0_horse.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_2f6fe0_lion.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_2f6fe0_shield.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_2f6fe0_snake.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_2f6fe0_swords.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_2f9e55_crown.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_2f9e55_dragon.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_2f9e55_eagle.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_2f9e55_horse.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_2f9e55_lion.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_2f9e55_shield.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_2f9e55_snake.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_2f9e55_swords.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_4b4f5c_crown.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_4b4f5c_dragon.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_4b4f5c_eagle.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_4b4f5c_horse.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_4b4f5c_lion.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_4b4f5c_shield.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_4b4f5c_snake.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_4b4f5c_swords.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_8a4fd0_crown.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_8a4fd0_dragon.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_8a4fd0_eagle.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_8a4fd0_horse.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_8a4fd0_lion.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_8a4fd0_shield.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_8a4fd0_snake.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_8a4fd0_swords.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_8a5a2b_crown.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_8a5a2b_dragon.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_8a5a2b_eagle.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_8a5a2b_horse.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_8a5a2b_lion.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_8a5a2b_shield.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_8a5a2b_snake.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_8a5a2b_swords.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_c23f8f_crown.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_c23f8f_dragon.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_c23f8f_eagle.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_c23f8f_horse.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_c23f8f_lion.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_c23f8f_shield.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_c23f8f_snake.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_c23f8f_swords.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_d23b3b_crown.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_d23b3b_dragon.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_d23b3b_eagle.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_d23b3b_horse.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_d23b3b_lion.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_d23b3b_shield.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_d23b3b_snake.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_d23b3b_swords.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_e08a1e_crown.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_e08a1e_dragon.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_e08a1e_eagle.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_e08a1e_horse.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_e08a1e_lion.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_e08a1e_shield.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_e08a1e_snake.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_e08a1e_swords.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  }
+ }
+}

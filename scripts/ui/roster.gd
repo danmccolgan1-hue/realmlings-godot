@@ -12,6 +12,9 @@ var key := ""
 func setup(g: Game, h) -> void:
 	game = g
 	hud = h
+	key = ""
+	if box != null:   # (a new game reuses the list; a second one would be drawn over the first)
+		return
 	add_theme_stylebox_override("panel", UiKit.box(Color(UiKit.DARK, 0.88)))
 	box = VBoxContainer.new()
 	box.add_theme_constant_override("separation", 4)

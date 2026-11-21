@@ -8,6 +8,8 @@ func run() -> Array:
 	_flags_world(errs)
 	_settings(errs)
 	_debug(errs)
+	_gate_road(errs)
+	_fort_cmds(errs)
 	var pn: Array = GameData.c("PATCH_NOTES")
 	if pn.is_empty() or pn[0].v != "v106":
 		errs.append("patch notes: the web game's v106 notes are missing")
@@ -149,3 +151,82 @@ func _debug(errs: Array) -> void:
 	g.debug_reveal(true)
 	if g.visible.size() < g.G.provs.size():
 		errs.append("debug: reveal leaves %d of %d provinces hidden" % [g.G.provs.size() - g.visible.size(), g.G.provs.size()])
+
+
+## v106: a Mason can build a road through a wall between two of your own provinces (web: v106.js), and the
+## command card's Road button finds that wall when no open border is near (game.gd mason_road_border).
+func _gate_road(errs: Array) -> void:
+	var g := Game.new_practice("ember", "cormac")
+	var m = null
+	for u in g.units:
+		if u.kind == Game.MASON and u.owner == Game.ME:
+			m = u
+	if m == null:
+		errs.append("gate road: the practice game has no Mason")
+		return
+	var p: int = m.prov
+	g.tech[g.TECH_BY_ID["roads"].tree].done.append("roads")
+	g.stock = {"gold": 999, "wood": 999, "food": 999}
+	# wall every border of the Mason's province, and make each neighbor yours
+	var near_q := -1
+	var near_d := INF
+	for i in g.world.edges.size():
+		var e: Dictionary = g.world.edges[i]
+		if e.a != p and e.b != p:
+			continue
+		var q: int = e.b if e.a == p else e.a
+		if not g.open_between(p, q):
+			continue
+		g.walls[i] = true
+		g.open_nbr[p] = g.open_nbr[p].filter(func(n): return n.q != q)
+		g.open_nbr[q] = g.open_nbr[q].filter(func(n): return n.q != p)
+		var b: Dictionary = g.buildings[p].duplicate(true)
+		b.stage = 0
+		g.buildings[q] = b
+		var va: Array = g.world.vertices[e.v[0]]
+		var vb: Array = g.world.vertices[e.v[1]]
+		var mid := Vector2((va[0] + vb[0]) / 2.0, (va[1] + vb[1]) / 2.0)
+		if near_q < 0:
+			near_q = q
+			near_d = 0
+			m.x = mid.x
+			m.y = mid.y
+	if near_q < 0:
+		errs.append("gate road: the Mason's province has no land border")
+		return
+	if g.mason_border(m) >= 0:
+		errs.append("gate road: an open border is still in reach")
+	if g.mason_road_border(m) != near_q:
+		errs.append("gate road: the Road button doesn't find the wall to your own province (got %d, want %d)" % [g.mason_road_border(m), near_q])
+	var why = g.link_why("road", m, near_q)
+	if why != null:
+		errs.append("gate road: a road through your own gate is refused: %s" % why)
+
+
+## The settlement card's Upgrade can be cancelled for a refund (web: game.js cancelUpgrade), and a fort can be
+## dismantled back to an outpost, losing its buildings (web: v96.js dismantleFort).
+func _fort_cmds(errs: Array) -> void:
+	var g := Game.new_practice("ember", "cormac")
+	var q := -1
+	for n in g.all_nbr[g.capital]:
+		if not g.buildings.has(n):
+			q = n
+			break
+	var b: Dictionary = g.buildings[g.capital].duplicate(true)
+	b.stage = 0
+	g.buildings[q] = b
+	g.stock = {"gold": 5000, "wood": 5000, "food": 5000}
+	var before: Dictionary = g.stock.duplicate()
+	if not g.start_upgrade(q):
+		errs.append("fort: the upgrade doesn't start: %s" % g.upgrade_why(q))
+		return
+	g.cancel_upgrade(q)
+	if g.upgrades.has(q) or ["gold", "wood", "food"].any(func(k): return int(g.stock[k]) != int(before[k])):
+		errs.append("fort: cancelling the upgrade doesn't refund it (%s vs %s)" % [g.stock, before])
+	g.buildings[q].stage = 1
+	g.extras[q] = [{"type": "farm", "slot": 0}]
+	if g.dismantle_why(q) != null:
+		errs.append("fort: can't dismantle: %s" % g.dismantle_why(q))
+	g.dismantle_fort(q)
+	if g.buildings[q].stage != 0 or not g.extras_in(q).is_empty():
+		errs.append("fort: dismantling leaves stage %d with %d buildings" % [g.buildings[q].stage, g.extras_in(q).size()])

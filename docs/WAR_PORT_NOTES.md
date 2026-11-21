@@ -109,6 +109,32 @@ The plan after milestone 1. Each step is tested against the web game, then commi
      Rendering can't be timed here (software GL); the map's own drawing code is about 3 ms a frame on the full map.
    - Fixed: the map and minimap took nation colors from the static PLAYERS table (ids 1–6), so games with 4+ opponents
      failed to draw borders and other nations' colors could differ from their own; they use `player_info` now.
+9. **Batch E: what the playtest found broken or invisible** — done (`tests/test_ui.gd` gate roads and fort commands):
+   - Screen: a new top bar (`scripts/ui/top_bar.gd`, icons drawn in `scripts/ui/glyph.gd`): resources with caps and
+     income, mana and its regeneration, forts, provinces, the payday ring, the research strip with each tree's circle
+     and points; clock, play/pause, full screen (F11), zoom and home buttons; menu, flag and name, Armory, Diplomacy.
+     Minimap bottom left, toasts as paper notes bottom center, the Paused plaque under the flags.
+   - Fixed: a new game added a second outliner list and Armory window over the first ("text overwriting").
+   - Symbols: DejaVu Sans is a fallback font so ⚔ ✗ and the like show on Windows; the replay buttons are words.
+   - Notification flags are swaying banners with a glow and a count badge, centered under the research strip. Every
+     nation flag (72) is exported (`tools/export_flags.py`); armies carry theirs.
+   - Research window: progress bars, a collapsible Researched list, option cards with icons, the Auto toggle, and it
+     closes once every tree is researching (web v101).
+   - Map: armies drawn as up to 10 figures with their flag, a health bar and their power (web drawArmy);
+     palisades, stone walls with towers, gates in the holder's color, roads that grow while built (govtech.js).
+     The Mason no longer vanishes while building a road (road plots have no slot). The Road button finds a wall
+     between two of your provinces when no open border is near (`Game.mason_road_border`, v106).
+   - Landmarks (`scripts/view/map_landmarks.gd`, through `scripts/view/pen.gd`, a small canvas-path stand-in):
+     Death Mountain, the Desert Oasis and the Heart of the Forest (v95.js), set pieces and their "+N" tags (gpc.js,
+     content.js), ruins and treasure (v78.js), lost travelers with their cart and campfire, and the pulsing red outline
+     of provinces where bandits or monsters were seen (v78.js drawLairGlow).
+   - Camera: the game opens framing your capital (web `home()`, also the Home button), zoom up to 6×, so the drifting
+     clouds only show zoomed out, as in the web game (the fade rule was already the same).
+   - Buildings can be selected (click the settlement or a building, or its button in the province panel); the command
+     card is always shown and holds the building's actions: training and the queue (capital, Barracks, Mage Tower),
+     Upgrade to Fort and cancelling it, Rebuild walls, Develop, Dismantle fort (v96), Forge and Mage Tower upgrades,
+     tearing down. The province panel keeps the information and Develop only. Not yet: icons on the card, the
+     Stable and Thieves' Den cards.
 
 ## Things to remember
 

@@ -37,3 +37,20 @@ static func draw(ci: CanvasItem, sp: Dictionary, at: Vector2, size_mul := 1.0) -
 ## The art file name of a unit kind: "pioneer:B" -> "pioneer_b", "d-sword" -> "d_sword".
 static func unit_file(kind: String, dir := "d0") -> String:
 	return "%s_%s.png" % [kind.replace(":", "_").replace("-", "_").to_lower(), dir]
+
+
+static var _flag_cache := {}
+
+## A nation's flag image: its color with its emblem (web: v78.js ownerFlag / features.js flagURL); null if none.
+static func nation_flag(game, o: int):
+	var col := str(game.player_info(o).color).trim_prefix("#").to_lower()
+	var em := "swords"
+	if o == Game.ME:
+		em = str(GameData.c("NATION").get("emblem", "crown"))
+	elif game.nations.has(o):
+		em = str(game.nations[o].get("emblem", "swords"))
+	var key := col + "_" + em
+	if not _flag_cache.has(key):
+		var sp = get_sprite("flags", "nations", "flag_%s.png" % key)
+		_flag_cache[key] = sp.tex if sp else null
+	return _flag_cache[key]

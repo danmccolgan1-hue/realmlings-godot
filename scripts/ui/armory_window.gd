@@ -26,6 +26,9 @@ const GEAR := {"weapon": "WEAPONS", "shield": "SHIELD_DEFS", "armor": "ARMORS", 
 func setup(g: Game, h) -> void:
 	game = g
 	hud = h
+	if not win.is_empty():   # (a new game reuses the window)
+		win.panel.hide()
+		return
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	win = UiKit.window("Armory", 860, func(): close())

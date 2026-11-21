@@ -16,6 +16,7 @@ var world: Dictionary
 var game: Game
 var polys := []        # PackedVector2Array per province
 var font: Font
+var selected_part := ""   # "settlement" or "<type>@<slot>" when a building is selected
 var selected_prov := -1
 var selected_unit = null    # a unit Dictionary of the game
 var layers: MapLayers
@@ -91,9 +92,23 @@ func _draw() -> void:
 			var a: Array = game.G.provs[int(ab[0])].ic
 			var b: Array = game.G.provs[int(ab[1])].ic
 			var m: Vector2 = _edge_mid.get(k, Vector2.ZERO)
-			var line := PackedVector2Array([Vector2(a[0], a[1]), m, Vector2(b[0], b[1])])
-			draw_polyline(line, OL, 26.0, true)
-			draw_polyline(line, ROAD_COL, 20.0, true)
+			_stroke_road(PackedVector2Array([Vector2(a[0], a[1]), m, Vector2(b[0], b[1])]), 1.0)
+		# roads and walls being built grow from the Mason's side (web: govtech.js drawLinks)
+		for u in game.units:
+			var bu = u.get("build")
+			if bu == null or not (bu.type in ["road", "wall", "rewall"]) or not (game.explored.has(bu.prov) or game.explored.has(bu.to)):
+				continue
+			var f := clampf((game.t - bu.t0) / bu.dur, 0.0, 1.0)
+			if bu.type == "road":
+				var a2: Array = game.G.provs[bu.prov].ic
+				var b2: Array = game.G.provs[bu.to].ic
+				var m2: Vector2 = _edge_mid.get("%d_%d" % [bu.prov, bu.to], (Vector2(a2[0], a2[1]) + Vector2(b2[0], b2[1])) / 2)
+				_stroke_road(PackedVector2Array([Vector2(a2[0], a2[1]), m2, Vector2(b2[0], b2[1])]), f)
+			else:
+				for e in world.edges:
+					if (e.a == bu.prov and e.b == bu.to) or (e.b == bu.prov and e.a == bu.to):
+						_wall_edge(_v(V, e.v[0]), _v(V, e.v[1]), f, game.wall_kind() == "stone")
+						break
 		for i in game.walls:
 			var e: Dictionary = world.edges[i]
 			if game and not game.explored.has(e.a) and not game.explored.has(e.b):
@@ -101,8 +116,7 @@ func _draw() -> void:
 			var a := _v(V, e.v[0])
 			var b := _v(V, e.v[1])
 			var stone: bool = game != null and game.wall_type(i) == "stone"
-			draw_line(a, b, OL, 46.0, true)
-			draw_line(a, b, Color("#a9a294") if stone else STYLE_COL.wall, 34.0, true)
+			_wall_edge(a, b, 1.0, stone)
 			if game and game.wall_crack.get(i, false):   # cracked below half health
 				var n := maxi(3, int(a.distance_to(b) / 45))
 				for k in n:
@@ -110,9 +124,8 @@ func _draw() -> void:
 					draw_polyline(PackedVector2Array([c + Vector2(-4, -24), c + Vector2(5, -12), c + Vector2(-5, -2), c + Vector2(7, 10)]), Color("#2b2620"), 4.0)
 			# the gate, in the color of the nation that holds it
 			var ctl: int = game.gate_ctl(game.link_key(e.a, e.b)) if game else 0
-			var gate := Color(game.player_info(ctl).color) if game and ctl else Color("#e8c547")
-			draw_rect(Rect2((a + b) / 2 - Vector2(24, 24), Vector2(48, 48)), OL)
-			draw_rect(Rect2((a + b) / 2 - Vector2(20, 20), Vector2(40, 40)), gate)
+			var gate := Color(game.player_info(ctl).color) if game and ctl else Color("#3f72d9")
+			_gate(a, b, gate)
 			if game and game.wall_hp.has(i) and (game.visible.has(e.a) or game.visible.has(e.b)):
 				var w := game.wall_life(i)
 				if w.hp < w.max - 0.01:   # web: drawWallLife, a health bar over every damaged wall you can see
@@ -120,10 +133,16 @@ func _draw() -> void:
 					draw_rect(Rect2(m - Vector2(32, 2), Vector2(64, 13)), Color("#1d1a22"))
 					draw_rect(Rect2(m - Vector2(30, 0), Vector2(60, 9)), Color("#5a3d2a"))
 					draw_rect(Rect2(m - Vector2(30, 0), Vector2(60 * maxf(0, w.hp / w.max), 9)), Color("#e8c33a") if w.hp / w.max > 0.5 else Color("#e0503a"))
-	if selected_prov >= 0:
-		var outline: PackedVector2Array = polys[selected_prov].duplicate()
+	if selected_prov >= 0 and selected_part == "":
+		# the selected province: a marching dashed outline (web: game.js drawGame, S.selProv without a part)
+		var P: Dictionary = game.G.provs[selected_prov] if game else {}
+		var outline := PackedVector2Array()
+		for q in (P.inner if game and not P.inner.is_empty() else polys[selected_prov]):
+			outline.append(Vector2(q[0], q[1]))
 		outline.append(outline[0])
-		draw_polyline(outline, Color("#fff6c8"), 10.0, true)
+		var z := get_viewport().get_camera_2d().zoom.x if get_viewport().get_camera_2d() else 1.0
+		Pen.stroke_line(self, outline, OL, maxf(7, 4 / z))
+		_dashes(outline, maxf(4, 2.4 / z), Color("#ffc93c"), 16.0, 10.0, (game.t if game else 0.0) * 20.0)
 	if game:
 		_draw_game()
 
@@ -131,7 +150,190 @@ func _draw() -> void:
 const HOSTILE := Color("#d8473a")
 
 
+## A dashed line along a polyline; the dashes march by `offset`. (web: setLineDash, lineDashOffset)
+func _dashes(pts: PackedVector2Array, w: float, col: Color, on: float, off: float, offset: float) -> void:
+	var period := on + off
+	var pos := fposmod(-offset, period)   # distance along the line where the pattern starts
+	var acc := 0.0
+	for i in pts.size() - 1:
+		var a := pts[i]
+		var b := pts[i + 1]
+		var L := a.distance_to(b)
+		var s := 0.0
+		while s < L:
+			var ph := fposmod(acc + s + pos, period)
+			var step := minf(L - s, (on - ph) if ph < on else (period - ph))
+			if ph < on:
+				draw_line(a.lerp(b, s / L), a.lerp(b, (s + step) / L), col, w, true)
+			s += maxf(step, 0.01)
+		acc += L
+
+
+## The selected building: a pulsing ring round it. web: game.js drawGame (S.selPart)
+func _part_ring() -> void:
+	var P: Dictionary = game.G.provs[selected_prov]
+	var pulse := 1 + sin(game.t * 4) * 0.03
+	var x: float = P.ic[0]
+	var y: float = P.ic[1]
+	var rx := 42.0
+	var ry := 22.0
+	if selected_part == "settlement":
+		var st: int = game.buildings[selected_prov].stage if game.buildings.has(selected_prov) else 0
+		rx = 108.0 if st == 2 else 52.0
+		ry = 56.0 if st == 2 else 28.0
+	else:
+		var slot := int(selected_part.split("@")[1])
+		for e in game.extras_in(selected_prov):
+			if e.slot == slot:
+				var o: Array = game.bslot_of(selected_prov, slot)
+				x += o[0]
+				y += o[1]
+	var ring := PackedVector2Array()
+	for i in 49:
+		var a := TAU * i / 48
+		ring.append(Vector2(x + cos(a) * rx * pulse, y + 2 + sin(a) * ry * pulse))
+	draw_polyline(ring, OL, 7.0, true)
+	draw_polyline(ring, Color("#ffc93c"), 4.0, true)
+
+
+## The building under a map point: {prov, part} ("settlement" or "<type>@<slot>"), or null.
+## web: game.js partAt, buildingAt
+func part_at(at: Vector2):
+	if game == null:
+		return null
+	for p in game.extras:
+		if not game.visible.has(p):
+			continue
+		for e in game.extras[p]:
+			var c: Array = game.G.provs[p].ic
+			var o: Array = game.bslot_of(p, e.slot)
+			var x: float = c[0] + o[0]
+			var y: float = c[1] + o[1]
+			if absf(at.x - x) < 36 and at.y > y - 44 and at.y < y + 20:
+				return {"prov": p, "part": "%s@%d" % [e.type, e.slot]}
+	for p in game.buildings:
+		var b: Dictionary = game.buildings[p]
+		if b.owner != Game.ME:
+			continue
+		var c: Array = game.G.provs[p].ic
+		var r := 70.0 if b.stage == 2 else 40.0
+		if absf(at.x - c[0]) < r * 1.4 and at.y > c[1] - r * 1.5 and at.y < c[1] + r * 0.75:
+			return {"prov": p, "part": "settlement"}
+	return null
+
+
+# --- roads, walls and gates (web: govtech.js strokeRoad, strokePalisade, strokeWall, drawGate) ---
+
+## A road from one province's center over the border's middle to the other's; `f` < 1 while it is being built.
+func _stroke_road(pts: PackedVector2Array, f: float) -> void:
+	var line := PackedVector2Array([pts[0]])
+	if f >= 1.0:
+		line = pts
+	else:
+		var L0 := pts[0].distance_to(pts[1])
+		var L1 := pts[1].distance_to(pts[2])
+		var left := (L0 + L1) * f
+		line.append(pts[0].lerp(pts[1], minf(1.0, left / maxf(L0, 0.01))))
+		if left > L0:
+			line.append(pts[1].lerp(pts[2], minf(1.0, (left - L0) / maxf(L1, 0.01))))
+	if line.size() < 2:
+		return
+	draw_polyline(line, OL, 26.0, true)
+	draw_polyline(line, ROAD_COL, 20.0, true)
+
+
+func _wall_edge(a: Vector2, b: Vector2, f: float, stone: bool) -> void:
+	if stone:
+		_stroke_wall(a, b, f)
+	else:
+		_stroke_palisade(a, b, f)
+
+
+## Sharpened stakes standing along the border (web: strokePalisade)
+func _stroke_palisade(a: Vector2, b: Vector2, f: float) -> void:
+	var ex := a.lerp(b, f)
+	var u := (b - a).normalized()
+	var len := a.distance_to(ex)
+	draw_line(a + Vector2(0, -6), ex + Vector2(0, -6), OL, 6.0, true)
+	draw_line(a + Vector2(0, -6), ex + Vector2(0, -6), Color("#8a5f3a"), 3.0, true)
+	var d := 4.0
+	while d < len:
+		var x := a + u * d
+		var h := 20.0 + (int(d / 9) % 3) * 2
+		var stake := PackedVector2Array([x + Vector2(-4, 3), x + Vector2(-4, -h), x + Vector2(0, -h - 6), x + Vector2(4, -h), x + Vector2(4, 3)])
+		draw_colored_polygon(stake, Color("#b07a45"))
+		var ol := stake.duplicate()
+		ol.append(stake[0])
+		draw_polyline(ol, OL, 2.0, true)
+		draw_rect(Rect2(x + Vector2(-3, -h + 1), Vector2(1.6, h)), Color(1, 1, 1, 0.25))
+		d += 9.0
+
+
+## A stone wall with merlons and round towers at its ends (web: strokeWall)
+func _stroke_wall(a: Vector2, b: Vector2, f: float) -> void:
+	var ex := a.lerp(b, f)
+	var u := (b - a).normalized()
+	var len := a.distance_to(ex)
+	draw_line(a + Vector2(0, 8), ex + Vector2(0, 8), OL, 22.0, true)
+	draw_line(a + Vector2(0, 8), ex + Vector2(0, 8), Color("#8f877a"), 16.0, true)
+	draw_line(a, ex, OL, 22.0, true)
+	draw_line(a, ex, Color("#cfc8ba"), 16.0, true)
+	var d := 10.0
+	while d < len - 6:
+		var x := a + u * d
+		draw_rect(Rect2(x + Vector2(-5, -13), Vector2(10, 9)), Color("#e2dccf"))
+		draw_rect(Rect2(x + Vector2(-5, -13), Vector2(10, 9)), OL, false, 2.4)
+		d += 20.0
+	for x in ([a, b] if f >= 1.0 else [a]):
+		_filled_ellipse(x + Vector2(0, -4), 13, 11, Color("#d8d2c4"))
+		_ellipse(x + Vector2(0, -4), 13, 11, OL, 3.0)
+		_filled_ellipse(x + Vector2(0, -9), 9, 5, Color("#ece6da"))
+		_ellipse(x + Vector2(0, -9), 9, 5, OL, 2.0)
+
+
+func _filled_ellipse(c: Vector2, rx: float, ry: float, col: Color) -> void:
+	var pts := PackedVector2Array()
+	for k in 24:
+		var t := TAU * k / 24.0
+		pts.append(c + Vector2(cos(t) * rx, sin(t) * ry))
+	draw_colored_polygon(pts, col)
+
+
+## The gatehouse in the middle of a wall: two towers with pennants in the gate holder's color, an arched door
+## (web: drawGate)
+func _gate(a: Vector2, b: Vector2, col: Color) -> void:
+	var m := (a + b) / 2
+	var u := (b - a).normalized()
+	for sg in [-1.0, 1.0]:
+		var x: Vector2 = m + u * 16.0 * sg
+		draw_rect(Rect2(x + Vector2(-7, -30), Vector2(14, 32)), Color("#d8d2c4"))
+		draw_rect(Rect2(x + Vector2(-7, -30), Vector2(14, 32)), OL, false, 2.6)
+		var roof := PackedVector2Array([x + Vector2(-9, -30), x + Vector2(0, -40), x + Vector2(9, -30)])
+		draw_colored_polygon(roof, col)
+		roof.append(roof[0])
+		draw_polyline(roof, OL, 2.6, true)
+	var door := PackedVector2Array([m + Vector2(-9, 2), m + Vector2(-9, -14)])
+	for k in 9:   # the arch
+		var t := k / 8.0
+		var p0 := m + Vector2(-9, -14)
+		var p1 := m + Vector2(0, -24)
+		var p2 := m + Vector2(9, -14)
+		door.append(p0.lerp(p1, t).lerp(p1.lerp(p2, t), t))
+	door.append(m + Vector2(9, 2))
+	draw_colored_polygon(door, Color("#7b5029"))
+	var ol := door.duplicate()
+	ol.append(door[0])
+	draw_polyline(ol, OL, 2.4, true)
+	draw_line(m + Vector2(0, 2), m + Vector2(0, -18), Color(0, 0, 0, 0.3), 1.4)
+
+
+var landmarks: MapLandmarks
+
+
 func _draw_game() -> void:
+	if landmarks == null:
+		landmarks = MapLandmarks.new(self)
+	landmarks.draw_under(game, game.t)
 	for p in game.buildings:
 		if not game.explored.has(p):
 			continue   # other nations' settlements stay hidden under the fog
@@ -174,9 +376,12 @@ func _draw_game() -> void:
 	for u in us:
 		if u.owner != Game.ME and not game.visible.has(u.prov):
 			continue   # raiders under the fog stay hidden
-		if u.build != null and u.build.type != "outpost":
+		if u.build != null and game.BUILD_DEFS.has(u.build.type) and u.build.get("slot") != null:   # (roads and walls have no plot)
 			var ic: Array = game.G.provs[u.build.prov].ic
 			_building(u.build.type, u.build.slot, u.build.prov, ic, (game.t - u.build.t0) / u.build.dur, 1)
+		if u.kind == "army" and not u.get("monster"):
+			_army(u)
+			continue
 		var kind: String = u.kind
 		var n := 0
 		if kind == "army":
@@ -219,6 +424,185 @@ func _draw_game() -> void:
 			_bar(at + Vector2(0, -100), minf(1.0, (game.t - u.quake.t0) / u.quake.T), Color("#c98bff"))
 		if u.get("sieging") != null:   # battering a wall
 			_badge(at + Vector2(-30, -70), "⚒")
+	if selected_prov >= 0 and selected_part != "":
+		_part_ring()
+	landmarks.draw_over(game)
+
+
+# --- armies (web: game.js drawArmy, v78.js armyFigures / drawArmyFlag / drawArmyHealth / drawArmyPower) ---
+
+const UK_K := 1.5   # the web game's unit scale on the map (UKK)
+
+
+## Up to 10 figures standing for the army's soldiers, shared out between its kinds: infantry in front, then Mages,
+## then cavalry. web: v78.js armyFigures
+func army_figures(u: Dictionary) -> Array:
+	var ks: Array = u.troops.keys().filter(func(k): return u.troops[k] > 0)
+	if ks.is_empty():
+		return []
+	var total := 0
+	for k in ks:
+		total += u.troops[k]
+	var shown := mini(10, total)
+	var want := []
+	for k in ks:
+		var x: float = float(shown) * u.troops[k] / total
+		want.append({"k": k, "n": maxi(1, int(floor(x))), "r": fmod(x, 1.0)})
+	var sum := 0
+	for w in want:
+		sum += w.n
+	want = JS.stable_sort(want, func(a, b): return b.r - a.r)
+	var i := 0
+	var guard := 0
+	while sum < shown and guard < 100:
+		guard += 1
+		if want[i].n < u.troops[want[i].k]:
+			want[i].n += 1
+			sum += 1
+		elif want.all(func(w): return w.n >= u.troops[w.k]):
+			break
+		i = (i + 1) % want.size()
+	while sum > shown:
+		var big = JS.stable_sort(want.duplicate(), func(a, b): return b.n - a.n)[0]
+		if big.n <= 1:
+			break
+		big.n -= 1
+		sum -= 1
+	var rank := func(k): return 2 if _is_cav(k) else 1 if k == Game.MAGE else 0
+	want = JS.stable_sort(want, func(a, b): return (rank.call(a.k) - rank.call(b.k)) if rank.call(a.k) != rank.call(b.k) else b.n - a.n)
+	var out := []
+	for w in want:
+		for j in w.n:
+			out.append(w.k)
+	return out
+
+
+func _is_cav(k: String) -> bool:
+	return game.DSTATS.has(k) and game.DSTATS[k].get("cav", false)
+
+
+func _ellipse(c: Vector2, rx: float, ry: float, col: Color, w: float) -> void:
+	var pts := PackedVector2Array()
+	for k in 41:
+		var a := TAU * k / 40.0
+		pts.append(c + Vector2(cos(a) * rx, sin(a) * ry))
+	draw_polyline(pts, col, w, true)
+
+
+func _army(u: Dictionary) -> void:
+	var K := UK_K
+	var t: float = Time.get_ticks_msec() / 1000.0
+	var figs := army_figures(u)
+	var n := figs.size()
+	if n == 0:
+		return
+	var per := n if n <= 3 else 4 if n <= 8 else 5
+	var rows := ceili(float(n) / per)
+	var gx := 15.0 * K
+	var gy := 10.0 * K
+	var half_w := maxf(18.0 * K, (per - 1) * gx / 2 + 14.0 * K)
+	var rx := half_w + 8.0 * K
+	var ry := maxf(11.0 * K, rx * 0.4)
+	var lift: float = u.get("flyH", 0.0)
+	var base := Vector2(u.x, u.y - lift)
+	if lift > 0:
+		draw_circle(Vector2(u.x, u.y + 4), 30.0, Color(0, 0, 0, 0.22))
+	var ring_y := base.y + 2
+	if u.owner != Game.ME:   # other nations, bandits and monsters: a ring in their color
+		_ellipse(Vector2(base.x, ring_y), rx, ry, OL, 5.0)
+		_ellipse(Vector2(base.x, ring_y), rx, ry, Color(game.player_info(u.owner).color), 3.0)
+	elif not is_same(u, selected_unit):   # yours: a thin pulsing ring in your color (web: ownRing)
+		var pulse := 1.0 + sin(t * 4 + float(u.id)) * 0.07
+		_ellipse(Vector2(base.x, base.y + 1), rx * pulse, ry * pulse, OL, 3.0)
+		_ellipse(Vector2(base.x, base.y + 1), rx * pulse, ry * pulse, Color(game.player_info(Game.ME).color), 1.6)
+	if is_same(u, selected_unit):
+		_ellipse(Vector2(base.x, base.y + 2), rx + 2 * K, ry + K, OL, 6.0)
+		_ellipse(Vector2(base.x, base.y + 2), rx + 2 * K, ry + K, Color("#fff6c8"), 3.5)
+	var walking: bool = u.moving or u.get("patrolling", false)
+	var hop := -absf(sin(t * 9)) * 3.0 if walking else 0.0
+	var spots := []
+	for i in n:
+		var r := i / per
+		var c := i % per
+		var in_row := mini(per, n - r * per)
+		spots.append({"k": figs[i], "x": base.x + (c - (in_row - 1) / 2.0) * gx + (gx * 0.35 if r % 2 else 0.0), "y": base.y + (rows - 1 - r) * gy - (rows - 1) * gy / 2 + 4 * K})
+	spots.sort_custom(func(a, b): return a.y < b.y)
+	for sp_ in spots:
+		var sp = Art.get_sprite("units", "realm", Art.unit_file(sp_.k, _dir(u.th)))
+		if sp == null and str(sp_.k).begins_with("d"):
+			sp = Art.get_sprite("units", "realm", Art.unit_file("d-sword", _dir(u.th)))
+		if sp:
+			Art.draw(self, sp, Vector2(sp_.x, sp_.y + hop), 0.85 if _is_cav(sp_.k) else 1.0)
+		else:
+			draw_circle(Vector2(sp_.x, sp_.y), 8.0, OL)
+	var top := base.y - (rows - 1) * gy / 2 + 4 * K - (38.0 if figs.any(func(k): return _is_cav(k)) else 33.0) * K
+	_army_flag(u, base.x + half_w + 4 * K, base.y + (rows - 1) * gy / 2 + 2, top - 2 * K, t, K)
+	_army_health(u, base.x, top - 5 * K, minf(56 * K, half_w * 1.6), K)
+	_army_power(u, Vector2(base.x, base.y + ry + 6 * K))
+	if u.survey != null:
+		_bar(base + Vector2(0, -60), minf(1.0, (game.t - u.survey.t0) / u.survey.dur), Color("#7fc8f0"))
+	if u.get("quake"):
+		_bar(Vector2(base.x, top - 30), minf(1.0, (game.t - u.quake.t0) / u.quake.T), Color("#c98bff"))
+	if u.get("sieging") != null:
+		_badge(Vector2(base.x - half_w - 14, top), "⚒")
+
+
+## The nation's flag on the army's banner pole, waving (web: v78.js drawArmyFlag)
+func _army_flag(u: Dictionary, px: float, y_foot: float, y_top: float, t: float, K: float) -> void:
+	var fw := 19.0 * K
+	var fh := 13.5 * K
+	var top := y_top - fh
+	draw_line(Vector2(px, y_foot), Vector2(px, top - 3 * K), OL, 4.5)
+	draw_line(Vector2(px, y_foot), Vector2(px, top - 3 * K), Color("#c99a2c"), 2.2)
+	draw_circle(Vector2(px, top - 4 * K), 2.6 * K + 1.5, OL)
+	draw_circle(Vector2(px, top - 4 * K), 2.6 * K, Color("#f4c44f"))
+	var tex = nation_flag(u.owner)
+	if tex == null:
+		draw_rect(Rect2(px + 1, top, fw, fh), Color(game.player_info(u.owner).color))
+		return
+	var N := 8
+	var tw: float = tex.get_width()
+	var th: float = tex.get_height()
+	for i in N:
+		var f := float(i) / N
+		var dy := sin(t * 5 - i * 0.7) * 1.8 * K * f
+		draw_texture_rect_region(tex, Rect2(px + 1 + f * fw, top + dy, fw / N + 0.6, fh), Rect2(i * tw / N, 0, tw / N + 1, th))
+
+
+func nation_flag(o: int):
+	return Art.nation_flag(game, o)
+
+
+## A thin health bar over the army (web: v78.js drawArmyHealth)
+func _army_health(u: Dictionary, x: float, y: float, w: float, K: float) -> void:
+	var full := 0.0
+	for k in u.troops:
+		if u.troops[k] > 0:
+			full += u.troops[k] * game.hp_of(u, k)
+	var cur := maxf(0.0, full - u.get("wounds", 0.0))
+	var f := clampf(cur / maxf(full, 1.0), 0.0, 1.0)
+	var h := 4.2 * sqrt(K)
+	draw_rect(Rect2(x - w / 2 - 1.5, y - 1.5, w + 3, h + 3), OL)
+	draw_rect(Rect2(x - w / 2, y, w, h), Color("#5a2a26"))
+	draw_rect(Rect2(x - w / 2, y, w * f, h), Color("#5cc95c") if f > 0.5 else Color("#e8c547") if f > 0.25 else Color("#e0533f"))
+
+
+## The army's power under it, in a pill (web: v78.js drawArmyPower, gpc.js powerOf, v96.js fmtPow)
+func _army_power(u: Dictionary, at: Vector2) -> void:
+	var p := int(round(game.raw_strength([u]) * 10))
+	var txt := "⚔ " + (str(p) if p < 2000 else (str(snappedf(p / 1000.0, 0.1)) if p < 10000 else str(int(round(p / 1000.0)))) + "k")
+	var k := maxf(1.0, 0.62 / maxf(0.05, get_viewport_transform().get_scale().x))
+	var fs := int(9.5 * k * 1.6)
+	var w := font.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x + 10 * k
+	var h := 13.0 * k * 1.6
+	var r := Rect2(at.x - w / 2, at.y - h / 2, w, h)
+	var bg := StyleBoxFlat.new()
+	bg.bg_color = Color("#f3e4c4", 0.92) if u.owner == Game.ME else Color("#fae0dc", 0.92)
+	bg.border_color = OL
+	bg.set_border_width_all(maxi(1, int(2 * k)))
+	bg.set_corner_radius_all(int(h / 2))
+	draw_style_box(bg, r)
+	draw_string(font, Vector2(r.position.x, at.y + fs * 0.36), txt, HORIZONTAL_ALIGNMENT_CENTER, w, fs, OL)
 
 
 ## A building on its plot; `f` < 1 while it is being built (the art rises in quarters).
