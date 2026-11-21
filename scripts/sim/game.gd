@@ -788,7 +788,9 @@ func design_in_use(id: String) -> bool:
 
 ## Why a piece of gear can't be picked yet (null: it can). web: equip.js lockWhy
 func gear_why(kind: String, key: String):
-	var table := {"weapon": "WEAPONS", "shield": "SHIELD_DEFS", "armor": "ARMORS", "horse": "HORSES"}
+	var table := {"weapon": "WEAPONS", "off": "WEAPONS", "shield": "SHIELD_DEFS", "armor": "ARMORS", "horse": "OGRES" if is_sw() else "HORSES"}
+	if kind == "off" and not has_tech("dualwield"):
+		return "Research " + TECH_BY_ID.dualwield.name
 	var item = GameData.c(table[kind]).get(key)
 	if item == null:
 		return "Unknown"
@@ -805,7 +807,7 @@ func save_design(draft: Dictionary) -> Dictionary:
 		name = "Design"
 	var cur: Variant = design_by_id(draft.id) if draft.get("id") != null else null
 	if cur != null and not cur.builtin and not design_in_use(cur.id):
-		for k in ["type", "weapon", "shield", "armor", "horse"]:
+		for k in ["type", "weapon", "shield", "off", "armor", "horse", "two"]:
 			cur[k] = draft.get(k)
 		cur.name = name
 		if GameData.c("WEAPONS")[cur.weapon].twoH:
@@ -1087,6 +1089,10 @@ func province_income(p: int, b: Dictionary) -> Dictionary:
 		y[k] = yields[p][k] + (CAPITAL_BONUS[k] if b.stage == 2 or b.get("cc", false) else 0) + x[k]
 	if b.stage == 2 and b.owner == ME:
 		y.gold += trade_gold()   # Trade Routes: markets the capital reaches by road
+	for P in sacreds:   # web: v98.js (a Sacred Pyre: +110 gold there every payout)
+		if P.prov == p and P.owner == b.owner and P.until > t:
+			y.gold += SACRED.gold
+			break
 	if is_sw(b.owner):   # web: swamp.js provinceIncome (Swamp Taxes, Thugs)
 		var tx = swamp_tax(p, b)
 		if tx != null:
@@ -1413,6 +1419,7 @@ func update(real_t: float) -> void:
 			step_war(t)
 			step_ai(t)
 		step_arrows(t)
+		step_pyromancy(t)
 		step_scouts(t)
 		step_magic(t, dt)
 		step_gpc(t, dt)
@@ -2785,6 +2792,11 @@ func compute_fog() -> void:
 	for h in haunts:
 		if h.until > t:
 			vis[h.prov] = true
+	for P in spyres:   # web: swamp.js pyreSight
+		if P.owner == ME and P.until > t:
+			vis[P.prov] = true
+			for n in open_nbr[P.prov]:
+				vis[n.q] = true
 	if has_art(ME, "eye"):   # v95: the Lidless Eye shows every army
 		for u in units:
 			if u.kind == "army" and troop_count(u) > 0:
@@ -2930,7 +2942,7 @@ func train(src: String, prov: int, kind: String) -> bool:
 	if not queues.has(key):
 		queues[key] = []
 	queues[key].append({"kind": kind, "paid": d.cost.duplicate(), "t0": null})
-	toast("%s queued at the %s." % [d.name, "capital" if src == "capital" else "barracks"])
+	toast("%s queued at the %s." % [d.name, "capital" if src == "capital" else str(BUILD_DEFS[src].name if BUILD_DEFS.has(src) else src)])
 	return true
 
 
@@ -3011,6 +3023,10 @@ func step_training(now: float) -> void:
 					rally_go(a, rp)
 			sfx("pr_trained", spot.prov)
 			compute_income()
+			continue
+		if q.kind == THUG and thug_into_den(spot.prov):   # web: swamp.js thugIntoDen: a new Thug settles into a den with room
+			compute_income()
+			toast("A Thug settles into the Thug Den.")
 			continue
 		var n := 1
 		for v in units:
@@ -3604,6 +3620,14 @@ func gate_ctl(k: String) -> int:
 # web: govtech.js pathNbr(u, a, siege): open borders, walls whose gate the unit's nation holds, and (for armies of
 # SIEGE_MIN soldiers or more, when `siege` is set) hostile walls to batter down
 func path_nbr(u: Dictionary, a: int, siege := false) -> Array:
+	if u.kind == WAYFINDER and is_wd(u.owner):
+		var tn := tree_nbr(a)
+		if not tn.is_empty():
+			return path_nbr0(u, a, siege) + tn
+	return path_nbr0(u, a, siege)
+
+
+func path_nbr0(u: Dictionary, a: int, siege := false) -> Array:
 	if walls.is_empty():
 		return open_nbr[a]
 	var ws := walls_at(a)
@@ -4526,7 +4550,16 @@ const LINES := {"harvest": ["harvest", "bountiful", "magnificent"], "skin": ["sk
 	"curse": ["curse1", "curse2", "curse3"], "tunnel": ["underworld", "hallways", "sealed"], "risen": ["risen", "necro", "armyofdeath"],
 	"graverob": ["graverob", "deathtax", "charon"], "scouts": ["arcscouts", "arcvision"], "mind": ["clearthoughts", "mindread"],
 	"trading": ["trading", "stockmarket", "planar"], "stasis": ["stasis", "prison"], "rift": ["rift", "portal"],
-	"eyes": ["eyesforest"], "haunt": ["haunt"]}
+	"eyes": ["eyesforest"], "haunt": ["haunt"],
+	"fiery": ["fiery1", "fiery2", "fiery3"], "ftrap": ["firetrap", "blazetrap", "molttrap"], "spyre": ["scoutpyre"], "pfire": ["pathfire", "pathflame", "pathinferno"],
+	"sacred": ["sacredpyre"]}
+# web: swamp.js / v98.js Pyromancy
+const FIERY := [0.0, 0.05, 0.10, 0.15]
+const FIRE_DMG := [0, 150, 300, 450]
+const PATH_FIRE := [{}, {"mult": 2.0, "dur": 10.0}, {"mult": 2.25, "dur": 15.0}, {"mult": 2.5, "dur": 20.0}]
+const SPYRE := {"dur": 60.0, "cd": 60.0}
+const PATH_CD := 60.0
+const SACRED := {"dur": 60.0, "gold": 110, "wood": 200, "cd": 180.0}
 const HARVEST_PCT := [0, 0.1, 0.2, 0.3]
 const MEND := [{}, {"dur": 60, "cd": 180}, {"dur": 30, "cd": 120}, {"dur": 0, "cd": 0}]
 const RES_SPELL := {"graverob": "gold", "trading": "all"}
@@ -4537,7 +4570,8 @@ const STASIS := [0, 10, 20]
 const MANA_START := 25.0
 const MANA_CAPS := [100, 150, 200]
 const MANA_REGEN := [0, 1, 2, 3]
-const SPELL_MANA := {"harvest": "drain", "mending": 25, "graverob": "all", "haunt": 25, "trading": "all", "mind": 50, "stasis": 50, "rift": 100, "eyes": 25}
+const SPELL_MANA := {"harvest": "drain", "mending": 25, "graverob": "all", "haunt": 25, "trading": "all", "mind": 50, "stasis": 50, "rift": 100, "eyes": 25,
+	"spyre": 25, "ftrap": 50, "pfire": 50, "sacred": 100}
 const PATHS_MANA := 200
 const CAST_TIME := 3.0
 const GRAVE_RATE := [0, 1, 2, 3]
@@ -4548,7 +4582,11 @@ const SEE_TIME := 60.0
 const STAVE_CAST := {"grandstave": 0.9, "mythicstave": 0.8}
 const WAND_MANA := {"crypticwand": 0.9, "enigmaticwand": 0.8}
 ## The spells a caster can cast from the command card, in order.
-const SPELLS := ["harvest", "mending", "graverob", "trading", "mind", "stasis", "rift", "eyes", "haunt"]
+const SPELLS := ["harvest", "mending", "graverob", "trading", "mind", "stasis", "rift", "eyes", "haunt", "spyre", "ftrap", "pfire", "sacred"]
+var spyres := []    # Scouting Pyres {prov, owner, t0, until}
+var ftraps := []    # fire traps {prov, owner, lv, mult, t0, ignore}
+var sacreds := []   # Sacred Pyres {prov, owner, t0, until}
+var trap_booms := []
 
 
 func lvl(line: String) -> int:
@@ -4715,6 +4753,23 @@ func _spell_why(c: Dictionary, k: String):
 			return haunt_why(c.prov)
 		"eyes":
 			return null if not see_nbrs(c).is_empty() else "No border of trees here"
+		"spyre":
+			return "Ready in %d s" % ceili(cd_left("spyre%d" % c.id)) if cd_left("spyre%d" % c.id) > 0 else null
+		"ftrap":
+			var mine := ftraps.filter(func(x): return x.owner == ME)
+			if mine.any(func(x): return x.prov == c.prov):
+				return "A fire trap is already set here"
+			if mine.size() >= warlock_count(ME):
+				return "One trap per Warlock (%d/%d)" % [mine.size(), warlock_count(ME)]
+		"pfire":
+			return "Ready in %d s" % ceili(cd_left("pfire%d" % c.id)) if cd_left("pfire%d" % c.id) > 0 else null
+		"sacred":
+			if not owned(c.prov) or occ.has(c.prov):
+				return "Only in one of your provinces"
+			if sacreds.any(func(x): return x.prov == c.prov and x.until > t):
+				return "A Sacred Pyre already burns here"
+			if stock.wood < SACRED.wood:
+				return "Needs %d wood" % SACRED.wood
 	return null
 
 
@@ -4786,6 +4841,29 @@ func cast_spell(c: Dictionary, k: String, target := -1) -> bool:
 				return false
 			begin_cast(c, "eyes", {"to": q})
 			toast("Eyes of the Forest: 3 s of casting.")
+		"spyre":
+			begin_cast(c, "spyre")
+			toast("%s builds up a Scouting Pyre: 3 s of casting." % c.name)
+		"ftrap":
+			begin_cast(c, "ftrap")
+			toast("%s buries a fire trap: 3 s of casting." % c.name)
+		"pfire":   # web: swamp.js CAST.pfire (instant) + v98.js (50 mana)
+			spend_mana(c, SPELL_MANA.pfire)
+			var P: Dictionary = PATH_FIRE[lvl("pfire")]
+			var a = c
+			if c.kind != "army":
+				for v in units:
+					if v.kind == "army" and v.owner == ME and v.prov == c.prov and v.get("battle") == null:
+						a = v
+						break
+			for u in ([c] if a == c else [a, c]):
+				u.pathFire = {"until": t + P.dur, "mult": P.mult, "t0": t}
+			cd["pfire%d" % c.id] = t + PATH_CD / maxf(1, mages_in(c))
+			toast("%s: %s runs %d%% faster for %d s." % [TECH_BY_ID[line_tech("pfire")].name, a.name, JS.round_js((P.mult - 1) * 100), P.dur])
+		"sacred":
+			stock.wood -= SACRED.wood
+			begin_cast(c, "sacred", {"to": c.prov})
+			toast("%s raises a Sacred Pyre in %s: 3 s of casting." % [c.name, prov_name(c.prov)])
 		"rift":
 			var rw = rift_why(c, target) if target >= 0 else "Pick the province to teleport to"
 			if rw != null:
@@ -4919,6 +4997,33 @@ func _finish_q(c: Dictionary, k: String, cs: Dictionary, now: float) -> void:
 			teleport(c, cs.to)
 			cd["rift"] = now + RIFT_CD[maxi(1, lvl("rift"))]
 			toast("%s steps through the rift." % c.name)
+		"spyre":
+			spyres.append({"prov": c.prov, "owner": ME, "t0": now, "until": now + SPYRE.dur})
+			cd["spyre%d" % c.id] = now + SPYRE.cd / maxf(1, mages_in(c))
+			compute_fog()
+			toast("A Scouting Pyre blazes up in %s: for 1 minute it sees every neighboring province in its line of sight." % prov_name(c.prov))
+		"ftrap":
+			var w = _spell_why(c, "ftrap")
+			if w != null:
+				toast("Fire Trap: %s." % str(w).to_lower(), true)
+				return
+			var L := lvl("ftrap")
+			var ign := []
+			for v in units:
+				if v.kind == "army" and v.prov == c.prov and hostile(v.owner, ME):
+					ign.append(v.id)
+			ftraps.append({"prov": c.prov, "owner": ME, "lv": L, "mult": pow(1.1, rep_lv("rep-ftrap")), "t0": now, "ignore": ign})
+			toast("%s set in %s. The next enemy army to enter is engulfed: %d damage to its front line, armor or not." % [TECH_BY_ID[line_tech("ftrap")].name, prov_name(c.prov), FIRE_DMG[L]])
+		"sacred":
+			var p: int = cs.get("to", c.prov)
+			if not owned(p) or occ.has(p) or sacreds.any(func(x): return x.prov == p and x.until > now):
+				stock.wood += SACRED.wood
+				toast("Sacred Pyre: it can't burn there (wood refunded).", true)
+				return
+			sacreds.append({"prov": p, "owner": ME, "t0": now, "until": now + SACRED.dur})
+			cd["sacred"] = now + SACRED.cd
+			compute_income()
+			toast("A Sacred Pyre burns in %s: +%d gold every 10 s there for 1 minute." % [prov_name(p), SACRED.gold])
 		"eyes":
 			if not see_nbrs(c).has(cs.to):
 				return
@@ -5067,7 +5172,7 @@ const SAVE_FIELDS := ["battles", "bandit_count", "monster_count", "leader", "cap
 	"army_counter", "tech", "rep", "surveyed", "unit_defs", "designs", "exhaust", "exhaust_ok", "harvest", "devel", "upgrades",
 	"xup", "auto_tech", "roads", "walls", "wall_hp", "artifacts", "gift_vault", "quakes", "quake_seq", "wall_max", "wall_crack", "broken_walls", "rewall_jobs", "gate_own", "fort_walled", "gpc_slow_t", "dev_t", "cd", "paths",
 	"harvest_by", "trap", "reveals", "eyes", "haunts", "mana_pool", "mana_prev_t", "mage_gear", "finds", "treasure_rolled",
-	"sp_found", "slot_races", "setpieces", "travelers", "train_orders", "train_order_seq", "design_seq", "prov_rename", "nations", "players", "my_nation", "race_of", "wars", "truces", "allies", "war_seq", "met", "occ", "occ_prog", "dipl", "war_log", "war_ever", "war_lock", "ai_met", "fallen", "ally_check", "bandit_next", "bandit_waves", "ally_ask", "crop_scan_at", "ai_scout_t", "wf", "known", "explored", "visible", "queues", "rally", "military", "UNIT_SPEED", "open_nbr", "all_nbr",
+	"sp_found", "slot_races", "spyres", "ftraps", "sacreds", "setpieces", "travelers", "train_orders", "train_order_seq", "design_seq", "prov_rename", "nations", "players", "my_nation", "race_of", "wars", "truces", "allies", "war_seq", "met", "occ", "occ_prog", "dipl", "war_log", "war_ever", "war_lock", "ai_met", "fallen", "ally_check", "bandit_next", "bandit_waves", "ally_ask", "crop_scan_at", "ai_scout_t", "wf", "known", "explored", "visible", "queues", "rally", "military", "UNIT_SPEED", "open_nbr", "all_nbr",
 	"yields", "tree_border", "debug_cap", "debug_tech", "reveal_all", "rec", "t", "next_tick", "paused", "last", "started"]
 
 
@@ -5842,6 +5947,12 @@ func on_battle_join(a: Dictionary, now: float) -> void:
 			toast("%s: %s (+%d%% damage)." % [a.name, TECH_BY_ID[line_tech("curse")].name, JS.round_js(CURSE[cu].pct * 100)])
 		if ri and _auto_on(a, "risen") and a.get("risenCd", 0.0) <= now:
 			a.risen = 1
+	a.fiery = 0.0
+	if is_caster(a) and not poor and lvl("fiery") and _auto_on(a, "fiery"):   # web: swamp.js onBattleJoin (Fiery Weapons) + v98.js (50 mana, no cooldown)
+		a.fiery = FIERY[lvl("fiery")] * (1 + 0.1 * rep_lv("rep-fiery"))
+		a.fieryHits = 0
+		spend_mana(a, AUTO_MANA)
+		toast("%s: %s (%d%% chance of double blows)." % [a.name, TECH_BY_ID[line_tech("fiery")].name, JS.round_js(a.fiery * 100)])
 	if a.owner == ME:
 		if a.skin:
 			a.skin *= 1 + 0.1 * rep_lv("rep-skin")
@@ -5865,6 +5976,10 @@ func _auto_on(c: Dictionary, k: String) -> bool:
 
 
 func on_battle_end(a: Dictionary, now: float) -> void:
+	if a.get("fiery", 0.0) and a.owner == ME and a.get("fieryHits", 0):
+		toast("%s: Fiery Weapons struck %d double blow%s in that battle." % [a.name, a.fieryHits, "s" if a.fieryHits > 1 else ""])
+	a.fiery = 0.0
+	a.fieryHits = 0
 	if a.get("risenUsed", false):
 		a.risenCd = now + RISEN_CD
 	a.risenArm = 0
@@ -7310,9 +7425,10 @@ func player_info(o: int) -> Dictionary:
 
 ## A full-size game: the island with its unique provinces, you, and the computer nations in `slots`
 ## ("easy" / "moderate" / "difficult" / "closed"). web: menu.js startGame
-static func new_world(seed: String, leader_id := "", slots := [], start := "center", map: Dictionary = {}, opts: Dictionary = {}, nation: Dictionary = {}, race := "") -> Game:
+static func new_world(seed: String, leader_id := "", slots := [], start := "center", map: Dictionary = {}, opts: Dictionary = {}, nation: Dictionary = {}, race := "", races := []) -> Game:
 	var g := Game.new()
 	g.pick_race(race, leader_id)
+	g.slot_races = races
 	var mode := map_mode(opts)
 	g.world = map if not map.is_empty() else RealmGen.scale_world(RealmGen.generate_world(seed, map_opts_of(mode) if mode != "normal" else null, true))
 	g.world.mode = mode
@@ -9577,7 +9693,7 @@ func debug_resources() -> void:
 func debug_all_tech() -> void:
 	var sc = current_school()
 	if sc == null:
-		sc = "life"   # the first of SCHOOLS a Realmling can take
+		sc = "death" if is_sw() else "life"   # the first of SCHOOLS the race can take
 		tech.mag.done.append("school-" + sc)
 	var n := 0
 	for x in TECHS:
@@ -9617,3 +9733,150 @@ func rec_toggle(v: bool) -> void:
 	elif not rec.is_empty():
 		rec.on = false
 		toast("Recording stopped. What was recorded so far is kept.")
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# Swamplings: Thugs and Pyromancy (web: swamp.js thugIntoDen / thugsEnter / stepThugs / thugOut, stepPyromancy;
+# v98.js pureFront)
+
+func den_room_in(p: int):
+	if not owned(p) or occ.has(p):
+		return null
+	for e in extras_in(p):
+		if e.type == "market" and int(e.get("thugs", 0)) < den_cap(ME):
+			return e
+	return null
+
+
+func thug_into_den(p: int) -> bool:
+	var e = den_room_in(p)
+	if e == null:
+		return false
+	e.thugs = int(e.get("thugs", 0)) + 1
+	return true
+
+
+## Thugs go into a den: the one they stand in, or they walk to the nearest with room.
+func thugs_enter(list: Array) -> void:
+	var n := 0
+	var sent := 0
+	for u in list:
+		var e = den_room_in(u.prov)
+		if e != null and not u.moving:
+			e.thugs = int(e.get("thugs", 0)) + 1
+			units.erase(u)
+			n += 1
+			continue
+		var d := hops_list(u.prov, all_nbr)
+		var best := -1
+		for p in extras:
+			if den_room_in(p) != null and (best < 0 or d[p] < d[best]):
+				best = p
+		if best >= 0 and order(u, best):
+			u.denGoal = best
+			sent += 1
+	if n:
+		compute_income()
+		toast("%s into the Thug Den." % ("%d Thugs settle" % n if n > 1 else "The Thug settles"))
+	if sent:
+		toast("%s for the nearest Thug Den with room." % ("%d Thugs head" % sent if sent > 1 else "The Thug heads"))
+	if not n and not sent:
+		toast("No Thug Den with room. Build another, or research the Thugging technologies.", true)
+
+
+## A Thug steps out of the den (web: swamp.js thugOut)
+func thug_out(p: int, e: Dictionary) -> void:
+	if int(e.get("thugs", 0)) <= 0:
+		return
+	e.thugs -= 1
+	var u := mk_unit(next_id, THUG, "Thug", p, 0)
+	next_id += 1
+	u.slot = free_slot(p, u)
+	var xy := slot_pos(p, u.slot)
+	u.x = xy[0]
+	u.y = xy[1]
+	u.born = t
+	units.append(u)
+	compute_income()
+	toast("A Thug steps out of the den.")
+
+
+func step_pyromancy(now: float) -> void:
+	var before := spyres.size()
+	spyres = spyres.filter(func(P): return P.until > now)
+	if spyres.size() != before:
+		compute_fog()
+	sacreds = sacreds.filter(func(P): return P.until > now - 20)
+	for T in ftraps.duplicate():
+		T.ignore = T.ignore.filter(func(id): return units.any(func(v): return v.id == id and v.prov == T.prov))
+		var foe = null
+		for v in units:
+			if v.kind == "army" and v.prov == T.prov and hostile(v.owner, T.owner) and troop_count(v) > 0 and not v.get("retreating", false) and not T.ignore.has(v.id):
+				foe = v
+				break
+		if foe == null:
+			continue
+		ftraps.erase(T)
+		var killed := pure_front(foe, FIRE_DMG[T.lv] * T.get("mult", 1.0))
+		trap_booms.append({"x": foe.x, "y": foe.y, "t0": now, "prov": T.prov})
+		if T.owner == ME:
+			toast("Your fire trap in %s engulfs %s: %d soldier%s burned." % [prov_name(T.prov), foe.get("name", "an enemy army"), killed, "" if killed == 1 else "s"])
+		elif foe.owner == ME:
+			toast("%s walks into a fire trap in %s: %d soldier%s lost." % [foe.name, prov_name(T.prov), killed, "" if killed == 1 else "s"], true)
+	for u in units:
+		if u.get("pathFire") != null and u.pathFire.until <= now:
+			u.pathFire = null
+		if u.kind == THUG and u.get("denGoal") != null and not u.moving and u.prov == u.denGoal:
+			u.denGoal = null
+			if thug_into_den(u.prov):
+				units.erase(u)
+				compute_income()
+				break
+
+
+# web: v98.js pureFront: damage that ignores armor, to the front line only
+func pure_front(a: Dictionary, dmg: float) -> int:
+	var killed := 0
+	var front := {}
+	for k in a.troops:
+		if k != MAGE and a.troops[k] > 0:
+			front[k] = a.troops[k]
+	while true:
+		var ks := front.keys().filter(func(k): return front[k] > 0 and a.troops.get(k, 0) > 0)
+		if ks.is_empty():
+			break
+		var tot := 0.0
+		for k in ks:
+			tot += front[k]
+		var r: float = battle_rand.call() * tot
+		var k = ks[0]
+		for kk in ks:
+			r -= front[kk]
+			if r <= 0:
+				k = kk
+				break
+		var hp := hp_of(a, k)
+		if dmg < hp * 0.99:
+			break
+		dmg -= hp
+		front[k] -= 1
+		a.troops[k] -= 1
+		if a.troops[k] <= 0:
+			a.troops.erase(k)
+		killed += 1
+	if troop_count(a) <= 0:
+		remove_army(a)
+	if a.owner == ME:
+		compute_income()
+	return killed
+
+
+# web: wood.js treeNbr / pathNbr: Woodling Scouts slip through closed borders of trees
+func tree_nbr(a: int) -> Array:
+	var out := []
+	for e in world.edges:
+		if e.style == "trees" and not e.open and (e.a == a or e.b == a):
+			var A: Array = world.vertices[e.v[0]]
+			var B: Array = world.vertices[e.v[1]]
+			out.append({"q": e.b if e.a == a else e.a, "m": [(A[0] + B[0]) / 2.0, (A[1] + B[1]) / 2.0]})
+	return out

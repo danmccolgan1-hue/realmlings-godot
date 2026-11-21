@@ -53,7 +53,7 @@ func open() -> void:
 	var cur = game.tech.mag.cur
 	for k in SC:
 		var id: String = "school-" + k
-		if not game.TECH_BY_ID.has(id) or not game.tech_for(game.TECH_BY_ID[id]) or (lock != null and k != lock):
+		if not game.TECH_BY_ID.has(id) or not game.tech_for(game.TECH_BY_ID[id]) or not Races.race_is(SC[k].get("race"), game.race()) or (lock != null and k != lock):
 			continue
 		cards.add_child(_card(k, SC[k], cur == id))
 	var btns := HBoxContainer.new()

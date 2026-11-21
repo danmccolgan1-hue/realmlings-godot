@@ -373,6 +373,9 @@ func commands_of(u) -> Array:
 			var why = "Research Dirt Roads first" if not game.has_tech("roads") else "Walk up to an open border, or a wall between two of your provinces, first" if q < 0 else game.link_why("road", u, q)
 			cmd = {"id": id, "label": "Road\n25g 75w", "why": why, "name": ("Build a road to " + game.prov_name(q)) if q >= 0 else "Build a road", "cost": {"gold": 25, "wood": 75},
 				"desc": "The Mason paves the border he stands next to: an open one, or through the gate of a wall between two of your provinces. %d s. Units move faster along roads." % int(Game.ROAD_TIME)}
+		elif id == "thugin":
+			cmd = {"id": id, "label": "Enter den", "why": null if game.extras.keys().any(func(p): return game.den_room_in(p) != null) else "No Thug Den with room",
+				"name": "Enter a Thug Den", "desc": "The Thug goes into the Thug Den here, or walks to the nearest one with room. Inside, he makes 1 gold every 10 s."}
 		elif id == "dismiss":
 			cmd = {"id": id, "label": "Dismiss", "why": null if u.get("battle") == null else "Not during battle",
 				"desc": "Send %s home for good. No refund; the upkeep stops. Click twice to confirm." % u.name}
@@ -475,6 +478,9 @@ func press(i: int) -> void:
 		add_toast("Construction cancelled. Resources refunded.")
 	elif id == "road":
 		game.start_link(unit, game.mason_road_border(unit), "road")
+	elif id == "thugin":
+		game.thugs_enter(tab_units().filter(func(w): return w.kind == Game.THUG))
+		set_selection(selection.filter(func(w): return game.units.has(w)))
 	elif id == "dismiss":
 		if confirm_key != "dismiss:%d" % unit.id:
 			confirm_key = "dismiss:%d" % unit.id
@@ -777,7 +783,7 @@ func _refresh_actions() -> void:
 				if why == null or str(why).begins_with("Not enough mana"):
 					rows.append({"btn": "Open a %s to province %d (200 mana)" % ["forest path" if kind == "forest" else "tunnel", q], "why": why, "do": game.start_path.bind(unit, q, kind, false)})
 	if unit != null and unit.kind == Game.MASON and unit.prov == prov and not unit.moving:
-		rows.append({"label": "Mason: roads and walls to a neighbour"})
+		rows.append({"label": ("%s: roads and walls to a neighbour" % game.unit_defs[game.MASON].name) if game.race() == "realm" else ("%s: walls to a neighbour" % game.unit_defs[game.MASON].name)})
 		for q in game.all_nbr[prov]:
 			for type in ["road", "wall"]:
 				var why = game.link_why(type, unit, q)
@@ -1054,6 +1060,8 @@ func part_src() -> String:
 	if part == "settlement":
 		return "capital" if game.buildings[prov].stage == 2 else ""
 	var e = part_extra()
+	if e != null and game.is_sw() and e.type in ["market", "stable"]:   # web: swamp.js (Thug Den, Ogre Cave)
+		return e.type
 	return e.type if e != null and e.type in ["barracks", "magetower"] else ""
 
 
@@ -1084,6 +1092,11 @@ func part_commands() -> Array:
 			out[15] = {"id": "noop", "label": "+%d more" % (Q.size() - 3), "why": "", "name": "%d more in the queue" % (Q.size() - 3)}
 		if src == "magetower":
 			out[3] = _xup_cmd(part_extra())
+		if src == "market":   # web: swamp.js extraCmdInfo 'thugout'
+			var de = part_extra()
+			var nt: int = int(de.get("thugs", 0))
+			out[3] = {"id": "thugout", "label": "Thugs %d/%d\nstep out" % [nt, game.den_cap()], "why": null if nt > 0 else "No Thug inside", "name": "A Thug steps out",
+				"desc": "Each Thug inside makes 1 gold every 10 s (twice that with Highwaymen if the den borders another nation). Click to let one out.", "ok": "Click to let one out"}
 		return out
 	if part == "settlement":
 		var b: Dictionary = game.buildings[prov]
@@ -1360,7 +1373,9 @@ func _press_part(c: Dictionary) -> void:
 			if not plan.is_empty():
 				add_toast("%d Farm%s will grow %s in %d s." % [plan.size(), "" if plan.size() == 1 else "s", Ai.crop_name(t), int(Ai.CROP_DELAY)])
 		return
-	if id.begins_with("train:"):
+	if id == "thugout":
+		game.thug_out(prov, part_extra())
+	elif id.begins_with("train:"):
 		game.train(src, prov, id.substr(6))
 	elif id.begins_with("queue:"):
 		game.cancel_training("%s:%d" % [src, prov], int(id.substr(6)))

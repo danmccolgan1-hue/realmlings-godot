@@ -141,7 +141,7 @@ func start_from_menu(o: Dictionary) -> void:
 	var leader: String = "" if o.leader == "random" else o.leader
 	status.text = "Raising the island…" if practice else "Raising the world and its nations…"
 	thread = Thread.new()
-	thread.start(_gen.bind(o.seed, leader, slots, o.start, o.map, o.nation, practice, str(o.get("race", "realm"))))
+	thread.start(_gen.bind(o.seed, leader, slots, o.start, o.map, o.nation, practice, str(o.get("race", "realm")), Array(o.get("races", [])) if shot_slots.is_empty() else []))
 
 
 func start_tutorial() -> void:
@@ -205,8 +205,8 @@ func _start() -> void:
 	menu.start_game()
 
 
-func _gen(seed: String, leader_id: String, slots := [], start := "center", opts := {}, nation := {}, practice := false, race := "realm") -> void:
-	var g := Game.new_practice(seed, leader_id, {}, nation, race) if practice else Game.new_world(seed, leader_id, slots, start, {}, opts, nation, race)
+func _gen(seed: String, leader_id: String, slots := [], start := "center", opts := {}, nation := {}, practice := false, race := "realm", races := []) -> void:
+	var g := Game.new_practice(seed, leader_id, {}, nation, race) if practice else Game.new_world(seed, leader_id, slots, start, {}, opts, nation, race, races)
 	if Settings.record_games and not slots.is_empty():
 		Recorder.start(g, "new game")
 	call_deferred("_on_ready", g)

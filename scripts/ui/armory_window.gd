@@ -149,9 +149,12 @@ func edit(id: String) -> void:
 
 # web: equip.js newDesign (Realmlings)
 func new_design(type: String) -> void:
-	var n := 1 + game.designs.filter(func(d): return d.type == type and d.get("race", "realm") == "realm").size()
-	draft = {"id": null, "name": ("Cavalry " if type == "cav" else "Infantry ") + str(n), "type": type, "weapon": "spear", "shield": null,
-		"armor": "leather1", "horse": "riding" if type == "cav" else null, "race": "realm"}
+	var rc: String = game.race()
+	var n := 1 + game.designs.filter(func(d): return d.type == type and d.get("race", "realm") == rc).size()
+	var champ: bool = rc == "wood" and type == "cav"
+	draft = {"id": null, "name": (game.UNIT_BASE[type].name.trim_suffix("s") + " " if rc != "realm" else ("Cavalry " if type == "cav" else "Infantry ")) + str(n), "type": type,
+		"weapon": "champsword" if champ else "spear", "shield": null, "off": null, "armor": "ornate1" if champ else Races.HOME_ARMOR[rc],
+		"horse": "riding" if type == "cav" and rc != "wood" else null, "race": rc}
 	sel = ""
 	_rebuild()
 
@@ -204,7 +207,7 @@ func _design_list() -> Control:
 	for type in ["inf", "cav"]:
 		col.add_child(_group_head(game.UNIT_BASE[type].name))
 		for d in game.designs:
-			if d.type != type or d.get("race", "realm") != "realm":
+			if d.type != type or d.get("race", "realm") != game.race():
 				continue
 			var s: Dictionary = game.DSTATS[d.id]
 			col.add_child(_card(hud.unit_icon(d.id), d.name, s, sel == d.id, edit.bind(d.id)))
@@ -371,9 +374,10 @@ func _note(sm: VBoxContainer, t: String) -> void:
 
 # the art kind a new (unsaved) design shows: the starting design of its weapon family
 func _draft_art() -> String:
+	var A: Dictionary = Art.DESIGN_ART[game.race()]
 	if draft.type == "cav":
-		return "d-rider"
-	return {"pole": "d-spear", "blunt": "d-club"}.get(GameData.c("WEAPONS")[draft.weapon].fam, "d-sword")
+		return A.cav
+	return A.get(GameData.c("WEAPONS")[draft.weapon].fam, A.other)
 
 
 # web: equip.js renderArmory (Realmlings: no Ogres, Champions or off-hands)
@@ -385,8 +389,11 @@ func _design_editor(ed: VBoxContainer) -> void:
 	var kt: String = game.UNIT_BASE[draft.type].name + (" · starting design" if cur != null and cur.builtin else (" · in use" if in_use else ""))
 	var sm := _top(ed, st, kt, true)
 	_cost_line(sm, "Cost", st.cost, "Upkeep", st.upkeep)
-	var H = GameData.c("HORSES")[draft.get("horse") if draft.get("horse") != null else "riding"]
-	_note(sm, GameData.c("FAMILY")[W.fam].note + "." + ((" " + H.note + " Needs a Barracks and a Stable.") if st.cav else ""))
+	var rc: String = game.race()
+	var MT: Dictionary = GameData.c("OGRES") if rc == "swamp" else GameData.c("HORSES")
+	var H = MT[draft.get("horse") if draft.get("horse") != null else "riding"]
+	var where := " Trained at an %s." % game.BUILD_DEFS.stable.name if rc == "swamp" else " Needs a Barracks and a %s." % game.BUILD_DEFS.stable.name
+	_note(sm, GameData.c("FAMILY")[W.fam].note + "." + ((" " + (H.note if rc != "wood" else "A Champion fights alone and needs no mount.") + where) if st.cav else "") + ("" if st.blurb == "" else " " + st.blurb))
 	var btns := HBoxContainer.new()
 	btns.add_theme_constant_override("separation", 8)
 	sm.add_child(btns)
@@ -398,28 +405,42 @@ func _design_editor(ed: VBoxContainer) -> void:
 	if cur != null and not cur.builtin:
 		btns.add_child(_btn("Delete", Color("#f3d6d2"), _delete))
 	# the gear, under tabs (web: v96.js armTabs)
-	var tabs := ["Weapons", "Armor"] + (["Horses"] if draft.type == "cav" else [])
+	var tabs := ["Weapons", "Armor"] + ([("Ogres" if rc == "swamp" else "Horses")] if draft.type == "cav" and rc != "wood" else [])
 	if not tabs.has(gear_tab):
 		gear_tab = "Weapons"
 	ed.add_child(_gear_tabs(tabs))
 	var grid := VBoxContainer.new()
 	grid.add_theme_constant_override("separation", 2)
 	ed.add_child(grid)
-	if gear_tab == "Weapons":
+	if gear_tab == "Weapons" and rc == "wood" and draft.type == "cav":   # web: equip.js renderChampEditor
+		grid.add_child(_gear_row("Champion weapons", "Each trades toughness, speed and cost", GameData.c("CHAMP_WEAPONS").map(func(w): return _eq("weapon", w, GameData.c("WEAPONS")[w], draft.weapon == w, game.gear_why("weapon", w)))))
+		grid.add_child(_gear_row("Grip", "Champions may always fight two-handed", [_eq_flag("two", "Two-handed", draft.get("two", false), null), _eq_flag("two", "One-handed", not draft.get("two", false), null, false)]))
+	elif gear_tab == "Weapons":
 		for f in GameData.c("FAMILY"):
 			var F: Dictionary = GameData.c("FAMILY")[f]
-			if not _realm(F.get("race")):
+			if not _mine(F.get("race")):
 				continue
 			grid.add_child(_gear_row(F.name, F.note, F.order.map(func(w): return _eq("weapon", w, GameData.c("WEAPONS")[w], draft.weapon == w, game.gear_why("weapon", w)))))
-		var sh := [_eq_none(draft.get("shield") == null or W.twoH)]
-		var SD: Dictionary = GameData.c("SHIELD_DEFS")
-		for k in SD:
-			sh.append(_eq("shield", k, SD[k], draft.get("shield") == k and not W.twoH, "Two-handed weapon" if W.twoH else game.gear_why("shield", k)))
-		grid.add_child(_gear_row("Shield", W.name + " needs both hands" if W.twoH else "One-handed weapons only", sh))
+		if rc == "realm":
+			var sh := [_eq_none(draft.get("shield") == null or W.twoH)]
+			var SD: Dictionary = GameData.c("SHIELD_DEFS")
+			for k in SD:
+				sh.append(_eq("shield", k, SD[k], draft.get("shield") == k and not W.twoH, "Two-handed weapon" if W.twoH else game.gear_why("shield", k)))
+			grid.add_child(_gear_row("Shield", W.name + " needs both hands" if W.twoH else "One-handed weapons only", sh))
+		elif rc == "swamp":   # web: swamp.js offhandRow (Dual Wielding)
+			var off := [_eq_none(draft.get("off") == null or W.twoH, "off")]
+			for f in ["axe", "blunt", "pole"]:
+				for w in GameData.c("FAMILY")[f].order:
+					if not GameData.c("WEAPONS")[w].twoH:
+						off.append(_eq("off", w, GameData.c("WEAPONS")[w], draft.get("off") == w and not W.twoH, "Two-handed weapon" if W.twoH else game.gear_why("off", w)))
+			grid.add_child(_gear_row("Off hand", "A second one-handed weapon hits for half its attack (Dual Wielding)", off))
+		else:   # Woodlings: two-handing (Two-Handed Grip)
+			var why = null if game.has_tech("twohand") else "Research " + game.TECH_BY_ID.twohand.name
+			grid.add_child(_gear_row("Grip", "Two-handed: heavy blows every other round (125% damage over time)", [_eq_flag("two", "Two-handed", draft.get("two", false), why), _eq_flag("two", "One-handed", not draft.get("two", false), null, false)]))
 	elif gear_tab == "Armor":
 		var AT: Dictionary = GameData.c("ARMOR_TYPES")
 		for t in AT:
-			if not _realm(AT[t].get("race")):
+			if not _mine(AT[t].get("race")) or (rc == "wood" and (t == "ornate") != (draft.type == "cav")):
 				continue
 			var row := []
 			for lv in [1, 2, 3, 4]:
@@ -427,7 +448,7 @@ func _design_editor(ed: VBoxContainer) -> void:
 				row.append(_eq("armor", k, GameData.c("ARMORS")[k], draft.armor == k, game.gear_why("armor", k)))
 			grid.add_child(_gear_row(AT[t].name, AT[t].note, row))
 	else:
-		var HS: Dictionary = GameData.c("HORSES")
+		var HS: Dictionary = MT
 		var row := []
 		for k in HS:
 			row.append(_eq("horse", k, HS[k], draft.get("horse") == k, game.gear_why("horse", k)))
@@ -505,7 +526,8 @@ func _gear_row(title: String, note: String, buttons: Array) -> HBoxContainer:
 func _eq(kind: String, k: String, item: Dictionary, on: bool, why) -> Button:
 	var b := _eq_frame(on, item.name + ("" if why == null else " · " + why))
 	var v: VBoxContainer = b.get_child(0)
-	var ic := _tex(Hud.icon("icons/common/gear_%s_%s.png" % [kind, k]), 40)
+	var gk := "weapon" if kind == "off" else ("ogre" if kind == "horse" and game.is_sw() else kind)
+	var ic := _tex(Hud.icon("icons/common/gear_%s_%s.png" % [gk, k]), 40)
 	v.add_child(ic)
 	var l := _eq_label(item.name)
 	v.add_child(l)
@@ -524,7 +546,7 @@ func _eq(kind: String, k: String, item: Dictionary, on: bool, why) -> Button:
 	return b
 
 
-func _eq_none(on: bool) -> Button:
+func _eq_none(on: bool, kind := "shield") -> Button:
 	var b := _eq_frame(on, "None")
 	var v: VBoxContainer = b.get_child(0)
 	var d := UiKit.ink(22)
@@ -534,7 +556,26 @@ func _eq_none(on: bool) -> Button:
 	d.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	v.add_child(d)
 	v.add_child(_eq_label("None"))
-	b.pressed.connect(func(): _pick("shield", ""))
+	b.pressed.connect(func(): _pick(kind, ""))
+	return b
+
+
+# a two-way choice with no gear icon (the Woodlings' grip)
+func _eq_flag(kind: String, label: String, on: bool, why, val := true) -> Button:
+	var b := _eq_frame(on, label + ("" if why == null else " · " + str(why)))
+	var v: VBoxContainer = b.get_child(0)
+	var d := UiKit.ink(20)
+	d.text = "✊✊" if val else "✊"
+	d.custom_minimum_size = Vector2(40, 40)
+	d.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	d.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	v.add_child(d)
+	v.add_child(_eq_label(label))
+	b.pressed.connect(func():
+		if why != null:
+			game.toast(label + " · " + str(why), true)
+			return
+		_pick(kind, "1" if val else ""))
 	return b
 
 
@@ -572,6 +613,10 @@ func _pick(kind: String, k: String) -> void:
 			draft.shield = null
 	elif kind == "shield":
 		draft.shield = null if k == "" else k
+	elif kind == "off":
+		draft.off = null if k == "" else k
+	elif kind == "two":
+		draft.two = k == "1"
 	else:
 		draft[kind] = k
 	_rebuild()
@@ -770,6 +815,10 @@ func _order_row(O: Dictionary) -> PanelContainer:
 # web: equip.js raceIs (for the Realmlings)
 static func _realm(r) -> bool:
 	return r == null or r == "realm" or (r is Array and r.has("realm"))
+
+
+func _mine(r) -> bool:
+	return Races.race_is(r, game.race())
 
 
 # web: equip.js PLURAL_OF

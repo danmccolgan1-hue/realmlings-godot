@@ -6,6 +6,7 @@ extends RefCounted
 const NAME := {"realm": "Realmlings", "swamp": "Swamplings", "wood": "Woodlings"}   # web: swamp.js RACE_NAME
 const HOME := {"realm": "grassland", "swamp": "swamp", "wood": "forest"}         # web: game.js setupGame homeTer
 const FOOTMAN := {"realm": "d-sword", "swamp": "d-sw-axe", "wood": "d-wd-sword"}  # web: equip.js footmanOf
+const HOME_ARMOR := {"realm": "leather1", "swamp": "stag1", "wood": "spirit1"}
 const SUPPLY_STORE := {"gold": 500, "wood": 500, "food": 500}                     # web: swamp.js (the Supply Cache)
 const BANK_STORE := {"gold": 1000}
 # web: equip.js — the other races' starting designs (the Armory shows only the player's race)

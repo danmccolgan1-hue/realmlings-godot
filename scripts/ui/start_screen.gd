@@ -79,12 +79,14 @@ func show_screen(n: String) -> void:
 
 func _load_opts() -> Dictionary:
 	var NAT: Dictionary = GameData.c("NATION")
-	var d := {"seed": random_seed(), "nation": {"name": NAT.name, "color": NAT.color, "emblem": NAT.emblem}, "leader": "random", "race": "realm", "start": "center", "practice": false,
+	var d := {"seed": random_seed(), "nation": {"name": NAT.name, "color": NAT.color, "emblem": NAT.emblem}, "leader": "random", "race": "realm", "races": ["random", "random", "random", "random", "random", "random", "random"], "start": "center", "practice": false,
 		"map": {"shape": "classic", "pens": 2, "coves": 2, "trees": 0}, "slots": ["easy", "easy", "moderate", "closed", "closed", "closed", "closed"]}
 	var m: Dictionary = Settings.menu
-	for k in ["nation", "leader", "race", "start", "practice", "map", "slots"]:
+	for k in ["nation", "leader", "race", "races", "start", "practice", "map", "slots"]:
 		if m.has(k) and typeof(m[k]) == typeof(d[k]):
 			d[k] = m[k]
+	if d.races.size() != 7:
+		d.races = ["random", "random", "random", "random", "random", "random", "random"]
 	if d.slots.size() != 7:
 		d.slots = ["easy", "easy", "moderate", "closed", "closed", "closed", "closed"]
 	return d
@@ -582,15 +584,25 @@ func _refresh_setup() -> void:
 				_refresh_setup.call_deferred()
 				b.accept_event())
 		wrap.add_child(b)
+		# the opponent's race: Realmling, Swampling, Woodling or ? (random); web: menu.js slot race buttons
 		var rb := Button.new()
-		rb.text = "R"
-		rb.disabled = true
+		var sr: String = str(opts.races[si])
+		rb.text = {"realm": "R", "swamp": "S", "wood": "W"}.get(sr, "?")
+		rb.disabled = d == "closed" or practice
+		rb.focus_mode = Control.FOCUS_NONE
 		rb.custom_minimum_size = Vector2(26, 32)
-		rb.tooltip_text = "Realmlings (other races come in a later milestone)"
+		rb.tooltip_text = {"realm": "Realmlings", "swamp": "Swamplings", "wood": "Woodlings"}.get(sr, "A random race") + " · click to change"
 		rb.add_theme_font_size_override("font_size", 13)
-		for st in ["normal", "disabled"]:
-			rb.add_theme_stylebox_override(st, _sb(Color("#e9e2f6") if d != "closed" else Color("#eeeeee"), 1, 2, 2))
+		for st in ["normal", "hover", "pressed", "disabled"]:
+			rb.add_theme_stylebox_override(st, _sb({"realm": Color("#e9e2f6"), "swamp": Color("#dcebc8"), "wood": Color("#d6eedf")}.get(sr, Color("#f3ead4")) if d != "closed" else Color("#eeeeee"), 1, 2, 2))
+		rb.add_theme_color_override("font_color", INK)
 		rb.add_theme_color_override("font_disabled_color", Color(INK, 0.6 if d != "closed" else 0.25))
+		var ri: int = si
+		rb.pressed.connect(func():
+			var cyc := ["realm", "swamp", "wood", "random"]
+			opts.races[ri] = cyc[(cyc.find(str(opts.races[ri])) + 1) % cyc.size()]
+			_save_opts()
+			_refresh_setup.call_deferred())
 		wrap.add_child(rb)
 		grid.add_child(wrap)
 	ob.add_child(grid)
