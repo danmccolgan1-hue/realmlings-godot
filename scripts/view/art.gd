@@ -26,11 +26,11 @@ static func get_sprite(category: String, race: String, file: String):
 
 
 ## Draw a sprite on a CanvasItem with its anchor on `at` (world units).
-static func draw(ci: CanvasItem, sp: Dictionary, at: Vector2, size_mul := 1.0) -> void:
+static func draw(ci: CanvasItem, sp: Dictionary, at: Vector2, size_mul := 1.0, alpha := 1.0) -> void:
 	var s: float = size_mul / sp.scale
 	var tex: Texture2D = sp.tex
 	ci.draw_set_transform(at - Vector2(sp.ax, sp.ay) * s, 0.0, Vector2(s, s))
-	ci.draw_texture(tex, Vector2.ZERO)
+	ci.draw_texture(tex, Vector2.ZERO, Color(1, 1, 1, alpha))
 	ci.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 

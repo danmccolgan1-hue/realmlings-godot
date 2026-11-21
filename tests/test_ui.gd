@@ -15,6 +15,8 @@ func run() -> Array:
 	_mage_gear(errs)
 	_country(errs)
 	_school(errs)
+	_orders(errs)
+	_arrows_and_sounds(errs)
 	var pn: Array = GameData.c("PATCH_NOTES")
 	if pn.is_empty() or pn[0].v != "v106":
 		errs.append("patch notes: the web game's v106 notes are missing")
@@ -362,3 +364,68 @@ func _school(errs: Array) -> void:
 	g.finish_tech("mag")
 	if g.current_school() != null or g.tech.mag.done.has("arcscouts") or g.tech.mag.done.has("abandon") or not g.school_popup:
 		errs.append("school: abandoning keeps the school or its spells (done %s)" % [g.tech.mag.done])
+
+
+# orders for a group (web: game.js formation / orderGroup / queueSurvey): spots around the click, Shift queues
+# behind what a busy unit is doing, a survey goes to the Wayfinder with the fewest to do
+func _orders(errs: Array) -> void:
+	var f := Game.formation(7)
+	if f.size() != 7 or f[0] != [0.0, 0.0] or absf(Vector2(f[1][0], f[1][1] / 0.8).length() - 30.0) > 0.01:
+		errs.append("orders: formation spots %s" % [f])
+	var g := Game.new_practice("ember", "cormac")
+	var ws: Array = g.units.filter(func(v): return v.owner == Game.ME and v.kind != "army")
+	var nb: Array = g.open_nbr[g.capital].map(func(n): return n.q)
+	for q in nb:
+		g.explored[q] = true
+	var ic: Array = g.G.provs[nb[0]].ic
+	var moved := g.order_group(ws, nb[0], false, [ic[0], ic[1]])
+	if moved.size() != ws.size():
+		errs.append("orders: %d of %d units set off together" % [moved.size(), ws.size()])
+	var ends := {}
+	for u in moved:
+		var last = u.path[-1] if not u.path.is_empty() else null
+		if last != null:
+			ends["%d,%d" % [roundi(last.x), roundi(last.y)]] = true
+	if ends.size() < moved.size():
+		errs.append("orders: the group stacks on one spot instead of spreading out")
+	g.order_group(ws, nb[1], true, null)   # Shift: queued behind the walk
+	if ws.any(func(u): return u.surveyQueue.is_empty() or u.surveyQueue[-1].get("move") != nb[1]):
+		errs.append("orders: a Shift order isn't queued behind the walk")
+	var wf: Array = ws.filter(func(v): return v.kind == g.WAYFINDER)
+	g.queue_survey_on(wf, nb[2], true)
+	if not g.survey_queued(nb[2]) or g.survey_why(nb[2], wf) != "Already on a survey list":
+		errs.append("orders: a queued survey isn't on the list")
+	if g.queue_len(wf[0]) < 2:
+		errs.append("orders: the survey replaced the queued move (Shift keeps it)")
+
+
+# web: govtech.js stepArrows: a fort with Arrowslits shoots the hostile army in its province every 10 s;
+# the rules name their sounds for the view (Game.sfx) and record the effects it shows (Game.fx)
+func _arrows_and_sounds(errs: Array) -> void:
+	var g := Game.new_practice("ember", "cormac")
+	var heard := []
+	g.on_sfx = func(n, _p, _v): heard.append(n)
+	g.buildings[g.capital].stage = 1
+	g.tech.gov.done.append("arrowslits")
+	var q: int = g.open_nbr[g.capital][0].q
+	var gang := g.spawn_bandit(q)
+	gang.troops = {"d-sword": 3}
+	gang.prov = g.capital
+	gang.moving = false
+	g.step_arrows(100.0)
+	if not g.arrow_at.has(g.capital):
+		errs.append("arrows: the fort doesn't take aim at the bandits")
+	g.step_arrows(110.0)
+	if g.troop_count(gang) >= 3 or not g.fx.any(func(x): return x.kind == "arrow") or not g.fx.any(func(x): return x.kind == "num"):
+		errs.append("arrows: no arrows loosed after 10 s (troops %d, fx %s)" % [g.troop_count(gang), g.fx.map(func(x): return x.kind)])
+	var m = g.units.filter(func(v): return v.kind == Game.MASON)[0]
+	g.stock.gold += 1000
+	g.stock.wood += 1000
+	g.order_build(m, m.prov, "farm")
+	if not heard.has("bld_work"):
+		errs.append("sounds: building gives no work sound (heard %s)" % [heard])
+	for k in ["bld_work", "ui_click", "war_declare", "mg_school", "bat_win"]:
+		if not ResourceLoader.exists("res://assets/audio/sfx/%s.mp3" % k):
+			errs.append("sounds: %s.mp3 missing" % k)
+	if not ResourceLoader.exists("res://assets/audio/music/tavern.mp3"):
+		errs.append("music: tavern.mp3 missing")

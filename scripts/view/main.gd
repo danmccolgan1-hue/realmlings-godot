@@ -3,7 +3,9 @@ extends Node2D
 ## Space: pause / play. Left-click: select a unit or a province. Right-click: send the selected unit there.
 ## Command card keys: q w e r / a s d f / z x c v / u i o p. T: research (with no unit selected).
 ## F5: quick save, F9: quick load; an autosave every 5 minutes of play.
-## Drag (left or middle mouse) or the arrow keys to pan, wheel to zoom, Home: back to the capital. G: the Armory.
+## Drag with the left mouse to box-select your units; drag with the right or middle mouse (or the arrow keys) to pan,
+## wheel to zoom, Home: back to the capital. G: the Armory. Shift queues orders; Ctrl+right-click opens the survey /
+## build menu. M: music on or off.
 ## Esc: close a window, or open the menu.
 
 const SEED_WORDS := ["ember", "oak", "river", "banner", "moss", "crown", "lantern", "stone", "harbor", "thistle", "kettle", "saffron"]
@@ -18,6 +20,10 @@ var thread: Thread
 var game: Game
 var dragging := false
 var drag_moved := 0.0
+var drag_btn := 0
+var drag_from := Vector2.ZERO   # where a drag started (screen)
+var box_on := false             # a left drag draws a selection box (web: game.js #box, finishBox)
+var sound: Sound
 var menu_settings: SettingsWindow
 var patch_notes: PatchNotes
 var recordings: RecordingsWindow
@@ -36,6 +42,9 @@ func _ready() -> void:
 	add_child(map)
 	cam = Camera2D.new()
 	add_child(cam)
+	sound = Sound.new()
+	sound.main = self
+	add_child(sound)
 	hud = Hud.new()
 	hud.main = self
 	hud.map = map
@@ -209,6 +218,7 @@ func _on_ready(g: Game, from_thread := true) -> void:
 	menu.hide()
 	map.set_game(g)
 	hud.set_game(g)
+	g.on_sfx = Sound.play
 	var b := map.bounds()
 	cam.position = b.get_center()
 	var vp := get_viewport_rect().size
@@ -462,12 +472,47 @@ func _maybe_screenshot() -> void:
 		game.dip_request(ids[0], "alliance", {"vs": ids[-1]})
 	if OS.get_cmdline_user_args().has("--dip"):   # the first nation's section open
 		hud.diplomacy.open(game.nations.keys()[0] if not game.nations.is_empty() else 0)
+	if OS.get_cmdline_user_args().has("--queue"):   # pictures: several units selected, queued orders, a move marker and a box
+		var ws: Array = game.units.filter(func(v): return v.owner == Game.ME and v.kind != "army")
+		var nb: Array = game.open_nbr[game.capital].map(func(n): return n.q)
+		for q in nb:
+			game.explored[q] = true
+		game.queue_survey_on(ws.filter(func(v): return v.kind == game.WAYFINDER), nb[0], true)
+		game.queue_survey_on(ws.filter(func(v): return v.kind == game.WAYFINDER), nb[1], true)
+		game.order_group(ws.filter(func(v): return v.kind == Game.MASON), nb[2], false, null)
+		game.order_group(ws.filter(func(v): return v.kind == Game.MASON), nb[1], true, null)
+		hud.set_selection(ws + game.units.filter(func(v): return v.kind == "army" and v.owner == Game.ME))
+		var c: Array = game.G.provs[nb[2]].ic
+		mark_move(Vector2(c[0], c[1]))
+		map.marks[-1].t0 += 0.25
+		map.box = Rect2(Vector2(c[0] - 260, c[1] - 200), Vector2(220, 150))
+		if OS.get_cmdline_user_args().has("--bmenu"):   # the Ctrl+right-click menu on the capital's neighbor
+			game.stock.gold += 500
+			game.stock.wood += 500
+			game.grant_tech("roads")
+			hud.open_build_menu(nb[0], Vector2(1150, 260), false, Vector2(c[0], c[1]))
+	if OS.get_cmdline_user_args().has("--fx"):   # pictures: a battle at the capital, a Mage casting, an Earthquake striking
+		var gang := game.spawn_bandit(game.capital)
+		gang.troops = {"d-sword": 6}
+		gang.seen = true
+		for i in 40:
+			game.paused = false
+			game.update(200.0 + i * 0.1)
+		var mg = game.new_army(game.open_nbr[game.capital][0].q, {game.MAGE: 1})
+		game.explored[mg.prov] = true
+		game.visible[mg.prov] = true
+		mg.cast = {"spell": "harvest", "t0": game.t - 2, "dur": INF}
+		game.add_spell_fx("quake", mg, mg.prov)
+		game.spell_fx[-1].t0 = game.t - 1.0
+		game.paused = true
+		var c: Array = game.G.provs[game.capital].ic
+		cam.position = Vector2(c[0] + 150, c[1] + 120)
 	if OS.get_cmdline_user_args().has("--research"):
 		hud.toggle_research()
 	elif spells or battle:
 		map.selected_unit = army
 		hud.select_unit(army)
-	elif not (OS.get_cmdline_user_args().has("--capital") or OS.get_cmdline_user_args().has("--farm")):
+	elif not (OS.get_cmdline_user_args().has("--capital") or OS.get_cmdline_user_args().has("--farm") or OS.get_cmdline_user_args().has("--queue") or OS.get_cmdline_user_args().has("--fx")):
 		map.selected_unit = mason
 		hud.select_unit(mason)
 	if OS.get_cmdline_user_args().has("--record"):
@@ -670,46 +715,130 @@ func _unhandled_input(ev: InputEvent) -> void:
 			zoom_by(1.2)
 		elif ev.button_index == MOUSE_BUTTON_WHEEL_DOWN and ev.pressed:
 			zoom_by(1 / 1.2)
-		elif ev.button_index in [MOUSE_BUTTON_LEFT, MOUSE_BUTTON_MIDDLE]:
+		elif ev.button_index in [MOUSE_BUTTON_LEFT, MOUSE_BUTTON_MIDDLE, MOUSE_BUTTON_RIGHT]:
 			if ev.pressed:
 				dragging = true
 				drag_moved = 0.0
-			else:
+				drag_btn = ev.button_index
+				drag_from = ev.position
+				box_on = false
+				if hud.pick.visible:
+					hud.pick.hide()
+			elif dragging and ev.button_index == drag_btn:
 				dragging = false
-				if ev.button_index == MOUSE_BUTTON_LEFT and drag_moved < 6.0 and game and hud.aim != null:
-					var tp := map.province_at(get_global_mouse_position())
-					if tp >= 0:
-						if hud.aim.spell == "fly":
-							game.fly_army(hud.aim.unit, tp)
-						elif hud.aim.spell == "shock":
-							game.start_spell2(hud.aim.unit, "shock", tp)
-						else:
-							game.cast_spell(hud.aim.unit, hud.aim.spell, tp)
-					hud.aim = null
-				elif ev.button_index == MOUSE_BUTTON_LEFT and drag_moved < 6.0 and game:
-					# a unit first, then a building, then the province (web: game.js clickAt)
-					var at := get_global_mouse_position()
-					var u = map.unit_at(at)
-					var hit = null if u != null else map.part_at(at)
-					map.selected_unit = u
-					hud.select_unit(u)
-					var p: int = u.prov if u != null else hit.prov if hit != null else map.province_at(at)
-					if hit == null and p >= 0 and not game.explored.has(p):
-						p = -1
-					map.selected_prov = p
-					map.selected_part = hit.part if hit != null else ""
-					hud.select_province(p, map.selected_part)
-		elif ev.button_index == MOUSE_BUTTON_RIGHT and ev.pressed and game and hud.aim != null:
-			hud.aim = null
-			hud.add_toast("Cancelled.")
-		elif ev.button_index == MOUSE_BUTTON_RIGHT and ev.pressed and game and map.selected_unit != null and map.selected_unit.owner == Game.ME:
-			var at := get_global_mouse_position()
-			var p := map.province_at(at)
-			if p >= 0:
-				game.order(map.selected_unit, p, false, [at.x, at.y])
+				if box_on:
+					_finish_box(ev.position, ev.shift_pressed)
+				elif drag_moved < 7.0 and game:
+					var ctrl: bool = ev.ctrl_pressed or ev.meta_pressed
+					if ev.button_index == MOUSE_BUTTON_RIGHT or (ev.button_index == MOUSE_BUTTON_LEFT and ctrl and not hud.selection.is_empty()):
+						_right_click(ev.position, ev.shift_pressed, ctrl)
+					elif ev.button_index == MOUSE_BUTTON_LEFT:
+						_left_click(ev.shift_pressed)
+				box_on = false
+				map.box = Rect2()
 	elif ev is InputEventMouseMotion and dragging:
 		drag_moved += ev.relative.length()
-		cam.position -= ev.relative / cam.zoom
+		if drag_btn == MOUSE_BUTTON_LEFT and game != null and hud.aim == null:
+			if drag_moved > 6.0:   # left drag draws a selection box
+				box_on = true
+				var a := _to_world(drag_from)
+				var b := _to_world(ev.position)
+				map.box = Rect2(a, Vector2.ZERO).expand(b)
+		else:
+			cam.position -= ev.relative / cam.zoom
+
+
+func _to_world(s: Vector2) -> Vector2:
+	return get_canvas_transform().affine_inverse() * s
+
+
+# web: game.js finishBox: your units inside the box (Shift adds them to the selection)
+func _finish_box(at: Vector2, shift: bool) -> void:
+	var x0 := minf(drag_from.x, at.x) - 6
+	var x1 := maxf(drag_from.x, at.x) + 6
+	var y0 := minf(drag_from.y, at.y) - 6
+	var y1 := maxf(drag_from.y, at.y) + 6
+	var ct := get_canvas_transform()
+	var hit := []
+	for u in game.units:
+		if u.owner != Game.ME or u.get("exiting", false):
+			continue
+		var s: Vector2 = ct * Vector2(u.x, u.y - 8)
+		if s.x >= x0 and s.x <= x1 and s.y >= y0 and s.y <= y1:
+			hit.append(u)
+	var list := hud.selection.duplicate() if shift else []
+	for u in hit:
+		if not list.any(func(v): return is_same(v, u)):
+			list.append(u)
+	hud.set_selection(list)
+	if not list.is_empty():
+		map.selected_prov = -1
+		map.selected_part = ""
+		hud.select_province(-1)
+
+
+# web: game.js clickAt (a left click): the spell or Slippers aim, a unit (Shift adds or removes it), a building, the province
+func _left_click(shift: bool) -> void:
+	var at := get_global_mouse_position()
+	if hud.aim != null:
+		var tp := map.province_at(at)
+		if tp >= 0:
+			if hud.aim.spell == "fly":
+				game.fly_army(hud.aim.unit, tp)
+			elif hud.aim.spell == "shock":
+				game.start_spell2(hud.aim.unit, "shock", tp)
+			else:
+				game.cast_spell(hud.aim.unit, hud.aim.spell, tp)
+		hud.aim = null
+		return
+	var u = map.unit_at(at)
+	if u != null and u.owner == Game.ME:
+		if shift:
+			var list: Array = hud.selection.filter(func(v): return not is_same(v, u)) if hud.is_selected(u) else hud.selection + [u]
+			hud.set_selection(list)
+		else:
+			hud.set_selection([u])
+		map.selected_prov = u.prov
+		map.selected_part = ""
+		hud.select_province(u.prov)
+		return
+	var hit = map.part_at(at)
+	hud.set_selection([u] if u != null else [])
+	var p: int = u.prov if u != null else hit.prov if hit != null else map.province_at(at)
+	if hit == null and p >= 0 and not game.explored.has(p):
+		p = -1
+	map.selected_prov = p
+	map.selected_part = hit.part if hit != null else ""
+	hud.select_province(p, map.selected_part)
+
+
+# web: game.js clickAt (a right click): orders for the selected units; Ctrl (or Quick queue) opens the survey / build menu
+func _right_click(screen: Vector2, shift: bool, ctrl: bool) -> void:
+	if hud.aim != null:
+		hud.aim = null
+		hud.add_toast("Cancelled.")
+		return
+	var at := _to_world(screen)
+	var p := map.province_at(at)
+	var sel: Array = hud.selection.filter(func(v): return v.owner == Game.ME)
+	if sel.is_empty() or p < 0:
+		return
+	var workers := func(v): return v.kind == Game.MASON or v.kind == game.WAYFINDER
+	var quick: bool = not ctrl and Settings.view.get("quickQueue", false) and sel.all(workers)
+	if (ctrl or quick) and sel.any(func(v): return workers.call(v) or game.is_caster(v)):
+		hud.open_build_menu(p, screen, shift, at)
+		return
+	var moved := game.order_group(sel, p, shift, [at.x, at.y])
+	if not moved.is_empty() or shift:
+		mark_move(at)
+	Sound.move(moved)
+
+
+## The marker where you sent your units: a ring that shrinks and fades in a second. web: v78.js moveMarks
+func mark_move(at: Vector2) -> void:
+	map.marks.append({"x": at.x, "y": at.y, "t0": Time.get_ticks_msec() / 1000.0})
+	if map.marks.size() > 8:
+		map.marks.pop_front()
 
 
 func _exit_tree() -> void:

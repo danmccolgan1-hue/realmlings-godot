@@ -20,7 +20,9 @@ var renamer: RenameBox
 var sel_rename: Button        # ✎ beside the selection line
 var pick: PickMenu           # the build-on-a-plot and crop menus
 var crop_arm := {}           # web: v104.js cropAllArm, {p, slot, t}: "Apply to all" waits 8 s for its confirm
-var unit = null
+var unit = null              # the command card's unit: the first selected unit of the card's tab (web: primary())
+var selection := []          # every selected unit (web: S.selected); several by box or Shift-click
+var cmd_tab := ""            # with several kinds selected, the kind whose commands the card shows (web: cmdTab)
 var card: CommandCard
 var sel_line: Label          # what is selected, bottom left next to the minimap (web: #sel)
 var card_cmds := []          # per cell: {id, label, why} or null
@@ -39,6 +41,7 @@ var tut_text: RichTextLabel
 var tut_objs: Label
 var tut_next: Button
 var tut_key := ""
+var tut_voice_id := ""
 var main            # the scene's entry node: saving, loading, the main menu
 var map: MapView
 var cam: Camera2D
@@ -85,6 +88,9 @@ func _ready() -> void:
 	GRID_KEYS = GameData.c("GRID_KEYS")
 	card = CommandCard.new()
 	card.on_press = press
+	card.on_tab = func(id):
+		cmd_tab = str(id)
+		_sync_unit()
 	card.tip_of = cmd_tip
 	add_child(card)
 	card.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT, Control.PRESET_MODE_MINSIZE, 16)
@@ -217,16 +223,56 @@ func select_province(p: int, prt := "") -> void:
 
 
 func select_unit(u) -> void:
-	unit = u
-	if game != null and game.tutorial != null and u != null and u.kind == game.WAYFINDER:
+	set_selection([u] if u != null else [])
+
+
+## Select these units (web: S.selected = …): the card shows the first kind's commands, with a tab per kind.
+func set_selection(list: Array) -> void:
+	selection = list.filter(func(v): return v != null)
+	if game != null and game.tutorial != null and selection.any(func(v): return v.kind == game.WAYFINDER):
 		game.tutorial.selected.wayfinder = true
-	if u != null:
+	if not selection.is_empty():
 		part = ""
 		if map:
 			map.selected_part = ""
+	_sync_unit()
+
+
+func is_selected(u) -> bool:
+	return selection.any(func(v): return is_same(v, u))
+
+
+## The kinds selected, in the order they were picked (web: game.js renderCmd kinds).
+func sel_kinds() -> Array:
+	var out := []
+	for v in selection:
+		if not out.has(v.kind):
+			out.append(v.kind)
+	return out
+
+
+## The selected units of the card's kind (commands such as Retreat and Auto-survey apply to all of them).
+func tab_units() -> Array:
+	return selection.filter(func(v): return v.kind == cmd_tab)
+
+
+func _sync_unit() -> void:
+	var kinds := sel_kinds()
+	if not kinds.has(cmd_tab):
+		cmd_tab = kinds[0] if not kinds.is_empty() else ""
+	unit = null
+	for v in selection:
+		if v.kind == cmd_tab:
+			unit = v
+			break
+	if map:
+		map.selected_unit = unit
+		map.selection = selection
 
 
 func add_toast(msg: String, warn := false) -> void:
+	if Sound.inst:
+		Sound.inst.on_toast(warn)
 	# web: #toast, a paper note at the bottom center (pink when something went wrong)
 	var l := _label(17)
 	l.text = msg
@@ -421,7 +467,9 @@ func press(i: int) -> void:
 	elif id == "survey":
 		game.queue_survey(unit, unit.prov)
 	elif id == "auto":
-		unit.auto = unit.get("auto", true) == false
+		var on: bool = tab_units().any(func(w): return w.get("auto", true) != false)
+		for w in tab_units():
+			w.auto = not on
 	elif id == "cancelbuild":
 		game.cancel_build(unit)
 		add_toast("Construction cancelled. Resources refunded.")
@@ -455,7 +503,8 @@ func press(i: int) -> void:
 		else:
 			game.cast_spell(unit, k)
 	elif id == "retreat":
-		game.retreat(unit)
+		for a in tab_units().filter(func(v): return v.get("battle") != null and not v.get("retreating", false)):
+			game.retreat(a)
 	elif id == "rest":
 		game.send_to_rest(unit)
 	elif id == "retrofit":
@@ -490,8 +539,8 @@ func _process(_delta: float) -> void:
 	_refresh_tutorial()
 	if research.visible:
 		_refresh_research()
-	if unit != null and not game.units.any(func(v): return is_same(v, unit)):
-		select_unit(null)
+	if selection.any(func(v): return not game.units.any(func(w): return is_same(w, v))):
+		set_selection(selection.filter(func(v): return game.units.any(func(w): return is_same(w, v))))
 	if part != "" and (prov < 0 or not game.owned(prov) or (part != "settlement" and part_extra() == null)):
 		select_province(prov if prov >= 0 and game.explored.has(prov) else -1)   # the building is gone
 	# the command card is always there; empty when nothing of yours is selected (web: game.js renderCmd)
@@ -824,6 +873,20 @@ func _decorate(c: Dictionary) -> void:
 
 ## The tabs over the card: what is selected (web: game.js #cmdTabs)
 func _card_tabs() -> Array:
+	var kinds := sel_kinds()
+	if kinds.size() > 1:   # several kinds: a tab for each, with how many (web: renderCmd .cmd-tab)
+		var out := []
+		for k in kinds:
+			var n := selection.filter(func(v): return v.kind == k).size()
+			var nm: String = ("Armies" if n > 1 else "Army") if k == "army" else str(game.unit_defs[k].name) + ("s" if n > 1 else "") if game.unit_defs.has(k) else k
+			var pk: String = k
+			if k == "army":
+				var a = selection.filter(func(v): return v.kind == k)[0]
+				for tk in a.troops:
+					pk = tk
+					break
+			out.append({"text": ("%d " % n if n > 1 else "") + nm, "icon": unit_icon(pk), "on": k == cmd_tab, "id": k})
+		return out
 	if unit != null and unit.owner == Game.ME:
 		var nm: String = "Army" if unit.kind == "army" else str(game.unit_defs[unit.kind].name) if game.unit_defs.has(unit.kind) else unit.kind
 		var pk: String = unit.kind
@@ -850,7 +913,12 @@ func _card_tabs() -> Array:
 ## web: game.js selUI, unitStatus
 func _refresh_sel_line() -> void:
 	var txt := ""
-	if unit != null and unit.owner == Game.ME:
+	if selection.size() > 1:   # web: selUI "<b>N units</b> · name (status) · …"
+		txt = "%d units · %s" % [selection.size(), " · ".join(selection.map(func(v): return "%s (%s)" % [v.name, _status(v)]))]
+		if txt.length() > 150:
+			txt = txt.left(147) + "…"
+		sel_line.tooltip_text = "Right-click a province to move them together. Hold Shift to queue moves. Ctrl+right-click opens the survey and build menu."
+	elif unit != null and unit.owner == Game.ME:
 		if unit.kind == "army":
 			var st := "in battle" if unit.get("battle") != null and not unit.get("retreating", false) else "retreating" if unit.get("retreating", false) else _status(unit)
 			var parts := []
@@ -929,6 +997,12 @@ func dragging_map() -> bool:
 func _status(u: Dictionary) -> String:
 	if u.get("scouting") != null:
 		return "exploring (takes orders once done)"
+	var nsv: int = u.surveyQueue.filter(func(e): return e is int).size() + (1 if u.pendingSurvey >= 0 else 0) if u.has("surveyQueue") else 0
+	var nmv: int = u.surveyQueue.filter(func(e): return not (e is int)).size() if u.has("surveyQueue") else 0
+	if nsv and u.get("survey") == null:
+		return "heading to survey (%d queued)" % nsv
+	if nmv:
+		return "on the move (%d more queued)" % nmv
 	if u.get("survey") != null:
 		return "surveying"
 	if u.get("build") != null:
@@ -1122,6 +1196,106 @@ func open_plot_menu(p0: int, slot: int, anchor: Control) -> void:
 	var at := Vector2(panel.global_position.x + panel.size.x + 10, anchor.global_position.y - 40)
 	pick.open("Build on plot %d" % (slot + 1), "%s · %s" % [T, ((m.name + " is here") if m.prov == p0 else (m.name + " will walk over")) if m != null else "every Mason is busy"], items, at,
 		"" if m != null else "Train a Mason at your capital, or wait for one to finish.")
+
+
+## The survey / build menu (Ctrl+right-click a province with a Wayfinder, Mason or caster selected; a plain
+## right-click with Quick queue on): move here, survey, what the Mason can build there, a road or wall on the
+## border he stands by, and a caster's forest paths and tunnels. Shift (held when opening or picking) queues.
+## web: game.js openBuildMenu, linkRows, the #bmenu clicks; magic.js magicRows
+func open_build_menu(p: int, at: Vector2, shift: bool, pt: Vector2) -> void:
+	var sel := selection.filter(func(v): return v.owner == Game.ME)
+	var m = null
+	var w = null
+	var c = null
+	for v in sel:
+		if v.kind == Game.MASON and m == null:
+			m = v
+		if v.kind == game.WAYFINDER and w == null:
+			w = v
+		if game.is_caster(v) and c == null:
+			c = v
+	var types: Array = [] if m == null or not game.explored.has(p) else (GameData.c("BUILD_ORDER").filter(func(ty): return game.BUILD_DEFS.has(ty)) if game.owned(p) else ["outpost"])
+	var ws := sel.filter(func(v): return v.kind == game.WAYFINDER)
+	var items := []
+	var all_w := sel.all(func(v): return v.kind == game.WAYFINDER)
+	var sh := func(): return shift or Input.is_key_pressed(KEY_SHIFT)
+	items.append({"glyph": "➜", "name": ("Queue explore" if shift else "Explore") if all_w else ("Queue move here" if shift else "Move here"),
+		"small": "Add to the end of the order list" if shift else "Shift to queue", "do": func():
+			var moved := game.order_group(selection.filter(func(v): return v.owner == Game.ME), p, sh.call(), [pt.x, pt.y] if map.province_at(pt) == p else null)
+			if not moved.is_empty() and main:
+				main.mark_move(pt)
+				Sound.move(moved)})
+	if w != null:
+		var why = game.survey_why(p, ws)
+		var qn := 0
+		for v in ws:
+			qn += v.surveyQueue.size() + (1 if v.pendingSurvey >= 0 else 0) + (1 if v.survey != null else 0)
+		items.append({"icon": icon("icons/common/cmd_survey.png"), "name": "Queue survey" if shift else "Survey", "why": why,
+			"small": ("Add to the list (%d already)" % qn) if shift else ("Survey this province" if w.prov == p else "Walk there and survey") + " · Shift to queue",
+			"do": func(): game.queue_survey_on(selection.filter(func(v): return v.kind == game.WAYFINDER and v.owner == Game.ME), p, sh.call())})
+	if not types.is_empty():
+		items.append({"sec": "Build"})
+	for type in types:
+		var d: Dictionary = {"name": "Outpost", "cost": GameData.c("OUTPOST_COST")} if type == "outpost" else game.BUILD_DEFS[type]
+		var why = game.build_check(p, type)
+		var cap_note := (" · %d/%d here" % [game.count_of(p, type), game.build_cap(p, type)]) if type != "outpost" and game.build_cap(p, type) > 1 else ""
+		var gv := {} if type == "outpost" else game.gives_of(type)
+		var extra := (" · " + ", ".join(gv.keys().map(func(k): return "+%s %s" % [UiKit.num(gv[k]), k]))) if not gv.is_empty() else (" · " + str(d.note)) if d.get("note") else ""
+		var tt: String = type
+		items.append({"icon": icon("icons/common/cmd_build_%s.png" % type), "bg": Color(BUILD_BG[type]) if BUILD_BG.has(type) and (d.get("tech") == null or game.has_tech(d.tech)) else Color(0, 0, 0, 0),
+			"name": d.name, "small": "Build here · %d s%s%s" % [int(game.build_time(type)), cap_note, extra], "cost": d.cost, "why": why,
+			"do": func():
+				var mm = selection.filter(func(v): return v.kind == Game.MASON and v.owner == Game.ME)
+				if not mm.is_empty():
+					game.order_build(mm[0], p, tt)})
+	# a road or wall on the border between where the Mason stands and the clicked province (web: linkRows)
+	if m != null and (game.has_tech("roads") or game.has_tech("walls")) and m.prov != p:
+		var rows := []
+		for type in ["road", "wall"]:
+			if not game.has_tech("roads" if type == "road" else "walls") or not game.open_between(m.prov, p):
+				continue
+			var why = game.link_why(type, m, p)
+			var stone: bool = game.wall_kind() == "stone"
+			var label: String = ("Road to %s" % game.prov_name(p)) if type == "road" else ("%s to %s" % ["Stone wall" if stone else "Palisade", game.prov_name(p)])
+			var ok: String = ("From %s · %d s · units move faster on roads" % [game.prov_name(m.prov), int(Game.ROAD_TIME)]) if type == "road" else ("Closes the border with %s; its gate lets your units through · %d s" % [game.prov_name(m.prov), int(Game.WALL_TIME)])
+			var ty2: String = type
+			var mm2 = m
+			rows.append({"icon": icon("icons/common/cmd_%s.png" % type), "name": label, "small": ok, "why": why, "cost": GameData.c("ROAD_COST") if type == "road" else GameData.c("WALL_COST"),
+				"do": func(): game.start_link(mm2, p, ty2)})
+		if not rows.is_empty():
+			items.append({"sec": "Border with " + game.prov_name(m.prov)})
+			items.append_array(rows)
+		elif not game.all_nbr[m.prov].has(p):
+			items.append({"note": "Stand the Mason in a neighboring province to build a road or wall on this border."})
+	# a caster's forest paths and tunnels (web: magic.js magicRows)
+	if c != null and c.prov != p and game.all_nbr[c.prov].has(p):
+		var rows := []
+		var has_path := func(kind: String) -> bool:
+			for i in game.paths:
+				var e: Dictionary = game.world.edges[int(i)]
+				if game.paths[i] == kind and [e.a, e.b].has(p) and [e.a, e.b].has(c.prov):
+					return true
+			return false
+		for spec in [["forest", false, "Open a forest path to %s", "trees"], ["forest", true, "Close the forest path to %s", ""], ["tunnel", false, "Open a tunnel to %s", "mountains"], ["tunnel", true, "Seal the tunnel to %s", ""]]:
+			var kind: String = spec[0]
+			var close: bool = spec[1]
+			if close and (game.lvl(kind) < 3 or not has_path.call(kind)):
+				continue
+			if not close and (not game.lvl(kind) or game._edge_between(c.prov, p, spec[3], false) < 0):
+				continue
+			var why = game.path_why(c, p, kind, close)
+			var cc = c
+			rows.append({"icon": icon("icons/realm/tech_%s.png" % (("arboreal" if kind == "forest" else "sealed") if close else game.line_tech(kind))), "name": spec[2] % game.prov_name(p),
+				"small": "%d s of casting" % (Game.PATH_CLOSE if close else Game.PATH_OPEN[game.lvl(kind)]), "why": why, "do": func(): game.start_path(cc, p, kind, close)})
+		if not rows.is_empty():
+			items.append({"sec": "Magic"})
+			items.append_array(rows)
+	var n := game.extras_in(p).size()
+	var head_sub := ("%d/%d buildings" % [n, game.plot_cap(p)]) if game.owned(p) and m != null else ""
+	if m != null and m.prov != p and not types.is_empty():
+		head_sub += " · Mason will walk there"
+	pick.open(str(game.G.provs[p].terrain).capitalize() if game.explored.has(p) else "Unexplored", head_sub, items, at,
+		"Build an outpost first to unlock farms, mills, mines and more." if m != null and not types.is_empty() and not game.owned(p) else "")
 
 
 func _xup_cmd(e) -> Dictionary:
@@ -1576,6 +1750,11 @@ func _refresh_tutorial() -> void:
 	if T == null:
 		tut_panel.hide()
 		return
+	var cid: String = str(T.cur.id) if T.cur != null else ""
+	if cid != tut_voice_id:   # a new step: its voice line, if one was recorded (web: tutorial.js TUT_AUDIO)
+		tut_voice_id = cid
+		if cid != "":
+			Sound.tutorial_voice(cid)
 	var L = T.shown()
 	var objs := []
 	for o in T.objs:

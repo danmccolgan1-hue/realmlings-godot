@@ -1217,6 +1217,9 @@ func step_exhaustion(short: bool) -> void:
 			units = units.filter(func(v): return not (v.kind == "army" and v.owner == ME))
 			compute_income()
 			exhaust = 0
+			sfx("wn_unrest")
+		elif exhaust == 5:
+			sfx("wn_exhaust")
 		return
 	if exhaust > 0 and income.food >= 0 and stock.food > 0:
 		exhaust_ok += 1
@@ -1256,6 +1259,7 @@ func update(real_t: float) -> void:
 		if not nations.is_empty():
 			step_war(t)
 			step_ai(t)
+		step_arrows(t)
 		step_scouts(t)
 		step_magic(t, dt)
 		step_gpc(t, dt)
@@ -1310,6 +1314,24 @@ const TREASURE_GOLD := 200
 
 ## Messages for the player (the web game's toasts). The view shows them; tests can ignore them.
 var on_toast: Callable
+var on_sfx: Callable        # the view's sound effects (web: sound.js sfx); the rules only name them
+var fx := []                # what the view shows for a moment: blows (num), falling soldiers (fall), arrows (web: S.fx)
+var spell_fx := []          # the moment a Fireball, Shockwave or Earthquake strikes (web: gpc.js S.spellFx)
+var arrow_at := {}          # fort or capital -> when its arrowslits loose next (web: govtech.js S.arrowAt)
+var _fx_n := 0
+
+
+## A number between 0 and 1 for an effect's look only (never the rules' random numbers).
+func fx_rand() -> float:
+	_fx_n += 1
+	return fposmod(sin(float(_fx_n) * 12.9898 + t * 78.233) * 43758.5453, 1.0)
+
+
+## A sound effect for the view to play: its name (web: SFX_FILES), the province it comes from (quieter far from the
+## camera; -1: everywhere) and its volume. web: sound.js sfx
+func sfx(name: String, prov := -1, vol := 1.0) -> void:
+	if on_sfx.is_valid():
+		on_sfx.call(name, prov, vol)
 
 
 func toast(msg: String, warn := false) -> void:
@@ -1648,6 +1670,7 @@ func step_unit(u: Dictionary, dt: float) -> void:
 			if f >= 1:
 				surveyed[u.prov] = t
 				var y: Dictionary = yields[u.prov]
+				sfx("pr_survey", u.prov)
 				toast("Survey complete: %d gold, %d wood, %d food every 10 s.%s" % [y.gold, y.wood, y.food, " Found a Hidden Gold Deposit!" if y.deposit else ""])
 				sp_found[u.prov] = true
 				if setpieces.has(u.prov):
@@ -1762,6 +1785,127 @@ func survey_queued(p: int) -> bool:
 		if v.kind == WAYFINDER and v.owner == ME and (v.surveyQueue.has(p) or v.pendingSurvey == p or (v.survey != null and v.survey.prov == p)):
 			return true
 	return false
+
+
+# --- orders for a group (web: game.js formation / orderGroup / queueSurvey / surveyWhy) ---
+
+## Spots around a point for n units, in rings, so a group spreads out instead of stacking. web: game.js formation
+static func formation(n: int, gap := 30.0) -> Array:
+	var out := [[0.0, 0.0]]
+	var ring := 1
+	while out.size() < n:
+		var k := 0
+		while k < 6 * ring and out.size() < n:
+			var a := float(k) / (6 * ring) * TAU + ring * 0.5
+			out.append([cos(a) * gap * ring, sin(a) * gap * ring * 0.8])
+			k += 1
+		ring += 1
+	return out
+
+
+## Queued actions on a unit's list (surveys and moves). web: game.js queueLen
+func queue_len(u: Dictionary) -> int:
+	return u.surveyQueue.size() + (1 if u.pendingSurvey >= 0 else 0)
+
+
+## Send the selected units to a province; with append (Shift) the move goes to the end of each busy unit's list.
+## pt: the clicked point; each unit gets its own spot around it. Returns the units that set off (for their sound).
+## web: game.js orderGroup
+func order_group(units: Array, target: int, append := false, pt = null) -> Array:
+	units = units.duplicate()
+	if units.is_empty():
+		return []
+	var spots := {}
+	if pt != null:
+		var f := formation(units.size())
+		var by := units.duplicate()
+		by.sort_custom(func(a, b): return Vector2(a.x - pt[0], a.y - pt[1]).length() < Vector2(b.x - pt[0], b.y - pt[1]).length())
+		for i in by.size():
+			spots[by[i].id] = [pt[0] + f[i][0], pt[1] + f[i][1]]
+	if append:
+		var now := units.filter(func(u): return not busy(u))
+		var later := units.filter(func(u): return busy(u))
+		var full := later.filter(func(u): return queue_len(u) >= QUEUE_MAX)
+		if not full.is_empty():
+			toast("%s already %s %d queued actions, the most allowed." % [" and ".join(full.map(func(u): return u.name)), "have" if full.size() > 1 else "has", QUEUE_MAX], true)
+		var ok := later.filter(func(u): return queue_len(u) < QUEUE_MAX)
+		for u in ok:
+			u.surveyQueue.append({"move": target, "pt": spots.get(u.id)})
+		if not ok.is_empty() and full.is_empty():
+			toast("Move queued (%s)." % ", ".join(ok.map(func(u): return "%s: %d orders" % [u.name, queue_len(u)])))
+		return order_group(now, target, false, pt) if not now.is_empty() else []
+	var busy_x := units.filter(func(u): return exploring(u))
+	if not busy_x.is_empty():
+		# exploring Wayfinders finish first: the order waits in their queue (a plain click replaces what was queued)
+		for u in busy_x:
+			u.surveyQueue = [{"move": target, "pt": spots.get(u.id)}]
+			u.pendingSurvey = -1
+			u.autoWalk = null
+		toast("%s %s exploring and will go there once the province is explored." % [" and ".join(busy_x.map(func(u): return u.name)), "are" if busy_x.size() > 1 else "is"])
+		var rest := units.filter(func(u): return not exploring(u))
+		return order_group(rest, target, false, pt) if not rest.is_empty() else []
+	for u in units:
+		u.surveyQueue = []
+		u.pendingSurvey = -1
+		u.autoWalk = null
+	if units.size() == 1:
+		return units if order(units[0], target, false, spots.get(units[0].id)) else []
+	var moved := units.filter(func(u): return order(u, target, true, spots.get(u.id)))
+	var failed := units.filter(func(u): return not moved.has(u))
+	if not failed.is_empty():
+		toast(" and ".join(failed.map(func(u): return u.name)) + " can’t reach that province. Only a Wayfinder can enter unexplored land.", true)
+	return moved
+
+
+## Why the selected Wayfinders can't survey p, or null. web: game.js surveyWhy
+func survey_why(p: int, ws: Array):
+	if not explored.has(p):
+		return "Explore it first"
+	if surveyed.has(p):
+		return "Already surveyed"
+	if survey_queued(p):
+		return "Already on a survey list"
+	if not ws.any(func(w): return find_path(w, p) != null):
+		return "No open route"
+	return null
+
+
+## Put p on the survey list of the selected Wayfinder with the fewest surveys to do; append (Shift) keeps what is
+## already queued. web: game.js queueSurvey
+func queue_survey_on(ws: Array, p: int, append := false) -> bool:
+	if ws.is_empty():
+		return false
+	if not explored.has(p):
+		toast("Only explored land can be queued. Walk him into the fog first.", true)
+		return false
+	if surveyed.has(p):
+		toast("That province is already surveyed.", true)
+		return false
+	if survey_queued(p):
+		toast("That province is already on a survey list.")
+		return false
+	var w: Dictionary = ws[0]
+	for b in ws:
+		if _surveys_in(b) < _surveys_in(w):
+			w = b
+	if find_path(w, p) == null:
+		toast("No open route there.", true)
+		return false
+	if append and queue_len(w) >= QUEUE_MAX:
+		toast("%s already has %d queued actions, the most allowed." % [w.name, QUEUE_MAX], true)
+		return false
+	w.autoWalk = null
+	if not append:
+		w.surveyQueue = []
+		w.pendingSurvey = -1
+		w.survey = null
+	w.surveyQueue.append(p)
+	toast("Survey %s (%d orders on %s’s list)." % ["queued" if append else "ordered", queue_len(w), w.name])
+	return true
+
+
+func _surveys_in(u: Dictionary) -> int:
+	return u.surveyQueue.filter(func(e): return e is int).size() + (1 if u.pendingSurvey >= 0 else 0)
 
 
 ## Ask a Wayfinder to survey p (walking there first if needed). web: the Survey command queues it the same way.
@@ -1897,6 +2041,7 @@ func survey_finds(u: Dictionary) -> void:
 			add_research("gov", pts)
 			note = "Your scholars already know every Tier I Government technology, so they gain %d Government research points instead (%d minutes’ worth)." % [pts, RUINS_MINUTES]
 		toast("%s has found intact ruins of an ancient temple in %s! %s" % [u.name, prov_name(p), note])
+		sfx("wn_ally")
 		if on_dialog.is_valid():
 			on_dialog.call("Intact Ruins", "%s has found intact ruins of an ancient temple in %s! Our findings here will give us a leap forward!\n\n%s" % [u.name, prov_name(p), note], [{"id": "ok", "label": "Splendid", "why": null}], func(_x): pass)
 	if world.provinces[p].terrain == "desert" and not finds.has(p) and not treasure_rolled.has(p):
@@ -2085,6 +2230,7 @@ func start_build(u: Dictionary) -> bool:
 	for k in cost:
 		stock[k] -= cost[k]
 	u.build = {"prov": u.prov, "type": "outpost", "t0": t, "dur": build_time("outpost"), "paid": cost.duplicate()}
+	sfx("bld_work", u.prov)
 	var c: Array = G.provs[u.prov].ic
 	u.th = atan2(c[0] - u.x, c[1] - u.y)
 	toast("Building an outpost… (−%s)" % cost_text(cost))
@@ -2107,6 +2253,7 @@ func begin_extra(u: Dictionary, type: String, want := -1) -> bool:
 		stock[k] -= d.cost[k]
 	var o := bslot_of(p, slot)
 	u.build = {"prov": p, "type": type, "slot": slot, "ox": o[0], "oy": o[1], "t0": t, "dur": build_time(type), "paid": d.cost.duplicate()}
+	sfx("bld_work", p)
 	u.th = atan2(o[0] + G.provs[p].ic[0] - u.x, o[1] + G.provs[p].ic[1] - u.y)
 	toast("Building a %s… (−%s)" % [d.name, cost_text(d.cost)])
 	return true
@@ -2134,6 +2281,7 @@ func finish_build(u: Dictionary) -> void:
 			extras[u.prov].append({"type": b.type, "slot": b.slot, "born": t})
 			if mine:
 				toast("%s built." % BUILD_DEFS[b.type].name)
+				sfx("bld_done", u.prov)
 				compute_income()
 		else:
 			cancel_build(u)
@@ -2145,6 +2293,7 @@ func finish_build(u: Dictionary) -> void:
 		outpost_claimed(u.prov, u.owner)
 		if mine:
 			toast("Outpost built. Its neighbors are now explored.")
+			sfx("bld_outpost", u.prov)
 	else:
 		cancel_build(u)
 		if mine:
@@ -2335,6 +2484,7 @@ func dismantle_fort(p: int) -> void:
 	clamp_stock()
 	compute_income()
 	toast("The fort at %s is dismantled: it is an outpost again%s." % [prov_name(p), (", and its %d building%s gone" % [lost, " is" if lost == 1 else "s are"]) if lost else ""])
+	sfx("bld_work", p)
 
 
 func step_upgrades(now: float) -> void:
@@ -2357,6 +2507,7 @@ func step_upgrades(now: float) -> void:
 		xup.erase(k)
 		e.level = xu.to
 		e.born = now
+		sfx("bld_done", int(k.split("@")[0]))
 		toast("%s upgraded to a %s! %s research reaches Tier %s." % [d.levels[xu.to - 2], d.levels[xu.to - 1], "Military" if e.type == "forge" else "Magic", ["", "I", "II", "III"][xu.to]])
 	var FU: Dictionary = GameData.c("FORT_UPGRADE")
 	for p in upgrades.keys():
@@ -2367,6 +2518,7 @@ func step_upgrades(now: float) -> void:
 			continue
 		buildings[p].stage = 1
 		buildings[p].born = now
+		sfx("bld_done", p)
 		toast("Outpost upgraded to a Fort. 4 building plots are now open.")
 		compute_income()
 
@@ -2633,6 +2785,7 @@ func step_training(now: float) -> void:
 				toast("%s is ready and marches to the rally point." % d.name if rp != null else "%s is ready and formed %s." % [d.name, a.name])
 				if rp != null:
 					rally_go(a, rp)
+			sfx("pr_trained", spot.prov)
 			compute_income()
 			continue
 		var n := 1
@@ -2647,6 +2800,7 @@ func step_training(now: float) -> void:
 		u.y = xy[1]
 		u.born = now
 		units.append(u)
+		sfx("pr_trained", spot.prov)
 		if rp != null:
 			rally_go(u, rp)
 		compute_income()
@@ -2835,6 +2989,7 @@ func pick_school(k: String) -> bool:
 		st.opts.append(id)
 	if st.cur != id and not pick_tech(id):
 		return false
+	sfx("mg_school")
 	toast("Researching the School of %s. You can switch in the Research panel until it finishes." % GameData.c("SCHOOLS")[k].name)
 	return true
 
@@ -3013,6 +3168,8 @@ func finish_tech(tree: String) -> void:
 	st.bank = minf(st.prog - cost, bank_cap(tree))
 	st.prog = 0
 	st.cur = null
+	if not x.id.begins_with("school-"):
+		sfx("pr_research_magic" if tree == "mag" else "pr_research")
 	var tree_name: String = GameData.c("TECH_TREES")[tree].name
 	if x.get("rep", false):
 		draw_options(tree)
@@ -3109,6 +3266,7 @@ func grant_tech(id: String) -> void:
 	st.sticky.erase(id)
 	top_up_options(x.tree)
 	compute_income()
+	sfx("pr_research")
 
 
 # web: v78.js addResearch(tree, pts): research points out of the blue
@@ -3354,8 +3512,10 @@ func break_wall(i: int, by = null) -> void:
 				w.erase("siege")
 	if by != null and by.owner == ME:
 		toast("%s broke through the wall between %s and %s!" % [by.name, prov_name(e.a), prov_name(e.b)])
+		sfx("war_fort_win", -1, 0.7)
 	elif ctl == ME:
 		toast("The wall between %s and %s has fallen to the %s!" % [prov_name(e.a), prov_name(e.b), player_info(by.owner).name if by != null else "enemy"], true)
+		sfx("war_fort_lose", -1, 0.7)
 
 
 ## The movement loop asks first: true while the army stands battering a hostile wall (it walks up to it first).
@@ -3400,6 +3560,7 @@ func siege_hold(u: Dictionary, time: float) -> bool:
 			toast("%s is battering down the %s into %s." % [u.name, "stone wall" if wall_type(i) == "stone" else "palisade", prov_name(other)])
 		elif ctl == ME:
 			toast("The %s is battering down your wall at %s!" % [player_info(u.owner).name, prov_name(other)], true)
+			sfx("wn_enemy")
 	return true
 
 
@@ -3485,6 +3646,7 @@ func start_spell2(c: Dictionary, kind: String, q := -1) -> bool:
 	var where := prov_name(c.prov) if kind == "quake" else prov_name(q)
 	if c.owner == ME:
 		toast(("%s begins an Earthquake in %s: %s of casting. Moving or fighting stops it." if kind == "quake" else "%s begins a Shockwave at the wall toward %s: %s of casting. Moving or fighting stops it.") % [c.name, where, cast_len(c.quake.T)])
+		sfx("mg_arcane", c.prov)
 	elif at_war(ME, c.owner):
 		quakes.append({"id": c.quake.id, "from": c.prov, "to": q, "by": c.owner, "kind": kind})
 		toast("%s at %s! A Mage of the %s is casting." % [spell2_name(kind), prov_name(c.prov), player_info(c.owner).name], true)
@@ -3528,6 +3690,7 @@ func quake_strike(c: Dictionary) -> void:
 		("; %d wall%s damaged" % [cracked, "" if cracked == 1 else "s"]) if cracked else ""]
 	if c.owner == ME:
 		toast(msg)
+		sfx("war_fort_win", -1, 0.7)
 	elif o == ME or explored.has(p):
 		toast(msg, o == ME)
 
@@ -3549,11 +3712,13 @@ func step_quakes(now: float) -> void:
 		end_quake(c)
 		if k == "quake":
 			if occ.get(c.prov, -1) == c.owner:
+				add_spell_fx("quake", c, c.prov)
 				quake_strike(c)
 			continue
 		var e = wall_between(c.prov, q)
 		var i: int = world.edges.find(e) if e != null else -1
 		if i >= 0:
+			add_spell_fx("shock", c, q, e)
 			var gone := spell_hit_wall(i, c, WALL_SPELL.shock)
 			var w := wall_life(i) if not gone else {}
 			if c.owner == ME:
@@ -3622,6 +3787,7 @@ func rebuild_walls(p: int) -> void:
 	var paid: int = REWALL_COST.wood * qs.size()
 	stock.wood -= paid
 	rewall_jobs[p] = {"t0": t, "qs": qs, "paid": paid}
+	sfx("bld_work", p)
 	toast("Rebuilding %d wall%s around %s: %d s (−%d wood)." % [qs.size(), "s" if qs.size() > 1 else "", prov_name(p), REWALL_TIME, paid])
 
 
@@ -3645,6 +3811,7 @@ func step_rewalls(now: float) -> void:
 		if n < j.qs.size():
 			stock.wood += REWALL_COST.wood * (j.qs.size() - n)
 		toast("%d wall%s rebuilt around %s, gates and all." % [n, "" if n == 1 else "s", prov_name(p)])
+		sfx("bld_done", p)
 
 
 func walled_own(p: int, q: int) -> bool:
@@ -4005,6 +4172,7 @@ func destroy_extra(p: int, slot: int) -> void:
 	xup.erase("%d@%d" % [p, slot])
 	compute_income()
 	toast("%s torn down. Plot %d is free." % [BUILD_DEFS[e.type].name, slot + 1])
+	sfx("bld_work", p)
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -4060,6 +4228,7 @@ func start_develop(p: int, o := ME) -> bool:
 	r.job = {"done": 0.0, "paid": c, "by": o}
 	if o != ME:
 		return true
+	sfx("bld_work", p)
 	toast("Developing to level %d: %d minutes (−%s)." % [r.lv + 1, GameData.c("DEV").time / 60, cost_text(c)])
 	compute_income()
 	return true
@@ -4090,6 +4259,7 @@ func finish_develop(p: int) -> void:
 	if owned(p):
 		if not surveyed.has(p):
 			surveyed[p] = t
+		sfx("bld_done", p)
 		toast("Developed to level %d: +1 gold, wood and food%s.%s" % [L, (", and a lucky +1 " + r.luck[L]) if r.luck[L] != null else "", " A Deep Gold Deposit was found!" if deep else ""])
 		compute_income()
 
@@ -4376,6 +4546,7 @@ func cast_spell(c: Dictionary, k: String, target := -1) -> bool:
 				a.heal = {"t0": t, "dur": M.dur, "w0": a.get("wounds", 0.0)}
 			else:
 				a.wounds = 0.0
+			a.healFx = t
 			toast("Mending on %s." % a.name)
 		"mind", "graverob", "trading", "stasis":
 			begin_cast(c, k)
@@ -4400,6 +4571,8 @@ func cast_spell(c: Dictionary, k: String, target := -1) -> bool:
 				return false
 			begin_cast(c, "rift", {"to": target})
 			toast("%s opens a rift: 3 s of casting." % c.name)
+	var sc = current_school()
+	sfx("mg_rift" if k == "rift" else "mg_" + ("arcane" if sc == "pyro" else "life" if sc == "elemental" else str(sc)), c.prov)
 	return true
 
 
@@ -4476,6 +4649,7 @@ func teleport(c: Dictionary, to: int) -> void:
 	var xy := slot_pos(to, c.slot)
 	c.x = xy[0]
 	c.y = xy[1]
+	sfx("mg_rift", to)
 	c.erase("final")
 	compute_fog()
 
@@ -4493,6 +4667,7 @@ func _finish_q(c: Dictionary, k: String, cs: Dictionary, now: float) -> void:
 			stock.gold += g
 			cd["graverob"] = now + RES_CD
 			toast("Grave Robbing: %d mana became %d gold." % [n, g])
+			sfx("mg_death", c.prov)
 			if leader == "niall" and g > 0:
 				stock.gold += 100
 				toast("Necromancer Niall: +100 gold from the graves.")
@@ -4504,6 +4679,7 @@ func _finish_q(c: Dictionary, k: String, cs: Dictionary, now: float) -> void:
 				stock[r] += each
 			cd["trading"] = now + RES_CD
 			toast("Trading across worlds: %d mana became %d of each resource." % [n, each])
+			sfx("mg_arcane", c.prov)
 			if leader == "alma" and each > 0:
 				var x := int(JS.round_js(each * 0.3))
 				for r in RES:
@@ -5167,6 +5343,7 @@ func step_battles(now: float) -> void:
 				b.prog = occ_prog[p].duplicate()
 			battles.append(b)
 			if list.any(func(a): return a.owner == ME):
+				sfx("bat_loop", p)
 				toast("Battle in the %s! %s." % [world.provinces[p].terrain, TERRAIN_MOD[world.provinces[p].terrain]])
 		for a in list:
 			if a.get("battle") == null and pair.has(a.owner):
@@ -5235,6 +5412,7 @@ func apply_damage(b: Dictionary, armies: Array, dmg: float, now: float, pierce :
 	var mix := side_mix(armies)
 	dmg *= (1 - mix.red * (1 - 0.5 * pierce)) * (1 - mix.parry)
 	var owner: int = armies[0].owner
+	fx.append({"kind": "num", "prov": b.prov, "owner": owner, "n": roundi(dmg), "t0": now})
 	for a in armies:
 		var share: float = dmg * troop_count(a) / total / (1 + a.get("skin", 0.0))
 		var lay = row_sync(a)
@@ -5276,6 +5454,7 @@ func apply_damage(b: Dictionary, armies: Array, dmg: float, now: float, pierce :
 			ghoul_fall(a, k)
 			if lay != null:
 				row_fall(a, lay, k, front)
+			fx.append({"kind": "fall", "prov": b.prov, "owner": a.owner, "unit": k, "t0": now, "r": fx_rand()})
 			a.troops[k] -= 1
 			if not a.troops[k]:
 				a.troops.erase(k)
@@ -5284,6 +5463,8 @@ func apply_damage(b: Dictionary, armies: Array, dmg: float, now: float, pierce :
 			if a.has("fallen"):
 				a.fallen[k] = a.fallen.get(k, 0) + 1
 			b.lost[owner] = b.lost.get(owner, 0) + 1
+			if owner == ME or b.get("start", {}).has(ME):
+				sfx("bat_fall", b.prov)
 
 
 func end_battle(b: Dictionary, winner: int, sides: Dictionary) -> void:
@@ -5318,6 +5499,7 @@ func end_battle(b: Dictionary, winner: int, sides: Dictionary) -> void:
 		if o != ME:
 			theirs += b.lost[o]
 	var where: String = world.provinces[b.prov].terrain
+	sfx("bat_win" if winner == ME else "bat_lose")
 	if winner == ME:
 		toast("Victory in the %s! You lost %d, the enemy lost %d.%s" % [where, mine, theirs, " The Bandit Gang is broken: +%d gold bounty." % b.bounty if b.has("bounty") else ""])
 	elif b.get("retreatedMe", false):
@@ -5444,6 +5626,8 @@ func risen_rise(a: Dictionary, k: String, b: Dictionary, now: float) -> bool:
 		return false
 	a.risenLeft -= 1
 	a.ghouls = a.get("ghouls", 0) + 1
+	if a.owner == ME:
+		sfx("mg_risen", a.prov)
 	if a.risenLeft <= 0:
 		a.risenArm = 0
 	return true
@@ -5560,6 +5744,7 @@ func retreat(a: Dictionary) -> void:
 		a.troops[k] -= 1
 		if not a.troops[k]:
 			a.troops.erase(k)
+		fx.append({"kind": "fall", "prov": a.prov, "owner": a.owner, "unit": k, "t0": t, "r": fx_rand()})
 	var b: Dictionary = a.battle
 	b.lost[a.owner] = b.lost.get(a.owner, 0) + n
 	if a.owner == ME:
@@ -5792,6 +5977,7 @@ func bandit_flee(u: Dictionary) -> bool:
 	else:
 		u.fleeing = true
 	toast("%s ran into a Bandit Gang and is scurrying back, unharmed. Wayfinders can't go there until the gang is gone." % u.name, true)
+	sfx("wn_enemy")
 	return true
 
 
@@ -5799,6 +5985,61 @@ func bandit_flee(u: Dictionary) -> bool:
 # after, a second meeting gives a friendly army 5 s to reach him before he is caught (sneaking comes with Stealth)
 const SCOUT_MARK := 15.0
 const SCOUT_RESCUE := 5.0
+
+# --- arrowslits (web: govtech.js ARROW, arrowDmg, stepArrows): a fort or capital with Arrowslits shoots the hostile
+# armies standing in its province, every 10 s, as long as no battle is being fought there
+
+func arrow_dmg() -> float:
+	var s = DSTATS.get("d-sword")
+	return s.hp / maxf(0.05, (1 - s.red) * (1 - s.get("parry", 0.0))) + 0.01 if s != null else 30.0
+
+
+func step_arrows(now: float) -> void:
+	fx = fx.filter(func(f): return now - f.t0 < 1.4)
+	spell_fx = spell_fx.filter(func(f): return now - f.t0 < SPELL_FX_TIME.get(f.kind, 2.0) + 0.1)
+	for p in buildings.keys():
+		var b: Dictionary = buildings[p]
+		if b.stage < 1 or not is_nation(b.owner) or not tech_of(b.owner, "arrowslits") or occ.has(p) or battles.any(func(x): return x.prov == p):
+			arrow_at.erase(p)
+			continue
+		var foes := units.filter(func(v): return v.kind == "army" and hostile(v.owner, b.owner) and v.prov == p and not v.moving and not v.get("retreating", false) and v.get("battle") == null and troop_count(v) > 0)
+		if foes.is_empty():
+			arrow_at.erase(p)
+			continue
+		if not arrow_at.has(p):
+			arrow_at[p] = now + 10.0
+			if visible.has(p) and (b.owner == ME or foes.any(func(a): return a.owner == ME)):
+				toast("The %s at %s looses arrows at the invaders!" % ["capital" if b.stage == 2 else "fort", prov_name(p)])
+			continue
+		if now < arrow_at[p]:
+			continue
+		arrow_at[p] = now + 10.0
+		apply_damage({"prov": p, "lost": {}}, foes, arrow_dmg(), now)
+		var c: Array = G.provs[p].ic
+		var top := [c[0], c[1] - (110 if b.stage == 2 else 75)]
+		for a in foes:
+			for k in 3:
+				fx.append({"kind": "arrow", "prov": p, "owner": a.owner, "x0": top[0] + (k - 1) * 8, "y0": top[1], "x1": a.x + (k - 1) * 6, "y1": a.y - 8, "t0": now + k * 0.08})
+		for a in foes:
+			if troop_count(a) <= 0:
+				remove_army(a)
+				if a.owner == ME or b.owner == ME:
+					toast("%s was shot down by the arrowslits." % a.name)
+
+
+# web: gpc.js SPELL_FX_TIME, spellFx: the moment a Shockwave or Earthquake strikes, for the view
+const SPELL_FX_TIME := {"fireball": 2.2, "shock": 1.8, "quake": 3.0}
+
+func add_spell_fx(kind: String, c: Dictionary, q: int, edge = null) -> void:
+	var to = null
+	if edge != null:
+		var a: Array = world.vertices[edge.v[0]]
+		var b: Array = world.vertices[edge.v[1]]
+		to = [(a[0] + b[0]) / 2.0, (a[1] + b[1]) / 2.0]
+	spell_fx.append({"kind": kind, "t0": t, "prov": c.prov, "to": q, "from": [c.x, c.y - 40], "at": to, "seed": fx_rand() * 100})
+	if kind != "quake" and (c.owner == ME or visible.has(c.prov)):
+		sfx("war_declare" if kind == "fireball" else "mg_arcane", c.prov)
+
 
 func step_scouts(now: float) -> void:
 	var at := armies_by_prov()
@@ -5834,6 +6075,8 @@ func step_scouts(now: float) -> void:
 			if now < u.doomAt:
 				continue
 			u._gone = true
+			if visible.has(u.prov):
+				fx.append({"kind": "fall", "prov": u.prov, "owner": u.owner, "unit": u.kind, "t0": now, "r": 0.5})
 			units = units.filter(func(v): return not is_same(v, u))
 			if u.build != null:
 				cancel_build(u)
@@ -5852,6 +6095,7 @@ func step_scouts(now: float) -> void:
 			u.aiJob = null
 			if mine:
 				toast("%s is cornered by %s at %s! Get an army there within %d seconds to save him." % [u.name, foe.name, prov_name(u.prov), SCOUT_RESCUE], true)
+				sfx("wn_enemy")
 			continue
 		u.path = []
 		u.moving = false
@@ -5871,11 +6115,13 @@ func step_scouts(now: float) -> void:
 			u.doomAt = now + SCOUT_RESCUE
 			if mine:
 				toast("%s is cornered by %s at %s! Get an army there within %d seconds to save him." % [u.name, foe.name, prov_name(u.prov), SCOUT_RESCUE], true)
+				sfx("wn_enemy")
 			continue
 		u.fleeing = true
 		u.warFlee = true
 		if mine:
 			toast("%s spotted %s at %s and is running back to %s." % [u.name, foe.name, prov_name(u.prov), prov_name(back)], true)
+			sfx("wn_enemy")
 
 
 # =================================================================================================================
@@ -5967,6 +6213,7 @@ func purchase_order(draft: Dictionary, rally_p: int) -> int:
 			queues[B.key].append({"kind": k, "paid": unit_defs[k].cost.duplicate(), "t0": null, "order": id, "rally": rp.duplicate()})
 			n += 1
 	train_orders.append({"id": id, "rally": rp, "total": n, "mix": draft.duplicate(), "t": t, "done": false})
+	sfx("pr_trained")
 	toast("Army Training Order %d placed: %d soldiers, gathering in %s (−%s)." % [id, n, prov_name(rally_p), cost_text(c)])
 	return id
 
@@ -6022,6 +6269,7 @@ func step_orders() -> void:
 		for a in armies:
 			a.trainOrder = null
 		if n:
+			sfx("wn_ally", -1, 0.5)
 			toast("Army Training Order %d is complete: %s (%d soldiers) stands ready in %s." % [O.id, at[0].name, n, prov_name(O.rally.prov)])
 	if train_orders.size() > 12:
 		train_orders = train_orders.filter(func(O): return not O.done or t - O.doneT < 300)
@@ -6192,6 +6440,7 @@ func finish_retro(q: Dictionary) -> void:
 			a.retro = null
 			var n := retrofit_now(a, q.kind)
 			toast("%s: %d soldier%s retrofitted to %s." % [a.name, n, "" if n == 1 else "s", unit_defs[q.kind].name])
+			sfx("bld_done", a.prov)
 			return
 
 
@@ -6327,6 +6576,7 @@ func setpiece_found(p: int, u: Dictionary) -> void:
 	var said: String = SP_FOUND_TEXT[setpieces[p]] % [u.name, prov_name(p)]
 	var text := "%s\n\n%s While you hold this province it gives +%d %s research every 10 s%s." % [said, D.blurb, D.pts,
 		{"gov": "Government", "mil": "Military", "mag": "Magic"}[D.tree], " (you also need %s)" % D.need if D.need != null else ""]
+	sfx("wn_ally")
 	if on_dialog.is_valid():
 		on_dialog.call("Discovery! %s at %s" % [D.name, prov_name(p)], text, [{"id": "ok", "label": "OK", "why": null}], Callable())
 	else:
@@ -6416,6 +6666,7 @@ func ask_travelers(B: Dictionary) -> void:
 		{"id": "rob", "label": "Rob them\n+%d gold" % gold, "why": null if trav_army_here(B) else "You need an army in this province"},
 		{"id": "leave", "label": "Leave them be\nThey ask again next time", "why": null}]
 	var text := "%d weary travelers have lost their way. They are hungry, and ask if you can spare them some food. Fed, they would gladly take up arms for you." % B.n
+	sfx("wn_ally")
 	if on_dialog.is_valid():
 		on_dialog.call("A lost band of travelers at %s" % prov_name(B.prov), text, choices, travelers_choose)
 	else:
@@ -6633,6 +6884,7 @@ func grant_artifact(o: int, id: String, boss: Dictionary) -> void:
 		clamp_stock()
 		compute_fog()
 		toast("Artifact! %s has fallen. You claim the %s: %s" % [B.name.capitalize() if B.name.begins_with("the ") else B.name, ARTIFACTS[id].name, ARTIFACTS[id].desc])
+		sfx("war_fort_win")
 		if on_dialog.is_valid():
 			on_dialog.call("Artifact: " + ARTIFACTS[id].name, "%s has fallen. You claim the %s: %s" % [B.name.substr(4).capitalize() if B.name.begins_with("the ") else B.name, ARTIFACTS[id].name, ARTIFACTS[id].desc], [{"id": "ok", "label": "Splendid", "why": null}], func(_x): pass)
 	else:
@@ -6738,6 +6990,7 @@ func fly_army(a: Dictionary, q: int) -> bool:
 	a.arrived = t + FLY_TIME
 	cd.fly = t + FLY_CD
 	toast("%s takes wing over the border to %s." % [a.name, prov_name(q)])
+	sfx("mv_cavalry", q)
 	compute_fog()
 	return true
 
@@ -7473,6 +7726,8 @@ func declare_war(att: int, def: int):
 	for j in joins:
 		new_war(att, j, w.id)
 	var jn := " and ".join(joins.map(func(j): return "the " + player_info(j).name))
+	if att == ME or def == ME or joins.has(ME):
+		sfx("war_declare")
 	if att == ME:
 		met[def] = true
 		toast("You declared war on the %s!%s (−%s)" % [player_info(def).name, (" Their %s, %s, %s the war against you." % ["allies" if joins.size() > 1 else "ally", jn, "join" if joins.size() > 1 else "joins"]) if not joins.is_empty() else "", cost_text(W("declareCost"))], true)
@@ -7644,6 +7899,8 @@ func step_war(now: float) -> void:
 		else:
 			occ[p] = goal
 			var w = war_between(goal, O)
+			if mine and b.stage >= 1:
+				sfx("war_fort_win" if goal == ME else "war_fort_lose")
 			if w != null and b.stage >= 1 and not w.active:
 				w.active = true
 				if mine:
@@ -7666,6 +7923,7 @@ func step_one_war(w: Dictionary, now: float) -> void:
 		if exhaustion_of(w) >= 100:
 			end_war(w)
 			if w.proxy == ME:
+				sfx("war_peace")
 				toast("Your nation is exhausted: you make a white peace with the %s and leave your ally’s war." % player_info(w.a).name, true)
 			elif w.a == ME:
 				toast("The %s is exhausted: it makes a white peace with you and leaves the war." % player_info(w.proxy).name)
@@ -8027,6 +8285,7 @@ func make_peace(w, winner: int, terms: Dictionary) -> void:
 		game_over(winner)
 		return
 	if me:
+		sfx("war_peace")
 		toast("Peace with the %s! %s. Truce for %d minutes." % [player_info(foe_of(w, ME)).name, ". ".join(lines), W("truce") / 60])
 	elif knows(winner) or knows(loser):
 		news("The %s and the %s made peace. %s." % [Wn, player_info(loser).name, ". ".join(lines)])
@@ -8186,6 +8445,7 @@ func form_alliance(a: int, b: int, vs: int) -> void:
 	if a == ME or b == ME:
 		var o := b if a == ME else a
 		met[o] = true
+		sfx("wn_ally")
 		toast("You are now allied with the %s%s. If anyone declares war on one of you, the other joins the war." % [player_info(o).name, against])
 		# v99: the player meets everyone his new ally has met, and his ally meets everyone he has
 		for x in met.keys():
@@ -8204,6 +8464,8 @@ func end_alliance(A: Dictionary, why: String) -> void:
 		truces[pair_key(A.a, A.b)] = maxf(truces.get(pair_key(A.a, A.b), 0.0), t + W("allyTruce"))
 	if A.a == ME or A.b == ME:
 		toast("Your alliance with the %s has ended: %s." % [player_info(B_of(A)).name, why])
+		if why != "you ended it":
+			sfx("war_peace")
 	elif knows(A.a) or knows(A.b):
 		news("The alliance of the %s and the %s has ended." % [player_info(A.a).name, player_info(A.b).name])
 
@@ -8417,6 +8679,7 @@ func do_bribe(payer: int, x: int, y: int) -> bool:
 	var w = declare_war(x, y)
 	if payer == ME:
 		toast(("The %s took your %d gold and declared war on the %s." % [player_info(x).name, DIPL.bribe.gold, player_info(y).name]) if w else "The bribe fell through.", not w)
+		sfx("war_declare")
 	return w != null and w != false
 
 
@@ -8466,6 +8729,7 @@ func form_pact(kind: String, a: int, b: int) -> void:
 	D[kind].append({"a": a, "b": b, "since": t})
 	var o := b if a == ME else a if b == ME else 0
 	if o:
+		sfx("wn_ally")
 		toast("You and the %s formed a Trade Network. Community and Trade Routes give both of you 10%% more gold." % player_info(o).name)
 	elif knows(a) or knows(b):
 		toast("The %s and the %s formed a Trade Network." % [player_info(a).name, player_info(b).name])
@@ -8563,6 +8827,7 @@ func dx_act(act: String, o: int, arg := -1) -> void:
 			why = ask_why(o)
 			if why == "":
 				D.access.append({"from": o, "to": ME})
+				sfx("wn_ally")
 				toast("The %s grants you military access: your armies may march through their land." % nm)
 		"giveback":
 			end_access(o, ME, "you gave it back")
@@ -8631,6 +8896,7 @@ func dip_request(from: int, kind: String, data := {}):
 	var r := {"id": D.seq, "from": from, "kind": kind, "data": data, "t": t, "until": t + DIPL.reqTime, "min": false}
 	D.seq += 1
 	D.reqs.append(r)
+	sfx("wn_ally")
 	met[from] = true
 	return r
 
@@ -8822,8 +9088,10 @@ func proclaim_enemy(o: int, t2: int) -> void:
 	D.enemy[o] = {"t": t2, "since": t}
 	D.enemyAt[o] = t
 	if o == ME:
+		sfx("war_declare", -1, 0.5)
 		toast("You proclaim the %s your enemy: %d opinion with them for as long as it stands. Nations with the same enemy like you more (+%d)." % [player_info(t2).name, DIPL_ENEMY, DIPL_SHARED])
 	elif t2 == ME:
+		sfx("wn_enemy")
 		toast("The %s proclaimed you their enemy!" % player_info(o).name, true)
 
 

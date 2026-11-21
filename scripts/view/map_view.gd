@@ -18,7 +18,12 @@ var polys := []        # PackedVector2Array per province
 var font: Font
 var selected_part := ""   # "settlement" or "<type>@<slot>" when a building is selected
 var selected_prov := -1
-var selected_unit = null    # a unit Dictionary of the game
+var selected_unit = null    # the command card's unit (a unit Dictionary of the game)
+var selection := []         # every selected unit (box select, Shift-click)
+var box := Rect2()          # the selection box being dragged (world)
+var marks := []             # where you just sent units: [{x, y, t0}]
+var orders: MapOrders
+var effects: MapEffects
 var layers: MapLayers
 var _edge_mid := {}       # "a_b" (both ways) -> the middle of that border, where a road crosses it
 const FOG_UNEXPLORED := Color("#10182e", 0.86)
@@ -144,6 +149,9 @@ func _draw() -> void:
 		Pen.stroke_line(self, outline, OL, maxf(7, 4 / z))
 		_dashes(outline, maxf(4, 2.4 / z), Color("#ffc93c"), 16.0, 10.0, (game.t if game else 0.0) * 20.0)
 	if game:
+		if orders == null:
+			orders = MapOrders.new(self)
+		orders.draw_sel_provs(game, game.t)
 		_draw_game()
 
 
@@ -331,10 +339,22 @@ var landmarks: MapLandmarks
 var labels: MapLabels
 
 
+## A spring that pops a new unit into place: 0 → overshoot → 1 in about a second. web: drawUnitBody / drawArmy
+static func _pop(age: float) -> float:
+	return maxf(0.01, 1 - exp(-age * 7) * cos(age * 15))
+
+
+func _is_sel(u) -> bool:
+	return is_same(u, selected_unit) or selection.any(func(x): return is_same(x, u))
+
+
 func _draw_game() -> void:
 	if landmarks == null:
 		landmarks = MapLandmarks.new(self)
 	landmarks.draw_under(game, game.t)
+	if effects == null:
+		effects = MapEffects.new(self)
+	effects.draw_under(game, game.t)
 	for p in game.buildings:
 		if not game.explored.has(p):
 			continue   # other nations' settlements stay hidden under the fog
@@ -355,22 +375,14 @@ func _draw_game() -> void:
 		var ic: Array = game.G.provs[p].ic
 		for e in game.extras[p]:
 			_building(e.type, e.slot, p, ic, 1.0, e.get("level", 1))
-	# battles: a pulsing ring on the province and each side's remaining strength
+	# battles: the melee in the middle of the province (web: game.js drawBattle)
 	for b in game.battles:
-		var P: Dictionary = game.G.provs[b.prov]
-		var at := Vector2(P.ic[0], P.ic[1])
-		var pulse := 0.5 + 0.5 * sin(game.t * 4.0)
-		draw_arc(at, 150.0 + 12.0 * pulse, 0, TAU, 48, Color(HOSTILE, 0.5 + 0.4 * pulse), 8.0)
-		var mine := 0
-		var theirs := 0
-		for u in game.units:
-			if u.kind == "army" and is_same(u.get("battle"), b):
-				if u.owner == Game.ME:
-					mine += game.troop_count(u)
-				else:
-					theirs += game.troop_count(u)
-		if mine + theirs > 0:
-			_bar(at + Vector2(0, -180), float(mine) / (mine + theirs), Color("#7fc8f0"))
+		if game.visible.has(b.prov):
+			effects.draw_battle(game, b, game.t)
+	# surveys trace their loop under the units (web: game.js drawSurvey)
+	for u in game.units:
+		if u.survey != null and (u.owner == Game.ME or game.visible.has(u.prov)):
+			orders.draw_survey(game, u.survey, game.t)
 	# units, back to front
 	var us: Array = game.units.duplicate()
 	us.sort_custom(func(a, b): return a.y < b.y)
@@ -400,7 +412,7 @@ func _draw_game() -> void:
 		var big := u.get("monster") != null
 		var rrx := (30.0 if big else 16.0) * UK_K
 		var rry := (12.0 if big else 6.5) * UK_K
-		if u.owner == Game.ME and not is_same(u, selected_unit) and not u.get("exiting", false):
+		if u.owner == Game.ME and not _is_sel(u) and not u.get("exiting", false):
 			var pulse := 1.0 + sin(t2 * 4 + float(u.id)) * 0.07
 			_ellipse(Vector2(u.x, u.y + 1), rrx * pulse, rry * pulse, OL, 3.0)
 			_ellipse(Vector2(u.x, u.y + 1), rrx * pulse, rry * pulse, Color(game.player_info(Game.ME).color), 1.6)
@@ -409,13 +421,18 @@ func _draw_game() -> void:
 			var ring: Color = HOSTILE if hostile else Color(game.player_info(u.owner).color)
 			_ellipse(Vector2(u.x, u.y + 1), rrx, rry, OL, 4.0)
 			_ellipse(Vector2(u.x, u.y + 1), rrx, rry, ring, 2.2)
-		if is_same(u, selected_unit):
+		if _is_sel(u):
 			_sel_ring(Vector2(u.x, u.y + 1), rrx + 1 * UK_K, rry + 0.5 * UK_K, t2)
 		# workers hop as they walk, and bob as they build or survey
 		var working: bool = u.build != null or u.survey != null
 		var walking2: bool = u.moving or u.survey != null
+		var ttu: float = t2 * 2.4 if walking2 else t2 * 3.0 if working else t2
 		if u.get("monster") == null:
 			at.y += -absf(sin(t2 * 9)) * 3.0 if walking2 else -absf(sin(t2 * 8)) * 2.0 if working else 0.0
+			at.y -= sin((ttu + u.id) * 3.2) * 1.3 * 0.75   # breathing; faster on the move (web: iso.js humanoid bob)
+		# a new unit pops up (web: drawUnitBody born); a sneaking Wayfinder is faint; one marching home is faded
+		var usc := _pop(game.t - u.born) if u.get("born") != null and game.t - u.born < 1.2 else 1.0
+		var ua := 0.55 if u.get("exiting", false) else (0.45 + sin(t2 * 3) * 0.08) if u.get("stealth", false) else 1.0
 		var sp = Art.get_sprite("units", "realm", Art.unit_file(kind, _dir(u.th)))
 		if sp == null and u.get("monster") != null:
 			# monsters are drawn facing left or right only (web: art.js monster sprites)
@@ -424,7 +441,7 @@ func _draw_game() -> void:
 		if sp == null and kind.begins_with("d"):
 			sp = Art.get_sprite("units", "realm", Art.unit_file(Art.design_art(game, kind), _dir(u.th)))   # Armory designs without art yet
 		if sp:
-			Art.draw(self, sp, at)
+			Art.draw(self, sp, at, usc, ua)
 			if u.kind == game.MAGE:   # v99: the Mage's mana, just over his hat
 				var top: float = sp.ay / sp.scale
 				_mana_bar(u, u.x, u.y - top - 3.2 * sqrt(UK_K) - 7, 18 * UK_K, UK_K)
@@ -436,18 +453,39 @@ func _draw_game() -> void:
 			_bar(at + Vector2(0, -60), minf(1.0, (game.t - u.survey.t0) / u.survey.dur), Color("#7fc8f0"))
 		elif u.build != null:
 			_bar(at + Vector2(0, -60), minf(1.0, (game.t - u.build.t0) / u.build.dur), Color("#e8c547"))
-		elif u.scouting != null:
-			_bar(at + Vector2(0, -60), minf(1.0, (game.t - u.get("exploreT0", game.t)) / Game.EXPLORE_TIME), Color("#b9e07a"))
-		if u.get("quake"):   # casting an Earthquake or a Shockwave
-			_bar(at + Vector2(0, -100), minf(1.0, (game.t - u.quake.t0) / u.quake.T), Color("#c98bff"))
+		if u.get("fleeing", false) or u.get("doomAt", 0.0):   # running for it (web: content.js drawFleeMark)
+			var fp := Vector2(u.x + 12, u.y - 36 + sin(t2 * 10) * 1.5)
+			draw_circle(fp, 8, Color("#ff6b5a"))
+			draw_arc(fp, 8, 0, TAU, 20, OL, 2.2, true)
+			draw_string(font if font else ThemeDB.fallback_font, fp + Vector2(-2, 5), "!", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color.WHITE)
+		elif u.scouting != null:   # exploring: a "?" bubble (web: drawUnitBody)
+			var bp := Vector2(u.x + 13 * UK_K, u.y - 34 * UK_K + sin(t2 * 4) * 1.5)
+			var tail := PackedVector2Array([bp + Vector2(-4, 6), bp + Vector2(-8, 12), bp + Vector2(0, 7.5)])
+			draw_colored_polygon(tail, Color.WHITE)
+			draw_circle(bp, 8, Color.WHITE)
+			draw_arc(bp, 8, 0, TAU, 20, OL, 2.2, true)
+			draw_polyline(tail, OL, 2.2, true)
+			draw_string(font if font else ThemeDB.fallback_font, bp + Vector2(-3.5, 4.5), "?", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, OL)
+		if working and sin(t2 * 8) > 0.6:   # sparks from the work (web: drawUnitBody)
+			for k in 3:
+				draw_circle(Vector2(u.x + (12 + k * 3) * UK_K, u.y - (18 + k * 4) * UK_K), 1.8 * UK_K, Color("#fff3a6"))
 		if u.get("sieging") != null:   # battering a wall
 			_badge(at + Vector2(-30, -70), "⚒")
 	if selected_prov >= 0 and selected_part != "":
 		_part_ring()
+		if selection.is_empty() and game.owned(selected_prov):   # the selected training building's rally point
+			var src := "capital" if selected_part == "settlement" and game.buildings[selected_prov].stage == 2 else selected_part.split("@")[0]
+			if src in ["capital", "barracks", "magetower"]:
+				orders.draw_rally(game, "%s:%d" % [src, selected_prov], game.t)
+	effects.draw_over(game, game.t)
+	orders.draw_survey_queue(game, game.t)
+	orders.draw_scout_marks(game, game.t)
+	orders.draw_move_marks()
 	if labels == null:
 		labels = MapLabels.new(self)
 	labels.draw(game, game.t)
 	landmarks.draw_over(game)
+	orders.draw_box()
 
 
 # --- armies (web: game.js drawArmy, v78.js armyFigures / drawArmyFlag / drawArmyHealth / drawArmyPower) ---
@@ -513,6 +551,10 @@ func _ellipse(c: Vector2, rx: float, ry: float, col: Color, w: float) -> void:
 func _army(u: Dictionary) -> void:
 	var K := UK_K
 	var t: float = Time.get_ticks_msec() / 1000.0
+	if u.get("battle") != null and not u.get("retreating", false):   # in battle: drawn in the melee (web: drawArmy)
+		if _is_sel(u):
+			_sel_ring(Vector2(u.x, u.y + 2), 44 * K, 18 * K, t)
+		return
 	var figs := army_figures(u)
 	var n := figs.size()
 	if n == 0:
@@ -532,27 +574,37 @@ func _army(u: Dictionary) -> void:
 	if u.owner != Game.ME:   # other nations, bandits and monsters: a ring in their color
 		_ellipse(Vector2(base.x, ring_y), rx, ry, OL, 5.0)
 		_ellipse(Vector2(base.x, ring_y), rx, ry, Color(game.player_info(u.owner).color), 3.0)
-	elif not is_same(u, selected_unit):   # yours: a thin pulsing ring in your color (web: ownRing)
+	elif not _is_sel(u):   # yours: a thin pulsing ring in your color (web: ownRing)
 		var pulse := 1.0 + sin(t * 4 + float(u.id)) * 0.07
 		_ellipse(Vector2(base.x, base.y + 1), rx * pulse, ry * pulse, OL, 3.0)
 		_ellipse(Vector2(base.x, base.y + 1), rx * pulse, ry * pulse, Color(game.player_info(Game.ME).color), 1.6)
-	if is_same(u, selected_unit):
+	if _is_sel(u):
 		_sel_ring(Vector2(base.x, base.y + 2), rx + 2 * K, ry + K, t)
 	var walking: bool = u.moving or u.get("patrolling", false)
 	var hop := -absf(sin(t * 9)) * 3.0 if walking else 0.0
+	var tt := t * 2.4 if walking else t
+	# a new army pops up; one that just grew swells a little (web: drawArmy born / grew)
+	var sc := 1.0
+	var born: float = game.t - u.born if u.get("born") != null else 9.0
+	var grow: float = game.t - u.grew if u.get("grew") != null else 9.0
+	if born < 1.2:
+		sc = _pop(born)
+	elif grow < 0.6:
+		sc = 1 + sin(grow / 0.6 * PI) * 0.15
 	var spots := []
 	for i in n:
 		var r := i / per
 		var c := i % per
 		var in_row := mini(per, n - r * per)
-		spots.append({"k": figs[i], "x": base.x + (c - (in_row - 1) / 2.0) * gx + (gx * 0.35 if r % 2 else 0.0), "y": base.y + (rows - 1 - r) * gy - (rows - 1) * gy / 2 + 4 * K})
+		spots.append({"k": figs[i], "i": i, "x": base.x + (c - (in_row - 1) / 2.0) * gx + (gx * 0.35 if r % 2 else 0.0), "y": base.y + (rows - 1 - r) * gy - (rows - 1) * gy / 2 + 4 * K})
 	spots.sort_custom(func(a, b): return a.y < b.y)
 	for sp_ in spots:
 		var sp = Art.get_sprite("units", "realm", Art.unit_file(sp_.k, _dir(u.th)))
 		if sp == null and str(sp_.k).begins_with("d"):
 			sp = Art.get_sprite("units", "realm", Art.unit_file(Art.design_art(game, sp_.k), _dir(u.th)))
 		if sp:
-			Art.draw(self, sp, Vector2(sp_.x, sp_.y + hop), 0.85 if _is_cav(sp_.k) else 1.0)
+			var bob := -sin((tt + u.id + sp_.i * 0.7) * 3.2) * 1.3 * K * 0.5   # each soldier breathes (web: iso.js humanoid bob)
+			Art.draw(self, sp, Vector2(sp_.x, sp_.y + hop + bob), (0.85 if _is_cav(sp_.k) else 1.0) * sc, 0.55 if u.get("exiting", false) else 1.0)
 		else:
 			draw_circle(Vector2(sp_.x, sp_.y), 8.0, OL)
 	var top := base.y - (rows - 1) * gy / 2 + 4 * K - (38.0 if figs.any(func(k): return _is_cav(k)) else 33.0) * K
@@ -563,8 +615,6 @@ func _army(u: Dictionary) -> void:
 	_army_power(u, Vector2(base.x, base.y + ry + 6 * K))
 	if u.survey != null:
 		_bar(base + Vector2(0, -60), minf(1.0, (game.t - u.survey.t0) / u.survey.dur), Color("#7fc8f0"))
-	if u.get("quake"):
-		_bar(Vector2(base.x, top - 30), minf(1.0, (game.t - u.quake.t0) / u.quake.T), Color("#c98bff"))
 	if u.get("sieging") != null:
 		_badge(Vector2(base.x - half_w - 14, top), "⚒")
 
@@ -666,7 +716,12 @@ func _building(type: String, slot: int, p: int, ic: Array, f: float, level: int)
 	var file := base + ".png"
 	if f < 1.0:
 		file = base + "_rise%d.png" % (25 if f < 0.375 else 50 if f < 0.625 else 75)
-	var sp = Art.get_sprite("buildings", "realm", file)
+	var sp = null
+	if f >= 1.0 and not Settings.calm_map:   # finished: its animation (smoke, flags, wheels, crystals), when it has one
+		var fr := int(fposmod(Time.get_ticks_msec() / 1000.0 + p * 0.37, BLD_LOOP) / BLD_LOOP * BLD_FRAMES)
+		sp = Art.get_sprite("buildings", "realm", "%s_a%02d.png" % [base, fr])
+	if sp == null:
+		sp = Art.get_sprite("buildings", "realm", file)
 	if sp:
 		Art.draw(self, sp, at)
 	else:
@@ -675,6 +730,9 @@ func _building(type: String, slot: int, p: int, ic: Array, f: float, level: int)
 		_bar(at + Vector2(0, -70), f, Color("#e8c547"))
 
 
+# the building animations exported from the web art (tools/export_art.js bldanim): 32 frames over two puffs of smoke
+const BLD_FRAMES := 32
+const BLD_LOOP := 2.0 / 0.35
 static var _art_names := {}
 func _building_art(type: String, level: int) -> String:
 	if type in ["forge", "magetower"]:

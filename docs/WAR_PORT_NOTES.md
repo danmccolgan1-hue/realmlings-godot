@@ -190,6 +190,37 @@ The plan after milestone 1. Each step is tested against the web game, then commi
      (Herbomancy, Necromancy and their spells were missing); `tools/fix_text_encoding.py` now also repairs "−" and
      other symbols (the plate armor note read "âˆ’15% speed").
 
+13. **Batch I: orders, effects, animation and sound** — done (`tests/test_ui.gd` orders, arrows and sounds):
+   - Selection (`Hud.selection`, `set_selection`, `MapView.selection`): drag a box with the left mouse (Shift adds),
+     Shift-click adds or removes a unit; the card gets a tab per kind; the selection line lists every unit.
+     Panning moved to the right and middle mouse (and the arrow keys), as in the web game.
+   - Orders: right-click sends the whole selection, each unit to its own spot around the click (`Game.order_group`,
+     `Game.formation`); Shift queues behind what each unit is doing; Ctrl+right-click (or a plain right-click with
+     Quick queue on, in Settings) opens the survey / build menu (`Hud.open_build_menu`): move or explore, survey or
+     queue a survey (`Game.queue_survey_on`), what the Mason can build there, a road or wall on his border, a
+     caster's forest paths and tunnels.
+   - On the map (`scripts/view/map_orders.gd`): the provinces of the selected units, the survey loop with its stakes,
+     numbered markers of queued surveys and moves, the rally point of the selected building, the golden X where
+     you sent units, the selection box, the eye over a detected Wayfinder.
+   - Effects (`scripts/view/map_effects.gd`): battles as the web's melee (soldiers swinging with slash arcs, dust,
+     crossed swords), the strength bar, −n blows and falling soldiers; arrows from forts; casting circles with
+     their progress; Shockwave and Earthquake rings and their strikes; forest paths, tunnels, the stasis trap,
+     stasis bubbles, Mending's pluses.
+   - Rules: Arrowslits (`step_arrows`, `arrow_dmg`; the web game's govtech.js stepArrows was not ported before);
+     `fx` and `spell_fx` record what the view shows for a moment (not saved); `sfx(name, prov, vol)` names a sound
+     through `on_sfx`; `abandon` research and Mending mark `healFx`.
+   - Animation: units pop in when trained, breathe (faster on the move), hop as they walk, throw sparks while they
+     build; an exploring Wayfinder shows a "?", a fleeing one a "!"; sneaking Wayfinders are faint, armies marching
+     home faded; armies that grow swell. Buildings animate (smoke, flags, water wheels, the Mage Tower's crystals):
+     32 frames over two puffs of smoke, exported by the new `bldanim` job (`tools/export_art.js`). Settlements stay
+     still (their frames would add about 150 MB; a later pixel-art pass can animate them).
+   - Sound (`scripts/view/sound.gd`): the web game's 38 sound effects with their volumes, gaps and pitch wobble,
+     quieter far from the camera; every button ticks; selection voices and footsteps; the clash of blades loops
+     while your battle is on screen; an alarm when a hostile army enters your land; an error thunk when an order is
+     refused. Music: the tavern piece (and the Swampling and Woodling tracks for later), fading in, at half volume
+     while paused, M to mute; switches and volumes on the start screen and in Settings. Tutorial voice lines play
+     from `assets/audio/tutorial/t<step>.mp3` when they exist (the web game has none yet).
+
 ## Things to remember
 
 - **Always grep for wrappers** (`name = function`) before porting a function: later web files replace many of them.

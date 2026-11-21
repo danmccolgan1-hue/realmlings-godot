@@ -50,6 +50,18 @@
       }
       return out;
     },
+    // building animation frames (smoke, flags, water wheels, orbiting crystals, sparkles): BLD_FRAMES frames over
+    // BLD_LOOP seconds (two puffs of chimney smoke; the Mage Tower's crystals go round once)
+    bldanim: () => {
+      const out = [], N = 32, LOOP = 2 * (1 / 0.35);
+      for (const [type, D] of Object.entries(BUILD_DEFS)) {
+        if (D.race && D.race !== 'realm') continue;
+        const vs = D.levels ? D.levels.map((_, i) => ['lv' + (i + 1), i]) : [['v' + (D.variant || 0), D.variant || 0]];
+        for (const [vn, vi] of vs) for (let f = 0; f < N; f++)
+          out.push(shoot(`buildings/realm/${snake(type)}_${vn}_a${String(f).padStart(2, '0')}.png`, 3, c => { c.scale(EB, EB); bldArt(c, type, vi, f * LOOP / N, 1, 'realm'); }, { type, variant: vn, frame: f, frames: N, loop: LOOP }));
+      }
+      return out;
+    },
     units: () => {
       const out = [], ids = ['pioneer:B', 'mason:A', 'mage:A', 'd-sword', 'd-spear', 'd-club', 'd-rider', 'rng-realm', 'thug:A'];
       for (const id of ids) for (const [dn, th] of DIRS) out.push(shoot(`units/realm/${snake(id)}_${dn}.png`, 4, c => drawUnitFor(c, id, ME, false, th, 0, 0, 0, UNITK), { id, dir: dn, th }));

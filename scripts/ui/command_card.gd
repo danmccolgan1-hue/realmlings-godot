@@ -54,8 +54,9 @@ func _tab_rects() -> Array:
 	var out := []
 	var x := 12.0
 	var font := get_theme_default_font()
+	var room := (size.x - 12.0 - 4.0 * tabs.size()) / maxf(1, tabs.size())   # several kinds selected: the tabs share the width
 	for t in tabs:
-		var w: float = font.get_string_size(str(t.text), HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x + (40.0 if t.get("icon") else 16.0)
+		var w: float = minf(room, font.get_string_size(str(t.text), HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x + (40.0 if t.get("icon") else 16.0))
 		var h := TAB_H if t.get("on", true) else TAB_H - 4
 		out.append(Rect2(x, TAB_H - h + 3, w, h))
 		x += w + 4
@@ -141,7 +142,7 @@ func _draw() -> void:
 		if t.get("icon"):
 			draw_texture_rect(t.icon, Rect2(x - 2, r.position.y + 3, 26, 26), false)
 			x += 26
-		draw_string(font, Vector2(x + 2, r.position.y + r.size.y / 2 + 6), str(t.text), HORIZONTAL_ALIGNMENT_LEFT, -1, 14, INK)
+		draw_string(font, Vector2(x + 2, r.position.y + r.size.y / 2 + 6), str(t.text), HORIZONTAL_ALIGNMENT_LEFT, r.end.x - x - 6, 14, INK, TextServer.JUSTIFICATION_NONE)
 	draw_style_box(_sb(CHIP, 3, 12), Rect2(0, TAB_H, size.x, size.y - TAB_H))
 	var any := false
 	for i in 16:

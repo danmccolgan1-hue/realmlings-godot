@@ -52,6 +52,20 @@ func open(title: String, sub: String, items: Array, at: Vector2, note := "") -> 
 
 
 func _item(it: Dictionary) -> Control:
+	if it.has("sec"):   # a section heading (web: .bm-sec)
+		var s := Label.new()
+		s.text = str(it.sec).to_upper()
+		s.add_theme_font_size_override("font_size", 12)
+		s.add_theme_color_override("font_color", MUTED)
+		return s
+	if it.has("note"):   # a line of advice (web: .bm-note)
+		var nl := Label.new()
+		nl.text = str(it.note)
+		nl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		nl.custom_minimum_size = Vector2(380, 0)
+		nl.add_theme_font_size_override("font_size", 13)
+		nl.add_theme_color_override("font_color", MUTED)
+		return nl
 	var off: bool = it.get("why") != null and str(it.why) != ""
 	var p := PanelContainer.new()
 	var normal := Roster._sb(Color("#f6f1e4") if not off else Color("#e3e1dc"), 1, 0, 4)
@@ -75,7 +89,17 @@ func _item(it: Dictionary) -> Control:
 	h.add_theme_constant_override("separation", 8)
 	h.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	p.add_child(h)
-	if it.get("icon") != null:
+	if it.get("glyph") != null:
+		var gl := Label.new()
+		gl.text = str(it.glyph)
+		gl.custom_minimum_size = Vector2(44, 44)
+		gl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		gl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		gl.add_theme_font_size_override("font_size", 26)
+		gl.add_theme_color_override("font_color", INK)
+		gl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		h.add_child(gl)
+	elif it.get("icon") != null:
 		var ib := PanelContainer.new()
 		var bgc: Color = it.get("bg", Color(0, 0, 0, 0))
 		ib.add_theme_stylebox_override("panel", Roster._sb(bgc.lerp(Color("#d6dbe3"), 0.72) if off and bgc.a > 0 else bgc, 0, 6, 0))

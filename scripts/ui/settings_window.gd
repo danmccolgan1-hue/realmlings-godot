@@ -86,8 +86,30 @@ func _fill() -> void:
 		val.text = "100%"
 		_changed()))
 	_row("Interface size", "Makes every window, button and label bigger or smaller.", size)
+	for au in [["Music", "music_on", "music_vol", "The tavern music, and its volume. M turns it on or off."], ["Sound effects", "sfx_on", "sfx_vol", "Clicks, footsteps, battles, spells and alarms, and their volume."]]:
+		var h := HBoxContainer.new()
+		h.add_theme_constant_override("separation", 8)
+		var sl := HSlider.new()
+		sl.min_value = 0
+		sl.max_value = 100
+		sl.value = Settings.audio(au[2]) * 100
+		sl.custom_minimum_size = Vector2(140, 0)
+		sl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		var vk: String = au[2]
+		sl.value_changed.connect(func(x):
+			Settings.set_audio(vk, x / 100.0)
+			Settings.save_all())
+		h.add_child(sl)
+		var ok: String = au[1]
+		h.add_child(_switch(Settings.audio(ok), func(v):
+			Settings.set_audio(ok, v)
+			Settings.save_all()))
+		_row(au[0], au[3], h)
 	_row("Full screen", "Play in full screen, or in a window.", _switch(Settings.fullscreen, func(v):
 		Settings.fullscreen = v
+		_changed()))
+	_row("Quick queue", "When on, right-clicking a province with only Wayfinders and Masons selected opens their survey / build menu without holding Ctrl.", _switch(Settings.view.get("quickQueue", false), func(v):
+		Settings.view.quickQueue = v
 		_changed()))
 	_row("Calm map", "Trees stand still on the map (for a quieter screen).", _switch(Settings.calm_map, func(v):
 		Settings.calm_map = v

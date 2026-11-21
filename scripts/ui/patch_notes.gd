@@ -5,6 +5,12 @@ extends Control
 ## web: v106.js renderPatchNotes
 
 const PORT_NOTES := [
+	{"v": "Godot 0.8", "date": "November 21, 2026", "items": [
+		["Orders", "Drag a box to select several units, Shift-click to add or remove one. Right-click sends them all, spread out around the spot; hold Shift to queue orders. Ctrl+right-click opens the survey and build menu (or turn on Quick queue in Settings). Drag with the right mouse to move the map."],
+		["On the map", "A golden mark where you sent units, numbered markers for queued surveys and moves, the survey's loop and stakes, rally points, and the provinces of your selected units."],
+		["Battles and spells", "Battles show the melee, each side's strength, the blows and the fallen. Forts with Arrowslits now shoot invaders. Casting circles, Shockwaves, Earthquakes, forest paths and tunnels are drawn."],
+		["Animation", "Units pop in, breathe, hop as they walk and throw sparks as they build; buildings smoke, wave their flags and turn their wheels, and the Mage Tower's crystals circle."],
+		["Sound", "Music and every sound effect of the web game, with their switches and volumes; M turns the music on or off."]]},
 	{"v": "Godot 0.7", "date": "November 21, 2026", "items": [
 		["Armory", "Laid out as the web game’s: your designs with portraits and stats, a spinning preview, stat bars, and the gear as picture buttons under Weapons, Armor and Horses tabs. Equip every Mage with staves, wands and shields, and retrofit your armies from the Armory."],
 		["Magic", "Choose your school of magic when your first Mage Tower stands. Abandon Magic School now works: the school and its spells are forgotten and you choose again."],
