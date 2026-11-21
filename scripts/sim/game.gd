@@ -4560,7 +4560,10 @@ const LINES := {"harvest": ["harvest", "bountiful", "magnificent"], "skin": ["sk
 	"trading": ["trading", "stockmarket", "planar"], "stasis": ["stasis", "prison"], "rift": ["rift", "portal"],
 	"eyes": ["eyesforest"], "haunt": ["haunt"],
 	"fiery": ["fiery1", "fiery2", "fiery3"], "ftrap": ["firetrap", "blazetrap", "molttrap"], "spyre": ["scoutpyre"], "pfire": ["pathfire", "pathflame", "pathinferno"],
-	"sacred": ["sacredpyre"], "rock": ["rockarmor"], "wrocks": ["wrocks"], "tportal": ["townportal"], "fspirit": ["forestspirit"]}
+	"sacred": ["sacredpyre"], "rock": ["rockarmor"], "wrocks": ["wrocks"], "tportal": ["townportal"], "fspirit": ["forestspirit"], "gelem": ["gelemental"]}
+const GELEM_ID := "wd-elem"
+const GELEM := {"life": 120.0, "cd": 300.0}
+const TRAV_KNOW := 30   # web: wood.js (the lost travelers share what they know)
 # web: wood.js Elemental magic (+ v98.js mana and casting times)
 const ROCK_PCT := 0.1
 const PORTAL_CD := 300.0
@@ -4582,7 +4585,7 @@ const MANA_START := 25.0
 const MANA_CAPS := [100, 150, 200]
 const MANA_REGEN := [0, 1, 2, 3]
 const SPELL_MANA := {"harvest": "drain", "mending": 25, "graverob": "all", "haunt": 25, "trading": "all", "mind": 50, "stasis": 50, "rift": 100, "eyes": 25,
-	"spyre": 25, "ftrap": 50, "pfire": 50, "sacred": 100, "wrocks": 25, "tportal": 100, "fspirit": "drain"}
+	"spyre": 25, "ftrap": 50, "pfire": 50, "sacred": 100, "wrocks": 25, "tportal": 100, "fspirit": "drain", "gelem": 100}
 const PATHS_MANA := 200
 const CAST_TIME := 3.0
 const GRAVE_RATE := [0, 1, 2, 3]
@@ -4593,7 +4596,9 @@ const SEE_TIME := 60.0
 const STAVE_CAST := {"grandstave": 0.9, "mythicstave": 0.8}
 const WAND_MANA := {"crypticwand": 0.9, "enigmaticwand": 0.8}
 ## The spells a caster can cast from the command card, in order.
-const SPELLS := ["harvest", "mending", "graverob", "trading", "mind", "stasis", "rift", "eyes", "haunt", "spyre", "ftrap", "pfire", "sacred", "wrocks", "tportal", "fspirit"]
+const SPELLS := ["harvest", "mending", "graverob", "trading", "mind", "stasis", "rift", "eyes", "haunt", "spyre", "ftrap", "pfire", "sacred", "wrocks", "tportal", "fspirit", "gelem"]
+var gelems := []    # Grand Elementals {owner, until}
+var portal_fx := [] # Town Portal and Grand Elemental splashes {x, y, prov, t0, water}
 var wrocks := []    # Whispering Rocks {owner, a, b, edge, t0, until}
 var spyres := []    # Scouting Pyres {prov, owner, t0, until}
 var ftraps := []    # fire traps {prov, owner, lv, mult, t0, ignore}
@@ -4775,6 +4780,8 @@ func _spell_why(c: Dictionary, k: String):
 			if capital < 0 or c.prov == capital:
 				return "Already at the capital"
 			return "Ready in %d s" % ceili(cd_left("tportal%d" % c.id)) if cd_left("tportal%d" % c.id) > 0 else null
+		"gelem":
+			return "Ready in %d s" % ceili(cd_left("gelem%d" % c.id)) if cd_left("gelem%d" % c.id) > 0 else null
 		"fspirit":
 			if not owned(c.prov) or occ.has(c.prov):
 				return "Channel it in a province of yours"
@@ -4878,6 +4885,10 @@ func cast_spell(c: Dictionary, k: String, target := -1) -> bool:
 			spend_mana(c, SPELL_MANA.tportal)
 			start_cast(c, "q:tportal", CAST_TIME)
 			toast("%s opens a Town Portal to %s: 3 s of casting." % [c.name, prov_name(capital)])
+		"gelem":
+			spend_mana(c, SPELL_MANA.gelem)
+			start_cast(c, "q:gelem", CAST_TIME)
+			toast("%s begins to call up a Grand Elemental: 3 s of casting." % c.name)
 		"fspirit":
 			start_cast(c, "q:fspirit", INF)
 			compute_income()
@@ -5044,10 +5055,31 @@ func _finish_q(c: Dictionary, k: String, cs: Dictionary, now: float) -> void:
 			wrocks.append({"owner": ME, "a": c.prov, "b": cs.to, "edge": _edge_between(c.prov, cs.to, "mountains", null), "t0": now, "until": now + SEE_TIME})
 			compute_fog()
 			toast("Whispering Rocks: %s and %s are in sight for 1 minute." % [prov_name(c.prov), prov_name(cs.to)])
+		"gelem":   # web: wood.js finishElemental
+			var a = c if c.kind == "army" else null
+			if a == null:
+				for v in units:
+					if v.kind == "army" and v.owner == ME and v.prov == c.prov and v.get("battle") == null and not v.moving:
+						a = v
+						break
+			if a != null:
+				a.troops[GELEM_ID] = a.troops.get(GELEM_ID, 0) + 1
+				a.grew = now
+			else:
+				a = new_army(c.prov, {GELEM_ID: 1})
+				a.born = now
+			gelems.append({"owner": ME, "until": now + GELEM.life})
+			cd["gelem%d" % c.id] = now + GELEM.cd / maxf(1, mages_in(c))
+			portal_fx.append({"x": a.x, "y": a.y, "prov": a.prov, "t0": now, "water": true})
+			compute_income()
+			sfx("mg_life", c.prov)
+			toast("A Grand Elemental rises from the earth’s waters and joins %s. It lasts %d minutes." % [a.name, int(GELEM.life / 60)])
 		"tportal":
 			if capital < 0 or capital == c.prov:
 				return
+			portal_fx.append({"x": c.x, "y": c.y, "prov": c.prov, "t0": now})
 			teleport(c, capital)
+			portal_fx.append({"x": c.x, "y": c.y, "prov": capital, "t0": now})
 			cd["tportal%d" % c.id] = now + PORTAL_CD / maxf(1, mages_in(c))
 			toast("%s steps through the Town Portal to %s." % [c.name, prov_name(capital)])
 		"spyre":
@@ -5226,7 +5258,7 @@ const SAVE_FIELDS := ["battles", "bandit_count", "monster_count", "leader", "cap
 	"army_counter", "tech", "rep", "surveyed", "unit_defs", "designs", "exhaust", "exhaust_ok", "harvest", "devel", "upgrades",
 	"xup", "auto_tech", "roads", "walls", "wall_hp", "artifacts", "gift_vault", "quakes", "quake_seq", "wall_max", "wall_crack", "broken_walls", "rewall_jobs", "gate_own", "fort_walled", "gpc_slow_t", "dev_t", "cd", "paths",
 	"harvest_by", "trap", "reveals", "eyes", "haunts", "mana_pool", "mana_prev_t", "mage_gear", "finds", "treasure_rolled",
-	"sp_found", "slot_races", "spyres", "ftraps", "sacreds", "wrocks", "setpieces", "travelers", "train_orders", "train_order_seq", "design_seq", "prov_rename", "nations", "players", "my_nation", "race_of", "wars", "truces", "allies", "war_seq", "met", "occ", "occ_prog", "dipl", "war_log", "war_ever", "war_lock", "ai_met", "fallen", "ally_check", "bandit_next", "bandit_waves", "ally_ask", "crop_scan_at", "ai_scout_t", "wf", "known", "explored", "visible", "queues", "rally", "military", "UNIT_SPEED", "open_nbr", "all_nbr",
+	"sp_found", "slot_races", "spyres", "ftraps", "sacreds", "wrocks", "gelems", "setpieces", "travelers", "train_orders", "train_order_seq", "design_seq", "prov_rename", "nations", "players", "my_nation", "race_of", "wars", "truces", "allies", "war_seq", "met", "occ", "occ_prog", "dipl", "war_log", "war_ever", "war_lock", "ai_met", "fallen", "ally_check", "bandit_next", "bandit_waves", "ally_ask", "crop_scan_at", "ai_scout_t", "wf", "known", "explored", "visible", "queues", "rally", "military", "UNIT_SPEED", "open_nbr", "all_nbr",
 	"yields", "tree_border", "debug_cap", "debug_tech", "reveal_all", "rec", "t", "next_tick", "paused", "last", "started"]
 
 
@@ -7056,7 +7088,7 @@ func setpiece_found(p: int, u: Dictionary) -> void:
 
 # =================================================================================================================
 # lost bands of travelers (web: v78.js SMA01): fed, they join you as Footmen; an army can rob them instead
-const TRAVELERS := {"foodEach": 20, "goldEach": 30, "sizes": [3, 4, 5]}
+const TRAVELERS := {"foodEach": 20, "goldEach": 30, "foodCaught": 30, "sizes": [3, 4, 5]}
 var travelers := []
 var travelers_ask := true    # tests turn the question off
 var trav_asking = null
@@ -7137,6 +7169,18 @@ func ask_travelers(B: Dictionary) -> void:
 		{"id": "rob", "label": "Rob them\n+%d gold" % gold, "why": null if trav_army_here(B) else "You need an army in this province"},
 		{"id": "leave", "label": "Leave them be\nThey ask again next time", "why": null}]
 	var text := "%d weary travelers have lost their way. They are hungry, and ask if you can spare them some food. Fed, they would gladly take up arms for you." % B.n
+	if is_sw():   # web: v78.js (Swamplings capture travelers for food)
+		choices[0] = {"id": "capture", "label": "Capture them\n+%d food" % (B.n * TRAVELERS.foodCaught), "why": null if trav_army_here(B) else "You need Berserkers in this province"}
+		text = "%d weary travelers have lost their way. They eye your Swamplings fearfully and won’t take up arms for you, but your Berserkers could drag them off to the larder." % B.n
+	elif is_wd():   # web: wood.js (Woodlings give directions in exchange for knowledge)
+		var has := trav_units(B)
+		var M: String = unit_defs[MAGE].name
+		choices = [
+			{"id": "know-gov", "label": "Your %s guides them\n+%d Government research" % [unit_defs[WAYFINDER].name, TRAV_KNOW], "why": null if has.scout else "Needs a %s here" % unit_defs[WAYFINDER].name},
+			{"id": "know-mil", "label": "Your soldiers escort them\n+%d Military research" % TRAV_KNOW, "why": null if has.army else "Needs an army here"},
+			{"id": "know-mag", "label": "Your %s leads them\n+%d Magic research" % [M, TRAV_KNOW], "why": null if has.druid else "Needs a %s here" % M},
+			{"id": "leave", "label": "Leave them be\nThey ask again next time", "why": null}]
+		text = "%d weary travelers have lost their way in the woods. Show them the path home, and they will gladly share what they know in return." % B.n
 	sfx("wn_ally")
 	if on_dialog.is_valid():
 		on_dialog.call("A lost band of travelers at %s" % prov_name(B.prov), text, choices, travelers_choose)
@@ -7167,6 +7211,24 @@ func travelers_choose(how: String) -> void:
 		travelers.erase(B)
 		compute_income()
 		toast("The travelers eat their fill and swear to serve you: %d Footmen join %s." % [B.n, a.name])
+	elif how == "capture":
+		if not trav_army_here(B):
+			toast("You need Berserkers in this province to capture them.", true)
+			return
+		var fc: int = B.n * TRAVELERS.foodCaught
+		stock.food += fc
+		clamp_stock()
+		travelers.erase(B)
+		toast("Your Berserkers round up the travelers and haul them off to the larder: +%d food." % fc)
+	elif how.begins_with("know-"):
+		var tree := how.substr(5)
+		var has := trav_units(B)
+		if not (has.scout if tree == "gov" else has.army if tree == "mil" else has.druid):
+			toast("Nobody of yours here can do that.", true)
+			return
+		add_research(tree, TRAV_KNOW)
+		travelers.erase(B)
+		toast("%s the travelers onto the path home. In thanks they share what they know: +%d %s research." % ["Your %s shows" % unit_defs[WAYFINDER].name if tree == "gov" else "Your soldiers escort" if tree == "mil" else "Your %s leads" % unit_defs[MAGE].name, TRAV_KNOW, TECH_TREES[tree].name])
 	elif how == "rob":
 		if not trav_army_here(B):
 			toast("You need an army in this province to rob them.", true)
@@ -8002,7 +8064,7 @@ func news(msg: String, warn := false) -> void:
 # --- v105 opinion: what a computer nation thinks of another ---
 const DIPL := {"ally": 50, "trade": 25, "crime": 25, "war": -200, "race": -200, "fort": -25, "den": -25, "difficult": -25,
 	"like": 50, "dislike": -25, "boss": 25, "threat": -100, "threatProvs": 100, "exhPer": 2, "exhDeclare": 50,
-	"flirt": {"v": 25, "dur": 600}, "gift": {"v": 25, "dur": 600, "gold": 1000}, "bribe": {"gold": 2000}, "offer": -50,
+	"flirt": {"v": 25, "dur": 600}, "growl": {"v": 25, "dur": 600}, "gift": {"v": 25, "dur": 600, "gold": 1000}, "bribe": {"gold": 2000}, "offer": -50,
 	"spy": {"gold": 200, "dur": 180, "fail": 0.1, "cost": -50, "lock": 600, "provs": 0.3, "power": 0.3, "show": 3},
 	"reqTime": 30, "tradeBonus": 0.1}
 
@@ -9162,10 +9224,20 @@ func flirt_why(o: int) -> String:
 	if race_of.get(ME, "realm") != race_of.get(o, "realm"):
 		return "Only with a leader of your own race"
 	if sex_of(ME) == null or sex_of(o) == null or sex_of(ME) == sex_of(o):
-		return "Only with a leader of the opposite sex"
+		return "Swampling leaders are all men: no flirting" if is_sw() else "Only with a leader of the opposite sex"
 	var m = mod_active(o, ME, "flirt")
 	if m != null:
 		return "Still charmed: %s" % fmt_left(m.until - t)
+	return ""
+
+
+# web: v105.js growlWhy: Swamplings growl at anyone
+func growl_why(o: int) -> String:
+	if not is_sw():
+		return "Swamplings only"
+	var m = mod_active(o, ME, "growl")
+	if m != null:
+		return "They’re still reeling: %s" % fmt_left(m.until - t)
 	return ""
 
 
@@ -9353,6 +9425,18 @@ func dx_act(act: String, o: int, arg := -1) -> void:
 	var nm: String = player_info(o).name if is_nation(o) else ""
 	var why := ""
 	match act:
+		"growl":   # web: v105.js dxAct 'growl' + v106.js (a nation that isn't Swampling always takes it badly)
+			why = growl_why(o)
+			if why == "":
+				var N: String = player_info(o).name
+				if not is_sw(o):
+					add_mod(o, ME, "growl", -DIPL.growl.v, DIPL.growl.dur)
+					toast("The %s aren’t Swamplings: they took that growl as a threat (−%d opinion for %d minutes)." % [N, DIPL.growl.v, DIPL.growl.dur / 60], true)
+				else:
+					var up: bool = js_rand.call() < 0.5
+					add_mod(o, ME, "growl", DIPL.growl.v if up else -DIPL.growl.v, DIPL.growl.dur)
+					toast(("The %s liked that growl: +%d opinion for %d minutes." if up else "The %s took that growl badly: −%d opinion for %d minutes.") % [N, DIPL.growl.v, DIPL.growl.dur / 60], not up)
+				sfx("ui_click")
 		"flirt":
 			why = flirt_why(o)
 			if why == "":
@@ -9898,6 +9982,9 @@ func step_pyromancy(now: float) -> void:
 	if spyres.size() != before:
 		compute_fog()
 	sacreds = sacreds.filter(func(P): return P.until > now - 20)
+	step_elementals(now)
+	portal_fx = portal_fx.filter(func(f): return now - f.t0 < 1.5)
+	trap_booms = trap_booms.filter(func(f): return now - f.t0 < 2.0)
 	var nw := wrocks.size()
 	wrocks = wrocks.filter(func(r): return r.until > now)
 	if wrocks.size() != nw:
@@ -9974,4 +10061,56 @@ func tree_nbr(a: int) -> Array:
 			var A: Array = world.vertices[e.v[0]]
 			var B: Array = world.vertices[e.v[1]]
 			out.append({"q": e.b if e.a == a else e.a, "m": [(A[0] + B[0]) / 2.0, (A[1] + B[1]) / 2.0]})
+	return out
+
+
+# web: wood.js stepElementals: each Grand Elemental sinks back after 2 minutes (the ones that fell are gone already)
+func step_elementals(now: float) -> void:
+	if gelems.is_empty():
+		return
+	var owners := {}
+	for x in gelems:
+		owners[x.owner] = true
+	for o in owners:
+		var mine := gelems.filter(func(x): return x.owner == o)
+		mine.sort_custom(func(x, y): return x.until < y.until)
+		var alive := 0
+		for u in units:
+			if u.owner == o and u.kind == "army":
+				alive += int(u.troops.get(GELEM_ID, 0))
+		while mine.size() > alive:
+			gelems.erase(mine.pop_front())
+		for x in mine:
+			if x.until > now:
+				continue
+			gelems.erase(x)
+			var best = null
+			for u in units:
+				if u.owner == o and u.kind == "army" and u.troops.get(GELEM_ID, 0) > 0 and (best == null or u.troops[GELEM_ID] > best.troops[GELEM_ID]):
+					best = u
+			if best == null:
+				continue
+			best.troops[GELEM_ID] -= 1
+			if best.troops[GELEM_ID] <= 0:
+				best.troops.erase(GELEM_ID)
+			portal_fx.append({"x": best.x, "y": best.y, "prov": best.prov, "t0": now, "water": true})
+			if troop_count(best) <= 0:
+				remove_army(best)
+			if o == ME:
+				compute_income()
+				toast("The Grand Elemental in %s sinks back into the earth." % prov_name(best.prov))
+
+
+# web: wood.js travUnits: who of yours stands with the travelers
+func trav_units(B: Dictionary) -> Dictionary:
+	var out := {"scout": false, "army": false, "druid": false}
+	for u in units:
+		if u.owner != ME or u.prov != B.prov:
+			continue
+		if u.kind == WAYFINDER:
+			out.scout = true
+		if u.kind == MAGE or (u.kind == "army" and int(u.troops.get(MAGE, 0)) > 0):
+			out.druid = true
+		if u.kind == "army" and u.get("battle") == null and u.troops.keys().any(func(k): return k != MAGE and u.troops[k] > 0):
+			out.army = true
 	return out

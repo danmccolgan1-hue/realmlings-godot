@@ -361,10 +361,24 @@ func _draw_game() -> void:
 		var b: Dictionary = game.buildings[p]
 		var P: Dictionary = game.G.provs[p]
 		var at := Vector2(P.ic[0], P.ic[1])
-		var sp = Art.race_sprite("settlements", str(b.get("ccRace")) if b.get("cc", false) and b.get("ccRace") != null else game.race(b.owner), "%s_%s_v%d.png" % [STAGE_ART[b.stage], P.terrain, p % 10])
+		var src: String = str(b.get("ccRace")) if b.get("cc", false) and b.get("ccRace") != null else game.race(b.owner)
+		var sname := "%s_%s_v%d" % [STAGE_ART[b.stage], P.terrain, p % 10]
+		var sp = Art.race_sprite("settlements", src, sname + ".png")
+		# smoke and flags: the still part, then this moment's frame of the part that moves (tools/export_art.js setanim)
+		var base = Art.get_sprite("settlements", src, sname + "_base.png") if sp == null else null
+		if base == null and sp == null and src != "realm":
+			src = "realm"
+			base = Art.get_sprite("settlements", src, sname + "_base.png")
+		if base != null:
+			var fr := 0 if Settings.calm_map else int(fposmod(Time.get_ticks_msec() / 1000.0 + p * 0.37, BLD_LOOP) / BLD_LOOP * SET_FRAMES)
+			var an = Art.get_sprite("settlements", src, "%s_a%02d.png" % [sname, fr])
+			if an != null:
+				Art.draw(self, base, at)
+				Art.draw(self, an, at)
+				sp = null
 		if sp:
 			Art.draw(self, sp, at)
-		else:
+		elif base == null:
 			draw_circle(at, 60.0, OL)
 		if game.upgrades.has(p):
 			var f: float = (game.t - game.upgrades[p].t0) / GameData.c("FORT_UPGRADE").time
@@ -434,7 +448,9 @@ func _draw_game() -> void:
 		var usc := _pop(game.t - u.born) if u.get("born") != null and game.t - u.born < 1.2 else 1.0
 		var ua := 0.55 if u.get("exiting", false) else (0.45 + sin(t2 * 3) * 0.08) if u.get("stealth", false) else 1.0
 		var urc: String = game.race(u.owner)
-		var sp = Art.race_sprite("units", urc, Art.unit_file(kind, _dir(u.th)))
+		var sp = _run_sprite(urc, kind, _dir(u.th), t2 * 2.4 + u.id) if walking2 else null
+		if sp == null:
+			sp = Art.race_sprite("units", urc, Art.unit_file(kind, _dir(u.th)))
 		if sp == null and u.get("monster") != null:
 			# monsters are drawn facing left or right only (web: art.js monster sprites)
 			var side := "d2" if cos(u.th) >= 0 else "d6"
@@ -600,7 +616,9 @@ func _army(u: Dictionary) -> void:
 		spots.append({"k": figs[i], "i": i, "x": base.x + (c - (in_row - 1) / 2.0) * gx + (gx * 0.35 if r % 2 else 0.0), "y": base.y + (rows - 1 - r) * gy - (rows - 1) * gy / 2 + 4 * K})
 	spots.sort_custom(func(a, b): return a.y < b.y)
 	for sp_ in spots:
-		var sp = Art.race_sprite("units", game.race(u.owner), Art.unit_file(sp_.k, _dir(u.th)))
+		var sp = _run_sprite(game.race(u.owner), Art.design_art(game, sp_.k), _dir(u.th), tt + u.id + sp_.i * 0.3) if walking else null
+		if sp == null:
+			sp = Art.race_sprite("units", game.race(u.owner), Art.unit_file(sp_.k, _dir(u.th)))
 		if sp == null and str(sp_.k).begins_with("d"):
 			sp = Art.race_sprite("units", game.race(u.owner), Art.unit_file(Art.design_art(game, sp_.k), _dir(u.th)))
 		if sp:
@@ -738,6 +756,7 @@ func _building(type: String, slot: int, p: int, ic: Array, f: float, level: int)
 
 # the building animations exported from the web art (tools/export_art.js bldanim): 32 frames over two puffs of smoke
 const BLD_FRAMES := 32
+const SET_FRAMES := 8
 const BLD_LOOP := 2.0 / 0.35
 static var _art_names := {}
 func _building_art(type: String, level: int, rc := "realm") -> String:
@@ -751,6 +770,16 @@ func _building_art(type: String, level: int, rc := "realm") -> String:
 				_art_names[key] = type + v
 				break
 	return _art_names[key]
+
+
+## A running frame for the figures that run on all fours (the Swampstrider) or gallop (Ogres), else null.
+## web: iso.js POSE.running, gait sin(t * 7): 8 frames over one stride (tools/export_art.js unitrun)
+const RUN_STRIDE := 2 * PI / 7
+func _run_sprite(rc: String, kind: String, dir: String, tt: float):
+	if rc != "swamp" or not (kind == "pioneer:B" or kind == "d-sw-ogre"):
+		return null
+	var f := int(fposmod(tt, RUN_STRIDE) / RUN_STRIDE * 8) % 8
+	return Art.get_sprite("units", rc, "%s_run_%s_f%d.png" % [kind.replace(":", "_").replace("-", "_").to_lower(), dir, f])
 
 
 ## Art direction from a facing angle (web th: 0 = toward the camera, then clockwise in eighths).

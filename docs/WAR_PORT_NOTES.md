@@ -235,6 +235,17 @@ The plan after milestone 1. Each step is tested against the web game, then commi
      Realmlings' art; `Hud.icon` looks in the player's race folder first. No building animation frames for the
      other races yet.
 
+15. **The races' last pieces, animation and type** — done (`tests/test_races.gd`):
+   - Grand Elemental (`wd-elem` joins an army for 2 min, `step_elementals`), the lost travelers by race (Swamplings
+     capture for food, Woodlings trade directions for 30 research), Growl (v105 / v106 rules; no Flirt with
+     Swamplings), and the drawing of pyres, traps, Path of Fire, Fiery Weapons, Rock Armor, Whispering Rocks and
+     portals (`MapEffects._race_magic_under / _over`).
+   - Art: `bldanim` for Swamplings and Woodlings; `setanim` (every race): each settlement's still part as
+     `<name>_base.png` and 8 frames of only the box that moves, at 2 px per world unit (the plain stills are gone);
+     `unitrun`: the Swampstrider and the Ogres running, 8 frames a stride.
+   - Type: `scripts/ui/fonts.gd` — Alegreya for the interface (and the outliner's names, in place of Grenze Gotisch),
+     Cinzel Decorative for titles; licenses in `assets/fonts/`. The minimap stays in the fog until explored.
+
 ## Things to remember
 
 - **Always grep for wrappers** (`name = function`) before porting a function: later web files replace many of them.

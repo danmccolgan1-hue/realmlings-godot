@@ -513,7 +513,10 @@ func _actions(o: int) -> VBoxContainer:
 		gd.add_child(_act(o, "proclaim", "enemy", "Renounce enemy", "", "Lift your proclamation: their %d opinion goes away" % Game.DIPL_ENEMY))
 	else:
 		gd.add_child(_act(o, "proclaim", "enemy", "Proclaim Enemy", game.proclaim_why(Game.ME, o), "%d opinion with them while it stands; +%d with nations who share the enemy. One at a time, one every 10 min" % [Game.DIPL_ENEMY, Game.DIPL_SHARED], true))
-	gd.add_child(_act(o, "flirt", "flirt", "Flirt", game.flirt_why(o), "+%d opinion for %d min" % [DL.flirt.v, DL.flirt.dur / 60]))
+	if not game.is_sw(o):   # web: v106.js (no Flirt with Swamplings)
+		gd.add_child(_act(o, "flirt", "flirt", "Flirt", game.flirt_why(o), "+%d opinion for %d min" % [DL.flirt.v, DL.flirt.dur / 60]))
+	if game.is_sw():   # web: v105.js / v106.js Growl
+		gd.add_child(_act(o, "growl", "growl", "Growl", game.growl_why(o), ("50%%: +%d or −%d opinion for %d min" % [DL.growl.v, DL.growl.v, DL.growl.dur / 60]) if game.is_sw(o) else ("They aren’t Swamplings: always −%d opinion for %d min" % [DL.growl.v, DL.growl.dur / 60])))
 	gd.add_child(_act(o, "gift", "gift", "Gift", game.gift_why(o), "%d gold: +%d opinion for %d min" % [DL.gift.gold, DL.gift.v, DL.gift.dur / 60]))
 	gd.add_child(_act(o, "bribe", "bribe", "Bribe", game.bribe_why(o), "%d gold: they attack a smaller nation" % DL.bribe.gold, false, bribe_o == o))
 	if game.access_given(Game.ME, o):

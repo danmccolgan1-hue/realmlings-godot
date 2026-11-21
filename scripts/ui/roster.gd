@@ -255,6 +255,7 @@ func _row(tex: Texture2D, name: String, _st: String, busy: bool, small: String, 
 	h.add_child(v)
 	var nl := Label.new()
 	nl.text = name
+	nl.add_theme_font_override("font", Fonts.names)   # web: .ro-u b (Grenze Gotisch; Alegreya SemiBold here)
 	nl.add_theme_font_size_override("font_size", 18)
 	nl.add_theme_color_override("font_color", INK)
 	nl.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -345,6 +346,7 @@ func _provs_tab() -> void:
 		nl.text = game.prov_name(p)
 		nl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		nl.clip_text = true
+		nl.add_theme_font_override("font", Fonts.names)
 		nl.add_theme_font_size_override("font_size", 18)
 		nl.add_theme_color_override("font_color", Color(TER_TEXT.get(t, "#1d1a22")))
 		nl.mouse_filter = Control.MOUSE_FILTER_IGNORE

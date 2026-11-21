@@ -71,6 +71,7 @@ static func window(title: String, width: int, on_close: Callable) -> Dictionary:
 	var head := HBoxContainer.new()
 	var t := ink(26)
 	t.text = title
+	Fonts.title(t)
 	t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(t)
 	head.add_child(button("✕", 18, on_close))

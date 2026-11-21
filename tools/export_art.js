@@ -148,6 +148,43 @@
     S.selected = keep;
     return out;
   };
+  // settlement animation (smoke, flags): frame 0 with the moving part cut out (`<name>_base.png`), and for each of
+  // SET_FRAMES frames only the box that moves (`<name>_aNN.png`, anchored at the same point). Small enough to ship.
+  jobs.setanim = () => {
+    const out = [], N = 8, LOOP = 2 * (1 / 0.35), P = 1000, AX = 500, AY = 640, PK = 2 / 3;   // frames at 2 px per world unit (the still part keeps 3)
+    const c2 = document.createElement('canvas'); c2.width = c2.height = P; const g2 = c2.getContext('2d', { willReadFrequently: true });
+    const frame = (st, ter, v, t) => { g2.setTransform(1, 0, 0, 1, 0, 0); g2.clearRect(0, 0, P, P); g2.translate(AX, AY); g2.scale(3, 3); g2.lineJoin = 'round'; g2.lineCap = 'round'; g2.scale(KB, KB); settleArt(g2, st, t, { variant: v, terrain: ter }, R); g2.setTransform(1, 0, 0, 1, 0, 0); return g2.getImageData(0, 0, P, P); };
+    const crop = (img, x0, y0, x1, y1, sk = 1) => { const k = document.createElement('canvas'); k.width = Math.round((x1 - x0 + 1) * sk); k.height = Math.round((y1 - y0 + 1) * sk); const t2 = document.createElement('canvas'); t2.width = P; t2.height = P; t2.getContext('2d').putImageData(img, 0, 0); k.getContext('2d').drawImage(t2, x0, y0, x1 - x0 + 1, y1 - y0 + 1, 0, 0, k.width, k.height); return k.toDataURL('image/png'); };
+    for (const st of [0, 1, 2]) for (const ter of ['grassland', 'forest', 'desert', 'swamp']) for (let v = 0; v < 10; v++) {
+      const name = `settlements/${R}/${['outpost', 'fort', 'capital'][st]}_${ter}_v${v}`;
+      try {
+        const fr = []; for (let f = 0; f < N; f++) fr.push(frame(st, ter, v, f * LOOP / N));
+        const A = fr[0].data; let x0 = P, y0 = P, x1 = -1, y1 = -1, bx0 = P, by0 = P, bx1 = -1, by1 = -1;
+        for (let y = 0; y < P; y++) for (let x = 0; x < P; x++) {
+          const i = (y * P + x) * 4; let moving = false, any = A[i + 3] > 2;
+          for (let f = 1; f < N && !moving; f++) { const B = fr[f].data; if (B[i + 3] > 2) any = true; if (Math.abs(B[i] - A[i]) + Math.abs(B[i + 1] - A[i + 1]) + Math.abs(B[i + 2] - A[i + 2]) + Math.abs(B[i + 3] - A[i + 3]) > 12) moving = true; }
+          if (any) { if (x < bx0) bx0 = x; if (x > bx1) bx1 = x; if (y < by0) by0 = y; if (y > by1) by1 = y; }
+          if (moving) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+        }
+        if (x1 < 0) continue;   // nothing moves
+        x0 = Math.max(0, x0 - 2); y0 = Math.max(0, y0 - 2); x1 = Math.min(P - 1, x1 + 2); y1 = Math.min(P - 1, y1 + 2);
+        const base = new ImageData(new Uint8ClampedArray(A), P, P);
+        for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) base.data[(y * P + x) * 4 + 3] = 0;
+        bx0 = Math.max(0, bx0 - 2); by0 = Math.max(0, by0 - 2); bx1 = Math.min(P - 1, bx1 + 2); by1 = Math.min(P - 1, by1 + 2);
+        out.push({ file: name + '_base.png', png: crop(base, bx0, by0, bx1, by1), w: bx1 - bx0 + 1, h: by1 - by0 + 1, ax: AX - bx0, ay: AY - by0, scale: 3 });
+        for (let f = 0; f < N; f++) out.push({ file: `${name}_a${String(f).padStart(2, '0')}.png`, png: crop(fr[f], x0, y0, x1, y1, PK), w: Math.round((x1 - x0 + 1) * PK), h: Math.round((y1 - y0 + 1) * PK), ax: (AX - x0) * PK, ay: (AY - y0) * PK, scale: 2, frame: f, frames: N, loop: LOOP });
+      } catch (e) { out.push({ file: name + '_base.png', error: String(e) }); }
+    }
+    return out;
+  };
+  // running on all fours (the Swampstrider) and the Ogres' gallop: 8 frames over one stride (iso.js gait sin(t * 7))
+  jobs.unitrun = () => {
+    const out = [], N = 8, STRIDE = 2 * Math.PI / 7;
+    const ids = R === 'swamp' ? ['pioneer:B', 'd-sw-ogre'] : [];
+    for (const id of ids) for (const [dn, th] of DIRS) for (let f = 0; f < N; f++)
+      out.push(shoot(`units/${R}/${snake(id)}_run_${dn}_f${f}.png`, 4, c => drawUnitFor(c, id, ME, true, th, f * STRIDE / N, 0, 0, UNITK), { id, dir: dn, th, frame: f, frames: N, stride: STRIDE }));
+    return out;
+  };
   window.__exportArt = name => jobs[name]();
   window.__exportArtJobs = Object.keys(jobs);
 })();

@@ -112,14 +112,17 @@ func _to_world(p: Vector2) -> Vector2:
 func _draw() -> void:
 	if game == null:
 		return
-	draw_rect(Rect2(Vector2.ZERO, SIZE), MapLayers.SEA.darkened(0.15))
+	# everything starts in the fog: no outline of the island, its coasts or its water until explored
+	draw_rect(Rect2(Vector2.ZERO, SIZE), FOG)
 	for i in map.polys.size():
+		var known: bool = game.explored.has(i)
+		if not known:
+			continue
 		var pts := PackedVector2Array()
 		for v in map.polys[i]:
 			pts.append(_to_mini(v))
-		var known: bool = game.explored.has(i)
-		var col := Color(MapLayers.TER[game.G.provs[i].terrain][0]) if known else FOG
-		if known and not game.visible.has(i):
+		var col := Color(MapLayers.TER[game.G.provs[i].terrain][0])
+		if not game.visible.has(i):
 			col = col.darkened(0.3)
 		draw_colored_polygon(pts, col)
 		if known and Settings.view.get("miniColor", false):   # web: game.js Z14, each nation's color over its land

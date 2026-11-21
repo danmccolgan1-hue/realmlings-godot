@@ -238,6 +238,7 @@ func _build_main() -> void:
 	var v: VBoxContainer = screens.main
 	v.custom_minimum_size = Vector2(500, 0)
 	var title := _lbl("Realmlings", 76, Color("#f2b632"))
+	Fonts.title(title)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_color_override("font_outline_color", Color("#7a4a12"))
 	title.add_theme_constant_override("outline_size", 10)
@@ -345,6 +346,7 @@ func _sub_head(v: VBoxContainer, title: String) -> void:
 	back.pressed.connect(func(): show_screen("main"))
 	h.add_child(back)
 	var t := _lbl(title, 34, Color("#f2b632"))
+	Fonts.title(t)
 	t.add_theme_color_override("font_outline_color", Color("#7a4a12"))
 	t.add_theme_constant_override("outline_size", 6)
 	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER

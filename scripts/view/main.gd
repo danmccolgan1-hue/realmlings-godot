@@ -34,10 +34,8 @@ var replay_hud: ReplayHud
 func _ready() -> void:
 	Settings.load_all()
 	Settings.apply(get_tree())
-	# symbols the built-in font lacks (✓ ✗ ✕ ▸ ▾ ⚒ ⚔ ✦ ☐ ✔ …) come from DejaVu Sans, bundled, so they show on every PC
-	var sym = load("res://assets/fonts/DejaVuSans.ttf")
-	if sym != null and ThemeDB.fallback_font != null:
-		ThemeDB.fallback_font.fallbacks = ThemeDB.fallback_font.fallbacks + [sym]
+	# Alegreya and Cinzel Decorative, bundled; symbols they lack (✓ ✗ ✕ ▸ ▾ ⚒ ⚔ ✦ ☐ ✔ …) come from DejaVu Sans
+	Fonts.apply()
 	map = MapView.new()
 	add_child(map)
 	cam = Camera2D.new()

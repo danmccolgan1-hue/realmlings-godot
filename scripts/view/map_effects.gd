@@ -66,6 +66,7 @@ func _glow(c: Vector2, r: float, ry_k: float, cols: Array, alpha: float) -> void
 # --- under the units ------------------------------------------------------------------------------------------
 
 func draw_under(g: Game, t: float) -> void:
+	_race_magic_under(g, t)
 	var V: Array = g.world.vertices
 	# forest paths and tunnels (web: magic.js drawMagic)
 	for i in g.paths:
@@ -351,6 +352,7 @@ func draw_over(g: Game, t: float) -> void:
 	_battle_fx(g, t)
 	_spell_fx(g, t)
 	_arrows(g, t)
+	_race_magic_over(g, t)
 	for u in g.units:
 		if not g.visible.has(u.prov) and u.owner != Game.ME:
 			continue
@@ -477,3 +479,150 @@ func _spell_fx(g: Game, _t: float) -> void:
 				var a: float = F.seed + i * 0.63
 				var d := (40 + (i % 4) * 30) * grow
 				_dust(Vector2(cx + jig + cos(a) * d * 1.4, cy + sin(a) * d * 0.6 - k * 30), 16 + (i % 3) * 6, 0.75 * fade)
+
+
+# --- the Swamplings' and Woodlings' magic (web: swamp.js drawPyromancy, v98.js Sacred Pyre, wood.js drawElemental) ---
+
+func _flame(base: Vector2, w: float, h: float, col: Color, inner := Color("#ffe27a")) -> void:
+	var pts := PackedVector2Array([base + Vector2(-w, 0), base + Vector2(-w * 0.5, -h * 0.8), base + Vector2(0, -h * 0.58),
+		base + Vector2(w * 0.42, -h), base + Vector2(w, 0)])
+	v.draw_colored_polygon(pts, col)
+	pts.append(pts[0])
+	v.draw_polyline(pts, OL, 2.4, true)
+	v.draw_colored_polygon(PackedVector2Array([base + Vector2(-w * 0.5, 0), base + Vector2(0, -h * 0.65), base + Vector2(w * 0.5, 0)]), inner)
+
+
+func _bonfire(at: Vector2, t: float, k: float, left: float, mine: bool) -> void:
+	for ab in [[-14, -4], [14, -4], [-10, 4], [10, 4]]:   # the stacked logs
+		var a := at + Vector2(ab[0], ab[1]) * k
+		var b := at + Vector2(-ab[0] * 0.2, ab[1] - 22) * k
+		v.draw_line(a, b, OL, 6 * k)
+		v.draw_line(a, b, Color("#8a5a34"), 3.4 * k)
+	_glow(at + Vector2(0, -26 * k), 60 * k, 1.0, [Color(1, 0.59, 0.24, 0.55)], 1.0)
+	var fl := 1 + sin(t * 11) * 0.12
+	_flame(at + Vector2(0, -18 * k), 12 * k, 34 * fl * k, Color("#ff7a2c"))
+	if mine and left >= 0:
+		_oval(at + Vector2(0, -66 * k), 9, 9, Color("#ff7a2c"), 4.0, -PI / 2, -PI / 2 + left * TAU)
+
+
+func _race_magic_under(g: Game, t: float) -> void:
+	for P in g.spyres:   # Scouting Pyres
+		if g.visible.has(P.prov):
+			var c: Array = g.G.provs[P.prov].ic
+			_bonfire(Vector2(c[0] + 70, c[1] + 60), t, 1.0, maxf(0, (P.until - g.t) / Game.SPYRE.dur), P.owner == Game.ME)
+	for P in g.sacreds:   # Sacred Pyres: a bigger fire on a ring of stones
+		if g.visible.has(P.prov) and P.until > g.t:
+			var c: Array = g.G.provs[P.prov].ic
+			var at := Vector2(c[0] + 34 * UKK, c[1] + 20 * UKK)
+			for k in 7:
+				var q := TAU * k / 7
+				_disc(at + Vector2(cos(q) * 22, sin(q) * 9 - 4), 6, 4, Color("#9c968c"))
+				_oval(at + Vector2(cos(q) * 22, sin(q) * 9 - 4), 6, 4, OL, 1.5)
+			_bonfire(at, t, 1.25, maxf(0, (P.until - g.t) / Game.SACRED.dur), P.owner == Game.ME)
+	for T in g.ftraps:   # your fire traps: the province border smoulders, a ring of embers on the ground
+		if T.owner != Game.ME or not g.explored.has(T.prov):
+			continue
+		var P: Dictionary = g.G.provs[T.prov]
+		var a := 0.45 + sin(t * 2.5) * 0.2
+		var poly: Array = P.inner if P.get("inner") is Array and not P.inner.is_empty() else []
+		if not poly.is_empty():
+			var pts := PackedVector2Array()
+			for q in poly:
+				pts.append(Vector2(q[0], q[1]))
+			pts.append(pts[0])
+			var dash := 30.0
+			var off := fposmod(t * 14, dash)
+			for i in pts.size() - 1:   # dashed, creeping along
+				var A: Vector2 = pts[i]
+				var B: Vector2 = pts[i + 1]
+				var L := A.distance_to(B)
+				var d := -off
+				while d < L:
+					var s0 := maxf(0, d)
+					var s1 := minf(L, d + 18)
+					if s1 > s0:
+						v.draw_line(A.lerp(B, s0 / L), A.lerp(B, s1 / L), Color(1, 0.43, 0.16, a), 5.0)
+					d += dash
+		var c: Vector2 = Vector2(P.ic[0] - 60, P.ic[1] + 120)
+		_oval(c, 24, 12, Color(1, 0.43, 0.16, 0.55 + sin(t * 3) * 0.25), 4.0, t * 0.4, t * 0.4 + TAU * 0.8)
+		for k in 3:
+			var q := k * 2.09 + t * 0.4
+			v.draw_line(c + Vector2(cos(q) * 10, sin(q) * 5), c + Vector2(cos(q) * 22, sin(q) * 11), Color("#ffb347"), 3.0)
+	for r in g.wrocks:   # Whispering Rocks on the mountain border
+		if r.until <= g.t or not (g.visible.has(r.a) or g.visible.has(r.b)) or r.edge < 0:
+			continue
+		var e: Dictionary = g.world.edges[r.edge]
+		var V: Array = g.world.vertices
+		var m := (Vector2(V[e.v[0]][0], V[e.v[0]][1]) + Vector2(V[e.v[1]][0], V[e.v[1]][1])) / 2
+		for k in 3:
+			var x := m + Vector2((k - 1) * 22, -4 + absi(k - 1) * 6)
+			var h: float = 30.0 - abs(k - 1) * 8
+			v.draw_colored_polygon(PackedVector2Array([x + Vector2(-9, 0), x + Vector2(-6, -h), x + Vector2(0, -h - 6), x + Vector2(6, -h), x + Vector2(9, 0)]), Color("#a8a29a"))
+			v.draw_polyline(PackedVector2Array([x + Vector2(-9, 0), x + Vector2(-6, -h), x + Vector2(0, -h - 6), x + Vector2(6, -h), x + Vector2(9, 0)]), OL, 2.0)
+		for rr in [12.0, 20.0]:   # their whisper
+			var f := fposmod(t * 0.7 + rr / 40, 1.0)
+			_oval(m + Vector2(0, -40), rr + f * 10, (rr + f * 10) * 0.5, Color(0.25, 0.56, 0.66, 1 - f), 2.0, PI * 1.15, PI * 1.85)
+	for u in g.units:   # Path of Fire: flames licking at a running army's heels
+		if u.get("pathFire") == null or u.pathFire.until <= g.t or not g.visible.has(u.prov):
+			continue
+		for k in 5:
+			var f := fposmod(t * 1.8 + k / 5.0, 1.0)
+			var col := Color("#ff7a2c") if k % 2 else Color("#ffd34d")
+			col.a = 0.85 * (1 - f)
+			_disc(Vector2(u.x + (k - 2) * 9 * UKK, u.y + 4 * UKK - f * 26 * UKK), 4 * UKK * (1 - f * 0.5), 7 * UKK * (1 - f * 0.5), col)
+
+
+func _race_magic_over(g: Game, t: float) -> void:
+	for b in g.trap_booms:   # a fire trap goes off
+		if not g.visible.has(b.prov):
+			continue
+		var f: float = (g.t - b.t0) / 2.0
+		if f >= 1:
+			continue
+		_glow(Vector2(b.x, b.y - 20), 90 * (0.4 + f), 1.0, [Color("#fff3a6"), Color(0.78, 0.16, 0.08, 0)], 1 - f)
+	for f0 in g.portal_fx:   # Town Portal (a blue ring) and the Grand Elemental's splash (water)
+		if not g.visible.has(f0.prov):
+			continue
+		var f: float = (g.t - f0.t0) / 1.5
+		if f >= 1:
+			continue
+		var col := Color("#7fc8ee") if f0.get("water", false) else Color("#6fd3ea")
+		col.a = 1 - f
+		_oval(Vector2(f0.x, f0.y), 20 + f * 50, (20 + f * 50) * 0.4, col, 4.0)
+		_glow(Vector2(f0.x, f0.y - 20), 40 + f * 30, 1.4, [Color(0.92, 1, 1, 0.6)], 1 - f)
+		if f0.get("water", false):
+			for k in 6:
+				var q := k * 1.05
+				_disc(Vector2(f0.x + cos(q) * (14 + f * 40), f0.y - 10 - sin(f * PI) * 30 + sin(q) * 6), 3, 3, Color(0.75, 0.91, 1, 1 - f))
+	for u in g.units:
+		if u.kind != "army" or not (u.owner == Game.ME or g.visible.has(u.prov)):
+			continue
+		# Fiery Weapons: the blows land double, flames burst along the weapons and "×2" rises
+		if u.get("fieryHit") != null and g.t - u.fieryHit <= 1:
+			var f: float = g.t - u.fieryHit
+			var K := UKK * 1.6
+			var c := Vector2(u.x, u.y - 20 * K)
+			_glow(c, 70 * K * (0.6 + f), 0.6, [Color(1, 0.94, 0.59, 0.9), Color(0.78, 0.16, 0.08, 0)], 1 - f)
+			for k in 7:
+				var a: float = k * 0.9 + u.id
+				var fl := (1 - f) * (9 + (k % 3) * 3) * K
+				_flame(c + Vector2(cos(a) * 34 * K, sin(a) * 14 * K - f * 26 * K), fl * 0.5, fl * 2, Color("#ff7a2c") if k % 2 else Color("#ffd34d"), Color(1, 1, 1, 0))
+			var p := c + Vector2(-18, -50 * K - f * 30 * K)
+			v.draw_string_outline(_font(), p, "×2", HORIZONTAL_ALIGNMENT_LEFT, -1, 22, 6, OL)
+			v.draw_string(_font(), p, "×2", HORIZONTAL_ALIGNMENT_LEFT, -1, 22, Color("#ffd34d"))
+		# Rock Armor: plates of stone circle the army while the shield holds; a stone bar shows what is left
+		var rk = u.get("rock")
+		if rk != null and rk.hp > 0:
+			for k in 6:
+				var q := t * 0.8 + k * TAU / 6
+				var x := Vector2(u.x + cos(q) * 34, u.y - 16 + sin(q) * 12)
+				v.draw_colored_polygon(PackedVector2Array([x + Vector2(-6, 4), x + Vector2(-4, -5), x + Vector2(4, -6), x + Vector2(7, 2), x + Vector2(2, 6)]), Color("#a8a29a"))
+			var w := 44.0
+			var bar := Rect2(u.x - w / 2, u.y + 14, w, 5)
+			v.draw_rect(bar, OL)
+			v.draw_rect(Rect2(bar.position + Vector2(1, 1), Vector2((w - 2) * clampf(rk.hp / rk.max, 0, 1), 3)), Color("#a8a29a"))
+		elif u.get("rockBroke") != null and g.t - u.rockBroke < 1.0:
+			var f: float = g.t - u.rockBroke
+			for k in 6:
+				var q := k * TAU / 6
+				_disc(Vector2(u.x + cos(q) * (34 + f * 30), u.y - 16 + sin(q) * 12 + f * 20), 4, 3, Color(0.66, 0.64, 0.6, 1 - f))

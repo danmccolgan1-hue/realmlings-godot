@@ -5,6 +5,14 @@ extends Control
 ## web: v106.js renderPatchNotes
 
 const PORT_NOTES := [
+	{"v": "Godot 0.10", "date": "November 21, 2026", "items": [
+		["Grand Elemental", "Woodling Druids with the School of the Elements can call up a Grand Elemental: a towering man of living water who joins the army for 2 minutes."],
+		["Lost travelers", "Swamplings capture lost travelers for food. Woodlings show them the way home for 30 research: Government with a Scout, Military with soldiers, Magic with a Druid."],
+		["Growl", "Swampling leaders can growl at other nations: a Swampling nation may like it or not, anyone else takes it as a threat. Nobody flirts with a Swampling."],
+		["Fire and stone on the map", "Scouting Pyres and Sacred Pyres burn, your fire traps smoulder along the province border and burst when sprung, Path of Fire licks at an army's heels, Fiery Weapons flare with ×2, Rock Armor circles an army with its stone bar, Whispering Rocks stand on the mountains, and Town Portals and the Grand Elemental splash."],
+		["Animation", "Every settlement now smokes and waves its flags; Swampling and Woodling buildings animate like the Realmlings'; Swampstriders scurry on all fours and Ogres gallop."],
+		["Type", "The interface is set in Alegreya, with titles in Cinzel Decorative."],
+		["Minimap", "The minimap stays dark until you explore: no outline of the island or its coasts."]]},
 	{"v": "Godot 0.9", "date": "November 21, 2026", "items": [
 		["Swamplings", "Play as the Swamplings: start in a swamp with three Axe Berserkers, fight 20% harder and move 20% faster there, and tax your swamp settlements. Swampwrights, Swampstriders and Warlocks; Ogre Caves (mountain borders), Thug Dens with Thugs who earn gold, Supply Caches and Hot Springs; no Granaries, Storehouses or roads. Mushroom Farming from the start, Spiked Walls, the Fireball."],
 		["Swampling war and magic", "Axes, Staghide, Wyvern-Scaled and Dragonbone armor, dual wielding (the off hand hits for half), and Ogres in five breeds. Pyromancy: Fiery Weapons, Scouting Pyres, fire traps, Path of Fire and Sacred Pyres."],

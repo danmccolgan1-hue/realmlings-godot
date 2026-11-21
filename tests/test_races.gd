@@ -50,6 +50,26 @@ func run() -> Array:
 	var y1: int = w.province_income(w.capital, w.buildings[w.capital]).wood
 	da.cast = {"spell": "q:fspirit", "t0": 0.0, "dur": INF}
 	chk.call(w.province_income(w.capital, w.buildings[w.capital]).wood == y1 * 2, "a Forest Spirit doubles the province")
+	# the Grand Elemental joins the Druid's army and sinks back after 2 minutes
+	w.add_start_tech("gelemental")
+	w._finish_q(da, "gelem", {}, w.t)
+	chk.call(da.troops.get(Game.GELEM_ID, 0) == 1, "a Grand Elemental joins the army")
+	w.step_elementals(w.t + Game.GELEM.life + 1)
+	chk.call(da.troops.get(Game.GELEM_ID, 0) == 0, "the Grand Elemental sinks back")
+	# the lost travelers: Woodlings trade directions for knowledge, Swamplings capture them
+	var B := {"prov": w.capital, "n": 3, "asked": false}
+	w.travelers.append(B)
+	w.trav_asking = B
+	var bank0: float = w.tech.gov.get("bank", 0)
+	var prog0: float = w.tech.gov.get("prog", 0)
+	w.travelers_choose("know-gov")
+	chk.call(not w.travelers.has(B) and (w.tech.gov.get("bank", 0) + w.tech.gov.get("prog", 0)) > bank0 + prog0, "Woodling Scouts guide travelers for research")
+	var B2 := {"prov": g.capital, "n": 4, "asked": false}
+	g.travelers.append(B2)
+	g.trav_asking = B2
+	var f0: int = g.stock.food
+	g.travelers_choose("capture")
+	chk.call(g.stock.food == mini(f0 + 120, g.storage_cap("food")), "Berserkers capture travelers for food")
 	# --- a full island with one opponent of each race ---
 	var f := _world_with(["swamp", "wood", "realm"])
 	var races := {}
@@ -59,6 +79,15 @@ func run() -> Array:
 		if N.race == "swamp":
 			chk.call(f.G.provs[N.capital].terrain == "swamp" and N.tech.gov.done.has("mushroom") and N.name.length() > 3, "a Swampling nation in a swamp")
 	chk.call(races.size() == 3, "opponents of all three races (got %s)" % str(races.keys()))
+	# Growl: only Swamplings; a Realmling or Woodling nation always takes it badly
+	Races.apply(f, "swamp")
+	for id in f.nations:
+		f.met[id] = true if f.met is Dictionary else f.met
+		if f.nations[id].race != "swamp":
+			f.dx_act("growl", id)
+			chk.call(f.mod_active(id, Game.ME, "growl") != null and f.mod_active(id, Game.ME, "growl").v < 0, "a growl at a non-Swampling nation is a threat")
+			chk.call(f.flirt_why(id) != "", "no flirting across races")
+			break
 	# --- save and load keeps the race ---
 	var g2 := Game.load_text(g.save_text())
 	chk.call(g2 != null and g2.is_sw() and g2.BUILD_DEFS.stable.name == "Ogre Cave", "a loaded Swampling game keeps its names")
