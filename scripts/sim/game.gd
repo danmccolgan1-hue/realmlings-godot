@@ -5293,7 +5293,7 @@ const SAVE_FIELDS := ["battles", "bandit_count", "monster_count", "leader", "cap
 	"xup", "auto_tech", "roads", "walls", "wall_hp", "artifacts", "gift_vault", "quakes", "quake_seq", "wall_max", "wall_crack", "broken_walls", "rewall_jobs", "gate_own", "fort_walled", "gpc_slow_t", "dev_t", "cd", "paths",
 	"harvest_by", "trap", "reveals", "eyes", "haunts", "mana_pool", "mana_prev_t", "mage_gear", "finds", "treasure_rolled",
 	"sp_found", "slot_races", "spyres", "ftraps", "sacreds", "wrocks", "gelems", "setpieces", "travelers", "train_orders", "train_order_seq", "design_seq", "prov_rename", "nations", "players", "my_nation", "race_of", "wars", "truces", "allies", "war_seq", "met", "occ", "occ_prog", "dipl", "war_log", "war_ever", "war_lock", "ai_met", "fallen", "ally_check", "bandit_next", "bandit_waves", "ally_ask", "crop_scan_at", "ai_scout_t", "wf", "known", "explored", "visible", "queues", "rally", "military", "UNIT_SPEED", "open_nbr", "all_nbr",
-	"yields", "tree_border", "debug_cap", "debug_tech", "reveal_all", "rec", "t", "next_tick", "paused", "last", "started"]
+	"yields", "look_seed", "tree_border", "debug_cap", "debug_tech", "reveal_all", "rec", "t", "next_tick", "paused", "last", "started"]
 
 
 ## The whole game as a plain Dictionary (see SaveCodec for the text form).
@@ -5320,6 +5320,30 @@ func to_save() -> Dictionary:
 
 func save_text() -> String:
 	return SaveCodec.to_text(to_save())
+
+
+# --- multiplayer: fixed steps and the game's fingerprint ---
+
+## Every copy of a multiplayer game advances in the same fixed steps, never by the real time between frames, so
+## all copies compute exactly the same thing (update() caps a real frame at 0.1 s; a fixed step is always STEP).
+const STEP := 0.05
+
+func step_fixed(dt := STEP) -> void:
+	update(last + dt)
+
+
+## What doesn't count toward the fingerprint: the moment the game was saved, its version, the recording, and the
+## pause flag (each copy shows pause its own way).
+const CHECKSUM_SKIP := ["version", "build", "rec", "last", "paused"]
+
+## A fingerprint of the whole game state (the lossless save, in its fixed order): two copies of a multiplayer game
+## in step have the same one. Copies compare it every few seconds; a mismatch means one fell out of step and
+## gets the host's save.
+func checksum() -> int:
+	var d := to_save()
+	for k in CHECKSUM_SKIP:
+		d.erase(k)
+	return SaveCodec.to_text(d).hash()
 
 
 ## A game from to_save(); `map` may be a ready map for the same seed (tests reuse one).
@@ -7248,6 +7272,17 @@ func place_travelers(skip: Dictionary) -> void:
 		travelers.append({"id": k, "prov": p, "n": n, "x": c[0] - 60, "y": c[1] + 40, "tx": null, "ty": null, "wait": 2 + r.next() * 6, "asked": false, "dir": 1})
 
 
+# A seeded draw for what only looks random (the travelers' amble): the same in every copy of the game, and saved,
+# so multiplayer copies and loaded games stay in step (it was Godot's unseeded randf()).
+var look_seed := 0
+
+func look_rand() -> float:
+	var m := Mulberry32.new(look_seed if look_seed else hash(str(world.seed)))
+	var v := m.next()
+	look_seed = m.a if m.a else 1
+	return v
+
+
 func step_travelers(dt: float) -> void:
 	for B in travelers:
 		# a slow amble about their province (looks only: the web game rolls Math.random here)
@@ -7255,8 +7290,8 @@ func step_travelers(dt: float) -> void:
 			B.wait -= dt
 			if B.wait <= 0:
 				var P: Dictionary = G.provs[B.prov]
-				var q: Array = P.inner[randi() % P.inner.size()]
-				var f := 0.35 + randf() * 0.3
+				var q: Array = P.inner[int(look_rand() * P.inner.size())]
+				var f := 0.35 + look_rand() * 0.3
 				var at = Geo.clamp_into(P, P.ic[0] + (q[0] - P.ic[0]) * f, P.ic[1] + (q[1] - P.ic[1]) * f)
 				B.tx = at[0]
 				B.ty = at[1]
@@ -7269,7 +7304,7 @@ func step_travelers(dt: float) -> void:
 				B.x = B.tx
 				B.y = B.ty
 				B.tx = null
-				B.wait = 6 + randf() * 10
+				B.wait = 6 + look_rand() * 10
 			else:
 				B.x += dx / d * sp
 				B.y += dy / d * sp
