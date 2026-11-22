@@ -2,7 +2,7 @@ extends SceneTree
 ## Headless test runner: godot --headless --path . --script res://tests/run_tests.gd
 ## Each test file in TESTS has a run() -> Array[String] returning failure messages (empty = pass).
 
-const TESTS := ["res://tests/test_world_gen.gd", "res://tests/test_economy.gd", "res://tests/test_play.gd", "res://tests/test_save.gd", "res://tests/test_tutorial.gd", "res://tests/test_decor.gd", "res://tests/test_setup.gd", "res://tests/test_war.gd", "res://tests/test_ai.gd", "res://tests/test_siege.gd", "res://tests/test_dipl.gd", "res://tests/test_ui.gd", "res://tests/test_replay.gd", "res://tests/test_build.gd", "res://tests/test_races.gd", "res://tests/test_determinism.gd"]
+const TESTS := ["res://tests/test_world_gen.gd", "res://tests/test_economy.gd", "res://tests/test_play.gd", "res://tests/test_save.gd", "res://tests/test_tutorial.gd", "res://tests/test_decor.gd", "res://tests/test_setup.gd", "res://tests/test_war.gd", "res://tests/test_ai.gd", "res://tests/test_siege.gd", "res://tests/test_dipl.gd", "res://tests/test_ui.gd", "res://tests/test_replay.gd", "res://tests/test_build.gd", "res://tests/test_races.gd", "res://tests/test_determinism.gd", "res://tests/test_net.gd"]
 
 func _initialize() -> void:
 	var failures := 0

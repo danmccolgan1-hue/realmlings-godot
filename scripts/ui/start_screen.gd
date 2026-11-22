@@ -57,6 +57,7 @@ func _ready() -> void:
 
 
 func _process(_dt: float) -> void:
+	_mp_poll(_dt)
 	# the card stays in the middle of the screen
 	card.reset_size()
 	var vs := get_viewport_rect().size
@@ -366,15 +367,215 @@ func _build_tut() -> void:
 	v.add_child(_big("Combat Tutorial", PURPLE, Callable(), "Coming later", true))
 
 
+# The Multiplayer screen: host a lobby or join one over the local network or the internet, see who is in it and
+# chat (scripts/net/net_session.gd). Playing a game together comes once the rules handle several human players.
+var net: NetSession
+var mp_box: VBoxContainer
+var mp_status: Label
+var mp_note: Label
+var mp_lan: VBoxContainer
+var mp_players: VBoxContainer
+var mp_chat: RichTextLabel
+var mp_lan_sig := ""
+var mp_lan_t := 0.0
+
+
 func _build_multi() -> void:
 	var v: VBoxContainer = screens.multi
-	v.custom_minimum_size = Vector2(500, 0)
+	v.custom_minimum_size = Vector2(620, 0)
+	v.add_theme_constant_override("separation", 8)
 	_sub_head(v, "Multiplayer")
-	var l := _lbl("Coming Soon", 30, MUTED)
-	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	l.custom_minimum_size = Vector2(0, 120)
-	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	v.add_child(l)
+	mp_box = VBoxContainer.new()
+	mp_box.add_theme_constant_override("separation", 8)
+	v.add_child(mp_box)
+	_mp_menu()
+
+
+func _mp_clear() -> void:
+	for c in mp_box.get_children():
+		c.queue_free()
+
+
+func _mp_nation() -> Dictionary:
+	return {"race": opts.get("race", "realm"), "color": int(opts.nation.color), "emblem": opts.nation.emblem,
+		"secondary": opts.nation.get("secondary", "#faf1dc"), "nation": opts.nation.name, "leader": opts.leader}
+
+
+func _mp_menu() -> void:
+	_mp_clear()
+	var name_edit := LineEdit.new()
+	name_edit.text = str(Settings.menu.get("mp_name", "Player"))
+	name_edit.max_length = 24
+	_style_edit(name_edit)
+	name_edit.text_changed.connect(func(t2):
+		Settings.menu.mp_name = t2
+		Settings.save_all())
+	_row("Your name", name_edit, mp_box)
+	mp_box.add_child(_big("Host a game", BLUE, func(): _mp_host(name_edit.text),
+		"Up to 8 players. Your nation, race and flag come from the New Game page"))
+	var jr := HBoxContainer.new()
+	jr.add_theme_constant_override("separation", 8)
+	var addr := LineEdit.new()
+	addr.placeholder_text = "Host's address, e.g. 192.168.1.20 or 81.2.3.4"
+	addr.text = str(Settings.menu.get("mp_addr", ""))
+	addr.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_style_edit(addr)
+	jr.add_child(addr)
+	var jb := _tog("Join", false, func():
+		Settings.menu.mp_addr = addr.text
+		Settings.save_all()
+		_mp_join(name_edit.text, addr.text))
+	jr.add_child(jb)
+	addr.text_submitted.connect(func(_t2): jb.pressed.emit())
+	_row("Join by address", jr, mp_box)
+	mp_lan = VBoxContainer.new()
+	_row("On your network", mp_lan, mp_box)
+	var ips: Array = Array(IP.get_local_addresses()).filter(func(x): return x.count(".") == 3 and not x.begins_with("127.") and not x.begins_with("169.254."))
+	mp_note = _lbl("Your address on this network: %s. Over the internet, the host opens UDP port %d (the game tries this itself) or everyone uses a virtual LAN such as Tailscale." % [", ".join(ips) if not ips.is_empty() else "unknown", NetSession.PORT], 14, MUTED)
+	mp_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	mp_note.custom_minimum_size = Vector2(600, 0)
+	mp_box.add_child(mp_note)
+	mp_status = _lbl("", 15, INK)
+	mp_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	mp_status.custom_minimum_size = Vector2(600, 0)
+	mp_box.add_child(mp_status)
+	if net == null:
+		net = NetSession.new(name_edit.text, _mp_nation())
+	net.listen_lan()
+	mp_lan_sig = "-"
+
+
+func _mp_wire() -> void:
+	net.status.connect(func(t2): if mp_status and is_instance_valid(mp_status): mp_status.text = t2)
+	net.closed.connect(func(why):
+		net = null
+		_mp_menu()
+		mp_status.text = why)
+	net.players_changed.connect(_mp_players)
+	net.chat.connect(func(n, t2):
+		if mp_chat and is_instance_valid(mp_chat):
+			mp_chat.append_text(("[b]%s:[/b] %s\n" % [n, t2]) if n != "" else ("[i]%s[/i]\n" % t2)))
+
+
+func _mp_host(nm: String) -> void:
+	if net != null:
+		net.leave()
+	net = NetSession.new(nm, _mp_nation())
+	_mp_wire()
+	var w := net.host()
+	if w != "":
+		mp_status.text = w
+		net = null
+		return
+	_mp_lobby()
+	mp_status.text = "Hosting on port %d. Friends on your network see this game in their list; over the internet they join your address." % NetSession.PORT
+	mp_note.text = "Asking your router to open the port..."
+
+
+func _mp_join(nm: String, address: String) -> void:
+	if net != null:
+		net.leave()
+	net = NetSession.new(nm, _mp_nation())
+	_mp_wire()
+	var w := net.join(address)
+	if w != "":
+		mp_status.text = w
+		net = null
+		return
+	_mp_lobby()
+	mp_status.text = "Connecting to %s..." % address
+
+
+func _mp_lobby() -> void:
+	_mp_clear()
+	mp_status = _lbl("", 15, INK)
+	mp_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	mp_status.custom_minimum_size = Vector2(600, 0)
+	mp_box.add_child(mp_status)
+	mp_note = _lbl("", 14, MUTED)
+	mp_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	mp_note.custom_minimum_size = Vector2(600, 0)
+	mp_box.add_child(mp_note)
+	mp_players = VBoxContainer.new()
+	mp_players.add_theme_constant_override("separation", 4)
+	_row("Players", mp_players, mp_box)
+	mp_chat = RichTextLabel.new()
+	mp_chat.bbcode_enabled = true
+	mp_chat.scroll_following = true
+	mp_chat.custom_minimum_size = Vector2(600, 160)
+	mp_chat.add_theme_color_override("default_color", INK)
+	mp_box.add_child(mp_chat)
+	var cr := HBoxContainer.new()
+	var ce := LineEdit.new()
+	ce.placeholder_text = "Say something"
+	ce.max_length = 200
+	ce.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_style_edit(ce)
+	ce.text_submitted.connect(func(t2):
+		if net:
+			net.send_chat(t2)
+		ce.clear())
+	cr.add_child(ce)
+	mp_box.add_child(cr)
+	var br := HBoxContainer.new()
+	br.add_theme_constant_override("separation", 8)
+	br.add_child(_tog("Leave", false, func():
+		if net:
+			net.leave()
+		net = null
+		_mp_menu()))
+	br.add_child(_tog("Start the game", false, Callable(), true, "Playing together comes once the rules handle several human players; for now the lobby tests your connection"))
+	mp_box.add_child(br)
+	_mp_players()
+
+
+func _mp_players() -> void:
+	if mp_players == null or not is_instance_valid(mp_players) or net == null:
+		return
+	for c in mp_players.get_children():
+		c.queue_free()
+	for id in net.players:
+		var P: Dictionary = net.players[id]
+		var n: Dictionary = P.get("nation", {})
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+		var NC: Array = GameData.c("NATION_COLORS")
+		var tex = Art.flag_texture(str(NC[int(n.get("color", 0)) % NC.size()][0]), str(n.get("emblem", "crown")), str(n.get("secondary", "#faf1dc")))
+		if tex:
+			var r := TextureRect.new()
+			r.texture = tex
+			r.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			r.custom_minimum_size = Vector2(40, 28)
+			r.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			row.add_child(r)
+		var who := "%s%s · %s · %s" % [P.name, " (host)" if int(id) == 1 else "", str(n.get("nation", "")), Races.NAME.get(str(n.get("race", "realm")), "")]
+		row.add_child(_lbl(who, 16, INK))
+		if int(id) != 1:
+			row.add_child(_lbl("%d ms" % int(P.get("ping", 0)), 14, MUTED))
+		mp_players.add_child(row)
+
+
+func _mp_poll(dt: float) -> void:
+	if net == null:
+		return
+	net.poll(dt)
+	if mp_note and is_instance_valid(mp_note) and net.is_host and net.upnp_note != "":
+		mp_note.text = net.upnp_note
+	mp_lan_t -= dt
+	if mp_lan and is_instance_valid(mp_lan) and mp_lan_t <= 0:
+		mp_lan_t = 0.5
+		var sig := ",".join(net.lan_games.keys())
+		if sig != mp_lan_sig:
+			mp_lan_sig = sig
+			for c in mp_lan.get_children():
+				c.queue_free()
+			if net.lan_games.is_empty():
+				mp_lan.add_child(_lbl("No games found yet (looking...)", 14, MUTED))
+			for k in net.lan_games:
+				var gm: Dictionary = net.lan_games[k]
+				var addr: String = k
+				mp_lan.add_child(_tog("Join %s's game (%d player%s)%s" % [gm.name, gm.players, "" if gm.players == 1 else "s", "" if gm.version == net.version else " · version " + gm.version], false,
+					func(): _mp_join(str(Settings.menu.get("mp_name", "Player")), addr)))
 
 
 # --- the New Game page ---

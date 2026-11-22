@@ -5,6 +5,9 @@ extends Control
 ## web: v106.js renderPatchNotes
 
 const PORT_NOTES := [
+	{"v": "Godot 0.13", "date": "November 21, 2026", "items": [
+		["Multiplayer lobby", "Host a game or join one by address, and games on your own network show up by themselves. Up to 8 players see each other's nation and flag, chat, and see their connection speed. The host's game tries to open its port on the router by itself. Playing together comes next: for now the lobby lets you and your friends test your connections."],
+		["Under the hood", "The game can now run in fixed steps and take a fingerprint of its whole state, and a new test proves that copies of a game stay exactly in step: the groundwork for playing together."]]},
 	{"v": "Godot 0.12", "date": "November 21, 2026", "items": [
 		["Flags", "Every race has its own flags. All keep the Crown, Shield, Crossed swords and Eagle. Realmlings add the Fleur-de-lis, Clenched fist, Heart and Rose; Swamplings the Flame, Bleeding eye, Beetle, Claw, Tooth, Skull, Crossed axes and Upside-down pyramid; Woodlings the Triskelion, Trinity knot, Celtic spiral, Great tree, Celtic knot, Shamrock, Dara knot and Shield knot. The Dragon, Horse, Snake and Lion are gone. Computer nations fly their race's flags too."],
 		["Emblem color (0.12.1)", "Choose the color of your flag's emblem, on top of your nation's color: eight hues from light to deep, from white to a dark gray (no black). Computer nations get their own. The Tooth is now a set of fanged jaws, the Triskelion curls more and fits the flag, and the Flame and Bleeding eye take the emblem color like the rest."]]},

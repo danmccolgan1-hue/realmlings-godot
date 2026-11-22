@@ -60,6 +60,11 @@ func _ready() -> void:
 				menu.opts.race = LL[menu.opts.leader].race
 		elif a.begins_with("--world="):   # a full map: --world=moderate,difficult,easy
 			shot_slots = a.substr(8).split(",")
+		elif a == "--mphost":   # pictures: a hosted multiplayer lobby
+			menu.show_screen("multi")
+			menu._mp_host("Daniel")
+			menu.net.chat.emit("", "Ann joined.")
+			menu.net.chat.emit("Ann", "Ready when you are!")
 		elif a == "--newgame":   # pictures: the New Game page
 			menu.show_screen("setup")
 		elif a == "--tutorial":
@@ -68,7 +73,7 @@ func _ready() -> void:
 			Settings.record_games = true
 		elif a.begins_with("--replay=") and Array(OS.get_cmdline_user_args()).any(func(x): return x.begins_with("--shot=")):
 			start_replay.call_deferred(a.substr(9))
-		elif a.begins_with("--shot=") and (OS.get_cmdline_user_args().has("--menu") or OS.get_cmdline_user_args().has("--newgame")):
+		elif a.begins_with("--shot=") and (OS.get_cmdline_user_args().has("--menu") or OS.get_cmdline_user_args().has("--newgame") or OS.get_cmdline_user_args().has("--mphost")):
 			_menu_shot.call_deferred(a.substr(7), false)
 		elif a.begins_with("--shot=") and (OS.get_cmdline_user_args().has("--patch") or Array(OS.get_cmdline_user_args()).any(func(x): return x.begins_with("--replay="))):
 			if OS.get_cmdline_user_args().has("--patch"):
