@@ -29,7 +29,7 @@ static func snap(g: Game, ids: Array) -> Dictionary:
 	for o in D.intel:
 		intel.append([o, D.intel[o].get("power", 0), D.intel[o].get("provs", []).size()])
 	return {"t": r6(g.t), "stock": g.stock.duplicate(), "income": g.income.duplicate(),
-		"nations": ids.map(func(o): return [o, g.nations[o].stock.duplicate(), g.opinion(o, Game.ME) if g.alive_nation(o) else 0, g.nations[o].get("giftVault", 0)]),
+		"nations": ids.map(func(o): return [o, g.nations[o].stock.duplicate(), g.opinion(o, Game.HOST) if g.alive_nation(o) else 0, g.nations[o].get("giftVault", 0)]),
 		"mods": D.mods.map(func(m): return [m.o, m.t, m.kind, m.v, r6(m.until)]), "access": D.access.map(func(x): return [x.from, x.to]),
 		"trade": D.trade.map(func(P): return [P.a, P.b]), "allies": g.allies.map(func(A): return [A.a, A.b]), "wars": g.wars.map(func(w): return [w.a, w.b]),
 		"news": D.news.map(func(n): return [n.kind, n.a, n.b]), "reqs": D.reqs.map(func(r): return [r.from, r.kind]), "spies": D.spies.keys(),
@@ -56,7 +56,7 @@ static func play(fx: Dictionary) -> Array:
 			k += 1
 			match A.a:
 				"own":
-					g.buildings[int(A.p)] = {"stage": 0, "born": 0, "owner": Game.ME}
+					g.buildings[int(A.p)] = {"stage": 0, "born": 0, "owner": Game.HOST}
 					g.surveyed[int(A.p)] = 0
 					g.compute_income()
 					g.compute_fog()

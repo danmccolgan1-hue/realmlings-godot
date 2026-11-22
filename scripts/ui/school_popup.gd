@@ -37,7 +37,7 @@ func open() -> void:
 	head.add_child(t)
 	head.add_child(UiKit.button("✕", 18, func(): hide()))
 	col.add_child(head)
-	var L = game.leader_of(Game.ME)
+	var L = game.leader_of(Game.LOCAL)
 	var lock = L.get("school") if L != null else null
 	var sub := UiKit.ink(16)
 	sub.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -92,7 +92,7 @@ func _card(k: String, sc: Dictionary, on: bool) -> Button:
 		var bx := UiKit.box(st[1], 10, 4 if on else 3, UiKit.INK if not on else col_c.darkened(0.3))
 		b.add_theme_stylebox_override(st[0], bx)
 	b.pressed.connect(func():
-		if game.pick_school(k):
+		if game.do("pick_school", [k]):
 			hide())
 	var v := VBoxContainer.new()
 	v.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)

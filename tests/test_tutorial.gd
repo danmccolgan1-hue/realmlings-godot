@@ -55,7 +55,7 @@ func run() -> Array:
 
 func _unit(kind: String):
 	for u in g.units:
-		if u.owner == Game.ME and u.kind == kind:
+		if u.owner == Game.HOST and u.kind == kind:
 			return u
 	return null
 

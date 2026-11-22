@@ -212,7 +212,7 @@ func _process(dt: float) -> void:
 func _battle_loop(g) -> void:
 	var near := 0.0
 	for b in g.battles:
-		if b.start.has(Game.ME):
+		if b.start.has(Game.LOCAL):
 			near = maxf(near, near_of(b.prov))
 	loop_vol = SFX_FILES.bat_blades * near if near > 0.02 else 0.0
 	if loop_vol > 0 and not loop.playing and Settings.sfx_on and not g.paused and buf.has("bat_blades"):
@@ -228,7 +228,7 @@ func _battle_loop(g) -> void:
 func _watch(g) -> void:
 	var now_seen := {}
 	for v in g.units:
-		if v.kind == "army" and v.owner != Game.ME and g.hostile(v.owner, Game.ME) and g.owned(v.prov):
+		if v.kind == "army" and v.owner != Game.LOCAL and g.hostile(v.owner, Game.LOCAL) and g.owned(v.prov):
 			now_seen["%d:%d" % [v.id, v.prov]] = true
 	for k in now_seen:
 		if not enemy_seen.has(k):
@@ -247,7 +247,7 @@ func _selection() -> void:
 		return
 	var was := sel_key
 	sel_key = key
-	if key == "" or hud.selection.is_empty() or hud.selection[0].owner != Game.ME:
+	if key == "" or hud.selection.is_empty() or hud.selection[0].owner != Game.LOCAL:
 		return
 	if was != "" and key.begins_with(was) and key.length() > was.length():
 		return
@@ -262,7 +262,7 @@ func _music_want() -> String:
 	var g = main.game if main else null
 	if g == null or g.tutorial != null:
 		return "tavern"
-	var r: String = str(g.race_of.get(Game.ME, "realm"))
+	var r: String = str(g.race_of.get(Game.LOCAL, "realm"))
 	return "swamp" if r == "swamp" else "wood" if r == "wood" else "tavern"
 
 

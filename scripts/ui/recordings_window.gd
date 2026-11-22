@@ -46,7 +46,7 @@ static func list() -> Array:
 		var d = JSON.parse_string(FileAccess.get_file_as_string(path))
 		if not (d is Dictionary) or not d.has("header") or d.get("frames", []).is_empty():
 			continue
-		var you = d.header.nations.filter(func(n): return int(n.id) == Game.ME)
+		var you = d.header.nations.filter(func(n): return int(n.id) == Game.LOCAL)
 		out.append({"path": path, "made": str(d.get("made", "")), "seed": str(d.header.seed), "nations": d.header.nations.size(),
 			"length": float(d.frames[-1].t) - float(d.frames[0].t), "events": d.ev.size(), "leader": you[0].get("leader", "") if not you.is_empty() else ""})
 	out.sort_custom(func(a, b): return a.made > b.made)

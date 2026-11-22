@@ -47,7 +47,7 @@ static func play(fx: Dictionary, map: Dictionary, after_frame := Callable()) -> 
 		if not TestEconomy.eq(fx.plan.setpieces, sp):
 			errs.append("set pieces %s, want %s" % [sp, fx.plan.setpieces])
 	g.travelers.clear()   # as in the fixture: they would stop the game to ask
-	g.units = g.units.filter(func(u): return u.owner == Game.ME)   # as in the fixture: no Bandit Gangs or monsters
+	g.units = g.units.filter(func(u): return u.owner == Game.HOST)   # as in the fixture: no Bandit Gangs or monsters
 	if str(fx.scenario).begins_with("battle"):
 		g.battle_rand = func(): return 0.5   # as in the fixture: Math.random pinned to 0.5
 	var E0 := g.explored.duplicate()
@@ -96,7 +96,7 @@ static func play(fx: Dictionary, map: Dictionary, after_frame := Callable()) -> 
 						gang.troops[tk] = int(A.troops[tk])
 				"retreat":
 					for a in g.units:
-						if a.kind == "army" and a.owner == Game.ME and a.get("battle") != null:
+						if a.kind == "army" and a.owner == Game.HOST and a.get("battle") != null:
 							g.retreat(a)
 							break
 				"mana": unit(g, "army").mana = float(A.n)
@@ -122,7 +122,7 @@ static func play(fx: Dictionary, map: Dictionary, after_frame := Callable()) -> 
 				"split": g.split_army(unit(g, "army"))
 				"combine":
 					var a0 = unit(g, "army")
-					g.combine_armies(g.units.filter(func(v): return v.kind == "army" and v.owner == Game.ME and v.prov == a0.prov))
+					g.combine_armies(g.units.filter(func(v): return v.kind == "army" and v.owner == Game.HOST and v.prov == a0.prov))
 				"destroy":
 					for e in g.extras_in(int(A.p)):
 						if e.type == A.type:
@@ -146,7 +146,7 @@ static func play(fx: Dictionary, map: Dictionary, after_frame := Callable()) -> 
 
 static func unit(g: Game, which: String):
 	for u in g.units:
-		if (which == "wf" and u.kind == g.WAYFINDER) or (which == "mason" and u.kind == Game.MASON) or (which == "army" and u.kind == "army" and u.owner == Game.ME):
+		if (which == "wf" and u.kind == g.WAYFINDER) or (which == "mason" and u.kind == Game.MASON) or (which == "army" and u.kind == "army" and u.owner == Game.HOST):
 			return u
 	return null
 

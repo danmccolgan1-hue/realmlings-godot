@@ -221,7 +221,7 @@ func part_at(at: Vector2):
 				return {"prov": p, "part": "%s@%d" % [e.type, e.slot]}
 	for p in game.buildings:
 		var b: Dictionary = game.buildings[p]
-		if b.owner != Game.ME:
+		if b.owner != Game.LOCAL:
 			continue
 		var c: Array = game.G.provs[p].ic
 		var r := 70.0 if b.stage == 2 else 40.0
@@ -408,13 +408,13 @@ func _draw_game() -> void:
 			effects.draw_battle(game, b, game.t)
 	# surveys trace their loop under the units (web: game.js drawSurvey)
 	for u in game.units:
-		if u.survey != null and (u.owner == Game.ME or game.visible.has(u.prov)):
+		if u.survey != null and (u.owner == Game.LOCAL or game.visible.has(u.prov)):
 			orders.draw_survey(game, u.survey, game.t)
 	# units, back to front
 	var us: Array = game.units.duplicate()
 	us.sort_custom(func(a, b): return a.y < b.y)
 	for u in us:
-		if u.owner != Game.ME and not game.visible.has(u.prov):
+		if u.owner != Game.LOCAL and not game.visible.has(u.prov):
 			continue   # raiders under the fog stay hidden
 		if u.build != null and game.BUILD_DEFS.has(u.build.type) and u.build.get("slot") != null:   # (roads and walls have no plot)
 			var ic: Array = game.G.provs[u.build.prov].ic
@@ -439,12 +439,12 @@ func _draw_game() -> void:
 		var big := u.get("monster") != null
 		var rrx := (30.0 if big else 16.0) * UK_K
 		var rry := (12.0 if big else 6.5) * UK_K
-		if u.owner == Game.ME and not _is_sel(u) and not u.get("exiting", false):
+		if u.owner == Game.LOCAL and not _is_sel(u) and not u.get("exiting", false):
 			var pulse := 1.0 + sin(t2 * 4 + float(u.id)) * 0.07
 			_ellipse(Vector2(u.x, u.y + 1), rrx * pulse, rry * pulse, OL, 3.0)
-			_ellipse(Vector2(u.x, u.y + 1), rrx * pulse, rry * pulse, Color(game.player_info(Game.ME).color), 1.6)
-		if u.owner != Game.ME:
-			var hostile: bool = game.hostile(Game.ME, u.owner)
+			_ellipse(Vector2(u.x, u.y + 1), rrx * pulse, rry * pulse, Color(game.player_info(Game.LOCAL).color), 1.6)
+		if u.owner != Game.LOCAL:
+			var hostile: bool = game.hostile(Game.LOCAL, u.owner)
 			var ring: Color = HOSTILE if hostile else Color(game.player_info(u.owner).color)
 			_ellipse(Vector2(u.x, u.y + 1), rrx, rry, OL, 4.0)
 			_ellipse(Vector2(u.x, u.y + 1), rrx, rry, ring, 2.2)
@@ -603,13 +603,13 @@ func _army(u: Dictionary) -> void:
 	if lift > 0:
 		draw_circle(Vector2(u.x, u.y + 4), 30.0, Color(0, 0, 0, 0.22))
 	var ring_y := base.y + 2
-	if u.owner != Game.ME:   # other nations, bandits and monsters: a ring in their color
+	if u.owner != Game.LOCAL:   # other nations, bandits and monsters: a ring in their color
 		_ellipse(Vector2(base.x, ring_y), rx, ry, OL, 5.0)
 		_ellipse(Vector2(base.x, ring_y), rx, ry, Color(game.player_info(u.owner).color), 3.0)
 	elif not _is_sel(u):   # yours: a thin pulsing ring in your color (web: ownRing)
 		var pulse := 1.0 + sin(t * 4 + float(u.id)) * 0.07
 		_ellipse(Vector2(base.x, base.y + 1), rx * pulse, ry * pulse, OL, 3.0)
-		_ellipse(Vector2(base.x, base.y + 1), rx * pulse, ry * pulse, Color(game.player_info(Game.ME).color), 1.6)
+		_ellipse(Vector2(base.x, base.y + 1), rx * pulse, ry * pulse, Color(game.player_info(Game.LOCAL).color), 1.6)
 	if _is_sel(u):
 		_sel_ring(Vector2(base.x, base.y + 2), rx + 2 * K, ry + K, t)
 	var walking: bool = u.moving or u.get("patrolling", false)
@@ -736,7 +736,7 @@ func _army_power(u: Dictionary, at: Vector2) -> void:
 	var h := 13.0 * k * 1.6
 	var r := Rect2(at.x - w / 2, at.y - h / 2, w, h)
 	var bg := StyleBoxFlat.new()
-	bg.bg_color = Color("#f3e4c4", 0.92) if u.owner == Game.ME else Color("#fae0dc", 0.92)
+	bg.bg_color = Color("#f3e4c4", 0.92) if u.owner == Game.LOCAL else Color("#fae0dc", 0.92)
 	bg.border_color = OL
 	bg.set_border_width_all(maxi(1, int(2 * k)))
 	bg.set_corner_radius_all(int(h / 2))
@@ -801,7 +801,7 @@ func _run_sprite(rc: String, kind: String, dir: String, tt: float):
 
 # web: v78.js schoolOf: the caster's school (arcane when there is none)
 func _school_of(o: int) -> String:
-	var sc = game.current_school() if o == Game.ME else (game.nations[o].get("school") if game.nations.has(o) else null)
+	var sc = game.current_school() if o == Game.LOCAL else (game.nations[o].get("school") if game.nations.has(o) else null)
 	return str(sc) if sc != null else "arcane"
 
 

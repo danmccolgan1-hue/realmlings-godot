@@ -36,7 +36,7 @@ static func snap(g: Game, foe: int, fc: int) -> Dictionary:
 	for o in g.artifacts:
 		arts[str(o)] = g.artifacts[o].duplicate()
 	return {"t": r6(g.t), "stock": g.stock.duplicate(), "foeStock": g.nations[foe].stock.duplicate(),
-		"wars": g.wars.map(func(w): return [w.a, w.b, g.warscore(w, Game.ME)]), "occ": oc, "walls": ws,
+		"wars": g.wars.map(func(w): return [w.a, w.b, g.warscore(w, Game.HOST)]), "occ": oc, "walls": ws,
 		"extras": g.extras_in(fc).map(func(e): return e.type), "artifacts": arts,
 		"battles": g.battles.map(func(b): return [b.prov, TestPlay.str_keys(b.lost)]),
 		"units": g.units.filter(func(u): return u.kind == "army").map(func(u): return [u.id, u.owner, u.prov, u.moving,
@@ -60,7 +60,7 @@ static func play(fx: Dictionary, verbose := false) -> Array:
 	var k := 0
 	var si := 0
 	var mine := func():
-		var l := g.units.filter(func(u): return u.kind == "army" and u.owner == Game.ME)
+		var l := g.units.filter(func(u): return u.kind == "army" and u.owner == Game.HOST)
 		return l[-1]
 	for i in int(fx.frames):
 		while k < acts.size() and g.t >= float(acts[k].t):
@@ -68,7 +68,7 @@ static func play(fx: Dictionary, verbose := false) -> Array:
 			k += 1
 			match A.a:
 				"own":
-					g.buildings[int(A.p)] = {"stage": 0, "born": 0, "owner": Game.ME}
+					g.buildings[int(A.p)] = {"stage": 0, "born": 0, "owner": Game.HOST}
 					g.surveyed[int(A.p)] = 0
 					g.compute_income()
 					g.compute_fog()
@@ -80,7 +80,7 @@ static func play(fx: Dictionary, verbose := false) -> Array:
 				"tech":
 					g.grant_tech(A.id)
 				"declare":
-					g.declare_war(Game.ME, int(A.o))
+					g.declare_war(Game.HOST, int(A.o))
 				"army":
 					var tr := {}
 					for tk in A.troops:

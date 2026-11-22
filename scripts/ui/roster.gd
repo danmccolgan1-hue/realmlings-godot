@@ -61,14 +61,14 @@ static func _sb(bg: Color, border := 0, radius := 9, pad := 0, border_col := INK
 
 
 func _workers() -> Array:
-	return game.units.filter(func(u): return u.owner == Game.ME and (u.kind == game.WAYFINDER or u.kind == Game.MASON))
+	return game.units.filter(func(u): return u.owner == Game.LOCAL and (u.kind == game.WAYFINDER or u.kind == Game.MASON))
 
 
 ## web: game.js myProvList (forts and capitals first, then by name)
 func _my_provs() -> Array:
 	var out := []
 	for p in game.buildings:
-		if game.buildings[p].owner == Game.ME:
+		if game.buildings[p].owner == Game.LOCAL:
 			out.append(p)
 	out.sort_custom(func(a, b):
 		var sa: int = game.buildings[a].stage
@@ -78,7 +78,7 @@ func _my_provs() -> Array:
 
 
 func _armies() -> Array:
-	return game.units.filter(func(v): return v.kind == "army" and v.owner == Game.ME)
+	return game.units.filter(func(v): return v.kind == "army" and v.owner == Game.LOCAL)
 
 
 func status_of(u: Dictionary) -> String:
@@ -131,7 +131,7 @@ func _sig(tab: String) -> String:
 		out += str(hud.prov if hud else -1)
 	else:
 		for a in game.units:
-			if a.owner == Game.ME and (a.kind == "army" or a.kind == game.MAGE):
+			if a.owner == Game.LOCAL and (a.kind == "army" or a.kind == game.MAGE):
 				out += "%d%s:%d:%s:%s:%d%s|" % [a.id, a.name, game.troop_count(a) if a.kind == "army" else 0, army_status(a) if a.kind == "army" else status_of(a), a.prov,
 					int(game.raw_strength([a]) * 10) if a.kind == "army" else 0, "*" if is_same(a, sel) else ""]
 		for p in game.extras:
@@ -384,7 +384,7 @@ func _armies_tab() -> void:
 			var small := "%d%s · %s · %s" % [game.troop_count(a) - m, (" + %d %s" % [m, MN + ("s" if m > 1 else "")]) if m else "", army_status(a), game.prov_name(a.prov) if game.explored.has(a.prov) else "fog"]
 			_row(hud.unit_icon(pk), a.name, "", not inb, small, is_same(a, hud.unit), _pick_unit.bind(a), _go_unit.bind(a), "Click to select, double-click to go to",
 				Color("#c7362b") if inb else Color.TRANSPARENT, "⚔ " + UiKit.num(maxf(1, roundf(game.raw_strength([a]) * 10))))
-	var mages := game.units.filter(func(v): return v.kind == game.MAGE and v.owner == Game.ME)
+	var mages := game.units.filter(func(v): return v.kind == game.MAGE and v.owner == Game.LOCAL)
 	var in_armies := 0
 	for a in armies:
 		in_armies += a.troops.get(game.MAGE, 0)

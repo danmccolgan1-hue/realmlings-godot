@@ -55,13 +55,13 @@ func flag_list() -> Array:
 		var nm: String = g.spell2_name(q.kind) if q.kind == "shock" else "Earthquake"
 		out.append({"id": "quake:%d" % q.id, "img": "earthquake", "warn": true, "tip": "%s at %s: left-click to look, right-click to dismiss" % [nm, g.prov_name(q.from)], "label": "%s at %s" % [nm, g.prov_name(q.from)]})
 	for o in g.nations:
-		var left := g.truce_left(Game.ME, o)
+		var left := g.truce_left(Game.LOCAL, o)
 		if left > 0 and left <= TRUCE_WARN and g.alive_nation(o):
 			out.append({"id": "truce:%d" % o, "img": "truce", "warn": true, "tip": "Your truce with the %s is ending soon: left-click to look at their land, right-click to dismiss" % g.player_info(o).name, "label": "Truce ending soon"})
 	# v96: warscore at ±100, the white-peace timer
-	for w in g.wars_of(Game.ME):
-		var o := Game.foe_of(w, Game.ME)
-		var s := g.warscore(w, Game.ME)
+	for w in g.wars_of(Game.LOCAL):
+		var o := Game.foe_of(w, Game.LOCAL)
+		var s := g.warscore(w, Game.LOCAL)
 		var left: float = Game.WAR_TIMER - (g.t - w.since)
 		if absi(s) >= g.W("total"):
 			out.append({"id": "peace100:%d" % w.id, "img": "peace", "label": "Call for peace", "tip": ("Warscore +100 against the %s: call for peace and take what you want. Left-click to open Diplomacy" if s > 0 else "Warscore −100 against the %s: call for peace (surrender) before they take more. Left-click to open Diplomacy") % g.player_info(o).name})
@@ -125,7 +125,7 @@ func flag_list() -> Array:
 	if over > 0 and not ack.has("overlimit"):
 		var per: int = GameData.c("OVER_UPKEEP")
 		out.append({"id": "overlimit", "img": "overlimit", "warn": true, "n": over, "label": "Over the limit",
-			"tip": "Over your province limit: %d provinces, your forts hold %d. Each province over costs %d gold, %d wood and %d food upkeep (−%d of each now). Build or develop forts to hold more. Left-click for details, right-click to dismiss" % [g.provs_of(Game.ME).size(), g.prov_limit(), per, per, per, over * per]})
+			"tip": "Over your province limit: %d provinces, your forts hold %d. Each province over costs %d gold, %d wood and %d food upkeep (−%d of each now). Build or develop forts to hold more. Left-click for details, right-click to dismiss" % [g.provs_of(Game.LOCAL).size(), g.prov_limit(), per, per, per, over * per]})
 	elif over <= 0:
 		ack.erase("overlimit")
 	return out
@@ -275,12 +275,12 @@ func dismiss(id: String) -> void:
 	if id.begins_with("dxreq:"):
 		for r in game.dipl_state().reqs:
 			if "dxreq:%d" % r.id == id:
-				game.answer_request(r, false)
+				game.do("answer_request", [r, false])
 				break
 	elif id.begins_with("dxnews:"):
-		game.dismiss_news(int(id.split(":")[1]))
+		game.do("dismiss_news", [int(id.split(":")[1])])
 	elif id.begins_with("quake:"):
-		game.dismiss_quake(int(id.split(":")[1]))
+		game.do("dismiss_quake", [int(id.split(":")[1])])
 	else:
 		for f in shown + [{"id": id}]:
 			if f.id.split(":")[0] != type:
@@ -342,9 +342,9 @@ func click(id: String) -> void:
 			r.min = not is_same(r, pick)
 		D.reqs = [pick] + D.reqs.filter(func(r): return not is_same(r, pick))
 	elif id.begins_with("dxnews:"):
-		g.dismiss_news(int(id.split(":")[1]))
+		g.do("dismiss_news", [int(id.split(":")[1])])
 		hud.diplomacy.open()
 	elif id == "overlimit":
 		var n := g.over_limit()
 		var per: int = GameData.c("OVER_UPKEEP")
-		hud.add_toast("You hold %d provinces and your forts hold %d: %d over the limit, −%d gold, wood and food every 10 s. Build forts, research administration or develop your forts to hold more." % [g.provs_of(Game.ME).size(), g.prov_limit(), n, n * per], true)
+		hud.add_toast("You hold %d provinces and your forts hold %d: %d over the limit, −%d gold, wood and food every 10 s. Build forts, research administration or develop your forts to hold more." % [g.provs_of(Game.LOCAL).size(), g.prov_limit(), n, n * per], true)

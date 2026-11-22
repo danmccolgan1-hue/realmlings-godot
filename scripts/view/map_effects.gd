@@ -30,7 +30,7 @@ func _font() -> Font:
 
 
 func _school_col(g: Game, o: int) -> Color:
-	var sc = g.current_school() if o == Game.ME else (g.nations[o].get("school") if g.nations.has(o) else null)
+	var sc = g.current_school() if o == Game.LOCAL else (g.nations[o].get("school") if g.nations.has(o) else null)
 	if sc == null:
 		sc = "arcane"
 	var S: Dictionary = GameData.c("SCHOOLS")
@@ -112,9 +112,9 @@ func draw_under(g: Game, t: float) -> void:
 			var q := k * PI / 3 + t * 0.5
 			v.draw_circle(at + Vector2(cos(q) * 26, sin(q) * 13), 3.5, Color("#bfe3ff"))
 	for u in g.units:
-		if u.get("cast") != null and (u.owner == Game.ME or g.visible.has(u.prov)):
+		if u.get("cast") != null and (u.owner == Game.LOCAL or g.visible.has(u.prov)):
 			_cast_circle(g, u, t)
-		if u.get("quake") and (u.owner == Game.ME or g.visible.has(u.prov)):
+		if u.get("quake") and (u.owner == Game.LOCAL or g.visible.has(u.prov)):
 			_quake_ring(g, u, t)
 
 
@@ -354,7 +354,7 @@ func draw_over(g: Game, t: float) -> void:
 	_arrows(g, t)
 	_race_magic_over(g, t)
 	for u in g.units:
-		if not g.visible.has(u.prov) and u.owner != Game.ME:
+		if not g.visible.has(u.prov) and u.owner != Game.LOCAL:
 			continue
 		if u.get("stasisUntil", 0.0) > g.t:   # held by a stasis trap
 			_disc(Vector2(u.x, u.y - 14), 30, 26, Color(0.56, 0.82, 1, 0.35))
@@ -379,7 +379,7 @@ func _battle_fx(g: Game, t: float) -> void:
 				b = x
 		var bc := g.battle_center(f.prov)
 		var c := Vector2(bc[0], bc[1] - 34)
-		var order: Array = b.order if b != null and b.get("order") != null else [Game.ME]
+		var order: Array = b.order if b != null and b.get("order") != null else [Game.LOCAL]
 		var dir := -1 if order.find(f.owner) == 0 else 1
 		if f.kind == "num":
 			var a := maxf(0, 1 - dt / 1.2)
@@ -509,7 +509,7 @@ func _race_magic_under(g: Game, t: float) -> void:
 	for P in g.spyres:   # Scouting Pyres
 		if g.visible.has(P.prov):
 			var c: Array = g.G.provs[P.prov].ic
-			_bonfire(Vector2(c[0] + 70, c[1] + 60), t, 1.0, maxf(0, (P.until - g.t) / Game.SPYRE.dur), P.owner == Game.ME)
+			_bonfire(Vector2(c[0] + 70, c[1] + 60), t, 1.0, maxf(0, (P.until - g.t) / Game.SPYRE.dur), P.owner == Game.LOCAL)
 	for P in g.sacreds:   # Sacred Pyres: a bigger fire on a ring of stones
 		if g.visible.has(P.prov) and P.until > g.t:
 			var c: Array = g.G.provs[P.prov].ic
@@ -518,9 +518,9 @@ func _race_magic_under(g: Game, t: float) -> void:
 				var q := TAU * k / 7
 				_disc(at + Vector2(cos(q) * 22, sin(q) * 9 - 4), 6, 4, Color("#9c968c"))
 				_oval(at + Vector2(cos(q) * 22, sin(q) * 9 - 4), 6, 4, OL, 1.5)
-			_bonfire(at, t, 1.25, maxf(0, (P.until - g.t) / Game.SACRED.dur), P.owner == Game.ME)
+			_bonfire(at, t, 1.25, maxf(0, (P.until - g.t) / Game.SACRED.dur), P.owner == Game.LOCAL)
 	for T in g.ftraps:   # your fire traps: the province border smoulders, a ring of embers on the ground
-		if T.owner != Game.ME or not g.explored.has(T.prov):
+		if T.owner != Game.LOCAL or not g.explored.has(T.prov):
 			continue
 		var P: Dictionary = g.G.provs[T.prov]
 		var a := 0.45 + sin(t * 2.5) * 0.2
@@ -595,7 +595,7 @@ func _race_magic_over(g: Game, t: float) -> void:
 				var q := k * 1.05
 				_disc(Vector2(f0.x + cos(q) * (14 + f * 40), f0.y - 10 - sin(f * PI) * 30 + sin(q) * 6), 3, 3, Color(0.75, 0.91, 1, 1 - f))
 	for u in g.units:
-		if u.kind != "army" or not (u.owner == Game.ME or g.visible.has(u.prov)):
+		if u.kind != "army" or not (u.owner == Game.LOCAL or g.visible.has(u.prov)):
 			continue
 		# Fiery Weapons: the blows land double, flames burst along the weapons and "×2" rises
 		if u.get("fieryHit") != null and g.t - u.fieryHit <= 1:

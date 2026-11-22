@@ -213,7 +213,7 @@ static func outposts(g: Game, N: Dictionary) -> int:
 
 
 static func per_fort(g: Game, o: int) -> int:
-	return GameData.c("OUTPOSTS_PER_FORT") + (2 if g.tech_of(o, "effadmin") else 0) + 2 * (g.rep_lv("rep-admin") if o == Game.ME else rep(g.nations[o], "rep-admin"))
+	return GameData.c("OUTPOSTS_PER_FORT") + (2 if g.tech_of(o, "effadmin") else 0) + 2 * (g.rep_of(o, "rep-admin") if g.is_human(o) else rep(g.nations[o], "rep-admin"))
 
 
 static func forts_held_by(g: Game, o: int) -> int:
@@ -368,7 +368,7 @@ static func crop_all_plan(g: Game, crop: String) -> Dictionary:
 	var st := g.gives_of("farm")
 	var plan := []
 	for p in g.buildings:
-		if g.buildings[p].owner != Game.ME or g.occ.has(p):
+		if g.buildings[p].owner != g.ME or g.occ.has(p):
 			continue
 		var fs := g.extras_in(p).filter(func(e): return e.type == "farm")
 		if fs.is_empty():
@@ -1644,7 +1644,7 @@ static func queued(N: Dictionary, kind: String) -> int:
 
 
 static func surge(g: Game, N: Dictionary) -> bool:
-	return N.get("surge", false) and AI_SURGE.has(N.diff) and not g.allied(N.id, Game.ME)
+	return N.get("surge", false) and AI_SURGE.has(N.diff) and not g.allied(N.id, g.ME)
 
 
 static func is_military(g: Game, kind: String) -> bool:
@@ -2472,7 +2472,8 @@ static func consider_war(g: Game, N: Dictionary, P: Dictionary) -> void:
 		return
 	N.warPlan = {"target": r, "at": g.t + AI_WAR_THINK}
 	N.warCheck = N.warPlan.at
-	if r == Game.ME and g.knows(N.id):
+	if g.is_human(r) and g.in_seat(r, func(): return g.knows(N.id)):
+		g.use_seat(r)
 		var pn := ""
 		if not partners.is_empty():
 			pn = " and its ally, the %s," % g.player_info(partners[0]).name
@@ -2533,8 +2534,8 @@ static func consider_war_base(g: Game, N: Dictionary, P: Dictionary) -> void:
 static func _plan_war(g: Game, N: Dictionary, tg: int) -> void:
 	N.warPlan = {"target": tg, "at": g.t + AI_WAR_THINK}
 	N.warCheck = N.warPlan.at
-	if tg == Game.ME and g.knows(N.id):
-		g.toast("The %s is gathering its armies on your border…" % g.player_info(N.id).name, true)
+	if g.is_human(tg) and g.in_seat(tg, func(): return g.knows(N.id)):
+		g.in_seat(tg, func(): g.toast("The %s is gathering its armies on your border…" % g.player_info(N.id).name, true))
 
 
 # ================================================================================================================
@@ -2552,8 +2553,8 @@ static func v104_size(g: Game, o: int) -> int:
 
 
 static func v104_econ(g: Game, o: int) -> float:
-	if o == Game.ME:
-		return g.income.get("gold", 0) + g.tech_rate("gov") + g.tech_rate("mil") + g.tech_rate("mag")
+	if g.is_human(o):
+		return g.in_seat(o, func(): return g.income.get("gold", 0) + g.tech_rate("gov") + g.tech_rate("mil") + g.tech_rate("mag"))
 	var N = g.nations.get(o)
 	if N == null:
 		return 0.0
@@ -2566,7 +2567,7 @@ static func v104_neighbors(g: Game, N: Dictionary) -> Array:
 
 
 static func v104_threatens(g: Game, N: Dictionary, o: int) -> bool:
-	if g.allied(N.id, o) or o == Game.ME or not g.nations.has(o):
+	if g.allied(N.id, o) or g.is_human(o) or not g.nations.has(o):
 		return false
 	if g.enemies_of(o).any(func(x): return x != N.id):
 		return false
@@ -2610,7 +2611,7 @@ static func v104_think(g: Game, N: Dictionary) -> void:
 	var has_ally := not g.allies_of(N.id).is_empty()
 	var my_size := v104_size(g, N.id)
 	var bigger := nb.all(func(o): return my_size > v104_size(g, o))
-	var hunted := nb.any(func(o): return o != Game.ME and g.nations.has(o) and g.nations[o].get("rival") == N.id)
+	var hunted := nb.any(func(o): return o != g.ME and g.nations.has(o) and g.nations[o].get("rival") == N.id)
 	if has_ally or bigger:
 		N.stance = "normal"
 		return
@@ -2623,7 +2624,7 @@ static func v104_think(g: Game, N: Dictionary) -> void:
 		return
 	var f: int = cands[0]
 	for x in cands:
-		if x != Game.ME:
+		if not g.is_human(x):
 			f = x
 			break
 	var hunter := -1
@@ -2631,8 +2632,8 @@ static func v104_think(g: Game, N: Dictionary) -> void:
 		if g.nations.has(o) and g.nations[o].get("rival") == N.id:
 			hunter = o
 			break
-	if f == Game.ME:
-		if g.ally_ask.get(N.id, 0.0) <= g.t and g.offer_alliance(N.id, hunter):
+	if g.is_human(f):
+		if g.ally_ask.get(N.id, 0.0) <= g.t and g.in_seat(f, func(): return g.offer_alliance(N.id, hunter)):
 			g.ally_ask[N.id] = g.t + g.W("allyAskAgain")
 	else:
 		g.form_alliance(N.id, f, hunter)
@@ -2686,8 +2687,8 @@ static func v104_ally(g: Game, N: Dictionary, f: int, rv: int) -> void:
 	if not g.allied(N.id, f):
 		if g.ally_why(N.id, f) != "":
 			return
-		if f == Game.ME:
-			if g.ally_ask.get(N.id, 0.0) <= g.t and g.offer_alliance(N.id, rv):
+		if g.is_human(f):
+			if g.ally_ask.get(N.id, 0.0) <= g.t and g.in_seat(f, func(): return g.offer_alliance(N.id, rv)):
 				g.ally_ask[N.id] = g.t + g.W("allyAskAgain")
 			return
 		g.form_alliance(N.id, f, rv)
@@ -2739,12 +2740,19 @@ static func step_crops(g: Game) -> void:
 				e.erase("cropNext")
 				e.erase("cropAt")
 				var o := g.nation_of(p)
-				if o == Game.ME:
-					mine.append([p, e])
+				if g.is_human(o):
+					mine.append([p, e, o])
 				elif g.nations.has(o):
 					touched[o] = true
 	for o in touched:
 		g.nations[o].income = income(g, g.nations[o])
+	for o in g.seat_ids():
+		var my := mine.filter(func(pe): return pe[2] == o)
+		if not my.is_empty():
+			g.in_seat(o, func(): _crops_done(g, my))
+
+
+static func _crops_done(g: Game, mine: Array) -> void:
 	if not mine.is_empty():
 		g.compute_income()
 		var c := crop_of(mine[0][1])
@@ -2891,7 +2899,7 @@ static func enemy_think(g: Game, N: Dictionary) -> void:
 	if cur:
 		g.renounce_enemy(o)
 	g.proclaim_enemy(o, pk)
-	if pk != Game.ME and (g.knows(o) or g.knows(pk)) and g.met.has(o):
+	if pk != g.ME and (g.knows(o) or g.knows(pk)) and g.met.has(o):
 		g.toast("The %s proclaimed the %s their enemy." % [g.player_info(o).name, g.player_info(pk).name])
 
 
@@ -2976,7 +2984,7 @@ static func step_scouted(g: Game, now: float) -> void:
 		return
 	g.ai_scout_t = now
 	for u in g.units:
-		if u.owner == Game.ME or not g.is_nation(u.owner) or (u.kind != "army" and u.kind != g.WAYFINDER):
+		if g.is_human(u.owner) or not g.is_nation(u.owner) or (u.kind != "army" and u.kind != g.WAYFINDER):
 			continue
 		var N = g.nations.get(u.owner)
 		if N == null:

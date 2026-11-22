@@ -37,7 +37,7 @@ static func snap(g: Game, foe: int) -> Dictionary:
 	for k in g.truces:
 		tr.append([k, r6(g.truces[k])])
 	return {"t": r6(g.t), "stock": g.stock.duplicate(), "foeStock": g.nations[foe].stock.duplicate(),
-		"wars": g.wars.map(func(w): return [w.id, w.a, w.b, r6(w.base), w.active, g.warscore(w, Game.ME), r6(w.peak), r6(w.nextTick), w.parent if w.parent != null else 0]),
+		"wars": g.wars.map(func(w): return [w.id, w.a, w.b, r6(w.base), w.active, g.warscore(w, Game.HOST), r6(w.peak), r6(w.nextTick), w.parent if w.parent != null else 0]),
 		"occ": oc, "prog": pr, "buildings": bl, "battles": g.battles.map(func(b): return [b.prov, TestPlay.str_keys(b.lost)]), "truces": tr,
 		"units": g.units.filter(func(u): return u.kind == "army").map(func(u): return [u.id, u.owner, u.prov, u.moving, u.get("exiting", false), u.troops.duplicate()])}
 
@@ -62,7 +62,7 @@ static func play(fx: Dictionary) -> Array:
 			k += 1
 			match A.a:
 				"own":
-					g.buildings[int(A.p)] = {"stage": 0, "born": 0, "owner": Game.ME}
+					g.buildings[int(A.p)] = {"stage": 0, "born": 0, "owner": Game.HOST}
 					g.surveyed[int(A.p)] = 0
 					g.compute_income()
 					g.compute_fog()
@@ -70,22 +70,22 @@ static func play(fx: Dictionary) -> Array:
 					g.stock.gold += A.gold
 					g.stock.food += A.food
 				"declare":
-					g.declare_war(Game.ME, int(A.o))
+					g.declare_war(Game.HOST, int(A.o))
 				"army":
 					var tr := {}
 					for tk in A.troops:
 						tr[tk] = int(A.troops[tk])
 					g.new_army(int(A.p), tr)
 				"order":
-					var mine := g.units.filter(func(u): return u.kind == "army" and u.owner == Game.ME)
+					var mine := g.units.filter(func(u): return u.kind == "army" and u.owner == Game.HOST)
 					g.order(mine[-1], int(A.p))
 				"peace":
-					var w = g.war_between(Game.ME, int(A.o))
+					var w = g.war_between(Game.HOST, int(A.o))
 					if w != null:
 						var terms := {"kind": A.kind}
 						if A.kind == "provs":
 							terms.provs = g.provs_of(int(A.o))
-						g.make_peace(w, Game.ME, terms)
+						g.make_peace(w, Game.HOST, terms)
 		g.update(1.0 + i * 0.1)
 		if i % 10 == 0:
 			var want: Dictionary = fx.snaps[si]

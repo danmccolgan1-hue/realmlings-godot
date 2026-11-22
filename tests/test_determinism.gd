@@ -54,7 +54,7 @@ func _orders(g: Game, i: int) -> void:
 			g.train("capital", g.capital, g.footman_of())
 		60:
 			for u in g.units:
-				if u.owner == Game.ME and u.kind == GameData.c("WAYFINDER"):
+				if u.owner == Game.HOST and u.kind == GameData.c("WAYFINDER"):
 					g.order(u, g.all_nbr[g.capital][0], true)
 					break
 		200:

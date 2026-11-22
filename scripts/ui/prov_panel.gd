@@ -65,7 +65,7 @@ func _key() -> String:
 			out.append(v.pending.type + str(v.pending.get("slot")))
 	var dr = game.dev_rec(p)
 	out.append([dr.lv, int(dr.job.done) if dr.job != null else -1] if dr != null else null)
-	out.append(game.dev_why(p) if b != null and b.owner == Game.ME else game.outpost_btn_why(p))
+	out.append(game.dev_why(p) if b != null and b.owner == Game.LOCAL else game.outpost_btn_why(p))
 	out.append(game.prov_research(p) if game.owned(p) else null)
 	out.append([game.sp_known(p), game.setpiece_why(p)])
 	out.append(game.units.filter(func(v): return v.get("bandit", false) and v.get("seen", false) and v.prov == p).size())
@@ -158,14 +158,14 @@ func _build() -> void:
 		var oc := Color(game.player_info(b.owner).color)
 		dot.draw.connect(func(): dot.draw_circle(Vector2(6, 6), 5.5, oc))
 		own.add_child(dot)
-		own.add_child(_lbl("%s%s" % [game.player_info(b.owner).name, " (you)" if b.owner == Game.ME else ""], 14, MUTED))
+		own.add_child(_lbl("%s%s" % [game.player_info(b.owner).name, " (you)" if b.owner == Game.LOCAL else ""], 14, MUTED))
 	else:
 		own.add_child(_lbl("Unclaimed" if vis else "Owner unknown", 14, MUTED))
 	body.add_child(own)
 	# occupied
 	var occ_by = game.occ.get(p)
 	if occ_by != null:
-		var ol := _lbl("Occupied by %s · %s" % ["you" if occ_by == Game.ME else "the " + str(game.player_info(occ_by).name), "pays you nothing" if b != null and b.owner == Game.ME else "pays its owner nothing"], 13, Color("#b3261e"))
+		var ol := _lbl("Occupied by %s · %s" % ["you" if occ_by == Game.LOCAL else "the " + str(game.player_info(occ_by).name), "pays you nothing" if b != null and b.owner == Game.LOCAL else "pays its owner nothing"], 13, Color("#b3261e"))
 		ol.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		ol.custom_minimum_size = Vector2(W - 20, 0)
 		body.add_child(ol)
@@ -279,7 +279,7 @@ func _build() -> void:
 				grid.add_child(_busy(s2.build.type, "building…"))
 			elif pd != null:
 				grid.add_child(_busy(pd.pending.type, "%s on the way" % game.unit_defs[Game.MASON].name))
-			elif b.owner == Game.ME:
+			elif b.owner == Game.LOCAL:
 				grid.add_child(_empty(i, true))
 			else:
 				grid.add_child(_empty(i, false))
@@ -449,7 +449,7 @@ func _dev_section(b, vis: bool) -> void:
 			var mm = game.nearest_mason(p)
 			if mm != null and game.outpost_btn_why(p) == "":
 				mm.surveyQueue = []
-				game.order_build(mm, p, "outpost")))
+				game.do("order_build", [mm, p, "outpost"])))
 		return
 	var r = game.dev_rec(p)
 	var lv: int = r.lv if r != null else 0
@@ -475,7 +475,7 @@ func _dev_section(b, vis: bool) -> void:
 	row.tooltip_text = ("From development: +%d gold, +%d wood, +%d food" % [r.add.gold, r.add.wood, r.add.food]) if r != null and lv else "Not developed yet"
 	row.mouse_filter = Control.MOUSE_FILTER_PASS
 	body.add_child(row)
-	if b.owner != Game.ME:
+	if b.owner != Game.LOCAL:
 		return
 	if r != null and r.job != null:
 		var small := "Stalled: hostile soldiers here" if r.job.get("stall", false) else "%d s left" % ceili(DV.time - r.job.done)

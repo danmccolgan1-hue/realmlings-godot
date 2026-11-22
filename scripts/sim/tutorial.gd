@@ -87,7 +87,7 @@ static func start() -> Game:
 	g.setup_game()
 	for p in g.world.shoreTrees:   # web: the rollYields wrapper: shore trees count as tree borders
 		g.tree_border[p[0]] += 1
-	g.units = g.units.filter(func(u): return not (u.owner == Game.ME and u.kind == "army"))   # no starting army
+	g.units = g.units.filter(func(u): return not (u.owner == g.ME and u.kind == "army"))   # no starting army
 	g.leader = ""
 	var gang := g.spawn_bandit(TP.bandits)
 	gang.name = "Swamp Bandits"
@@ -142,7 +142,7 @@ func is_done(key: String) -> bool:
 func soldiers() -> int:
 	var n := 0
 	for a in g.units:
-		if a.owner == Game.ME and a.kind == "army":
+		if a.owner == g.ME and a.kind == "army":
 			n += g.troop_count(a) - a.troops.get(GameData.c("MAGE"), 0)
 	return n
 
@@ -180,7 +180,7 @@ func obj_done(key: String) -> bool:
 		"survey": return g.surveyed.has(TP.forest)
 		"explore": return g.wf.has(TP.swamp) or g.explored.has(TP.swamp)
 		"outpost": return g.owned(TP.forest)
-		"fort": return g.buildings.values().any(func(b): return b.owner == Game.ME and b.stage == 1)
+		"fort": return g.buildings.values().any(func(b): return b.owner == g.ME and b.stage == 1)
 		"barracks":
 			for p in g.extras:
 				if g.owned(p) and g.extras[p].any(func(e): return e.type == "barracks"):

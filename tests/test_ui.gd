@@ -65,7 +65,7 @@ func _flags_practice(errs: Array) -> void:
 		errs.append("flags: the open-plot flag stays after a right-click")
 	# an outpost you can afford to make a fort
 	var q: int = g.open_nbr[g.capital][0].q
-	g.buildings[q] = {"stage": 0, "born": 0, "owner": Game.ME}
+	g.buildings[q] = {"stage": 0, "born": 0, "owner": Game.HOST}
 	fb.inst_cache.clear()
 	var up = fb.flag_list().filter(func(f): return f.id == "upg")
 	if g.upgrade_why(q) == null and (up.is_empty() or not str(up[0].tip).contains("the outpost (to a Fort)")):
@@ -112,7 +112,7 @@ func _flags_world(errs: Array) -> void:
 		if not g.buildings.has(p) and free.size() < lim + 2:
 			free.append(p)
 	for p in free:
-		g.buildings[p] = {"stage": 0, "born": 0, "owner": Game.ME}
+		g.buildings[p] = {"stage": 0, "born": 0, "owner": Game.HOST}
 	var ol = fb.flag_list().filter(func(f): return f.id == "overlimit")
 	if ol.is_empty() or ol[0].n != g.over_limit():
 		errs.append("flags: no province-limit flag (over by %d)" % g.over_limit())
@@ -166,7 +166,7 @@ func _gate_road(errs: Array) -> void:
 	var g := Game.new_practice("ember", "cormac")
 	var m = null
 	for u in g.units:
-		if u.kind == Game.MASON and u.owner == Game.ME:
+		if u.kind == Game.MASON and u.owner == Game.HOST:
 			m = u
 	if m == null:
 		errs.append("gate road: the practice game has no Mason")
@@ -289,8 +289,8 @@ func _new_game_choices(errs: Array) -> void:
 	var NC: Array = GameData.c("NATION_COLORS")
 	if g.world.mode != "map:ring:1:3:2":
 		errs.append("new game: the world's mode is %s" % g.world.mode)
-	if g.player_info(Game.ME).name != "The Thistle Crown" or g.player_info(Game.ME).color != NC[3][0] or g.my_nation.emblem != "wolf":
-		errs.append("new game: your nation is %s / %s" % [g.player_info(Game.ME), g.my_nation])
+	if g.player_info(Game.HOST).name != "The Thistle Crown" or g.player_info(Game.HOST).color != NC[3][0] or g.my_nation.emblem != "wolf":
+		errs.append("new game: your nation is %s / %s" % [g.player_info(Game.HOST), g.my_nation])
 	for o in g.nations:
 		if g.player_info(o).color == NC[3][0] or g.nations[o].get("emblem") == "wolf":
 			errs.append("new game: nation %d took your color or flag" % o)
@@ -298,7 +298,7 @@ func _new_game_choices(errs: Array) -> void:
 	if back == null or back.world.mode != g.world.mode or back.my_nation != g.my_nation or back.G.provs.size() != g.G.provs.size():
 		errs.append("new game: a save loses the island or your nation")
 	var pr := Game.new_practice("ember", "", {}, nat)
-	if pr.player_info(Game.ME).name != "The Thistle Crown":
+	if pr.player_info(Game.HOST).name != "The Thistle Crown":
 		errs.append("new game: the practice island ignores your nation's name")
 
 
@@ -373,7 +373,7 @@ func _orders(errs: Array) -> void:
 	if f.size() != 7 or f[0] != [0.0, 0.0] or absf(Vector2(f[1][0], f[1][1] / 0.8).length() - 30.0) > 0.01:
 		errs.append("orders: formation spots %s" % [f])
 	var g := Game.new_practice("ember", "cormac")
-	var ws: Array = g.units.filter(func(v): return v.owner == Game.ME and v.kind != "army")
+	var ws: Array = g.units.filter(func(v): return v.owner == Game.HOST and v.kind != "army")
 	var nb: Array = g.open_nbr[g.capital].map(func(n): return n.q)
 	for q in nb:
 		g.explored[q] = true

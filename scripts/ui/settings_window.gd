@@ -118,7 +118,7 @@ func _fill() -> void:
 		Settings.record_games = v
 		_changed()
 		if game != null and game.has_method("rec_toggle"):
-			game.rec_toggle(v)))
+			game.do("rec_toggle", [v])))
 	if game == null:
 		return
 	var seed := UiKit.ink(18)
@@ -132,10 +132,10 @@ func _fill() -> void:
 	reveal.add_theme_color_override("font_color", UiKit.INK)
 	reveal.button_pressed = game.reveal_all
 	reveal.tooltip_text = "Lift the fog over the whole map (untick to put it back)"
-	reveal.toggled.connect(func(v): game.debug_reveal(v))
+	reveal.toggled.connect(func(v): game.do("debug_reveal", [v]))
 	body.add_child(reveal)
-	body.add_child(_debug_btn("+2000 resources", "Adds 2000 gold, wood and food (and 2000 storage of each so it fits); press again for more", func(): game.debug_resources()))
-	var techs := _debug_btn("Every technology", "Every technology of your race in all three trees (Magic: your school, or Life Magic if you haven't chosen)", func(): game.debug_all_tech())
+	body.add_child(_debug_btn("+2000 resources", "Adds 2000 gold, wood and food (and 2000 storage of each so it fits); press again for more", func(): game.do("debug_resources", [])))
+	var techs := _debug_btn("Every technology", "Every technology of your race in all three trees (Magic: your school, or Life Magic if you haven't chosen)", func(): game.do("debug_all_tech", []))
 	techs.disabled = game.debug_tech
 	body.add_child(techs)
 

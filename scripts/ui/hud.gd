@@ -132,7 +132,7 @@ func _ready() -> void:
 	sel_rename.add_theme_color_override("font_color", UiKit.INK)
 	sel_rename.add_theme_color_override("font_hover_color", UiKit.INK)
 	sel_rename.pressed.connect(func():
-		if unit != null and unit.owner == Game.ME:
+		if unit != null and unit.owner == Game.LOCAL:
 			renamer.open(game, "unit:%d" % unit.id))
 	add_child(sel_rename)
 	flags = FlagBar.new()
@@ -317,7 +317,7 @@ func commands_of(u) -> Array:
 					"ok": "Click to stop casting" if casting else "Click to cast"}
 				cell += 1
 		# Shockwave (every Mage) and Earthquake (Tier III Magic): web gpc.js Z11 / Z12
-		for k in (["shock", "quake"] if game.tech_of(Game.ME, "earthquake") else ["shock"]):
+		for k in (["shock", "quake"] if game.tech_of(Game.LOCAL, "earthquake") else ["shock"]):
 			if cell >= 15:
 				break
 			var on: bool = u.get("quake") and u.quake.kind == k
@@ -331,7 +331,7 @@ func commands_of(u) -> Array:
 			out[cell] = {"id": "spell2:" + k, "label": "%s\n%s" % [game.spell2_name(k), left if on else "%d mana" % Game.SPELL2_MANA[k]], "why": why,
 				"name": game.spell2_name(k), "desc": d2 + ((" " + left + ".") if on else ""), "ok": "Click to cancel" if on else "Click to cast"}
 			cell += 1
-	if u.kind == "army" and game.has_art(Game.ME, "slippers"):   # v95: Winged Slippers
+	if u.kind == "army" and game.has_art(Game.LOCAL, "slippers"):   # v95: Winged Slippers
 		for cell in [9, 7, 6, 5, 4]:
 			if out[cell] == null and not list.any(func(c): return c.get("cell", -1) == cell):
 				out[cell] = {"id": "fly", "label": "Fly\n(Slippers)", "why": game.fly_why(u), "name": "Fly (Winged Slippers)",
@@ -384,7 +384,7 @@ func commands_of(u) -> Array:
 			var why = null
 			if u.get("battle") == null or u.get("retreating", false):
 				why = "Not in battle"
-			elif game.retreat_to(u) < 0:
+			elif game.do("retreat_to", [u]) < 0:
 				why = "No way out: every open border is blocked"
 			elif game.retreat_lock_left(u) > 0:
 				why = "Locked in battle for %d s" % ceili(game.retreat_lock_left(u))
@@ -408,7 +408,7 @@ func commands_of(u) -> Array:
 		elif id == "inspect":
 			cmd = {"id": id, "label": "Inspect", "why": null, "name": "Inspect army", "desc": "See what this army is made of: each kind of soldier, their gear, strength and upkeep."}
 		elif id == "combine":
-			var n := game.units.filter(func(v): return v.kind == "army" and v.owner == Game.ME and v.prov == u.prov and not v.moving).size()
+			var n := game.units.filter(func(v): return v.kind == "army" and v.owner == Game.LOCAL and v.prov == u.prov and not v.moving).size()
 			cmd = {"id": id, "label": "Combine", "why": null if n >= 2 else "No other army here", "name": "Combine Armies", "desc": "Merge the armies standing in this province into one."}
 		if cmd != null:
 			out[int(c.cell)] = cmd
@@ -466,20 +466,20 @@ func press(i: int) -> void:
 		return
 	var id: String = c.id
 	if id.begins_with("build:"):
-		game.order_build(unit, unit.prov, id.substr(6))
+		game.do("order_build", [unit, unit.prov, id.substr(6)])
 	elif id == "survey":
-		game.queue_survey(unit, unit.prov)
+		game.do("queue_survey", [unit, unit.prov])
 	elif id == "auto":
 		var on: bool = tab_units().any(func(w): return w.get("auto", true) != false)
 		for w in tab_units():
 			w.auto = not on
 	elif id == "cancelbuild":
-		game.cancel_build(unit)
+		game.do("cancel_build", [unit])
 		add_toast("Construction cancelled. Resources refunded.")
 	elif id == "road":
 		game.start_link(unit, game.mason_road_border(unit), "road")
 	elif id == "thugin":
-		game.thugs_enter(tab_units().filter(func(w): return w.kind == Game.THUG))
+		game.do("thugs_enter", [tab_units().filter(func(w): return w.kind == Game.THUG)])
 		set_selection(selection.filter(func(w): return game.units.has(w)))
 	elif id == "dismiss":
 		if confirm_key != "dismiss:%d" % unit.id:
@@ -487,7 +487,7 @@ func press(i: int) -> void:
 			add_toast("Dismiss %s? Press Dismiss again to confirm." % unit.name, true)
 			return
 		confirm_key = ""
-		game.dismiss([unit])
+		game.do("dismiss", [[unit]])
 		select_unit(null)
 	elif id == "fly":
 		aim = {"unit": unit, "spell": "fly"}
@@ -495,9 +495,9 @@ func press(i: int) -> void:
 	elif id.begins_with("spell2:"):
 		var k := id.substr(7)
 		if unit.get("quake") and unit.quake.kind == k:
-			game.end_quake(unit, "%s stopped." % game.spell2_name(k))
+			game.do("end_quake", [unit, "%s stopped." % game.spell2_name(k)])
 		elif k == "quake":
-			game.start_spell2(unit, "quake")
+			game.do("start_spell2", [unit, "quake"])
 		else:
 			aim = {"unit": unit, "spell": "shock"}
 			add_toast("Click a neighboring province behind an enemy wall. Right-click cancels.")
@@ -507,20 +507,20 @@ func press(i: int) -> void:
 			aim = {"unit": unit, "spell": k}
 			add_toast("Click the province to target. Right-click cancels.")
 		else:
-			game.cast_spell(unit, k)
+			game.do("cast_spell", [unit, k])
 	elif id == "retreat":
 		for a in tab_units().filter(func(v): return v.get("battle") != null and not v.get("retreating", false)):
-			game.retreat(a)
+			game.do("retreat", [a])
 	elif id == "rest":
-		game.send_to_rest(unit)
+		game.do("send_to_rest", [unit])
 	elif id == "retrofit":
 		_show_retrofit(unit)
 	elif id == "inspect":
 		_show_inspect(unit)
 	elif id == "split":
-		game.split_army(unit)
+		game.do("split_army", [unit])
 	elif id == "combine":
-		game.combine_armies(game.units.filter(func(v): return v.kind == "army" and v.owner == Game.ME and v.prov == unit.prov and not v.moving))
+		game.do("combine_armies", [game.units.filter(func(v): return v.kind == "army" and v.owner == Game.LOCAL and v.prov == unit.prov and not v.moving)])
 
 
 ## A command-card key (q w e r / a s d f / z x c v / u i o p). Returns true when it was used.
@@ -537,7 +537,7 @@ func _process(_delta: float) -> void:
 		return
 	paused_label.visible = game.paused
 	if game.school_popup:
-		game.school_popup = false
+		game.do("close_school_popup")
 		school.open()
 	if prov >= 0:
 		panel.refresh(self, game, prov)
@@ -550,7 +550,7 @@ func _process(_delta: float) -> void:
 	if part != "" and (prov < 0 or not game.owned(prov) or (part != "settlement" and part_extra() == null)):
 		select_province(prov if prov >= 0 and game.explored.has(prov) else -1)   # the building is gone
 	# the command card is always there; empty when nothing of yours is selected (web: game.js renderCmd)
-	card_cmds = commands_of(unit) if unit != null and unit.owner == Game.ME else part_commands()
+	card_cmds = commands_of(unit) if unit != null and unit.owner == Game.LOCAL else part_commands()
 	for c in card_cmds:
 		if c != null and not c.is_empty():
 			_decorate(c)
@@ -559,7 +559,7 @@ func _process(_delta: float) -> void:
 	_hover_tip()
 	minimap.position = Vector2(16, topbar.size.y - Minimap.SIZE.y - 16)
 	sel_line.position = Vector2(16 + Minimap.SIZE.x + 12, topbar.size.y - sel_line.size.y - 14)
-	sel_rename.visible = sel_line.visible and unit != null and unit.owner == Game.ME
+	sel_rename.visible = sel_line.visible and unit != null and unit.owner == Game.LOCAL
 	sel_rename.position = sel_line.position + Vector2(sel_line.size.x + 4, 0)
 	sel_rename.size = Vector2(sel_line.size.y, sel_line.size.y)
 	if panel.visible:   # the province menu stands on the minimap's toggles, growing upward (web: #prov)
@@ -589,7 +589,7 @@ func _show_retrofit(a: Dictionary) -> void:
 	dialog.ask("Retrofit %s" % a.name, "Re-equip the soldiers with another design of the same kind; you pay the difference in gear cost. It takes %d s per soldier at a Barracks (cavalry: with a Stable); the army marches to the nearest one by itself." % int(Game.RETRO_TIME),
 		choices, func(id):
 			if id != "leave":
-				game.retrofit_armies([a], id))
+				game.do("retrofit_armies", [[a], id]))
 
 
 func _show_inspect(a: Dictionary) -> void:
@@ -691,7 +691,7 @@ func toggle_menu() -> void:
 	if p.visible:
 		UiKit.center.call_deferred(p)
 		if game:
-			game.paused = true
+			game.do("set_paused", [true])
 
 
 func set_ui_scale(v: float) -> void:
@@ -712,9 +712,9 @@ func _province_text(p: int) -> String:
 		var b: Dictionary = game.buildings[p]
 		var o: int = b.owner
 		var stage_name: String = "Conquered Capital" if b.get("cc", false) else STAGE_NAME[b.stage]
-		s += "%s (%s)\n" % [stage_name, "yours" if o == Game.ME else "the " + game.player_info(o).name]
+		s += "%s (%s)\n" % [stage_name, "yours" if o == Game.LOCAL else "the " + game.player_info(o).name]
 		if game.occ.has(p):
-			s += "[color=#b3261e]Occupied by %s[/color]\n" % ("you" if game.occ[p] == Game.ME else "the " + game.player_info(game.occ[p]).name)
+			s += "[color=#b3261e]Occupied by %s[/color]\n" % ("you" if game.occ[p] == Game.LOCAL else "the " + game.player_info(game.occ[p]).name)
 	if game.surveyed.has(p):
 		var y: Dictionary = game.yields[p]
 		s += "Yields every 10 s: %d gold, %d wood, %d food\n" % [y.gold, y.wood, y.food]
@@ -733,8 +733,8 @@ func _province_text(p: int) -> String:
 		s += "Plots: %d of %d used\n" % [ex.size(), game.plot_cap(p)]
 	var here := []
 	for u in game.units:
-		if u.prov == p and (u.owner == Game.ME or game.visible.has(p)):
-			var whose := "" if u.owner == Game.ME or u.owner == Game.RAIDERS else " (%s)" % game.player_info(u.owner).name
+		if u.prov == p and (u.owner == Game.LOCAL or game.visible.has(p)):
+			var whose := "" if u.owner == Game.LOCAL or u.owner == Game.RAIDERS else " (%s)" % game.player_info(u.owner).name
 			if u.kind == "army":
 				var parts := []
 				for k in u.troops:
@@ -904,7 +904,7 @@ func _card_tabs() -> Array:
 					break
 			out.append({"text": ("%d " % n if n > 1 else "") + nm, "icon": unit_icon(pk), "on": k == cmd_tab, "id": k})
 		return out
-	if unit != null and unit.owner == Game.ME:
+	if unit != null and unit.owner == Game.LOCAL:
 		var nm: String = "Army" if unit.kind == "army" else str(game.unit_defs[unit.kind].name) if game.unit_defs.has(unit.kind) else unit.kind
 		var pk: String = unit.kind
 		if unit.kind == "army":
@@ -935,7 +935,7 @@ func _refresh_sel_line() -> void:
 		if txt.length() > 150:
 			txt = txt.left(147) + "…"
 		sel_line.tooltip_text = "Right-click a province to move them together. Hold Shift to queue moves. Ctrl+right-click opens the survey and build menu."
-	elif unit != null and unit.owner == Game.ME:
+	elif unit != null and unit.owner == Game.LOCAL:
 		if unit.kind == "army":
 			var st := "in battle" if unit.get("battle") != null and not unit.get("retreating", false) else "retreating" if unit.get("retreating", false) else _status(unit)
 			var parts := []
@@ -1190,7 +1190,7 @@ func _open_crop_menu(e: Dictionary) -> void:
 		var cur := " · grows now" if Ai.crop_of(e) == c else " · on its way" if e.get("cropNext") == c else ""
 		items.append({"icon": icon("icons/common/ui_crop_%s.png" % c), "name": Ai.crop_name(c) + cur, "small": "%s: %s%s" % [Ai.CROP_KIND[c], _crop_line(game, c), " · one per province" if c == "fiber" else ""],
 			"why": no if no != "" else null, "do": func():
-				Ai.set_crop(game, e, c)
+				game.do("set_crop", [p0, e.slot, c])
 				add_toast(("The Farm keeps growing %s." % Ai.crop_name(c)) if Ai.crop_of(e) == c and not e.has("cropNext") else ("The Farm will grow %s in %d s." % [Ai.crop_name(c), int(Ai.CROP_DELAY)]))})
 	pick.open("Crop for this Farm", "%s · changes in %d s" % [game.prov_name(p0), int(Ai.CROP_DELAY)], items, card.global_position - Vector2(400, 40))
 
@@ -1216,7 +1216,7 @@ func open_plot_menu(p0: int, slot: int, anchor: Control) -> void:
 				if mm == null:
 					add_toast("Every Mason is busy.", true)
 					return
-				game.order_build(mm, p0, tt, slot)})
+				game.do("order_build", [mm, p0, tt, slot])})
 	var at := Vector2(panel.global_position.x + panel.size.x + 10, anchor.global_position.y - 40)
 	pick.open("Build on plot %d" % (slot + 1), "%s · %s" % [T, ((m.name + " is here") if m.prov == p0 else (m.name + " will walk over")) if m != null else "every Mason is busy"], items, at,
 		"" if m != null else "Train a Mason at your capital, or wait for one to finish.")
@@ -1227,7 +1227,7 @@ func open_plot_menu(p0: int, slot: int, anchor: Control) -> void:
 ## border he stands by, and a caster's forest paths and tunnels. Shift (held when opening or picking) queues.
 ## web: game.js openBuildMenu, linkRows, the #bmenu clicks; magic.js magicRows
 func open_build_menu(p: int, at: Vector2, shift: bool, pt: Vector2) -> void:
-	var sel := selection.filter(func(v): return v.owner == Game.ME)
+	var sel := selection.filter(func(v): return v.owner == Game.LOCAL)
 	var m = null
 	var w = null
 	var c = null
@@ -1245,7 +1245,9 @@ func open_build_menu(p: int, at: Vector2, shift: bool, pt: Vector2) -> void:
 	var sh := func(): return shift or Input.is_key_pressed(KEY_SHIFT)
 	items.append({"glyph": "➜", "name": ("Queue explore" if shift else "Explore") if all_w else ("Queue move here" if shift else "Move here"),
 		"small": "Add to the end of the order list" if shift else "Shift to queue", "do": func():
-			var moved := game.order_group(selection.filter(func(v): return v.owner == Game.ME), p, sh.call(), [pt.x, pt.y] if map.province_at(pt) == p else null)
+			var mine := selection.filter(func(v): return v.owner == Game.LOCAL)
+			var mr = game.do("order_group", [mine, p, sh.call(), [pt.x, pt.y] if map.province_at(pt) == p else null])
+			var moved: Array = mr if mr is Array else mine
 			if not moved.is_empty() and main:
 				main.mark_move(pt)
 				Sound.move(moved)})
@@ -1256,7 +1258,7 @@ func open_build_menu(p: int, at: Vector2, shift: bool, pt: Vector2) -> void:
 			qn += v.surveyQueue.size() + (1 if v.pendingSurvey >= 0 else 0) + (1 if v.survey != null else 0)
 		items.append({"icon": icon("icons/common/cmd_survey.png"), "name": "Queue survey" if shift else "Survey", "why": why,
 			"small": ("Add to the list (%d already)" % qn) if shift else ("Survey this province" if w.prov == p else "Walk there and survey") + " · Shift to queue",
-			"do": func(): game.queue_survey_on(selection.filter(func(v): return v.kind == game.WAYFINDER and v.owner == Game.ME), p, sh.call())})
+			"do": func(): game.do("queue_survey_on", [selection.filter(func(v): return v.kind == game.WAYFINDER and v.owner == Game.LOCAL), p, sh.call()])})
 	if not types.is_empty():
 		items.append({"sec": "Build"})
 	for type in types:
@@ -1269,9 +1271,9 @@ func open_build_menu(p: int, at: Vector2, shift: bool, pt: Vector2) -> void:
 		items.append({"icon": icon("icons/common/cmd_build_%s.png" % type), "bg": Color(BUILD_BG[type]) if BUILD_BG.has(type) and (d.get("tech") == null or game.has_tech(d.tech)) else Color(0, 0, 0, 0),
 			"name": d.name, "small": "Build here · %d s%s%s" % [int(game.build_time(type)), cap_note, extra], "cost": d.cost, "why": why,
 			"do": func():
-				var mm = selection.filter(func(v): return v.kind == Game.MASON and v.owner == Game.ME)
+				var mm = selection.filter(func(v): return v.kind == Game.MASON and v.owner == Game.LOCAL)
 				if not mm.is_empty():
-					game.order_build(mm[0], p, tt)})
+					game.do("order_build", [mm[0], p, tt])})
 	# a road or wall on the border between where the Mason stands and the clicked province (web: linkRows)
 	if m != null and (game.has_tech("roads") or game.has_tech("walls")) and m.prov != p:
 		var rows := []
@@ -1310,7 +1312,7 @@ func open_build_menu(p: int, at: Vector2, shift: bool, pt: Vector2) -> void:
 			var why = game.path_why(c, p, kind, close)
 			var cc = c
 			rows.append({"icon": icon("icons/realm/tech_%s.png" % (("arboreal" if kind == "forest" else "sealed") if close else game.line_tech(kind))), "name": spec[2] % game.prov_name(p),
-				"small": "%d s of casting" % (Game.PATH_CLOSE if close else Game.PATH_OPEN[game.lvl(kind)]), "why": why, "do": func(): game.start_path(cc, p, kind, close)})
+				"small": "%d s of casting" % (Game.PATH_CLOSE if close else Game.PATH_OPEN[game.lvl(kind)]), "why": why, "do": func(): game.do("start_path", [cc, p, kind, close])})
 		if not rows.is_empty():
 			items.append({"sec": "Magic"})
 			items.append_array(rows)
@@ -1368,36 +1370,36 @@ func _press_part(c: Dictionary) -> void:
 			var t := Ai.crop_target(fe)
 			var plan: Array = Ai.crop_all_plan(game, t).plan
 			for pf in plan:
-				Ai.set_crop(game, pf[1], t)
+				game.do("set_crop", [pf[0], pf[1].slot, t])
 			crop_arm = {}
 			if not plan.is_empty():
 				add_toast("%d Farm%s will grow %s in %d s." % [plan.size(), "" if plan.size() == 1 else "s", Ai.crop_name(t), int(Ai.CROP_DELAY)])
 		return
 	if id == "thugout":
-		game.thug_out(prov, part_extra())
+		game.do("thug_out", [prov, part_extra()])
 	elif id.begins_with("train:"):
-		game.train(src, prov, id.substr(6))
+		game.do("train", [src, prov, id.substr(6)])
 	elif id.begins_with("queue:"):
-		game.cancel_training("%s:%d" % [src, prov], int(id.substr(6)))
+		game.do("cancel_training", ["%s:%d" % [src, prov], int(id.substr(6))])
 	elif id == "upgrade":
-		game.start_upgrade(prov)
+		game.do("start_upgrade", [prov])
 	elif id == "cancelup":
-		game.cancel_upgrade(prov)
+		game.do("cancel_upgrade", [prov])
 	elif id == "rewalls":
-		game.rebuild_walls(prov)
+		game.do("rebuild_walls", [prov])
 	elif id == "develop":
-		game.start_develop(prov)
+		game.do("start_develop", [prov])
 	elif id == "dismantle":
 		var lost := game.extras_in(prov).size()
 		_confirm("dismantle:%d" % prov, "Dismantle the fort at %s? It goes back to an outpost and all %d building%s in the province are destroyed. Press again to confirm." % [game.prov_name(prov), lost, "" if lost == 1 else "s"], game.dismantle_fort.bind(prov))
 	elif id == "xup":
 		var e = part_extra()
 		if e != null:
-			game.start_xup(prov, e.slot)
+			game.do("start_xup", [prov, e.slot])
 	elif id == "xcancel":
 		var e = part_extra()
 		if e != null:
-			game.cancel_xup(prov, e.slot)
+			game.do("cancel_xup", [prov, e.slot])
 	elif id == "destroy":
 		var e = part_extra()
 		if e != null:
@@ -1421,7 +1423,7 @@ func _train_tip(kind: String, qkey: String) -> String:
 	var d: Dictionary = game.unit_defs[kind]
 	var out := str(d.get("blurb", ""))
 	if game.DSTATS.has(kind):
-		var ds := game.stats_of(kind, Game.ME)
+		var ds := game.stats_of(kind, Game.LOCAL)
 		out += " Attack %s, health %s, armor %d%%." % [snappedf(ds.atk, 0.1), snappedf(ds.hp, 0.1), int(round(ds.get("red", 0) * 100))]
 	if game.military.has(kind):
 		out += " Joins the army standing in this province."
@@ -1485,7 +1487,7 @@ func research_settled() -> bool:
 
 func _research_pick(id: String) -> void:
 	var before := str(Game.TREE_KEYS.map(func(t): return game.tech[t].cur))
-	game.pick_tech(id)
+	game.do("pick_tech", [id])
 	# web: v101.js: the window closes once every tree with something on offer is researching
 	if research.visible and before != str(Game.TREE_KEYS.map(func(t): return game.tech[t].cur)) and research_settled():
 		research.hide()
@@ -1581,7 +1583,7 @@ func _tree_column(tr: String) -> Control:
 		auto.tooltip_text = "When nothing is being researched, pick the cheapest option by itself"
 		auto.add_theme_font_size_override("font_size", 13)
 		auto.toggled.connect(func(on):
-			game.auto_tech[tr] = on
+			game.do("set_auto_tech", [tr, on])
 			research_key = "")
 		h.add_child(auto)
 	var rule := ColorRect.new()

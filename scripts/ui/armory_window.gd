@@ -468,7 +468,7 @@ func _mage_editor(ed: VBoxContainer) -> void:
 	var btns := HBoxContainer.new()
 	sm.add_child(btns)
 	btns.add_child(_btn("Equip all %ss" % M, UiKit.GOLD, func():
-		game.set_mage_gear({"weapon": draft.weapon, "shield": draft.get("shield"), "skull": draft.get("skull")})
+		game.do("set_mage_gear", [{"weapon": draft.weapon, "shield": draft.get("shield"), "skull": draft.get("skull")}])
 		edit("mage")))
 	gear_tab = "Weapons"
 	ed.add_child(_gear_tabs(["Weapons"]))
@@ -634,12 +634,13 @@ func _pick(kind: String, k: String) -> void:
 
 
 func _save() -> void:
-	var d := game.save_design(draft)
-	edit(d.id)
+	var d = game.do("save_design", [draft])
+	if d is Dictionary:   # (multiplayer: the design arrives with the next steps)
+		edit(d.id)
 
 
 func _delete() -> void:
-	if draft.get("id") != null and game.delete_design(draft.id):
+	if draft.get("id") != null and game.do("delete_design", [draft.id]):
 		edit(game.designs[0].id)
 
 
@@ -647,7 +648,7 @@ func _delete() -> void:
 func _retrofit() -> void:
 	if draft.get("id") == null or game.design_by_id(draft.id) == null:
 		return
-	game.retrofit_armies(game.units.filter(func(v): return v.kind == "army" and v.owner == Game.ME and v.get("battle") == null and not v.get("exiting", false)), draft.id)
+	game.do("retrofit_armies", [game.units.filter(func(v): return v.kind == "army" and v.owner == Game.LOCAL and v.get("battle") == null and not v.get("exiting", false)), draft.id])
 
 
 # ---------------------------------------------------------------- Army Training Order (web: v106.js renderOrderView)
@@ -717,7 +718,7 @@ func _build_orders() -> void:
 	var btns := HBoxContainer.new()
 	btns.add_theme_constant_override("separation", 8)
 	var buy := _btn("Purchase order", UiKit.GOLD, func():
-		if game.purchase_order(order_draft, order_rally) >= 0:
+		if game.do("purchase_order", [order_draft, order_rally]) >= 0:
 			order_draft = {}
 		_rebuild())
 	if why != null:

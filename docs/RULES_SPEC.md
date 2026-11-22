@@ -101,6 +101,15 @@ Each step ends with a headless test and something visible in the placeholder vie
 ### 10. Tutorial — `tutorial.js`
 - The Basic Tutorial's steps (`TUT_TRIGGERS`, `TUT_EXPLAIN`, `TUT_FINAL`) and its own setup. Check which map it uses before porting.
 
+### 11. Multiplayer (Godot only; the web game is single-player)
+- Seats: `Game.SEAT_FIELDS`, `seats`, `use_seat` / `in_seat` / `each_seat`, `add_seat`, `new_world(..., humans)`;
+  `HOST` is the single player, `ME` the seat in use, `Game.LOCAL` / `view_seat` the one this copy shows.
+- Controllers: `controller(o)`, `hand_to_ai(o, diff)`.
+- Orders: `do(type, args)` from the interface, `apply({player, type, args})`, `COMMANDS`, `pack_args` /
+  `unpack_args`; `set_paused` with `paused_by`.
+- Determinism: `STEP`, `step_fixed`, `checksum` (`tests/test_determinism.gd`, `tests/test_seats.gd`).
+- Network: `scripts/net/net_session.gd` (lobby; lockstep comes next).
+
 ## Interface (needed to play-test each step; full UI is Phase 5)
 
 A plain placeholder interface is enough to test the rules: resource bar, select a unit, right-click to move, command buttons for the selected unit or settlement, a province panel with yields and plots, a research list. Keys and command names follow the web game (`CMD`, `GRID_KEYS`).

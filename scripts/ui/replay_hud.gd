@@ -216,7 +216,7 @@ func _draw_chart() -> void:
 		var pts := PackedVector2Array()
 		for v in lines[o]:
 			pts.append(to_px.call(v))
-		chart.draw_polyline(pts, Color(n.color), 3.0 if o == Game.ME else 2.0, true)
+		chart.draw_polyline(pts, Color(n.color), 3.0 if o == Game.LOCAL else 2.0, true)
 	var x: float = (replay.t - replay.t0) / span * (sz.x - 8) + 4
 	chart.draw_line(Vector2(x, 2), Vector2(x, sz.y - 2), Color(UiKit.INK, 0.7), 2.0)
 	chart.draw_string(ThemeDB.fallback_font, Vector2(6, 16), str(top), HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(UiKit.INK, 0.6))

@@ -39,12 +39,12 @@ static func snap(g: Game) -> Dictionary:
 	var ex := []
 	for p in TestPlay.sorted_keys(g.extras):
 		var l: Array = g.extras[p]
-		if l.is_empty() or g.nation_of(p) == Game.ME:
+		if l.is_empty() or g.nation_of(p) == Game.HOST:
 			continue
 		ex.append([p, ",".join(l.map(func(e): return e.type + (str(e.level) if e.get("level", 1) > 1 else "") + ((":" + e.crop) if e.get("crop", "staple") != "staple" else "")))])
 	var us := []
 	for u in g.units:
-		if u.owner == Game.ME or not g.is_nation(u.owner):
+		if u.owner == Game.HOST or not g.is_nation(u.owner):
 			continue
 		var what = u.troops.duplicate() if u.kind == "army" else (("%s@%d" % [u.build.type, u.build.prov]) if u.build != null else ("job:%s@%d" % [u.aiJob.type, u.aiJob.prov]) if u.get("aiJob") != null else "")
 		us.append([u.id, u.owner, u.kind, u.prov, u.moving, what])

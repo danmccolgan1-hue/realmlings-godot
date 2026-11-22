@@ -54,7 +54,7 @@ func _yield_badge(p: int, age: float) -> void:
 	var base: Dictionary = game.yields[p]
 	var y := {}
 	var b = game.buildings.get(p)
-	var mine: bool = b != null and b.owner == Game.ME
+	var mine: bool = b != null and b.owner == Game.LOCAL
 	var bonus := {}
 	if mine:
 		var inc: Dictionary = {"gold": 0, "wood": 0, "food": 0} if game.occ.has(p) else game.province_income(p, b)
@@ -171,7 +171,7 @@ func _near_zoom() -> float:
 ## A label for your nation and every nation you have met, over the biggest block of their land you know.
 ## web: v78.js realmLabelsOf
 func _realm_labels() -> Array:
-	var who := [Game.ME]
+	var who := [Game.LOCAL]
 	for o in game.met:
 		if game.nations.has(o) and not game.provs_of(o).is_empty():
 			who.append(o)
@@ -179,7 +179,7 @@ func _realm_labels() -> Array:
 	for o in who:
 		var ps := []
 		for p in game.buildings:
-			if game.buildings[p].owner == o and (o == Game.ME or game.explored.has(p)):
+			if game.buildings[p].owner == o and (o == Game.LOCAL or game.explored.has(p)):
 				ps.append(p)
 		sig += "%d:%s%s|" % [o, ps, game.player_info(o).name]
 	if sig == _realm_sig:
@@ -189,7 +189,7 @@ func _realm_labels() -> Array:
 	for o in who:
 		var mine := {}
 		for p in game.buildings:
-			if game.buildings[p].owner == o and (o == Game.ME or game.explored.has(p)):
+			if game.buildings[p].owner == o and (o == Game.LOCAL or game.explored.has(p)):
 				mine[p] = true
 		if mine.is_empty():
 			continue

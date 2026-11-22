@@ -5,6 +5,8 @@ extends Control
 ## web: v106.js renderPatchNotes
 
 const PORT_NOTES := [
+	{"v": "Godot 0.14", "date": "November 22, 2026", "items": [
+		["Several players in one game", "Under the hood, a game can now hold several human nations, each with its own treasury, research, fog of war, armies and orders, side by side with computer nations. A player who leaves can be handed to the computer mid-game. Every order you give now goes through one door, the same one a multiplayer game will send across the network. Playing together over the network comes next."]]},
 	{"v": "Godot 0.13", "date": "November 21, 2026", "items": [
 		["Multiplayer lobby", "Host a game or join one by address, and games on your own network show up by themselves. Up to 8 players see each other's nation and flag, chat, and see their connection speed. The host's game tries to open its port on the router by itself. Playing together comes next: for now the lobby lets you and your friends test your connections."],
 		["Under the hood", "The game can now run in fixed steps and take a fingerprint of its whole state, and a new test proves that copies of a game stay exactly in step: the groundwork for playing together."]]},

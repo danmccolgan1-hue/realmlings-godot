@@ -166,7 +166,7 @@ func export_save() -> void:
 	files_mode = "export"
 	files.file_mode = FileDialog.FILE_MODE_SAVE_FILE
 	files.title = "Export this game"
-	var nm := str(game.player_info(Game.ME).name).to_lower()
+	var nm := str(game.player_info(Game.LOCAL).name).to_lower()
 	var safe := ""
 	for ch in nm:
 		safe += ch if (ch >= "a" and ch <= "z") or (ch >= "0" and ch <= "9") else "-"
@@ -321,7 +321,7 @@ func _on_replay(r) -> void:
 				if x.begins_with("--zoom="):
 					cam.zoom = Vector2(float(x.substr(7)), float(x.substr(7)))
 					for u in r.g.units:
-						if u.owner == Game.ME:
+						if u.owner == Game.LOCAL:
 							cam.position = Vector2(u.x, u.y)
 			for i in 4:
 				await get_tree().process_frame
@@ -413,7 +413,7 @@ func _maybe_screenshot() -> void:
 		var qs: Array = game.open_nbr[fc].map(func(n): return n.q).filter(func(p): return not game.buildings.has(p) and not game.unique_ban(p))
 		game.ai_frozen = true
 		game.nations[foe].tech.gov.done.append("walls")
-		game.buildings[qs[0]] = {"stage": 0, "born": 0, "owner": Game.ME}
+		game.buildings[qs[0]] = {"stage": 0, "born": 0, "owner": Game.LOCAL}
 		game.surveyed[qs[0]] = 0
 		game.stock.gold += 500
 		game.stock.food += 3000
@@ -422,28 +422,28 @@ func _maybe_screenshot() -> void:
 		game.compute_income()
 		game.compute_fog()
 		game.update(1.0)
-		game.declare_war(Game.ME, foe)
+		game.do("declare_war", [Game.LOCAL, foe])
 		army = game.new_army(qs[0], {"d-sword": 20})
-		game.order(army, fc)
+		game.do("order", [army, fc])
 		battle = true
 	if play > 0 and battle and not OS.get_cmdline_user_args().has("--siege"):   # Cormac's Shield Footmen against a Bandit Gang next door, as in tests/fixtures/play/*_battle.json
 		var gang := game.spawn_bandit(q1)
 		gang.troops = {"d-sword": 5}
-		game.order(army, q1)
+		game.do("order", [army, q1])
 	elif play > 0 and spells:   # Havva's Herbomancy, as in tests/fixtures/play/*_life.json
-		game.grant_tech("school-life")
+		game.do("grant_tech", ["school-life"])
 		for id in ["harvest", "mending", "forest", "eyesforest"]:
-			game.grant_tech(id)
-		game.order_build(mason, game.capital, "farm")
+			game.do("grant_tech", [id])
+		game.do("order_build", [mason, game.capital, "farm"])
 	elif play > 0 and demo:   # roads, walls and development: the scripted game of tests/fixtures/play/*_roads.json
 		for k in Game.RES:
 			game.stock[k] += 3000
-		game.grant_tech("roads")
-		game.queue_survey(wfu, q1)
-		game.start_develop(game.capital)
+		game.do("grant_tech", ["roads"])
+		game.do("queue_survey", [wfu, q1])
+		game.do("start_develop", [game.capital])
 	elif play > 0 and game.tutorial == null:
-		game.queue_survey(wfu, game.open_nbr[game.capital][0].q)
-		game.order_build(mason, game.capital, "farm")
+		game.do("queue_survey", [wfu, game.open_nbr[game.capital][0].q])
+		game.do("order_build", [mason, game.capital, "farm"])
 	if play > 0:
 		game.paused = false
 		var real := 1.0
@@ -451,18 +451,18 @@ func _maybe_screenshot() -> void:
 		while game.t < play:
 			real += 0.1
 			if spells and step == 350:
-				game.cast_spell(army, "harvest")
+				game.do("cast_spell", [army, "harvest"])
 			if demo:
 				if step == 400:
-					game.order_build(mason, q1, "outpost")
+					game.do("order_build", [mason, q1, "outpost"])
 				elif step == 900:
 					game.start_link(mason, game.capital, "road")
 				elif step == 1010:
-					game.grant_tech("walls")
+					game.do("grant_tech", ["walls"])
 				elif step == 1020:
 					for u in game.units:
 						if u.kind == "army":
-							game.order(u, q1)
+							game.do("order", [u, q1])
 			step += 1
 			game.update(real)
 		game.paused = true
@@ -480,15 +480,15 @@ func _maybe_screenshot() -> void:
 	if OS.get_cmdline_user_args().has("--dip"):   # the first nation's section open
 		hud.diplomacy.open(game.nations.keys()[0] if not game.nations.is_empty() else 0)
 	if OS.get_cmdline_user_args().has("--queue"):   # pictures: several units selected, queued orders, a move marker and a box
-		var ws: Array = game.units.filter(func(v): return v.owner == Game.ME and v.kind != "army")
+		var ws: Array = game.units.filter(func(v): return v.owner == Game.LOCAL and v.kind != "army")
 		var nb: Array = game.open_nbr[game.capital].map(func(n): return n.q)
 		for q in nb:
 			game.explored[q] = true
-		game.queue_survey_on(ws.filter(func(v): return v.kind == game.WAYFINDER), nb[0], true)
-		game.queue_survey_on(ws.filter(func(v): return v.kind == game.WAYFINDER), nb[1], true)
-		game.order_group(ws.filter(func(v): return v.kind == Game.MASON), nb[2], false, null)
-		game.order_group(ws.filter(func(v): return v.kind == Game.MASON), nb[1], true, null)
-		hud.set_selection(ws + game.units.filter(func(v): return v.kind == "army" and v.owner == Game.ME))
+		game.do("queue_survey_on", [ws.filter(func(v): return v.kind == game.WAYFINDER), nb[0], true])
+		game.do("queue_survey_on", [ws.filter(func(v): return v.kind == game.WAYFINDER), nb[1], true])
+		game.do("order_group", [ws.filter(func(v): return v.kind == Game.MASON), nb[2], false, null])
+		game.do("order_group", [ws.filter(func(v): return v.kind == Game.MASON), nb[1], true, null])
+		hud.set_selection(ws + game.units.filter(func(v): return v.kind == "army" and v.owner == Game.LOCAL))
 		var c: Array = game.G.provs[nb[2]].ic
 		mark_move(Vector2(c[0], c[1]))
 		map.marks[-1].t0 += 0.25
@@ -496,7 +496,7 @@ func _maybe_screenshot() -> void:
 		if OS.get_cmdline_user_args().has("--bmenu"):   # the Ctrl+right-click menu on the capital's neighbor
 			game.stock.gold += 500
 			game.stock.wood += 500
-			game.grant_tech("roads")
+			game.do("grant_tech", ["roads"])
 			hud.open_build_menu(nb[0], Vector2(1150, 260), false, Vector2(c[0], c[1]))
 	if OS.get_cmdline_user_args().has("--fx"):   # pictures: a battle at the capital, a Mage casting, an Earthquake striking
 		var gang := game.spawn_bandit(game.capital)
@@ -701,7 +701,7 @@ func _unhandled_input(ev: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 			return
 		if ev.keycode == KEY_SPACE:
-			game.paused = not game.paused
+			game.do("set_paused", [not game.paused])
 			get_viewport().set_input_as_handled()
 			return
 		if ev.keycode == KEY_F5:
@@ -768,7 +768,7 @@ func _finish_box(at: Vector2, shift: bool) -> void:
 	var ct := get_canvas_transform()
 	var hit := []
 	for u in game.units:
-		if u.owner != Game.ME or u.get("exiting", false):
+		if u.owner != Game.LOCAL or u.get("exiting", false):
 			continue
 		var s: Vector2 = ct * Vector2(u.x, u.y - 8)
 		if s.x >= x0 and s.x <= x1 and s.y >= y0 and s.y <= y1:
@@ -791,15 +791,15 @@ func _left_click(shift: bool) -> void:
 		var tp := map.province_at(at)
 		if tp >= 0:
 			if hud.aim.spell == "fly":
-				game.fly_army(hud.aim.unit, tp)
+				game.do("fly_army", [hud.aim.unit, tp])
 			elif hud.aim.spell == "shock":
-				game.start_spell2(hud.aim.unit, "shock", tp)
+				game.do("start_spell2", [hud.aim.unit, "shock", tp])
 			else:
-				game.cast_spell(hud.aim.unit, hud.aim.spell, tp)
+				game.do("cast_spell", [hud.aim.unit, hud.aim.spell, tp])
 		hud.aim = null
 		return
 	var u = map.unit_at(at)
-	if u != null and u.owner == Game.ME:
+	if u != null and u.owner == Game.LOCAL:
 		if shift:
 			var list: Array = hud.selection.filter(func(v): return not is_same(v, u)) if hud.is_selected(u) else hud.selection + [u]
 			hud.set_selection(list)
@@ -827,7 +827,7 @@ func _right_click(screen: Vector2, shift: bool, ctrl: bool) -> void:
 		return
 	var at := _to_world(screen)
 	var p := map.province_at(at)
-	var sel: Array = hud.selection.filter(func(v): return v.owner == Game.ME)
+	var sel: Array = hud.selection.filter(func(v): return v.owner == Game.LOCAL)
 	if sel.is_empty() or p < 0:
 		return
 	var workers := func(v): return v.kind == Game.MASON or v.kind == game.WAYFINDER
@@ -835,7 +835,8 @@ func _right_click(screen: Vector2, shift: bool, ctrl: bool) -> void:
 	if (ctrl or quick) and sel.any(func(v): return workers.call(v) or game.is_caster(v)):
 		hud.open_build_menu(p, screen, shift, at)
 		return
-	var moved := game.order_group(sel, p, shift, [at.x, at.y])
+	var mr = game.do("order_group", [sel, p, shift, [at.x, at.y]])
+	var moved: Array = mr if mr is Array else sel   # (multiplayer: the order is on its way; assume they all go)
 	if not moved.is_empty() or shift:
 		mark_move(at)
 	Sound.move(moved)

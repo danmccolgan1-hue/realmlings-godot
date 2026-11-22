@@ -261,6 +261,26 @@ The plan after milestone 1. Each step is tested against the web game, then commi
     (`race_emblem`); the web game's emblem shuffle is still drawn so the rest of the setup matches the fixtures, whose
     emblems `tests/test_setup.gd` no longer compares. A save with a retired emblem shows the crown.
 
+18. **Several human nations (multiplayer steps 1–3)** — done (`tests/test_seats.gd`):
+   - Seats: the player's own fields (`Game.SEAT_FIELDS`: stock, research, fog, queues, Mage gear, diplomacy, race
+     tables...) are properties backed by the current seat's record `cur`; `seats` holds one per human nation,
+     `ME` is the seat in use (a var now; `HOST` = 1 is the single player), `use_seat` / `in_seat` / `each_seat`
+     switch. `update()` runs the per-player parts once per seat in id order and moves each unit with its owner's seat;
+     functions that take an owner `o` redirect to `o`'s seat. Views read `Game.LOCAL`; the game returns to
+     `view_seat` after every step and order. `tools/mp_seats.py` made the property rewrite.
+   - `new_world(..., humans)`: a slot marked `"human"` gets `add_seat` at that slot's capital (race, flag, leader).
+     Saves keep the host's fields as before plus `seats` for the others.
+   - Controllers: `controller(o)` ("human" / "ai"); `hand_to_ai(o, diff)` turns a dropped player's seat into a
+     computer nation, keeping land, units, stock and research.
+   - Orders: the interface calls `game.do(type, args)` (73 places); `apply(cmd)` runs `{player, type, args}` from
+     `COMMANDS` with that player's seat. Units, wars, requests and extras travel as references (`pack_args`).
+     New orders: `set_paused` (any player pauses; the host or whoever paused goes on), `set_auto_tech`,
+     `rename_prov`, `close_school_popup`, `set_crop`. Toasts and dialogs show only for `view_seat`; the travelers
+     and peace-demand answers are orders, and only the asked nation may answer the travelers.
+   - Known gaps: the unit table and the Mage's stats are shared (the host's names; the last-registered Mage gear);
+     computer nations' war and alliance thinking still mostly treats the host as "the player"; meeting and
+     diplomacy between humans is the plain web game's until step 11.
+
 ## Things to remember
 
 - **Always grep for wrappers** (`name = function`) before porting a function: later web files replace many of them.

@@ -71,12 +71,12 @@ func _refresh() -> void:
 	var sp := game.upkeep_split()
 	var gross: Dictionary = game.income_parts.get("gross", {"gold": 0, "wood": 0, "food": 0})
 	var k := "%s|%s|%s|%s|%s|%s|%s|%d|%s" % [provs, sp, gross, game.income, game.war_log.map(func(w): return [w.id, w.end, w.result]),
-		game.player_info(Game.ME).name, game.artifacts.get(Game.ME, []), floori(game.t), game.leader]
+		game.player_info(Game.LOCAL).name, game.artifacts.get(Game.LOCAL, []), floori(game.t), game.leader]
 	if k == key:
 		return
 	key = k
-	flag.texture = Art.nation_flag(game, Game.ME)
-	win.title.text = game.player_info(Game.ME).name
+	flag.texture = Art.nation_flag(game, Game.LOCAL)
+	win.title.text = game.player_info(Game.LOCAL).name
 	UiKit.clear(win.body)
 	var top := HBoxContainer.new()
 	top.add_theme_constant_override("separation", 16)
@@ -159,7 +159,7 @@ func _refresh() -> void:
 	right.add_child(gd)
 	# artifacts (web: v95.js)
 	right.add_child(_sec("Artifacts"))
-	var mine: Array = game.artifacts.get(Game.ME, [])
+	var mine: Array = game.artifacts.get(Game.LOCAL, [])
 	if mine.is_empty():
 		right.add_child(_none("None yet. Bosses guard Death Mountain, the Desert Oasis and the Heart of the Forest: beat one to claim its artifact."))
 	for id in mine:
@@ -222,7 +222,7 @@ func _leader() -> VBoxContainer:
 	var v := VBoxContainer.new()
 	v.custom_minimum_size = Vector2(180, 0)
 	v.add_theme_constant_override("separation", 4)
-	var L = game.leader_of(Game.ME)
+	var L = game.leader_of(Game.LOCAL)
 	var fr := PanelContainer.new()
 	var bx := UiKit.box(Color("#3a3340"), 0, 2, UiKit.INK)
 	bx.set_content_margin_all(0)

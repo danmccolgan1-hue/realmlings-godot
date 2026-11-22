@@ -68,8 +68,8 @@ func _process(_dt: float) -> void:
 	title.text = "[b]%s[/b] — %s%s" % [game.player_info(o).name, (L.full + " · ") if L != null else "", Game.REQ_NAME[r.kind]]
 	text.text = "%s\n[i]Declined if you don’t answer within %d seconds.[/i]" % [tx[0], int(Game.DIPL.reqTime)]
 	UiKit.clear(btns)
-	btns.add_child(UiKit.button(tx[1], 18, func(): game.answer_request(r, true)))
-	btns.add_child(UiKit.button(tx[2], 18, func(): game.answer_request(r, false)))
+	btns.add_child(UiKit.button(tx[1], 18, func(): game.do("answer_request", [r, true])))
+	btns.add_child(UiKit.button(tx[2], 18, func(): game.do("answer_request", [r, false])))
 	btns.add_child(UiKit.button("Later", 18, func():
 		r.min = true
 		shown_id = -1))

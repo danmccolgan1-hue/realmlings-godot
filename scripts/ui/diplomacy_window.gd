@@ -113,14 +113,14 @@ func _process(dt: float) -> void:
 func _state_key() -> String:
 	var D := game.dipl_state()
 	var parts := [game.fallen, game.wars.size(), game.allies.size(), D.news.size(), D.access.size(), D.trade.size(), D.crime.size(),
-		D.spies.size(), D.mods.size(), int(game.stock.gold) / 100, D.intel.size(), open_set.keys(), bribe_o, game.enemy_of(Game.ME)]
+		D.spies.size(), D.mods.size(), int(game.stock.gold) / 100, D.intel.size(), open_set.keys(), bribe_o, game.enemy_of(Game.LOCAL)]
 	for w in game.wars:
-		parts.append([w.id, game.warscore(w, Game.ME), game.exhaustion_of(w), int(game.t - w.since) / 30])
+		parts.append([w.id, game.warscore(w, Game.LOCAL), game.exhaustion_of(w), int(game.t - w.since) / 30])
 	for sp in D.spies.values():
 		parts.append(int(sp.until - game.t) / 5)
 	for o in game.ai_ids():
-		parts.append([o, game.alive_nation(o), game.knows(o), game.opinion(o, Game.ME), game.declare_why(Game.ME, o), game.proclaim_why(Game.ME, o),
-			int(game.truce_left(Game.ME, o)) / 30, game.provs_of(o).size(), game.enemy_of(o)])
+		parts.append([o, game.alive_nation(o), game.knows(o), game.opinion(o, Game.LOCAL), game.declare_why(Game.LOCAL, o), game.proclaim_why(Game.LOCAL, o),
+			int(game.truce_left(Game.LOCAL, o)) / 30, game.provs_of(o).size(), game.enemy_of(o)])
 	return str(parts)
 
 
@@ -147,13 +147,13 @@ func _refresh() -> void:
 
 # web: v105.js dxPanelHTML's header (+ v106.js your proclaimed enemy)
 func _header() -> void:
-	head_flag.texture = Art.nation_flag(game, Game.ME)
-	var me = game.leader_of(Game.ME)
+	head_flag.texture = Art.nation_flag(game, Game.LOCAL)
+	var me = game.leader_of(Game.LOCAL)
 	head_pt.texture = Hud.icon("icons/realm/leader_%s.png" % me.id) if me != null else null
 	head_pt.get_parent().visible = me != null
-	var e = game.enemy_of(Game.ME)
-	head_sub.text = "%s%s · at war with %d of at most %d nations%s · hover a nation to see its opinion of you" % [game.player_info(Game.ME).name,
-		(" · " + me.full) if me != null else "", game.enemies_of(Game.ME).size(), int(game.W("maxVsPlayer")),
+	var e = game.enemy_of(Game.LOCAL)
+	head_sub.text = "%s%s · at war with %d of at most %d nations%s · hover a nation to see its opinion of you" % [game.player_info(Game.LOCAL).name,
+		(" · " + me.full) if me != null else "", game.enemies_of(Game.LOCAL).size(), int(game.W("maxVsPlayer")),
 		(" · your proclaimed enemy: the " + game.player_info(e).name) if e != null and int(e) > 0 else ""]
 
 
@@ -251,7 +251,7 @@ func _section(o: int) -> PanelContainer:
 	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	right.add_theme_constant_override("separation", 6)
 	det.add_child(right)
-	var w = game.war_between(Game.ME, o)
+	var w = game.war_between(Game.LOCAL, o)
 	if w != null:
 		right.add_child(_war_block(o, w))
 	right.add_child(_actions(o))
@@ -260,15 +260,15 @@ func _section(o: int) -> PanelContainer:
 
 # web: war.js relation + v105.js dxRelation
 func _relation(o: int) -> Dictionary:
-	var w = game.war_between(Game.ME, o)
+	var w = game.war_between(Game.LOCAL, o)
 	if w != null and w.get("proxy") != null:
 		return {"cls": "war", "text": "Proxy war %d%%" % game.exhaustion_of(w), "col": DOWN}
 	if w != null:
-		var s := game.warscore(w, Game.ME)
+		var s := game.warscore(w, Game.LOCAL)
 		return {"cls": "war", "text": "⚔ War %s" % _sgn(s), "col": DOWN}
-	if game.allied(Game.ME, o):
+	if game.allied(Game.LOCAL, o):
 		return {"cls": "ally", "text": "Allied", "col": UP}
-	var tl := game.truce_left(Game.ME, o)
+	var tl := game.truce_left(Game.LOCAL, o)
 	if tl > 0:
 		return {"cls": "truce", "text": "Truce " + Game.fmt_time(tl), "col": MUTED}
 	return {"cls": "", "text": "Peace", "col": MUTED}
@@ -294,15 +294,15 @@ func _chip(rel: Dictionary) -> PanelContainer:
 func _badges(o: int) -> Array:
 	var D := game.dipl_state()
 	var out := []
-	if game.allied(Game.ME, o):
+	if game.allied(Game.LOCAL, o):
 		out.append(["ally", "Allies"])
-	if game.access_given(Game.ME, o):
+	if game.access_given(Game.LOCAL, o):
 		out.append(["access", "They may march through your land"])
-	if game.access_given(o, Game.ME):
+	if game.access_given(o, Game.LOCAL):
 		out.append(["access", "You may march through their land"])
-	if game.pair_has(D.trade, Game.ME, o) != null:
+	if game.pair_has(D.trade, Game.LOCAL, o) != null:
 		out.append(["trade", "Trade Network"])
-	if game.pair_has(D.crime, Game.ME, o) != null:
+	if game.pair_has(D.crime, Game.LOCAL, o) != null:
 		out.append(["crime", "Organized Crime Agreement"])
 	if D.spies.has(o):
 		out.append(["spy", "Spies at work: " + game.fmt_left(D.spies[o].until - game.t)])
@@ -350,15 +350,15 @@ func _facts(o: int) -> GridContainer:
 	gd.add_theme_constant_override("h_separation", 12)
 	gd.add_theme_constant_override("v_separation", 1)
 	var e = game.enemy_of(o)
-	var op := game.opinion(o, Game.ME)
+	var op := game.opinion(o, Game.LOCAL)
 	var rows := [["Opinion of you", _sgn(op), UP if op > 0 else (DOWN if op < 0 else UiKit.INK)],
-		["Proclaimed enemy", ("You" if e == Game.ME else game.player_info(e).name) if e != null and int(e) > 0 else "None", DOWN if e != null and int(e) > 0 else MUTED],
+		["Proclaimed enemy", ("You" if e == Game.LOCAL else game.player_info(e).name) if e != null and int(e) > 0 else "None", DOWN if e != null and int(e) > 0 else MUTED],
 		["Provinces", str(game.provs_of(o).size()), UiKit.INK], ["Difficulty", DIFF_NAME.get(N.diff, str(N.diff)), UiKit.INK],
 		["Military power", ("%d (spied %s ago)" % [int(I.power), game.fmt_left(game.t - I.powerT)]) if I.has("power") else "Hidden: send spies", UiKit.INK if I.has("power") else MUTED]]
-	var al := game.allies_of(o).filter(func(x): return x != Game.ME)
+	var al := game.allies_of(o).filter(func(x): return x != Game.LOCAL)
 	if not al.is_empty():
 		rows.append(["Allied with", ", ".join(al.map(func(x): return game.player_info(x).name)), UiKit.INK])
-	var wr := game.enemies_of(o).filter(func(x): return x != Game.ME)
+	var wr := game.enemies_of(o).filter(func(x): return x != Game.LOCAL)
 	if not wr.is_empty():
 		rows.append(["At war with", ", ".join(wr.map(func(x): return game.player_info(x).name)), UiKit.INK])
 	for r in rows:
@@ -382,7 +382,7 @@ func _war_block(o: int, w: Dictionary) -> VBoxContainer:
 	v.add_theme_constant_override("separation", 4)
 	if w.get("proxy") != null:   # web: v105.js dxWarBlock (Proxy War)
 		var e := game.exhaustion_of(w)
-		var mine: bool = w.proxy == Game.ME
+		var mine: bool = w.proxy == Game.LOCAL
 		var P = game.parent_war(w)
 		var def: int = int(P.b) if P != null else 0
 		v.add_child(_sec("Proxy War"))
@@ -391,7 +391,7 @@ func _war_block(o: int, w: Dictionary) -> VBoxContainer:
 		v.add_child(_bar(e / 100.0, DOWN, "%s exhaustion %d / 100" % ["Your" if mine else "Their", e]))
 		v.add_child(_note("+%d for every 1%% of the army's value lost; +%d if a third nation declares war on %s. At 100: white peace." % [Game.DIPL.exhPer, Game.DIPL.exhDeclare, "you" if mine else "them"], 12))
 		return v
-	var s := game.warscore(w, Game.ME)
+	var s := game.warscore(w, Game.LOCAL)
 	v.add_child(_sec("War"))
 	var why_w := "they attacked you" if w.a == o else "you declared"
 	v.add_child(_note("At war for %s (%s). Warscore %s. %s" % [Game.fmt_time(game.t - w.since), why_w, _sgn(s), _score_hint(s)], 14))
@@ -464,9 +464,9 @@ func _score_hint(s: int) -> String:
 func _province_pick(s: int, foe: int) -> Array:
 	if s < game.W("provs"):
 		return []
-	if s >= game.W("total") and game.annexable(Game.ME, foe):
+	if s >= game.W("total") and game.annexable(Game.LOCAL, foe):
 		return game.provs_of(foe)
-	return game.connected_pick(Game.ME, foe, game.demand_max(s))
+	return game.connected_pick(Game.LOCAL, foe, game.demand_max(s))
 
 
 func _terms_tip(kind: String, provs: Array) -> String:
@@ -490,8 +490,8 @@ func _peace(w: Dictionary, kind: String, provs: Array) -> void:
 	var terms := {"kind": kind}
 	if kind == "provs":
 		terms.provs = provs
-	var foe := Game.foe_of(w, Game.ME)
-	game.make_peace(w, foe if kind == "surrender" else Game.ME, terms)
+	var foe := Game.foe_of(w, Game.LOCAL)
+	game.do("make_peace", [w, foe if kind == "surrender" else Game.LOCAL, terms])
 	key = ""
 
 
@@ -508,39 +508,39 @@ func _actions(o: int) -> VBoxContainer:
 	gd.add_theme_constant_override("h_separation", 6)
 	gd.add_theme_constant_override("v_separation", 6)
 	v.add_child(gd)
-	var mine_en: bool = game.enemy_of(Game.ME) == o
+	var mine_en: bool = game.enemy_of(Game.LOCAL) == o
 	if mine_en:
 		gd.add_child(_act(o, "proclaim", "enemy", "Renounce enemy", "", "Lift your proclamation: their %d opinion goes away" % Game.DIPL_ENEMY))
 	else:
-		gd.add_child(_act(o, "proclaim", "enemy", "Proclaim Enemy", game.proclaim_why(Game.ME, o), "%d opinion with them while it stands; +%d with nations who share the enemy. One at a time, one every 10 min" % [Game.DIPL_ENEMY, Game.DIPL_SHARED], true))
+		gd.add_child(_act(o, "proclaim", "enemy", "Proclaim Enemy", game.proclaim_why(Game.LOCAL, o), "%d opinion with them while it stands; +%d with nations who share the enemy. One at a time, one every 10 min" % [Game.DIPL_ENEMY, Game.DIPL_SHARED], true))
 	if not game.is_sw(o):   # web: v106.js (no Flirt with Swamplings)
 		gd.add_child(_act(o, "flirt", "flirt", "Flirt", game.flirt_why(o), "+%d opinion for %d min" % [DL.flirt.v, DL.flirt.dur / 60]))
 	if game.is_sw():   # web: v105.js / v106.js Growl
 		gd.add_child(_act(o, "growl", "growl", "Growl", game.growl_why(o), ("50%%: +%d or −%d opinion for %d min" % [DL.growl.v, DL.growl.v, DL.growl.dur / 60]) if game.is_sw(o) else ("They aren’t Swamplings: always −%d opinion for %d min" % [DL.growl.v, DL.growl.dur / 60])))
 	gd.add_child(_act(o, "gift", "gift", "Gift", game.gift_why(o), "%d gold: +%d opinion for %d min" % [DL.gift.gold, DL.gift.v, DL.gift.dur / 60]))
 	gd.add_child(_act(o, "bribe", "bribe", "Bribe", game.bribe_why(o), "%d gold: they attack a smaller nation" % DL.bribe.gold, false, bribe_o == o))
-	if game.access_given(Game.ME, o):
+	if game.access_given(Game.LOCAL, o):
 		gd.add_child(_act(o, "grant", "revoke", "Revoke access", "", "Their armies may no longer march through your land"))
 	else:
 		gd.add_child(_act(o, "grant", "access", "Offer access", game.grant_why(o), "Their armies may march through your land (they accept at %d or better)" % DL.offer))
-	if game.access_given(o, Game.ME):
+	if game.access_given(o, Game.LOCAL):
 		gd.add_child(_act(o, "giveback", "revoke", "Give back access", "", "You may march through their land; give it back"))
 	else:
 		gd.add_child(_act(o, "ask", "access", "Ask for access", game.ask_why(o), "Your armies march through their land"))
-	if game.allied(Game.ME, o):
+	if game.allied(Game.LOCAL, o):
 		gd.add_child(_act(o, "ally", "ally", "End alliance", "", "%d-minute truce afterwards" % (int(game.W("allyTruce")) / 60)))
 	else:
-		gd.add_child(_act(o, "ally", "ally", "Alliance", game.ally_why(Game.ME, o), "Needs +%d: vision, access, they defend each other" % DL.ally))
+		gd.add_child(_act(o, "ally", "ally", "Alliance", game.ally_why(Game.LOCAL, o), "Needs +%d: vision, access, they defend each other" % DL.ally))
 	if not game.is_sw():   # web: v105.js (Trade Networks for Realmlings and Woodlings)
-		if game.pair_has(D.trade, Game.ME, o) != null:
+		if game.pair_has(D.trade, Game.LOCAL, o) != null:
 			gd.add_child(_act(o, "trade", "trade", "End Trade Network", "", "Stop trading"))
 		else:
-			gd.add_child(_act(o, "trade", "trade", "Trade Network", game.trade_why(Game.ME, o), "Needs +%d and a shared border: +10%% Community / Trade Routes" % DL.trade))
+			gd.add_child(_act(o, "trade", "trade", "Trade Network", game.trade_why(Game.LOCAL, o), "Needs +%d and a shared border: +10%% Community / Trade Routes" % DL.trade))
 	else:   # Organized Crime for Swamplings
-		if game.pair_has(D.crime, Game.ME, o) != null:
+		if game.pair_has(D.crime, Game.LOCAL, o) != null:
 			gd.add_child(_act(o, "crime", "crime", "End Organized Crime", "", "Extra Thugs leave their dens 10 s later"))
 		else:
-			gd.add_child(_act(o, "crime", "crime", "Organized Crime", game.crime_why(Game.ME, o), "Needs +%d: +1 Thug in every Thug Den, theirs and yours" % DL.crime))
+			gd.add_child(_act(o, "crime", "crime", "Organized Crime", game.crime_why(Game.LOCAL, o), "Needs +%d: +1 Thug in every Thug Den, theirs and yours" % DL.crime))
 	if D.spies.has(o):
 		var sp: Dictionary = D.spies[o]
 		var b := _act(o, "", "spy", "Spying…", "", "%s left" % game.fmt_left(sp.until - game.t))
@@ -548,9 +548,9 @@ func _actions(o: int) -> VBoxContainer:
 		gd.add_child(b)
 	else:
 		gd.add_child(_act(o, "spy", "spy", "Spy", game.spy_why(o), "%d gold, %d min: maybe provinces or their army's power. 10%% caught" % [DL.spy.gold, DL.spy.dur / 60]))
-	if not game.at_war(Game.ME, o) and not game.allied(Game.ME, o):
+	if not game.at_war(Game.LOCAL, o) and not game.allied(Game.LOCAL, o):
 		var dc: Dictionary = game.W("declareCost")
-		gd.add_child(_act(o, "declare", "war", "Declare war", game.declare_why(Game.ME, o), "−%s. −200 opinion with them, for good" % UiKit.cost_line(dc), true))
+		gd.add_child(_act(o, "declare", "war", "Declare war", game.declare_why(Game.LOCAL, o), "−%s. −200 opinion with them, for good" % UiKit.cost_line(dc), true))
 	if bribe_o == o:
 		v.add_child(_sec("Bribe the %s (%d gold) to attack…" % [game.player_info(o).name, DL.bribe.gold]))
 		var ts := game.bribe_targets(o)
@@ -559,8 +559,8 @@ func _actions(o: int) -> VBoxContainer:
 		for y in ts:
 			var al := game.allies_of(y)
 			var b := _plain_btn("%s  ·  %d provinces%s" % [game.player_info(y).name, game.provs_of(y).size(),
-				(", allied with " + ", ".join(al.map(func(x): return "you" if x == Game.ME else game.player_info(x).name))) if not al.is_empty() else ""], func():
-				game.dx_act("bribe", o, y)
+				(", allied with " + ", ".join(al.map(func(x): return "you" if x == Game.LOCAL else game.player_info(x).name))) if not al.is_empty() else ""], func():
+				game.do("dx_act", ["bribe", o, y])
 				bribe_o = 0
 				key = "")
 			b.icon = Art.nation_flag(game, y)
@@ -620,7 +620,7 @@ func _act(o: int, act: String, icon: String, name: String, why: String, ok: Stri
 			if act == "bribe":
 				bribe_o = 0 if bribe_o == o else o
 			else:
-				game.dx_act(act, o)
+				game.do("dx_act", [act, o])
 			key = "")
 	return b
 
@@ -631,15 +631,15 @@ func _between() -> void:
 	var D := game.dipl_state()
 	var rows := []
 	for w in game.wars:
-		if w.get("parent") == null and w.a != Game.ME and w.b != Game.ME and (game.knows(w.a) or game.knows(w.b)):
-			var kids := game.wars.filter(func(c): return c.get("parent") == w.id and c.get("proxy") != null and c.proxy != Game.ME)
+		if w.get("parent") == null and w.a != Game.LOCAL and w.b != Game.LOCAL and (game.knows(w.a) or game.knows(w.b)):
+			var kids := game.wars.filter(func(c): return c.get("parent") == w.id and c.get("proxy") != null and c.proxy != Game.LOCAL)
 			rows.append([w.a, "⚔", w.b, _sgn(game.warscore(w, w.a)) + "".join(kids.map(func(c): return " · %s defends (exhaustion %d%%)" % [game.player_info(c.proxy).name, game.exhaustion_of(c)]))])
 	for A in game.allies:
-		if A.a != Game.ME and A.b != Game.ME and (game.knows(A.a) or game.knows(A.b)):
+		if A.a != Game.LOCAL and A.b != Game.LOCAL and (game.knows(A.a) or game.knows(A.b)):
 			rows.append([A.a, "allied with", A.b, ""])
 	for k in ["trade", "crime"]:
 		for P in D[k]:
-			if P.a != Game.ME and P.b != Game.ME and (game.knows(P.a) or game.knows(P.b)):
+			if P.a != Game.LOCAL and P.b != Game.LOCAL and (game.knows(P.a) or game.knows(P.b)):
 				rows.append([P.a, "trades with" if k == "trade" else "deals with", P.b, ""])
 	if rows.is_empty():
 		return
@@ -664,7 +664,7 @@ func _news() -> void:
 
 # web: v105.js the #dxTip tooltip
 func _opinion_tip(o: int) -> Control:
-	var parts := game.opinion_parts(o, Game.ME)
+	var parts := game.opinion_parts(o, Game.LOCAL)
 	var tot := 0
 	for p in parts:
 		tot += int(p[1])

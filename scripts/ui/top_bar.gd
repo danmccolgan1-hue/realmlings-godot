@@ -176,7 +176,7 @@ func _ready() -> void:
 	clock_l.tooltip_text = "Game time"
 	clock_box.add_child(clock_l)
 	right.add_child(clock_box)
-	var play := paper_button("", "", "Pause or play [Space]", func(): hud.game.paused = not hud.game.paused)
+	var play := paper_button("", "", "Pause or play [Space]", func(): hud.game.do("set_paused", [not hud.game.paused]))
 	play_g = Glyph.make("play", 24.0)
 	play.add_child(play_g)
 	play_g.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT, Control.PRESET_MODE_KEEP_SIZE, 11)
@@ -247,10 +247,10 @@ func _counter(row: HBoxContainer, glyph: String, tip: String) -> Label:
 func setup(g: Game) -> void:
 	game = g
 	key = ""
-	var P := g.player_info(Game.ME)
-	nation_sw.texture = Art.nation_flag(g, Game.ME)
+	var P := g.player_info(Game.LOCAL)
+	nation_sw.texture = Art.nation_flag(g, Game.LOCAL)
 	nation_l.text = "Basic Tutorial" if g.tutorial != null else str(P.name)
-	var L = g.leader_of(Game.ME)
+	var L = g.leader_of(Game.LOCAL)
 	nation_l.get_parent().get_parent().tooltip_text = "%s%s" % [P.name, (", led by %s" % L.full) if L != null else ""]
 	dip_btn.visible = not g.nations.is_empty()
 
@@ -280,7 +280,7 @@ func _process(_dt: float) -> void:
 		gl.set_value(float(st.prog) / maxf(1.0, float(g.TECH_BY_ID[st.cur].cost)) if st.cur != null else 0.0)
 		gl.queue_redraw()
 	var k := "%s|%s|%s|%d|%d|%d|%d|%d|%d|%d" % [g.stock, g.income, [g.storage_cap("gold"), g.storage_cap("wood"), g.storage_cap("food")],
-		g.mana_regen(Game.ME), g.fort_count(), g.fort_limit(), g.provs_of(Game.ME).size(), g.prov_limit(), g.exhaust, g.wars_of(Game.ME).size()]
+		g.mana_regen(Game.LOCAL), g.fort_count(), g.fort_limit(), g.provs_of(Game.LOCAL).size(), g.prov_limit(), g.exhaust, g.wars_of(Game.LOCAL).size()]
 	k += str(TREES.map(func(t): return g.tech_rate(t)))
 	if k == key:
 		return
@@ -294,7 +294,7 @@ func _process(_dt: float) -> void:
 		res[r].inc.text = "(%s%d)" % ["+" if inc >= 0 else "−", absi(inc)]
 		res[r].inc.add_theme_color_override("font_color", RED if inc < 0 else GREEN)
 		res[r].row.tooltip_text = hud._res_tip(r)
-	var mr := g.mana_regen(Game.ME)
+	var mr := g.mana_regen(Game.LOCAL)
 	mana_l.text = "+%d" % mr
 	mana_l.get_parent().tooltip_text = "Mana: every Magic User regains %d mana every 10 s (1 for each Tier I Magic Barracks, 2 for each Tier II, 3 for each Tier III), up to %d. A Magic User regains nothing while he is casting." % [mr, g.mana_cap()]
 	var fc := g.fort_count()
@@ -302,7 +302,7 @@ func _process(_dt: float) -> void:
 	forts_l.text = "%d/%d" % [fc, fl]
 	forts_l.add_theme_color_override("font_color", RED if fc >= fl else INK)
 	forts_l.get_parent().tooltip_text = "Forts you hold out of your fort limit (a fort counts once its upgrade has finished)"
-	var pc := g.provs_of(Game.ME).size()
+	var pc := g.provs_of(Game.LOCAL).size()
 	var pl := g.prov_limit()
 	provs_l.text = "%d/%d" % [pc, pl]
 	provs_l.add_theme_color_override("font_color", RED if pc >= pl else INK)
@@ -312,7 +312,7 @@ func _process(_dt: float) -> void:
 	exh_l.tooltip_text = "Army Exhaustion: rises every payday you can’t feed your army. At %d the whole army deserts." % GameData.c("EXHAUST_MAX")
 	for tr in TREES:
 		tree_pts[tr].text = str(g.tech_rate(tr)) if g.tech[tr].tier else "–"
-	var n := g.wars_of(Game.ME).size()
+	var n := g.wars_of(Game.LOCAL).size()
 	war_g.visible = n > 0
 	dip_btn.tooltip_text = ("At war with %d nation%s. " % [n, "s" if n > 1 else ""] if n else "") + "Diplomacy [Y]: wars, peace, alliances and every other nation"
 

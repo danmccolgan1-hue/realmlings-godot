@@ -67,7 +67,7 @@ func open(g: Game, what: String) -> void:
 
 func _unit(id: int):
 	for u in game.units:
-		if u.id == id and u.owner == Game.ME:
+		if u.id == id and u.owner == Game.LOCAL:
 			return u
 	return null
 
@@ -80,7 +80,7 @@ func _done(reset: bool) -> void:
 		if reset or v == "":
 			game.prov_rename.erase(id)
 		else:
-			game.prov_rename[id] = v
+			game.do("rename_prov", [id, v])
 	else:
 		var u = _unit(id)
 		if u != null and v != "":

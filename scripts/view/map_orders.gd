@@ -29,7 +29,7 @@ func _font() -> Font:
 func draw_sel_provs(g: Game, t: float) -> void:
 	var ps := {}
 	for u in v.selection:
-		if u.owner == Game.ME and g.explored.has(u.prov):
+		if u.owner == Game.LOCAL and g.explored.has(u.prov):
 			ps[u.prov] = true
 	if ps.is_empty():
 		return
@@ -87,7 +87,7 @@ func draw_survey(g: Game, site: Dictionary, t: float) -> void:
 func draw_survey_queue(g: Game, t: float) -> void:
 	var k := maxf(1.0, 0.62 / _z())
 	for u in g.units:
-		if u.owner != Game.ME:
+		if u.owner != Game.LOCAL:
 			continue
 		var list: Array = ([u.pendingSurvey] if u.pendingSurvey >= 0 else []) + u.surveyQueue
 		for i in list.size():
@@ -134,7 +134,7 @@ func draw_rally(g: Game, key: String, t: float) -> void:
 	var K := UKK * 1.3
 	v._dashes(PackedVector2Array([Vector2(sp.x, sp.y), Vector2(rp.x, rp.y)]), 3.0, Color(1, 1, 1, 0.7), 10.0, 10.0, 0.0)
 	v._filled_ellipse(Vector2(rp.x, rp.y), 12 * K, 5 * K, Color(0, 0, 0, 0.25))
-	v._army_flag({"owner": Game.ME}, rp.x, rp.y, rp.y - 26 * K, t, K)
+	v._army_flag({"owner": Game.LOCAL}, rp.x, rp.y, rp.y - 26 * K, t, K)
 
 
 # web: v78.js drawMoveMarks: one quick swell, then a fade to nothing at 1 s
@@ -175,7 +175,7 @@ func draw_scout_marks(g: Game, t: float) -> void:
 	for u in g.units:
 		if u.kind != g.WAYFINDER or not u.get("detected", false):
 			continue
-		if u.owner != Game.ME and not g.visible.has(u.prov):
+		if u.owner != Game.LOCAL and not g.visible.has(u.prov):
 			continue
 		var x: float = u.x
 		var y: float = u.y - 58 * UKK

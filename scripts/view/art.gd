@@ -89,7 +89,7 @@ static func nation_flag(game, o: int):
 	var col := str(game.player_info(o).color)
 	var em := "swords"
 	var sec := "#faf1dc"
-	if o == Game.ME:
+	if o == Game.LOCAL:
 		var nat: Dictionary = game.my_nation if game is Game else GameData.c("NATION")
 		em = str(nat.get("emblem", "crown"))
 		sec = str(nat.get("secondary", sec))

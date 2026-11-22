@@ -20,7 +20,7 @@ static func on(g: Game) -> bool:
 
 # web: v102.js recNations
 static func nations_of(g: Game) -> Array:
-	var out := [Game.ME]
+	var out := g.seat_ids()
 	for o in g.nations:
 		if g.alive_nation(o):
 			out.append(o)
@@ -28,8 +28,10 @@ static func nations_of(g: Game) -> Array:
 
 
 static func name_of(g: Game, o: int) -> String:
-	if o == Game.ME:
+	if o == Game.LOCAL:
 		return "You"
+	if g.is_human(o):
+		return g.player_info(o).name
 	var N = g.nations.get(o)
 	return "%s (%s)" % [g.player_info(o).name, GameData.c("DIFF_NAME").get(N.diff, "?") if N != null else "?"]
 
@@ -41,8 +43,8 @@ static func start(g: Game, why: String) -> void:
 		var N = g.nations.get(o)
 		var L = g.leader_of(o)
 		nats.append({"id": o, "name": g.player_info(o).name, "label": name_of(g, o), "race": "realm",
-			"diff": "player" if o == Game.ME else N.diff, "color": g.player_info(o).color, "leader": L.full if L != null else "",
-			"school": null if o == Game.ME else N.get("wantSchool")})
+			"diff": "player" if g.is_human(o) else N.diff, "color": g.player_info(o).color, "leader": L.full if L != null else "",
+			"school": null if g.is_human(o) else N.get("wantSchool")})
 	var players := {}
 	for o in nations_of(g):
 		players[str(o)] = g.player_info(o).duplicate()
@@ -84,7 +86,7 @@ static func settle_of(g: Game, o: int) -> Dictionary:
 
 
 static func tech_of(g: Game, o: int) -> Dictionary:
-	return g.tech if o == Game.ME else g.nations[o].tech
+	return g.seats[o].tech if g.is_human(o) else g.nations[o].tech
 
 
 static func word(s) -> String:
@@ -117,7 +119,7 @@ static func step(g: Game) -> void:
 			var was: Dictionary = prev.b.get(o, {})
 			var is_now: Dictionary = now.b[o]
 			var n := g.provs_of(o).size()
-			var st: Dictionary = g.stock if o == Game.ME else g.nations[o].stock
+			var st: Dictionary = g.seats[o].stock if g.is_human(o) else g.nations[o].stock
 			for k in is_now:
 				var before = was.get(k)
 				var v: String = is_now[k]
@@ -180,8 +182,8 @@ static func step(g: Game) -> void:
 static func snap(g: Game) -> void:
 	for o in nations_of(g):
 		var T := tech_of(g, o)
-		var inc: Dictionary = g.income if o == Game.ME else g.nations[o].income
-		var st: Dictionary = g.stock if o == Game.ME else g.nations[o].stock
+		var inc: Dictionary = g.seats[o].income if g.is_human(o) else g.nations[o].income
+		var st: Dictionary = g.seats[o].stock if g.is_human(o) else g.nations[o].stock
 		var bld := {}
 		for v in buildings_of(g, o).values():
 			var ty: String = v.split(":")[0]
@@ -196,13 +198,13 @@ static func snap(g: Game) -> void:
 				mages += g.mages_in(v)
 		var rate := {}
 		for tr in ["gov", "mil", "mag"]:
-			rate[tr] = g.tech_rate(tr) if o == Game.ME else Ai.tech_rate(g, g.nations[o], tr)
+			rate[tr] = g.in_seat(o, func(): return g.tech_rate(tr)) if g.is_human(o) else Ai.tech_rate(g, g.nations[o], tr)
 		g.rec.snap.append({"t": rt(g), "o": o, "provs": g.provs_of(o).size(), "forts": forts,
 			"inc": {"g": int(JS.round_js(inc.get("gold", 0))), "w": int(JS.round_js(inc.get("wood", 0))), "f": int(JS.round_js(inc.get("food", 0)))},
 			"stock": {"g": int(JS.round_js(st.gold)), "w": int(JS.round_js(st.wood)), "f": int(JS.round_js(st.food))},
 			"rate": rate, "techs": {"gov": T.gov.done.size(), "mil": T.mil.done.size(), "mag": T.mag.done.size()},
 			"bld": bld, "soldiers": g.soldier_count(o), "power": int(Ai.nation_power(g, o)), "mages": mages,
-			"school": g.current_school() if o == Game.ME else g.nations[o].get("school"), "wars": g.wars_of(o).size()})
+			"school": g.in_seat(o, g.current_school) if g.is_human(o) else g.nations[o].get("school"), "wars": g.wars_of(o).size()})
 
 
 # web: v102.js recMilestones
@@ -244,7 +246,7 @@ static func milestones(g: Game, o: int) -> void:
 		if id.begins_with("a-") and x.get("tier", 0) >= 2:
 			mark.call("armor tier %d" % x.tier, {"tech": x.name})
 	if T.mag.done.any(func(id): return id.begins_with("school-")):
-		mark.call("school of magic", {"school": g.current_school() if o == Game.ME else g.nations[o].get("school")})
+		mark.call("school of magic", {"school": g.in_seat(o, g.current_school) if g.is_human(o) else g.nations[o].get("school")})
 	var n := g.provs_of(o).size()
 	for k in MS_PROV:
 		if n >= k:
@@ -306,7 +308,7 @@ static func frame(g: Game) -> void:
 		f["walls"] = walls
 	var armies := []
 	for u in g.units:
-		if u.kind != "army" or not (u.owner == Game.ME or g.nations.has(u.owner)):
+		if u.kind != "army" or not (g.is_human(u.owner) or g.nations.has(u.owner)):
 			continue
 		var n := 0
 		var top := ""

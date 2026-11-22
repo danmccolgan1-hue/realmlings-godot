@@ -83,7 +83,7 @@ func _draw_toggle(b: Control, key: String) -> void:
 			b.draw_line(c + Vector2(-5, -1), c + Vector2(5.5, -1), Color(UiKit.INK, mod.a), 1.6)
 			b.draw_line(c + Vector2(-5, 3), c + Vector2(2.5, 3), Color(UiKit.INK, mod.a), 1.6)
 		"realm":
-			var tex = Art.nation_flag(game, Game.ME) if game else null
+			var tex = Art.nation_flag(game, Game.LOCAL) if game else null
 			if tex:
 				b.draw_texture_rect(tex, Rect2(c - Vector2(14, 10), Vector2(28, 20)), false, mod if on else Color(0.6, 0.6, 0.6, 0.35))
 		"miniColor":
@@ -133,9 +133,9 @@ func _draw() -> void:
 			pts.append(pts[0])
 			draw_polyline(pts, Color(game.player_info(game.buildings[i].owner).color), 2.5)
 	for u in game.units:
-		if u.owner != Game.ME and not game.visible.has(u.prov):
+		if u.owner != Game.LOCAL and not game.visible.has(u.prov):
 			continue
-		var c := Color("#fff6c8") if u.owner == Game.ME else Color("#d8473a")
+		var c := Color("#fff6c8") if u.owner == Game.LOCAL else Color("#d8473a")
 		var at := _to_mini(Vector2(u.x, u.y))
 		draw_circle(at, 3.5 if u.kind == "army" else 2.5, c)
 	if cam:

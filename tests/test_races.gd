@@ -18,7 +18,7 @@ func run() -> Array:
 	chk.call(g.footman_of() == "d-sw-axe" and g.designs.all(func(d): return d.race == "swamp"), "Axe Berserkers and only Swampling designs")
 	chk.call(str(g.build_check(g.capital, "granary")).find("Swamplings") >= 0 or str(g.build_check(g.capital, "granary")).begins_with("Research"), "no Granary for Swamplings")
 	chk.call(g.spell2_name("shock") == "Fireball", "Fireball")
-	chk.call(g.gives_of("market").is_empty() and g.store_of("bank", Game.ME).wood == 500, "Thug Den gives nothing; Supply Cache stores wood")
+	chk.call(g.gives_of("market").is_empty() and g.store_of("bank", Game.HOST).wood == 500, "Thug Den gives nothing; Supply Cache stores wood")
 	var y0: int = g.province_income(g.capital, g.buildings[g.capital]).gold
 	g.extras[g.capital] = g.extras.get(g.capital, []) + [{"type": "market", "slot": 5, "born": 0, "thugs": 2}]
 	chk.call(g.province_income(g.capital, g.buildings[g.capital]).gold == y0 + 2, "two Thugs make 2 gold")
@@ -85,7 +85,7 @@ func run() -> Array:
 		f.met[id] = true if f.met is Dictionary else f.met
 		if f.nations[id].race != "swamp":
 			f.dx_act("growl", id)
-			chk.call(f.mod_active(id, Game.ME, "growl") != null and f.mod_active(id, Game.ME, "growl").v < 0, "a growl at a non-Swampling nation is a threat")
+			chk.call(f.mod_active(id, Game.HOST, "growl") != null and f.mod_active(id, Game.HOST, "growl").v < 0, "a growl at a non-Swampling nation is a threat")
 			chk.call(f.flirt_why(id) != "", "no flirting across races")
 			break
 	# Organized Crime between two Swampling nations: +1 Thug in every den
@@ -94,11 +94,11 @@ func run() -> Array:
 		if f.nations[id].race == "swamp":
 			sw_id = id
 	if sw_id >= 0:
-		var cap0 := f.den_cap(Game.ME)
-		chk.call(f.crime_why(Game.ME, sw_id) != "" or true, "crime_why answers")
-		f.form_pact("crime", Game.ME, sw_id)
-		chk.call(f.den_cap(Game.ME) == cap0 + 1, "Organized Crime adds a Thug to every den")
-		chk.call(f.trade_why(Game.ME, sw_id).begins_with("Only Woodlings"), "Swamplings form no Trade Networks")
+		var cap0 := f.den_cap(Game.HOST)
+		chk.call(f.crime_why(Game.HOST, sw_id) != "" or true, "crime_why answers")
+		f.form_pact("crime", Game.HOST, sw_id)
+		chk.call(f.den_cap(Game.HOST) == cap0 + 1, "Organized Crime adds a Thug to every den")
+		chk.call(f.trade_why(Game.HOST, sw_id).begins_with("Only Woodlings"), "Swamplings form no Trade Networks")
 	# computer counter designs carry their nation's race
 	for id in f.nations:
 		var N2: Dictionary = f.nations[id]
@@ -112,11 +112,11 @@ func run() -> Array:
 	var gl := Game.new_practice("ember", "glurg")
 	chk.call(gl.BUILD_DEFS.forge.cost.get("gold", 0) == int(JS.round_js(GameData.c("BUILD_DEFS").forge.cost.get("gold", 0) * 0.75)), "Glurg's Forges cost 25% less")
 	var nb := Game.new_practice("oak", "naobrien")
-	chk.call(absf(nb.stats_of(Game.GELEM_ID, Game.ME).atk - GameData.c("DSTATS")[Game.GELEM_ID].atk * 1.3) < 0.01, "Naobrien's Grand Elemental hits 30% harder")
+	chk.call(absf(nb.stats_of(Game.GELEM_ID, Game.HOST).atk - GameData.c("DSTATS")[Game.GELEM_ID].atk * 1.3) < 0.01, "Naobrien's Grand Elemental hits 30% harder")
 	# a Warlock's skull adds to the wand and shortens the Fireball
-	var t0 := g.spell2_time("shock", Game.ME)
+	var t0 := g.spell2_time("shock", Game.HOST)
 	g.set_mage_gear({"weapon": "wand", "skull": "skull1"})
-	chk.call(g.mage_stats(g.mage_gear).atk == g.mage_stats({"weapon": "wand"}).atk + 1 and g.spell2_time("shock", Game.ME) == t0 - 2, "the Cracked Skull: +1 attack, Fireball 2 s faster")
+	chk.call(g.mage_stats(g.mage_gear).atk == g.mage_stats({"weapon": "wand"}).atk + 1 and g.spell2_time("shock", Game.HOST) == t0 - 2, "the Cracked Skull: +1 attack, Fireball 2 s faster")
 	# --- save and load keeps the race ---
 	var g2 := Game.load_text(g.save_text())
 	chk.call(g2 != null and g2.is_sw() and g2.BUILD_DEFS.stable.name == "Ogre Cave", "a loaded Swampling game keeps its names")
