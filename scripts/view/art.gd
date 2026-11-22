@@ -49,7 +49,20 @@ static func design_art(game, kind: String) -> String:
 	var A: Dictionary = DESIGN_ART.get(rc, DESIGN_ART.realm)
 	if st.get("cav", false):
 		return A.cav
-	return A.get(st.get("fam"), A.other)
+	var base: String = A.get(st.get("fam"), A.other)
+	if rc == "swamp" and _has_off(game, kind):   # a Berserker with two weapons (tools/export_art.js dualwield)
+		return base + "-dw"
+	return base
+
+
+static func _has_off(game, kind: String) -> bool:
+	var d = game.design_by_id(kind) if game.has_method("design_by_id") else null
+	if d == null and game.get("nations") != null:
+		for id in game.nations:
+			for x in game.nations[id].get("designs", []):
+				if x.id == kind:
+					d = x
+	return d != null and d.get("off") != null
 
 
 # the starting design whose figure an Armory design borrows, by race and weapon family

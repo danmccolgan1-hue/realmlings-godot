@@ -321,6 +321,246 @@
    "dir": "d7",
    "th": 0.7853981633974483
   },
+  "mage_a_cast_arcane_d0.png": {
+   "w": 131,
+   "h": 264,
+   "ax": 83,
+   "ay": 249,
+   "scale": 4,
+   "school": "arcane",
+   "dir": "d0",
+   "th": 0
+  },
+  "mage_a_cast_arcane_d1.png": {
+   "w": 138,
+   "h": 266,
+   "ax": 88,
+   "ay": 251,
+   "scale": 4,
+   "school": "arcane",
+   "dir": "d1",
+   "th": -0.7853981633974483
+  },
+  "mage_a_cast_arcane_d2.png": {
+   "w": 129,
+   "h": 267,
+   "ax": 81,
+   "ay": 252,
+   "scale": 4,
+   "school": "arcane",
+   "dir": "d2",
+   "th": -1.5707963267948966
+  },
+  "mage_a_cast_arcane_d3.png": {
+   "w": 124,
+   "h": 268,
+   "ax": 66,
+   "ay": 253,
+   "scale": 4,
+   "school": "arcane",
+   "dir": "d3",
+   "th": -2.356194490192345
+  },
+  "mage_a_cast_arcane_d4.png": {
+   "w": 125,
+   "h": 267,
+   "ax": 53,
+   "ay": 252,
+   "scale": 4,
+   "school": "arcane",
+   "dir": "d4",
+   "th": 3.141592653589793
+  },
+  "mage_a_cast_arcane_d5.png": {
+   "w": 126,
+   "h": 265,
+   "ax": 50,
+   "ay": 250,
+   "scale": 4,
+   "school": "arcane",
+   "dir": "d5",
+   "th": 2.356194490192345
+  },
+  "mage_a_cast_arcane_d6.png": {
+   "w": 125,
+   "h": 264,
+   "ax": 56,
+   "ay": 249,
+   "scale": 4,
+   "school": "arcane",
+   "dir": "d6",
+   "th": 1.5707963267948966
+  },
+  "mage_a_cast_arcane_d7.png": {
+   "w": 125,
+   "h": 263,
+   "ax": 70,
+   "ay": 248,
+   "scale": 4,
+   "school": "arcane",
+   "dir": "d7",
+   "th": 0.7853981633974483
+  },
+  "mage_a_cast_death_d0.png": {
+   "w": 131,
+   "h": 264,
+   "ax": 83,
+   "ay": 249,
+   "scale": 4,
+   "school": "death",
+   "dir": "d0",
+   "th": 0
+  },
+  "mage_a_cast_death_d1.png": {
+   "w": 138,
+   "h": 265,
+   "ax": 88,
+   "ay": 250,
+   "scale": 4,
+   "school": "death",
+   "dir": "d1",
+   "th": -0.7853981633974483
+  },
+  "mage_a_cast_death_d2.png": {
+   "w": 129,
+   "h": 267,
+   "ax": 81,
+   "ay": 252,
+   "scale": 4,
+   "school": "death",
+   "dir": "d2",
+   "th": -1.5707963267948966
+  },
+  "mage_a_cast_death_d3.png": {
+   "w": 124,
+   "h": 267,
+   "ax": 66,
+   "ay": 252,
+   "scale": 4,
+   "school": "death",
+   "dir": "d3",
+   "th": -2.356194490192345
+  },
+  "mage_a_cast_death_d4.png": {
+   "w": 124,
+   "h": 267,
+   "ax": 53,
+   "ay": 252,
+   "scale": 4,
+   "school": "death",
+   "dir": "d4",
+   "th": 3.141592653589793
+  },
+  "mage_a_cast_death_d5.png": {
+   "w": 126,
+   "h": 265,
+   "ax": 50,
+   "ay": 250,
+   "scale": 4,
+   "school": "death",
+   "dir": "d5",
+   "th": 2.356194490192345
+  },
+  "mage_a_cast_death_d6.png": {
+   "w": 125,
+   "h": 264,
+   "ax": 56,
+   "ay": 249,
+   "scale": 4,
+   "school": "death",
+   "dir": "d6",
+   "th": 1.5707963267948966
+  },
+  "mage_a_cast_death_d7.png": {
+   "w": 124,
+   "h": 263,
+   "ax": 70,
+   "ay": 248,
+   "scale": 4,
+   "school": "death",
+   "dir": "d7",
+   "th": 0.7853981633974483
+  },
+  "mage_a_cast_life_d0.png": {
+   "w": 131,
+   "h": 264,
+   "ax": 83,
+   "ay": 249,
+   "scale": 4,
+   "school": "life",
+   "dir": "d0",
+   "th": 0
+  },
+  "mage_a_cast_life_d1.png": {
+   "w": 138,
+   "h": 266,
+   "ax": 88,
+   "ay": 251,
+   "scale": 4,
+   "school": "life",
+   "dir": "d1",
+   "th": -0.7853981633974483
+  },
+  "mage_a_cast_life_d2.png": {
+   "w": 129,
+   "h": 267,
+   "ax": 81,
+   "ay": 252,
+   "scale": 4,
+   "school": "life",
+   "dir": "d2",
+   "th": -1.5707963267948966
+  },
+  "mage_a_cast_life_d3.png": {
+   "w": 124,
+   "h": 268,
+   "ax": 66,
+   "ay": 253,
+   "scale": 4,
+   "school": "life",
+   "dir": "d3",
+   "th": -2.356194490192345
+  },
+  "mage_a_cast_life_d4.png": {
+   "w": 125,
+   "h": 267,
+   "ax": 53,
+   "ay": 252,
+   "scale": 4,
+   "school": "life",
+   "dir": "d4",
+   "th": 3.141592653589793
+  },
+  "mage_a_cast_life_d5.png": {
+   "w": 126,
+   "h": 265,
+   "ax": 50,
+   "ay": 250,
+   "scale": 4,
+   "school": "life",
+   "dir": "d5",
+   "th": 2.356194490192345
+  },
+  "mage_a_cast_life_d6.png": {
+   "w": 125,
+   "h": 264,
+   "ax": 56,
+   "ay": 249,
+   "scale": 4,
+   "school": "life",
+   "dir": "d6",
+   "th": 1.5707963267948966
+  },
+  "mage_a_cast_life_d7.png": {
+   "w": 125,
+   "h": 263,
+   "ax": 70,
+   "ay": 248,
+   "scale": 4,
+   "school": "life",
+   "dir": "d7",
+   "th": 0.7853981633974483
+  },
   "mage_a_d0.png": {
    "w": 96,
    "h": 196,

@@ -441,6 +441,15 @@ func footman_of(o := ME) -> String:
 # leaders (web: v105.js assignLeaders / applyLeaderStart, v106.js applyLeaderStart wrapper)
 
 func assign_leader(id: String) -> void:
+	assign_leader0(id)
+	if leader in Ai.FORGE_LEADERS:   # web: v105.js (Forges cost 25% less for Finn, Glurg and Alathandrious)
+		var c := {}
+		for k in GameData.c("BUILD_DEFS").forge.cost:
+			c[k] = int(JS.round_js(GameData.c("BUILD_DEFS").forge.cost[k] * 0.75))
+		BUILD_DEFS.forge.cost = c
+
+
+func assign_leader0(id: String) -> void:
 	if LEADERS.has(id) and LEADERS[id].race == race():
 		leader = id
 		return
@@ -733,7 +742,7 @@ func register_design(d: Dictionary) -> void:
 func mage_stats(gear: Dictionary) -> Dictionary:
 	var MW: Dictionary = GameData.c("MAGE_WEAPONS")
 	var W: Dictionary = MW[gear.weapon]
-	var Sh = GameData.c("SHIELD_DEFS")[gear.shield] if gear.get("shield") != null and not W.twoH else null
+	var Sh = GameData.c("SHIELD_DEFS")[gear.shield] if gear.get("shield") != null and not W.twoH and race() == "realm" else null
 	var armor: float = 1 + (Sh.armor if Sh else 0)
 	var md: Dictionary = unit_defs[MAGE]
 	var st := {"cav": false, "rough": false, "fam": "magic", "line": W.line, "atk": W.atk, "hp": 25, "armor": armor, "shieldArmor": Sh.armor if Sh else 0,
@@ -744,18 +753,36 @@ func mage_stats(gear: Dictionary) -> Dictionary:
 		add.append("Spells cast %d%% faster." % roundi((1 - STAVE_CAST[gear.weapon]) * 100))
 	if WAND_MANA.has(gear.weapon):
 		add.append("Spells cost %d%% less mana." % roundi((1 - WAND_MANA[gear.weapon]) * 100))
+	# web: v95.js / v102.js — a Swampling Warlock holds a skull, never a shield: it adds to the wand's attack and
+	# shortens the Fireball
+	var Sk = GameData.c("SKULLS").get(gear.get("skull")) if is_sw() and gear.get("skull") != null and not W.twoH else null
+	if Sk != null:
+		st.atk += Sk.atk
+		st.blurb = "%s and %s." % [W.name, Sk.name]
+		add.append("The Fireball casts %d s faster." % (2 * int(Sk.get("lv", 1))))
 	if not add.is_empty():
 		st.blurb += " " + " ".join(add)
 	return st
 
 
+func skull_cut(o: int) -> float:
+	if o != ME or not is_sw():
+		return 0.0
+	var W: Dictionary = GameData.c("MAGE_WEAPONS")[mage_gear.weapon]
+	var Sk = GameData.c("SKULLS").get(mage_gear.get("skull")) if mage_gear.get("skull") != null else null
+	return 2.0 * int(Sk.get("lv", 1)) if Sk != null and not W.twoH else 0.0
+
+
 ## Equip every Mage with this gear (the Armory's "Equip all Mages"). web: equip.js saveDraft (type mage), magic.js registerMage
 func set_mage_gear(gear: Dictionary) -> void:
 	var W: Dictionary = GameData.c("MAGE_WEAPONS")[gear.weapon]
-	mage_gear = {"weapon": gear.weapon, "shield": null if W.twoH else gear.get("shield")}
+	mage_gear = {"weapon": gear.weapon, "shield": null if W.twoH or race() != "realm" else gear.get("shield")}
+	if is_sw() and not W.twoH and gear.get("skull") != null:
+		mage_gear.skull = gear.skull
 	register_mage()
 	var sh = mage_gear.shield
-	toast("%ss now carry a %s%s." % [unit_defs[MAGE].name, W.name, (" and a " + GameData.c("SHIELD_DEFS")[sh].name) if sh != null else ""])
+	var nm: String = GameData.c("SHIELD_DEFS")[sh].name if sh != null else GameData.c("SKULLS")[mage_gear.skull].name if mage_gear.get("skull") != null else ""
+	toast("%ss now carry a %s%s." % [unit_defs[MAGE].name, W.name, (" and a " + nm) if nm != "" else ""])
 
 
 func register_mage() -> void:
@@ -765,7 +792,7 @@ func register_mage() -> void:
 
 ## Why a Mage weapon or shield can't be chosen yet (a technology to research), or null.
 func mage_gear_why(kind: String, k: String):
-	var item: Dictionary = GameData.c("MAGE_WEAPONS")[k] if kind == "weapon" else GameData.c("SHIELD_DEFS")[k]
+	var item: Dictionary = GameData.c("MAGE_WEAPONS")[k] if kind == "weapon" else GameData.c("SKULLS")[k] if kind == "skull" else GameData.c("SHIELD_DEFS")[k]
 	var tch = item.get("tech")
 	return null if tch == null or has_tech(tch) else "Research " + TECH_BY_ID[tch].name
 
@@ -1116,8 +1143,7 @@ func swamp_tax(p: int, b: Dictionary):
 # web: swamp.js denCap / thugGold (v105: +1 per Organized Crime Agreement)
 func den_cap(o := ME) -> int:
 	var n := 2 + (1 if tech_of(o, "thugs2") else 0) + (1 if tech_of(o, "thugs3") else 0)
-	if has_method("crime_slots"):
-		n += call("crime_slots", o)
+	n += crime_slots(o)
 	return n
 
 
@@ -3838,7 +3864,7 @@ func rep_of(o: int, id: String) -> int:
 
 func spell2_time(k: String, o: int) -> float:
 	var mult: float = STAVE_CAST.get(mage_gear.weapon, 1.0) if o == ME else 1.0
-	return maxf(1.0, (QUAKE_TIME if k == "quake" else SHOCK_TIME) * pow(0.95, rep_of(o, "rep-quakecast" if k == "quake" else "rep-shockcast")) * mult)
+	return maxf(1.0, (QUAKE_TIME if k == "quake" else SHOCK_TIME) * pow(0.95, rep_of(o, "rep-quakecast" if k == "quake" else "rep-shockcast")) * mult - (skull_cut(o) if k == "shock" else 0.0))
 
 
 func cast_len(T: float) -> String:
@@ -4800,8 +4826,8 @@ func _spell_why(c: Dictionary, k: String):
 				return "Only in one of your provinces"
 			if sacreds.any(func(x): return x.prov == c.prov and x.until > t):
 				return "A Sacred Pyre already burns here"
-			if stock.wood < SACRED.wood:
-				return "Needs %d wood" % SACRED.wood
+			if stock.wood < sacred_wood():
+				return "Needs %d wood" % sacred_wood()
 	return null
 
 
@@ -4857,6 +4883,9 @@ func cast_spell(c: Dictionary, k: String, target := -1) -> bool:
 				a.wounds = 0.0
 			a.healFx = t
 			toast("Mending on %s." % a.name)
+			if leader == "sariel":   # web: v105.js (Sariel: +10% health for 30 s afterwards)
+				c.mendUntil = t + 30
+				toast("%s: %s has 10%% more health for 30 seconds." % [leader_of().full, c.name])
 		"mind", "graverob", "trading", "stasis":
 			begin_cast(c, k)
 			toast("%s: 3 s of casting." % TECH_BY_ID[line_tech(k)].name)
@@ -4913,8 +4942,8 @@ func cast_spell(c: Dictionary, k: String, target := -1) -> bool:
 			cd["pfire%d" % c.id] = t + PATH_CD / maxf(1, mages_in(c))
 			toast("%s: %s runs %d%% faster for %d s." % [TECH_BY_ID[line_tech("pfire")].name, a.name, JS.round_js((P.mult - 1) * 100), P.dur])
 		"sacred":
-			stock.wood -= SACRED.wood
-			begin_cast(c, "sacred", {"to": c.prov})
+			stock.wood -= sacred_wood()
+			begin_cast(c, "sacred", {"to": c.prov, "wood": sacred_wood()})
 			toast("%s raises a Sacred Pyre in %s: 3 s of casting." % [c.name, prov_name(c.prov)])
 		"rift":
 			var rw = rift_why(c, target) if target >= 0 else "Pick the province to teleport to"
@@ -5102,7 +5131,7 @@ func _finish_q(c: Dictionary, k: String, cs: Dictionary, now: float) -> void:
 		"sacred":
 			var p: int = cs.get("to", c.prov)
 			if not owned(p) or occ.has(p) or sacreds.any(func(x): return x.prov == p and x.until > now):
-				stock.wood += SACRED.wood
+				stock.wood += cs.get("wood", SACRED.wood)
 				toast("Sacred Pyre: it can't burn there (wood refunded).", true)
 				return
 			sacreds.append({"prov": p, "owner": ME, "t0": now, "until": now + SACRED.dur})
@@ -5233,6 +5262,11 @@ func step_magic(now: float, dt: float) -> void:
 				v.moving = false
 				trap = null
 				toast("%s is caught in the stasis trap for %d s!" % [v.name, n])
+				if leader == "aarg":   # web: v105.js stepLeaderEffects (Aarg: the trap burns for 100)
+					var nk := pure_damage(v, 100)
+					toast("%s’s trap burns %s: 100 damage%s." % [leader_of().full, v.name, (", %d soldier%s fall" % [nk, "s" if nk > 1 else ""]) if nk else ""])
+				if leader == "eliwen":   # Eliwen: weak for 10 s once it lets go
+					v.weakUntil = v.stasisUntil + 10
 				break
 	for a in units:
 		if a.get("stasisUntil", 0.0) > now and a.moving:
@@ -5315,10 +5349,13 @@ static func from_save(d: Dictionary, map: Dictionary = {}) -> Game:
 	var keep_designs: Array = g.designs
 	var keep_tech: Dictionary = g.tech
 	Races.apply(g, g.race())   # the race's names on this game's tables (web: save.js → applyRace)
+	if g.leader in Ai.FORGE_LEADERS:
+		for k in g.BUILD_DEFS.forge.cost:
+			g.BUILD_DEFS.forge.cost[k] = int(JS.round_js(GameData.c("BUILD_DEFS").forge.cost[k] * 0.75))
 	g.designs = keep_designs
 	g.tech = keep_tech
 	g.my_nation.color = int(g.my_nation.get("color", 0))   # (JSON numbers come back as floats)
-	if g.mage_gear.weapon != "stave" or g.mage_gear.get("shield") != null:
+	if g.mage_gear.weapon != "stave" or g.mage_gear.get("shield") != null or g.mage_gear.get("skull") != null:
 		g.register_mage()
 	for x in g.designs:
 		if not x.get("builtin", false):
@@ -5483,6 +5520,12 @@ func art_stats(k: String, st: Dictionary, o := ME) -> Dictionary:
 		if tr:
 			out = out.duplicate()
 			out.atk = out.atk + RNG_ATK[tr] - RNG_ATK[0]
+	if k == GELEM_ID and o and o != RAIDERS:   # web: v105.js artStats (Naobrien: the Grand Elemental hits 30% harder)
+		var LG = leader_of(o)
+		if LG != null and LG.id == "naobrien":
+			out = out.duplicate()
+			out.atk = out.atk * 1.3
+		return out
 	if k == MAGE or out.get("fam") == "boss" or out.get("fam") == "water":
 		return out
 	if not o or o == RAIDERS:
@@ -5692,7 +5735,16 @@ func row_deal(a: Dictionary, k: String) -> float:
 	return lay.f.get(k, 0) + lay.b.get(k, 0) * BACK_DEAL
 
 
+# web: v105.js sideStrength wrapper: a weakened army (Eliwen's stasis) deals 25% less
 func side_strength(armies: Array, prov: int, defender: bool, foe: Dictionary) -> float:
+	var weak := armies.filter(func(a): return a.get("weakUntil", 0.0) > t)
+	if weak.is_empty():
+		return side_strength0(armies, prov, defender, foe)
+	var strong := armies.filter(func(a): return not (a.get("weakUntil", 0.0) > t))
+	return (side_strength0(strong, prov, defender, foe) if not strong.is_empty() else 0.0) + 0.75 * side_strength0(weak, prov, defender, foe)
+
+
+func side_strength0(armies: Array, prov: int, defender: bool, foe: Dictionary) -> float:
 	var ter: String = world.provinces[prov].terrain
 	var s := 0.0
 	for a in armies:
@@ -5833,6 +5885,7 @@ func step_battles(now: float) -> void:
 		apply_damage(b, sides[A], dmg_b, now, mix_b.pierce)
 		b.hits[A] = now
 		b.hits[B2] = now
+		_bleed(b, sides, owners, now)
 		for o in owners:
 			for a in sides[o]:
 				if troop_count(a) <= 0:
@@ -5840,6 +5893,71 @@ func step_battles(now: float) -> void:
 					if a.get("bandit", false):
 						bandit_slain(a, b)
 					remove_army(a)
+
+
+# web: v105.js Bleeding (Paladomis): each two-handed Protector's blow has a 20% chance to deal its damage again over
+# the next 4 rounds
+func _bleed(b: Dictionary, sides: Dictionary, owners: Array, now: float) -> void:
+	if not b.has("bleed"):
+		b.bleed = {}
+	for o in owners:
+		var foe = null
+		for x in owners:
+			if x != o and hostile(x, o):
+				foe = x
+				break
+		if foe == null:
+			continue
+		var L = leader_of(o) if is_nation(o) else null
+		if L != null and L.id == "paladomis":
+			for a in sides[o]:
+				for k in a.troops:
+					var st := stats_of(k, o)
+					if not st.get("two", false) or st.get("cav", false) or st.get("ranged", false):
+						continue
+					var n := 0
+					for i in int(a.troops[k]):
+						if js_rand.call() < 0.2:
+							n += 1
+					if n:
+						if not b.bleed.has(foe):
+							b.bleed[foe] = []
+						b.bleed[foe].append({"per": n * st.atk * DMG_RATE * two_mul(a) / 4, "left": 4})
+		var lst: Array = b.bleed.get(o, [])
+		if lst.is_empty():
+			continue
+		var dmg := 0.0
+		for x in lst:
+			dmg += x.per
+			x.left -= 1
+		b.bleed[o] = lst.filter(func(x): return x.left > 0)
+		if dmg > 0:
+			apply_damage(b, sides[o], dmg, now, 1.0)
+			for a in sides[o]:
+				if troop_count(a) <= 0:
+					war_wipe(b, a)
+					remove_army(a)
+
+
+# web: v105.js pureDamage: wounds that ignore armor, to random soldiers (not Mages)
+func pure_damage(a: Dictionary, dmg: float) -> int:
+	a.wounds = a.get("wounds", 0.0) + dmg
+	var n := 0
+	while true:
+		var ks: Array = a.troops.keys().filter(func(k): return a.troops[k] > 0 and k != MAGE)
+		if ks.is_empty():
+			break
+		var k = ks[int(floor(js_rand.call() * ks.size()))]
+		if a.wounds < hp_of(a, k):
+			break
+		a.wounds -= hp_of(a, k)
+		a.troops[k] -= 1
+		if a.troops[k] <= 0:
+			a.troops.erase(k)
+		n += 1
+	if troop_count(a) <= 0:
+		remove_army(a)
+	return n
 
 
 func remove_army(a: Dictionary) -> void:
@@ -5850,6 +5968,15 @@ func remove_army(a: Dictionary) -> void:
 
 
 func apply_damage(b: Dictionary, armies: Array, dmg: float, now: float, pierce := 0.0) -> void:
+	var boosted := armies.filter(func(a): return a.get("mendUntil", 0.0) > t)   # web: v105.js (Sariel's Mending works like a little Hardened Skin)
+	for a in boosted:
+		a.skin = a.get("skin", 0.0) + 0.1
+	apply_damage0(b, armies, dmg, now, pierce)
+	for a in boosted:
+		a.skin -= 0.1
+
+
+func apply_damage0(b: Dictionary, armies: Array, dmg: float, now: float, pierce := 0.0) -> void:
 	var bd := boss_damage(b, armies, dmg)
 	if bd >= 0:
 		dmg = bd
@@ -6092,6 +6219,9 @@ func on_battle_join(a: Dictionary, now: float) -> void:
 	a.risenLeft = 0
 	if leader == "havva" and a.owner == ME and a.skin > 0:
 		a.skin *= 1.2
+	var LJ = leader_of(a.owner) if is_nation(a.owner) else null
+	if LJ != null and LJ.id == "nihaarg" and a.get("curse", 0.0) > 0:   # web: v105.js (Nihaarg: Cursed Weapons +10% damage)
+		a.curse += 0.1
 
 
 func _auto_on(c: Dictionary, k: String) -> bool:
@@ -9338,6 +9468,8 @@ func ask_why(o: int) -> String:
 
 
 func trade_why(a: int, b: int) -> String:
+	if is_sw(a) or is_sw(b):   # web: v105.js tradeRaces
+		return "Only Woodlings and Realmlings form Trade Networks"
 	if pair_has(dipl_state().trade, a, b) != null:
 		return "Already trading"
 	if at_war(a, b):
@@ -9350,6 +9482,49 @@ func trade_why(a: int, b: int) -> String:
 	return ""
 
 
+# web: v105.js crimeWhy / crimeSlots: Organized Crime, between two Swampling nations: +1 Thug in every Thug Den
+func crime_why(a: int, b: int) -> String:
+	if not is_sw(a) or not is_sw(b):
+		return "Only between two Swampling nations"
+	if pair_has(dipl_state().crime, a, b) != null:
+		return "Already in business"
+	if at_war(a, b):
+		return "You are at war"
+	for xy in [[a, b], [b, a]]:
+		if nations.has(xy[0]) and opinion(xy[0], xy[1]) < DIPL.crime:
+			return "Their opinion of you is %s (needs +%d)" % [sgn(opinion(xy[0], xy[1])), DIPL.crime]
+	return ""
+
+
+func crime_slots(o: int) -> int:
+	if dipl.is_empty() or not dipl.has("crime"):
+		return 0
+	return dipl.crime.filter(func(c): return c.a == o or c.b == o).size()
+
+
+# web: v105.js ejectThugs: after a crime agreement ends, Thugs beyond a den's room step out
+func eject_thugs() -> void:
+	var n := 0
+	for p in extras:
+		if not owned(p):
+			continue
+		for e in extras[p]:
+			while e.type == "market" and int(e.get("thugs", 0)) > den_cap(ME):
+				e.thugs -= 1
+				var u := mk_unit(next_id, THUG, "Thug", p, 0)
+				next_id += 1
+				u.slot = free_slot(p, u)
+				var xy := slot_pos(p, u.slot)
+				u.x = xy[0]
+				u.y = xy[1]
+				u.born = t
+				units.append(u)
+				n += 1
+	if n:
+		compute_income()
+		toast("%d Thug%s stepped out of the Thug Dens: there is no longer room for them." % [n, "s" if n > 1 else ""])
+
+
 func trade_count(o: int) -> int:
 	return dipl_state().trade.filter(func(c): return c.a == o or c.b == o).size()
 
@@ -9358,11 +9533,12 @@ func form_pact(kind: String, a: int, b: int) -> void:
 	var D := dipl_state()
 	D[kind].append({"a": a, "b": b, "since": t})
 	var o := b if a == ME else a if b == ME else 0
+	var what := "a Trade Network" if kind == "trade" else "an Organized Crime Agreement"
 	if o:
 		sfx("wn_ally")
-		toast("You and the %s formed a Trade Network. Community and Trade Routes give both of you 10%% more gold." % player_info(o).name)
+		toast("You and the %s formed %s. %s" % [player_info(o).name, what, "Community and Trade Routes give both of you 10% more gold." if kind == "trade" else "Every Thug Den of both nations holds one more Thug."])
 	elif knows(a) or knows(b):
-		toast("The %s and the %s formed a Trade Network." % [player_info(a).name, player_info(b).name])
+		toast("The %s and the %s formed %s." % [player_info(a).name, player_info(b).name, what])
 	compute_income()
 
 
@@ -9370,8 +9546,13 @@ func end_pact(kind: String, P: Dictionary, why := "") -> void:
 	var D := dipl_state()
 	D[kind] = D[kind].filter(func(x): return not is_same(x, P))
 	var o: int = P.b if P.a == ME else P.a if P.b == ME else 0
+	if kind == "crime":
+		if not D.has("crimeEnd"):
+			D.crimeEnd = []
+		D.crimeEnd.append({"at": t + 10.0, "a": P.a, "b": P.b})   # web: DIPL.crimeOut
 	if o:
-		toast("Your Trade Network with the %s has ended%s." % [player_info(o).name, (": " + why) if why != "" else ""], why != "you ended it")
+		toast("Your %s with the %s has ended%s.%s" % ["Trade Network" if kind == "trade" else "Organized Crime Agreement", player_info(o).name, (": " + why) if why != "" else "",
+			" Thugs over the limit leave their dens in 10 seconds." if kind == "crime" and is_sw() else ""], why != "you ended it")
 	compute_income()
 
 
@@ -9483,14 +9664,14 @@ func dx_act(act: String, o: int, arg := -1) -> void:
 			why = ally_why(ME, o)
 			if why == "":
 				form_alliance(ME, o, 0)
-		"trade":
-			var P = pair_has(D.trade, ME, o)
+		"trade", "crime":
+			var P = pair_has(D[act], ME, o)
 			if P != null:
-				end_pact("trade", P, "you ended it")
+				end_pact(act, P, "you ended it")
 				return
-			why = trade_why(ME, o)
+			why = trade_why(ME, o) if act == "trade" else crime_why(ME, o)
 			if why == "":
-				form_pact("trade", ME, o)
+				form_pact(act, ME, o)
 		"spy":
 			why = spy_why(o)
 			if why == "":
@@ -9512,7 +9693,7 @@ func dx_act(act: String, o: int, arg := -1) -> void:
 
 
 # --- requests from computer nations (web: v105.js dipRequest / answerRequest / stepRequests): 30 s, then declined ---
-const REQ_NAME := {"flirt": "Flirting", "gift": "Gift", "access": "Access request", "alliance": "Alliance offer", "trade": "Trade Network"}
+const REQ_NAME := {"flirt": "Flirting", "gift": "Gift", "access": "Access request", "alliance": "Alliance offer", "trade": "Trade Network", "crime": "Organized Crime"}
 
 func req_text(r: Dictionary) -> Array:
 	var o: int = r.from
@@ -9528,6 +9709,8 @@ func req_text(r: Dictionary) -> Array:
 			return ["They propose an alliance%s: if anyone declares war on one of you, the other joins (a Proxy War)." % ((" against the " + player_info(vs).name) if vs else ""), "Ally", "Decline"]
 		"trade":
 			return ["They propose a Trade Network: Community and Trade Routes give both nations 10% more gold.", "Agree", "Decline"]
+		"crime":
+			return ["They propose an Organized Crime Agreement: every Thug Den of both nations holds one more Thug.", "Agree", "Decline"]
 	return ["", "Yes", "No"]
 
 
@@ -9583,12 +9766,12 @@ func answer_request(r: Dictionary, yes: bool, quiet := false) -> void:
 				toast("The alliance is no longer possible: %s." % (why[0].to_lower() + why.substr(1)), true)
 				return
 			form_alliance(ME, o, r.data.get("vs", 0))
-		"trade":
-			var why := trade_why(ME, o)
+		"trade", "crime":
+			var why := trade_why(ME, o) if r.kind == "trade" else crime_why(ME, o)
 			if why != "":
 				toast("No longer possible: %s." % (why[0].to_lower() + why.substr(1)), true)
 				return
-			form_pact("trade", ME, o)
+			form_pact(r.kind, ME, o)
 
 
 func step_requests() -> void:
@@ -9660,6 +9843,13 @@ func step_diplomacy() -> void:
 			if why != "":
 				end_pact(kind, P, why)
 	D.access = D.access.filter(func(g): return alive_nation(g.from) and alive_nation(g.to) and not at_war(g.from, g.to))
+	var ce: Array = D.get("crimeEnd", [])   # Thugs leave the dens 10 s after a crime agreement ends
+	if not ce.is_empty():
+		var due := ce.filter(func(c): return t >= c.at)
+		if not due.is_empty():
+			D.crimeEnd = ce.filter(func(c): return t < c.at)
+			if due.any(func(c): return c.a == ME or c.b == ME):
+				eject_thugs()
 	D.news = D.news.filter(func(n): return is_nation(n.a) and is_nation(n.b))
 
 
@@ -9974,6 +10164,11 @@ func thug_out(p: int, e: Dictionary) -> void:
 	units.append(u)
 	compute_income()
 	toast("A Thug steps out of the den.")
+
+
+# web: v105.js (Phlyo raises Sacred Pyres without wood)
+func sacred_wood() -> int:
+	return 0 if leader == "phlyo" else SACRED.wood
 
 
 func step_pyromancy(now: float) -> void:

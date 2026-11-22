@@ -135,7 +135,7 @@ func _mode(i: int) -> void:
 func edit(id: String) -> void:
 	if id == "mage":
 		sel = "mage"
-		draft = {"id": "mage", "type": "mage", "name": game.unit_defs[game.MAGE].name, "weapon": game.mage_gear.weapon, "shield": game.mage_gear.shield}
+		draft = {"id": "mage", "type": "mage", "name": game.unit_defs[game.MAGE].name, "weapon": game.mage_gear.weapon, "shield": game.mage_gear.shield, "skull": game.mage_gear.get("skull")}
 	else:
 		var d = game.design_by_id(id)
 		if d == null:
@@ -290,7 +290,7 @@ func _top(ed: VBoxContainer, st: Dictionary, kind_text: String, named: bool) -> 
 	top.add_child(frame)
 	var pv := Preview.new()
 	pv.game = game
-	pv.kind = game.MAGE if draft.type == "mage" else (draft.id if draft.get("id") != null else _draft_art())
+	pv.kind = game.MAGE if draft.type == "mage" else _draft_art()
 	pv.custom_minimum_size = Vector2(176, 176)
 	frame.add_child(pv)
 	var sm := VBoxContainer.new()
@@ -377,7 +377,8 @@ func _draft_art() -> String:
 	var A: Dictionary = Art.DESIGN_ART[game.race()]
 	if draft.type == "cav":
 		return A.cav
-	return A.get(GameData.c("WEAPONS")[draft.weapon].fam, A.other)
+	var base: String = A.get(GameData.c("WEAPONS")[draft.weapon].fam, A.other)
+	return base + "-dw" if game.is_sw() and draft.get("off") != null else base
 
 
 # web: equip.js renderArmory (Realmlings: no Ogres, Champions or off-hands)
@@ -467,24 +468,32 @@ func _mage_editor(ed: VBoxContainer) -> void:
 	var btns := HBoxContainer.new()
 	sm.add_child(btns)
 	btns.add_child(_btn("Equip all %ss" % M, UiKit.GOLD, func():
-		game.set_mage_gear({"weapon": draft.weapon, "shield": draft.get("shield")})
+		game.set_mage_gear({"weapon": draft.weapon, "shield": draft.get("shield"), "skull": draft.get("skull")})
 		edit("mage")))
 	gear_tab = "Weapons"
 	ed.add_child(_gear_tabs(["Weapons"]))
 	var grid := VBoxContainer.new()
 	grid.add_theme_constant_override("separation", 2)
 	ed.add_child(grid)
-	for ln in [["stave", "Staves", "Two-handed, the stronger attack"], ["wand", "Wands", "One-handed: leaves room for a shield"]]:
+	var rc: String = game.race()
+	for ln in [["stave", "Staves", "Two-handed, the stronger attack"], ["wand", "Wands", "One-handed: leaves room for a skull" if rc == "swamp" else "One-handed: leaves room for a shield"]]:
 		var row := []
 		for k in MW:
-			if MW[k].line == ln[0]:
+			if MW[k].line == ln[0] and _mine(MW[k].get("race")) and (MW[k].get("tech") == null or not game.TECH_BY_ID.has(MW[k].tech) or game.tech_for(game.TECH_BY_ID[MW[k].tech])):
 				row.append(_eq("weapon", k, MW[k], draft.weapon == k, game.mage_gear_why("weapon", k)))
 		grid.add_child(_gear_row(ln[1], ln[2], row))
-	var sh := [_eq_none(draft.get("shield") == null or W.twoH)]
-	var SD: Dictionary = GameData.c("SHIELD_DEFS")
-	for k in SD:
-		sh.append(_eq("shield", k, SD[k], draft.get("shield") == k and not W.twoH, "Two-handed stave" if W.twoH else game.mage_gear_why("shield", k)))
-	grid.add_child(_gear_row("Shield", "Staves need both hands" if W.twoH else "Wands only", sh))
+	if rc == "swamp":   # web: v95.js — the Shield row becomes an Off-hand skull row
+		var sk := [_eq_none(draft.get("skull") == null or W.twoH, "skull")]
+		var SKD: Dictionary = GameData.c("SKULLS")
+		for k in SKD:
+			sk.append(_eq("skull", k, SKD[k], draft.get("skull") == k and not W.twoH, "Staves need both hands" if W.twoH else game.mage_gear_why("skull", k)))
+		grid.add_child(_gear_row("Off-hand skull", "Staves need both hands" if W.twoH else "Adds to the wand’s attack and speeds the Fireball", sk))
+	elif rc == "realm":
+		var sh := [_eq_none(draft.get("shield") == null or W.twoH)]
+		var SD: Dictionary = GameData.c("SHIELD_DEFS")
+		for k in SD:
+			sh.append(_eq("shield", k, SD[k], draft.get("shield") == k and not W.twoH, "Two-handed stave" if W.twoH else game.mage_gear_why("shield", k)))
+		grid.add_child(_gear_row("Shield", "Staves need both hands" if W.twoH else "Wands only", sh))
 
 
 func _gear_tabs(names: Array) -> HBoxContainer:
@@ -527,7 +536,7 @@ func _eq(kind: String, k: String, item: Dictionary, on: bool, why) -> Button:
 	var b := _eq_frame(on, item.name + ("" if why == null else " · " + why))
 	var v: VBoxContainer = b.get_child(0)
 	var gk := "weapon" if kind == "off" else ("ogre" if kind == "horse" and game.is_sw() else kind)
-	var ic := _tex(Hud.icon("icons/common/gear_%s_%s.png" % [gk, k]), 40)
+	var ic := _tex(Hud.icon("icons/realm/tech_%s.png" % str(item.get("tech", "")).replace("-", "_")) if kind == "skull" else Hud.icon("icons/common/gear_%s_%s.png" % [gk, k]), 40)
 	v.add_child(ic)
 	var l := _eq_label(item.name)
 	v.add_child(l)
@@ -613,6 +622,8 @@ func _pick(kind: String, k: String) -> void:
 			draft.shield = null
 	elif kind == "shield":
 		draft.shield = null if k == "" else k
+	elif kind == "skull":
+		draft.skull = null if k == "" else k
 	elif kind == "off":
 		draft.off = null if k == "" else k
 	elif kind == "two":

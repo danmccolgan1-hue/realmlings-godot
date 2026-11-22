@@ -185,6 +185,33 @@
       out.push(shoot(`units/${R}/${snake(id)}_run_${dn}_f${f}.png`, 4, c => drawUnitFor(c, id, ME, true, th, f * STRIDE / N, 0, 0, UNITK), { id, dir: dn, th, frame: f, frames: N, stride: STRIDE }));
     return out;
   };
+  // a casting Mage / Warlock / Druid: staff overhead, lightning in the school's color (v78.js castUnitId and the race
+  // versions in swamp.js / wood.js), for every school the race can learn
+  jobs.mcast = () => {
+    const out = [], SCHOOLS = E('SCHOOLS'), MAGE = E('MAGE'), RI = E('RealmIso'), BOLT = E('SCHOOL_BOLT');
+    const idFor = sc => {
+      if (R === 'swamp') return E('swCastId')(sc);
+      if (R === 'wood') return E('wdCastId')(sc);
+      const id = MAGE + '#cast-' + sc, base = RI.UNITS[MAGE];
+      const U = RI.UNITS[id] || (RI.UNITS[id] = { unit: base.unit, name: base.name, title: base.title, spec: null });
+      U.base = base.spec; U.spec = Object.assign({}, base.spec, { castPose: BOLT[sc] || SCHOOLS[sc].color }); return id;
+    };
+    for (const sc of Object.keys(SCHOOLS)) { if (!mine(SCHOOLS[sc].race)) continue; const id = idFor(sc);
+      for (const [dn, th] of DIRS) out.push(shoot(`units/${R}/mage_a_cast_${sc}_${dn}.png`, 4, c => E('RealmIso').drawUnitAt(c, id, th, 0, 0, 0, UNITK), { school: sc, dir: dn, th })); }
+    return out;
+  };
+  // Swampling Berserkers wielding two weapons (the off hand as the main hand), for designs with Dual Wielding
+  jobs.dualwield = () => {
+    const out = [], RI = E('RealmIso'), specFor = E('specFor'), DS = E('S').designs;
+    if (R !== 'swamp') return out;
+    for (const base of ['d-sw-spear', 'd-sw-axe', 'd-sw-club']) {
+      const d0 = DS.find(d => d.id === base); if (!d0) continue;
+      const d = Object.assign({}, d0, { id: base + '-dw', off: d0.weapon });
+      RI.UNITS[d.id] = { unit: 'footman', name: d.name, title: d.name, spec: specFor(d) };
+      for (const [dn, th] of DIRS) out.push(shoot(`units/${R}/${snake(d.id)}_${dn}.png`, 4, c => drawUnitFor(c, d.id, ME, false, th, 0, 0, 0, UNITK), { id: d.id, dir: dn, th }));
+    }
+    return out;
+  };
   window.__exportArt = name => jobs[name]();
   window.__exportArtJobs = Object.keys(jobs);
 })();

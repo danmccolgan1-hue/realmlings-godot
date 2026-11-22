@@ -81,6 +81,86 @@
    "dir": "d7",
    "th": 0.7853981633974483
   },
+  "d_sw_axe_dw_d0.png": {
+   "w": 162,
+   "h": 115,
+   "ax": 73,
+   "ay": 100,
+   "scale": 4,
+   "id": "d-sw-axe-dw",
+   "dir": "d0",
+   "th": 0
+  },
+  "d_sw_axe_dw_d1.png": {
+   "w": 140,
+   "h": 116,
+   "ax": 94,
+   "ay": 101,
+   "scale": 4,
+   "id": "d-sw-axe-dw",
+   "dir": "d1",
+   "th": -0.7853981633974483
+  },
+  "d_sw_axe_dw_d2.png": {
+   "w": 106,
+   "h": 119,
+   "ax": 74,
+   "ay": 104,
+   "scale": 4,
+   "id": "d-sw-axe-dw",
+   "dir": "d2",
+   "th": -1.5707963267948966
+  },
+  "d_sw_axe_dw_d3.png": {
+   "w": 140,
+   "h": 123,
+   "ax": 94,
+   "ay": 108,
+   "scale": 4,
+   "id": "d-sw-axe-dw",
+   "dir": "d3",
+   "th": -2.356194490192345
+  },
+  "d_sw_axe_dw_d4.png": {
+   "w": 162,
+   "h": 124,
+   "ax": 73,
+   "ay": 109,
+   "scale": 4,
+   "id": "d-sw-axe-dw",
+   "dir": "d4",
+   "th": 3.141592653589793
+  },
+  "d_sw_axe_dw_d5.png": {
+   "w": 140,
+   "h": 123,
+   "ax": 46,
+   "ay": 108,
+   "scale": 4,
+   "id": "d-sw-axe-dw",
+   "dir": "d5",
+   "th": 2.356194490192345
+  },
+  "d_sw_axe_dw_d6.png": {
+   "w": 106,
+   "h": 119,
+   "ax": 32,
+   "ay": 104,
+   "scale": 4,
+   "id": "d-sw-axe-dw",
+   "dir": "d6",
+   "th": 1.5707963267948966
+  },
+  "d_sw_axe_dw_d7.png": {
+   "w": 140,
+   "h": 116,
+   "ax": 46,
+   "ay": 101,
+   "scale": 4,
+   "id": "d-sw-axe-dw",
+   "dir": "d7",
+   "th": 0.7853981633974483
+  },
   "d_sw_club_d0.png": {
    "w": 138,
    "h": 115,
@@ -158,6 +238,86 @@
    "ay": 101,
    "scale": 4,
    "id": "d-sw-club",
+   "dir": "d7",
+   "th": 0.7853981633974483
+  },
+  "d_sw_club_dw_d0.png": {
+   "w": 172,
+   "h": 115,
+   "ax": 86,
+   "ay": 100,
+   "scale": 4,
+   "id": "d-sw-club-dw",
+   "dir": "d0",
+   "th": 0
+  },
+  "d_sw_club_dw_d1.png": {
+   "w": 149,
+   "h": 116,
+   "ax": 91,
+   "ay": 101,
+   "scale": 4,
+   "id": "d-sw-club-dw",
+   "dir": "d1",
+   "th": -0.7853981633974483
+  },
+  "d_sw_club_dw_d2.png": {
+   "w": 102,
+   "h": 119,
+   "ax": 70,
+   "ay": 104,
+   "scale": 4,
+   "id": "d-sw-club-dw",
+   "dir": "d2",
+   "th": -1.5707963267948966
+  },
+  "d_sw_club_dw_d3.png": {
+   "w": 149,
+   "h": 123,
+   "ax": 91,
+   "ay": 108,
+   "scale": 4,
+   "id": "d-sw-club-dw",
+   "dir": "d3",
+   "th": -2.356194490192345
+  },
+  "d_sw_club_dw_d4.png": {
+   "w": 172,
+   "h": 124,
+   "ax": 86,
+   "ay": 109,
+   "scale": 4,
+   "id": "d-sw-club-dw",
+   "dir": "d4",
+   "th": 3.141592653589793
+  },
+  "d_sw_club_dw_d5.png": {
+   "w": 150,
+   "h": 123,
+   "ax": 59,
+   "ay": 108,
+   "scale": 4,
+   "id": "d-sw-club-dw",
+   "dir": "d5",
+   "th": 2.356194490192345
+  },
+  "d_sw_club_dw_d6.png": {
+   "w": 102,
+   "h": 119,
+   "ax": 32,
+   "ay": 104,
+   "scale": 4,
+   "id": "d-sw-club-dw",
+   "dir": "d6",
+   "th": 1.5707963267948966
+  },
+  "d_sw_club_dw_d7.png": {
+   "w": 149,
+   "h": 116,
+   "ax": 58,
+   "ay": 101,
+   "scale": 4,
+   "id": "d-sw-club-dw",
    "dir": "d7",
    "th": 0.7853981633974483
   },
@@ -1150,6 +1310,326 @@
    "ay": 139,
    "scale": 4,
    "id": "d-sw-spear",
+   "dir": "d7",
+   "th": 0.7853981633974483
+  },
+  "d_sw_spear_dw_d0.png": {
+   "w": 204,
+   "h": 156,
+   "ax": 152,
+   "ay": 141,
+   "scale": 4,
+   "id": "d-sw-spear-dw",
+   "dir": "d0",
+   "th": 0
+  },
+  "d_sw_spear_dw_d1.png": {
+   "w": 189,
+   "h": 160,
+   "ax": 157,
+   "ay": 145,
+   "scale": 4,
+   "id": "d-sw-spear-dw",
+   "dir": "d1",
+   "th": -0.7853981633974483
+  },
+  "d_sw_spear_dw_d2.png": {
+   "w": 169,
+   "h": 164,
+   "ax": 137,
+   "ay": 149,
+   "scale": 4,
+   "id": "d-sw-spear-dw",
+   "dir": "d2",
+   "th": -1.5707963267948966
+  },
+  "d_sw_spear_dw_d3.png": {
+   "w": 178,
+   "h": 165,
+   "ax": 53,
+   "ay": 150,
+   "scale": 4,
+   "id": "d-sw-spear-dw",
+   "dir": "d3",
+   "th": -2.356194490192345
+  },
+  "d_sw_spear_dw_d4.png": {
+   "w": 204,
+   "h": 163,
+   "ax": 52,
+   "ay": 148,
+   "scale": 4,
+   "id": "d-sw-spear-dw",
+   "dir": "d4",
+   "th": 3.141592653589793
+  },
+  "d_sw_spear_dw_d5.png": {
+   "w": 189,
+   "h": 159,
+   "ax": 32,
+   "ay": 144,
+   "scale": 4,
+   "id": "d-sw-spear-dw",
+   "dir": "d5",
+   "th": 2.356194490192345
+  },
+  "d_sw_spear_dw_d6.png": {
+   "w": 169,
+   "h": 155,
+   "ax": 32,
+   "ay": 140,
+   "scale": 4,
+   "id": "d-sw-spear-dw",
+   "dir": "d6",
+   "th": 1.5707963267948966
+  },
+  "d_sw_spear_dw_d7.png": {
+   "w": 180,
+   "h": 154,
+   "ax": 125,
+   "ay": 139,
+   "scale": 4,
+   "id": "d-sw-spear-dw",
+   "dir": "d7",
+   "th": 0.7853981633974483
+  },
+  "mage_a_cast_arcane_d0.png": {
+   "w": 135,
+   "h": 256,
+   "ax": 83,
+   "ay": 241,
+   "scale": 4,
+   "school": "arcane",
+   "dir": "d0",
+   "th": 0
+  },
+  "mage_a_cast_arcane_d1.png": {
+   "w": 138,
+   "h": 258,
+   "ax": 93,
+   "ay": 243,
+   "scale": 4,
+   "school": "arcane",
+   "dir": "d1",
+   "th": -0.7853981633974483
+  },
+  "mage_a_cast_arcane_d2.png": {
+   "w": 129,
+   "h": 261,
+   "ax": 88,
+   "ay": 246,
+   "scale": 4,
+   "school": "arcane",
+   "dir": "d2",
+   "th": -1.5707963267948966
+  },
+  "mage_a_cast_arcane_d3.png": {
+   "w": 125,
+   "h": 263,
+   "ax": 72,
+   "ay": 248,
+   "scale": 4,
+   "school": "arcane",
+   "dir": "d3",
+   "th": -2.356194490192345
+  },
+  "mage_a_cast_arcane_d4.png": {
+   "w": 125,
+   "h": 263,
+   "ax": 53,
+   "ay": 248,
+   "scale": 4,
+   "school": "arcane",
+   "dir": "d4",
+   "th": 3.141592653589793
+  },
+  "mage_a_cast_arcane_d5.png": {
+   "w": 126,
+   "h": 260,
+   "ax": 45,
+   "ay": 245,
+   "scale": 4,
+   "school": "arcane",
+   "dir": "d5",
+   "th": 2.356194490192345
+  },
+  "mage_a_cast_arcane_d6.png": {
+   "w": 125,
+   "h": 257,
+   "ax": 48,
+   "ay": 242,
+   "scale": 4,
+   "school": "arcane",
+   "dir": "d6",
+   "th": 1.5707963267948966
+  },
+  "mage_a_cast_arcane_d7.png": {
+   "w": 125,
+   "h": 255,
+   "ax": 65,
+   "ay": 240,
+   "scale": 4,
+   "school": "arcane",
+   "dir": "d7",
+   "th": 0.7853981633974483
+  },
+  "mage_a_cast_death_d0.png": {
+   "w": 135,
+   "h": 255,
+   "ax": 83,
+   "ay": 240,
+   "scale": 4,
+   "school": "death",
+   "dir": "d0",
+   "th": 0
+  },
+  "mage_a_cast_death_d1.png": {
+   "w": 138,
+   "h": 258,
+   "ax": 93,
+   "ay": 243,
+   "scale": 4,
+   "school": "death",
+   "dir": "d1",
+   "th": -0.7853981633974483
+  },
+  "mage_a_cast_death_d2.png": {
+   "w": 129,
+   "h": 261,
+   "ax": 88,
+   "ay": 246,
+   "scale": 4,
+   "school": "death",
+   "dir": "d2",
+   "th": -1.5707963267948966
+  },
+  "mage_a_cast_death_d3.png": {
+   "w": 125,
+   "h": 263,
+   "ax": 72,
+   "ay": 248,
+   "scale": 4,
+   "school": "death",
+   "dir": "d3",
+   "th": -2.356194490192345
+  },
+  "mage_a_cast_death_d4.png": {
+   "w": 124,
+   "h": 262,
+   "ax": 53,
+   "ay": 247,
+   "scale": 4,
+   "school": "death",
+   "dir": "d4",
+   "th": 3.141592653589793
+  },
+  "mage_a_cast_death_d5.png": {
+   "w": 126,
+   "h": 260,
+   "ax": 45,
+   "ay": 245,
+   "scale": 4,
+   "school": "death",
+   "dir": "d5",
+   "th": 2.356194490192345
+  },
+  "mage_a_cast_death_d6.png": {
+   "w": 124,
+   "h": 257,
+   "ax": 48,
+   "ay": 242,
+   "scale": 4,
+   "school": "death",
+   "dir": "d6",
+   "th": 1.5707963267948966
+  },
+  "mage_a_cast_death_d7.png": {
+   "w": 125,
+   "h": 255,
+   "ax": 65,
+   "ay": 240,
+   "scale": 4,
+   "school": "death",
+   "dir": "d7",
+   "th": 0.7853981633974483
+  },
+  "mage_a_cast_pyro_d0.png": {
+   "w": 135,
+   "h": 256,
+   "ax": 83,
+   "ay": 241,
+   "scale": 4,
+   "school": "pyro",
+   "dir": "d0",
+   "th": 0
+  },
+  "mage_a_cast_pyro_d1.png": {
+   "w": 138,
+   "h": 258,
+   "ax": 93,
+   "ay": 243,
+   "scale": 4,
+   "school": "pyro",
+   "dir": "d1",
+   "th": -0.7853981633974483
+  },
+  "mage_a_cast_pyro_d2.png": {
+   "w": 129,
+   "h": 261,
+   "ax": 88,
+   "ay": 246,
+   "scale": 4,
+   "school": "pyro",
+   "dir": "d2",
+   "th": -1.5707963267948966
+  },
+  "mage_a_cast_pyro_d3.png": {
+   "w": 125,
+   "h": 263,
+   "ax": 72,
+   "ay": 248,
+   "scale": 4,
+   "school": "pyro",
+   "dir": "d3",
+   "th": -2.356194490192345
+  },
+  "mage_a_cast_pyro_d4.png": {
+   "w": 125,
+   "h": 263,
+   "ax": 53,
+   "ay": 248,
+   "scale": 4,
+   "school": "pyro",
+   "dir": "d4",
+   "th": 3.141592653589793
+  },
+  "mage_a_cast_pyro_d5.png": {
+   "w": 126,
+   "h": 260,
+   "ax": 45,
+   "ay": 245,
+   "scale": 4,
+   "school": "pyro",
+   "dir": "d5",
+   "th": 2.356194490192345
+  },
+  "mage_a_cast_pyro_d6.png": {
+   "w": 125,
+   "h": 257,
+   "ax": 48,
+   "ay": 242,
+   "scale": 4,
+   "school": "pyro",
+   "dir": "d6",
+   "th": 1.5707963267948966
+  },
+  "mage_a_cast_pyro_d7.png": {
+   "w": 125,
+   "h": 255,
+   "ax": 65,
+   "ay": 240,
+   "scale": 4,
+   "school": "pyro",
    "dir": "d7",
    "th": 0.7853981633974483
   },

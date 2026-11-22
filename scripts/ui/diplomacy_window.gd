@@ -531,10 +531,16 @@ func _actions(o: int) -> VBoxContainer:
 		gd.add_child(_act(o, "ally", "ally", "End alliance", "", "%d-minute truce afterwards" % (int(game.W("allyTruce")) / 60)))
 	else:
 		gd.add_child(_act(o, "ally", "ally", "Alliance", game.ally_why(Game.ME, o), "Needs +%d: vision, access, they defend each other" % DL.ally))
-	if game.pair_has(D.trade, Game.ME, o) != null:
-		gd.add_child(_act(o, "trade", "trade", "End Trade Network", "", "Stop trading"))
-	else:
-		gd.add_child(_act(o, "trade", "trade", "Trade Network", game.trade_why(Game.ME, o), "Needs +%d and a shared border: +10%% Community / Trade Routes" % DL.trade))
+	if not game.is_sw():   # web: v105.js (Trade Networks for Realmlings and Woodlings)
+		if game.pair_has(D.trade, Game.ME, o) != null:
+			gd.add_child(_act(o, "trade", "trade", "End Trade Network", "", "Stop trading"))
+		else:
+			gd.add_child(_act(o, "trade", "trade", "Trade Network", game.trade_why(Game.ME, o), "Needs +%d and a shared border: +10%% Community / Trade Routes" % DL.trade))
+	else:   # Organized Crime for Swamplings
+		if game.pair_has(D.crime, Game.ME, o) != null:
+			gd.add_child(_act(o, "crime", "crime", "End Organized Crime", "", "Extra Thugs leave their dens 10 s later"))
+		else:
+			gd.add_child(_act(o, "crime", "crime", "Organized Crime", game.crime_why(Game.ME, o), "Needs +%d: +1 Thug in every Thug Den, theirs and yours" % DL.crime))
 	if D.spies.has(o):
 		var sp: Dictionary = D.spies[o]
 		var b := _act(o, "", "spy", "Spying…", "", "%s left" % game.fmt_left(sp.until - game.t))

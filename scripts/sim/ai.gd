@@ -32,6 +32,7 @@ const CASH_GIVES := {"food": 3, "gold": 1}
 const FIBER_GIVES := {"wood": 2}
 const CROP_DELAY := 10.0
 const CD_NAMES := ["Pikeman", "Maceman"]
+const CD_NAMES_RACE := {"wood": ["Spear Protector", "Club Protector"], "swamp": ["Spear Berserker", "Club Berserker"], "realm": ["Pikeman", "Maceman"]}
 # v104 stances and rivals
 const V104_THINK := 10.0
 const V104_LARGER := 1.15
@@ -170,7 +171,7 @@ static func leader_id(g: Game, o: int) -> String:
 
 # web: v105.js BUILD_DEFS.forge.cost getter (costCtx): Forges cost 25% less for the forge leaders
 static func build_cost(g: Game, N: Dictionary, type: String) -> Dictionary:
-	var c: Dictionary = g.BUILD_DEFS[type].cost
+	var c: Dictionary = GameData.c("BUILD_DEFS")[type].cost if type == "forge" else g.BUILD_DEFS[type].cost
 	if type == "forge" and leader_id(g, N.id) in FORGE_LEADERS:
 		var out := {}
 		for k in c:
@@ -470,6 +471,12 @@ static func income(g: Game, N: Dictionary) -> Dictionary:
 				g2 += int(cg.get("gold", 0))
 		inc.food += int(JS.round_js(f2 * 0.05 * harvest_lv))
 		inc.gold += int(JS.round_js(g2 * 0.05 * harvest_lv))
+	# web: swamp.js aiIncome — computer Pyromancers keep Sacred Pyres burning (one per Warlock, at most two): 10 wood
+	# into 20 gold each
+	if N.get("race") == "swamp" and N.school == "pyro" and has(g, N, "sacredpyre"):
+		var np := mini(2, mages(g, N))
+		inc.gold += 20 * np
+		inc.wood -= 10 * np
 	return inc
 
 
@@ -1833,24 +1840,30 @@ static func counter_designs(g: Game, N: Dictionary) -> Dictionary:
 		for d in N.get("designs", []):
 			if d.id == N.design.inf:
 				main = d
-	var armor: String = main.armor if main != null else "leather1"
+	var race: String = N.get("race", "realm")   # web: v104.js — counter designs carry the nation's race and names
+	var armor: String = main.armor if main != null else Races.HOME_ARMOR[race]
 	var pole = best.call("pole")
 	var blunt = best.call("blunt")
 	var shield = null
-	if blunt != null and not Wd[blunt].get("twoH", false):
+	if race == "realm" and blunt != null and not Wd[blunt].get("twoH", false):
 		for x in ["tower", "kite", "round"]:
 			var SD: Dictionary = GameData.c("SHIELD_DEFS")
 			if SD.has(x) and has(g, N, SD[x].tech):
 				shield = x
 				break
-	var sig := "|".join(["realm", armor, str(pole), str(blunt), str(shield), "blunt1h", "dw" if has(g, N, "dualwield") else ""])
+	var sig := "|".join([race, armor, str(pole), str(blunt), str(shield), "blunt1h", "dw" if has(g, N, "dualwield") else ""])
 	var cdes = N.get("cdes")
 	if N.get("cdSig") == sig and cdes != null and g.DSTATS.has(cdes.pole) and g.DSTATS.has(cdes.blunt):
 		return cdes
 	N.cdSig = sig
 	N.cdv = N.get("cdv", 0) + 1
-	var pd := {"id": "ai%dp%d" % [N.id, N.cdv], "name": CD_NAMES[0], "type": "inf", "weapon": pole if pole != null else "spear", "shield": null, "armor": armor, "horse": null, "race": "realm"}
-	var bd := {"id": "ai%db%d" % [N.id, N.cdv], "name": CD_NAMES[1], "type": "inf", "weapon": blunt if blunt != null else "club", "shield": shield, "armor": armor, "horse": null, "race": "realm"}
+	var nm: Array = CD_NAMES_RACE.get(race, CD_NAMES)
+	var pd := {"id": "ai%dp%d" % [N.id, N.cdv], "name": nm[0], "type": "inf", "weapon": pole if pole != null else "spear", "shield": null, "armor": armor, "horse": null, "race": race}
+	var bd := {"id": "ai%db%d" % [N.id, N.cdv], "name": nm[1], "type": "inf", "weapon": blunt if blunt != null else "club", "shield": shield, "armor": armor, "horse": null, "race": race}
+	if race == "wood":
+		bd.two = true
+	if race == "swamp" and has(g, N, "dualwield"):
+		bd.off = blunt if blunt != null else "club"
 	g.register_design(pd)
 	g.register_design(bd)
 	if not N.has("designs"):

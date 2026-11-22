@@ -383,12 +383,25 @@ func _draw_game() -> void:
 		if game.upgrades.has(p):
 			var f: float = (game.t - game.upgrades[p].t0) / GameData.c("FORT_UPGRADE").time
 			_bar(at + Vector2(0, -150), f, Color("#e8c547"))
+	# the village: houses round the buildings and developed settlements, and its townsfolk (web: content.js townItems)
+	if town == null:
+		town = MapTown.new(self)
+	if not is_same(town_game, game):
+		town.reset()
+		town_game = game
+		town.civ_z = _civ_zoom()
+	town.sync(game)
+	var civs_shown: bool = get_viewport().get_canvas_transform().get_scale().x >= town.civ_z and not Settings.calm_map
+	town.step(game, civs_shown)
+	town.draw_houses(game)
 	for p in game.extras:
 		if not game.explored.has(p):
 			continue
 		var ic: Array = game.G.provs[p].ic
 		for e in game.extras[p]:
 			_building(e.type, e.slot, p, ic, 1.0, e.get("level", 1))
+	if civs_shown:
+		town.draw_civs(game, Time.get_ticks_msec() / 1000.0)
 	# battles: the melee in the middle of the province (web: game.js drawBattle)
 	for b in game.battles:
 		if game.visible.has(b.prov):
@@ -449,6 +462,8 @@ func _draw_game() -> void:
 		var ua := 0.55 if u.get("exiting", false) else (0.45 + sin(t2 * 3) * 0.08) if u.get("stealth", false) else 1.0
 		var urc: String = game.race(u.owner)
 		var sp = _run_sprite(urc, kind, _dir(u.th), t2 * 2.4 + u.id) if walking2 else null
+		if sp == null and kind == game.MAGE and u.get("cast") != null:   # web: v78.js castUnitId (staff overhead, the school's lightning)
+			sp = Art.get_sprite("units", urc, "mage_a_cast_%s_%s.png" % [_school_of(u.owner), _dir(u.th)])
 		if sp == null:
 			sp = Art.race_sprite("units", urc, Art.unit_file(kind, _dir(u.th)))
 		if sp == null and u.get("monster") != null:
@@ -617,6 +632,8 @@ func _army(u: Dictionary) -> void:
 	spots.sort_custom(func(a, b): return a.y < b.y)
 	for sp_ in spots:
 		var sp = _run_sprite(game.race(u.owner), Art.design_art(game, sp_.k), _dir(u.th), tt + u.id + sp_.i * 0.3) if walking else null
+		if sp == null and sp_.k == game.MAGE and u.get("cast") != null:
+			sp = Art.get_sprite("units", game.race(u.owner), "mage_a_cast_%s_%s.png" % [_school_of(u.owner), _dir(u.th)])
 		if sp == null:
 			sp = Art.race_sprite("units", game.race(u.owner), Art.unit_file(sp_.k, _dir(u.th)))
 		if sp == null and str(sp_.k).begins_with("d"):
@@ -780,6 +797,30 @@ func _run_sprite(rc: String, kind: String, dir: String, tt: float):
 		return null
 	var f := int(fposmod(tt, RUN_STRIDE) / RUN_STRIDE * 8) % 8
 	return Art.get_sprite("units", rc, "%s_run_%s_f%d.png" % [kind.replace(":", "_").replace("-", "_").to_lower(), dir, f])
+
+
+# web: v78.js schoolOf: the caster's school (arcane when there is none)
+func _school_of(o: int) -> String:
+	var sc = game.current_school() if o == Game.ME else (game.nations[o].get("school") if game.nations.has(o) else null)
+	return str(sc) if sc != null else "arcane"
+
+
+var town: MapTown
+var town_game = null
+
+
+# web: content.js setupContent civZ: townsfolk show from halfway between the zoom of the capital and its neighbours
+# and half of it
+func _civ_zoom() -> float:
+	var cap: int = game.capital
+	if cap < 0:
+		return 0.0
+	var r := Rect2(Vector2(game.G.provs[cap].ic[0], game.G.provs[cap].ic[1]), Vector2.ZERO)
+	for q in game.all_nbr[cap]:
+		r = r.expand(Vector2(game.G.provs[q].ic[0], game.G.provs[q].ic[1]))
+	var vp := get_viewport_rect().size if is_inside_tree() else Vector2(1600, 900)
+	var z := minf(vp.x / maxf(1.0, r.size.x + 400), vp.y / maxf(1.0, r.size.y + 400)) * 0.95
+	return (z + z / 2) / 2
 
 
 ## Art direction from a facing angle (web th: 0 = toward the camera, then clockwise in eighths).

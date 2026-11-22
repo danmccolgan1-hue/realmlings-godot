@@ -5,6 +5,13 @@ extends Control
 ## web: v106.js renderPatchNotes
 
 const PORT_NOTES := [
+	{"v": "Godot 0.11", "date": "November 21, 2026", "items": [
+		["Leaders", "Every Swampling and Woodling leader's bonus now works: Phlyo's free Sacred Pyres, Aarg's burning traps, Nihaarg's stronger curses, Sariel's Mending, Eliwen's weakening, Naobrien's Grand Elemental, Paladomis's bleeding blows, and cheaper Forges for Finn, Glurg and Alathandrious."],
+		["Warlock skulls", "A Swampling Warlock with a wand holds a skull in the other hand: more attack, and a faster Fireball. Choose it in the Armory."],
+		["Organized Crime", "Swampling nations can agree on Organized Crime: every Thug Den of both holds one more Thug. Swamplings form no Trade Networks."],
+		["Computer nations", "Computer Pyromancers count their Sacred Pyres, and the counter designs Swampling and Woodling nations train are their own Berserkers and Protectors."],
+		["Villages", "Houses grow around your buildings and developed settlements, and townsfolk walk between them, running indoors when danger comes. Realmlings, Swamplings and Woodlings each have their own."],
+		["Casting and dual wielding", "Mages, Warlocks and Druids raise their staff in their school's lightning while casting, and Berserkers with Dual Wielding carry both weapons on the map and in the Armory."]]},
 	{"v": "Godot 0.10", "date": "November 21, 2026", "items": [
 		["Grand Elemental", "Woodling Druids with the School of the Elements can call up a Grand Elemental: a towering man of living water who joins the army for 2 minutes."],
 		["Lost travelers", "Swamplings capture lost travelers for food. Woodlings show them the way home for 30 research: Government with a Scout, Military with soldiers, Magic with a Druid."],

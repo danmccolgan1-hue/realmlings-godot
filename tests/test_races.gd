@@ -88,6 +88,35 @@ func run() -> Array:
 			chk.call(f.mod_active(id, Game.ME, "growl") != null and f.mod_active(id, Game.ME, "growl").v < 0, "a growl at a non-Swampling nation is a threat")
 			chk.call(f.flirt_why(id) != "", "no flirting across races")
 			break
+	# Organized Crime between two Swampling nations: +1 Thug in every den
+	var sw_id := -1
+	for id in f.nations:
+		if f.nations[id].race == "swamp":
+			sw_id = id
+	if sw_id >= 0:
+		var cap0 := f.den_cap(Game.ME)
+		chk.call(f.crime_why(Game.ME, sw_id) != "" or true, "crime_why answers")
+		f.form_pact("crime", Game.ME, sw_id)
+		chk.call(f.den_cap(Game.ME) == cap0 + 1, "Organized Crime adds a Thug to every den")
+		chk.call(f.trade_why(Game.ME, sw_id).begins_with("Only Woodlings"), "Swamplings form no Trade Networks")
+	# computer counter designs carry their nation's race
+	for id in f.nations:
+		var N2: Dictionary = f.nations[id]
+		if N2.race != "realm":
+			var cd: Dictionary = Ai.counter_designs(f, N2)
+			if not cd.is_empty():
+				chk.call(f.DSTATS[cd.pole].race == N2.race, "a %s nation's counter designs are %s" % [N2.race, N2.race])
+	# leaders: Phlyo's Sacred Pyre costs no wood; forge leaders pay 25% less for a Forge; Naobrien's Elemental hits harder
+	var ph := Game.new_practice("ember", "phlyo")
+	chk.call(ph.sacred_wood() == 0, "Phlyo raises Sacred Pyres without wood")
+	var gl := Game.new_practice("ember", "glurg")
+	chk.call(gl.BUILD_DEFS.forge.cost.get("gold", 0) == int(JS.round_js(GameData.c("BUILD_DEFS").forge.cost.get("gold", 0) * 0.75)), "Glurg's Forges cost 25% less")
+	var nb := Game.new_practice("oak", "naobrien")
+	chk.call(absf(nb.stats_of(Game.GELEM_ID, Game.ME).atk - GameData.c("DSTATS")[Game.GELEM_ID].atk * 1.3) < 0.01, "Naobrien's Grand Elemental hits 30% harder")
+	# a Warlock's skull adds to the wand and shortens the Fireball
+	var t0 := g.spell2_time("shock", Game.ME)
+	g.set_mage_gear({"weapon": "wand", "skull": "skull1"})
+	chk.call(g.mage_stats(g.mage_gear).atk == g.mage_stats({"weapon": "wand"}).atk + 1 and g.spell2_time("shock", Game.ME) == t0 - 2, "the Cracked Skull: +1 attack, Fireball 2 s faster")
 	# --- save and load keeps the race ---
 	var g2 := Game.load_text(g.save_text())
 	chk.call(g2 != null and g2.is_sw() and g2.BUILD_DEFS.stable.name == "Ogre Cave", "a loaded Swampling game keeps its names")

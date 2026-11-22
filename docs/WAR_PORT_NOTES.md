@@ -246,6 +246,16 @@ The plan after milestone 1. Each step is tested against the web game, then commi
    - Type: `scripts/ui/fonts.gd` — Alegreya for the interface (and the outliner's names, in place of Grenze Gotisch),
      Cinzel Decorative for titles; licenses in `assets/fonts/`. The minimap stays in the fog until explored.
 
+16. **The last missing pieces** — done (`tests/test_races.gd`):
+   - Leader bonuses (v105.js): Phlyo `sacred_wood()`, Aarg and Eliwen on a stasis catch (`pure_damage`, `weakUntil`
+     and the 0.75 `side_strength` wrapper), Nihaarg's curse, Sariel's `mendUntil` (+0.1 skin in `apply_damage`),
+     Naobrien's Elemental, Paladomis's `_bleed`, the forge leaders' 25% (the player's own `BUILD_DEFS.forge.cost`).
+   - Warlock skulls (`SKULLS`, `skull_cut`), Organized Crime (`crime_why`, `crime_slots`, `eject_thugs`), computer
+     Pyromancers' pyre income, race counter designs (`CD_NAMES_RACE`).
+   - Views: `scripts/view/map_town.gd` (houses round buildings and developed settlements, townsfolk with their
+     errands and flight); art jobs `mcast` (casting poses by race and school) and `dualwield` (Berserkers with two
+     weapons). The roofed house art is exported in blue only, so other nations' houses keep their plain roofs.
+
 ## Things to remember
 
 - **Always grep for wrappers** (`name = function`) before porting a function: later web files replace many of them.
