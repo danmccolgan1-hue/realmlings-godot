@@ -89,8 +89,8 @@ static func nation_flag(game, o: int):
 	var col := str(game.player_info(o).color)
 	var em := "swords"
 	var sec := "#faf1dc"
-	if o == Game.LOCAL:
-		var nat: Dictionary = game.my_nation if game is Game else GameData.c("NATION")
+	if (game is Game and game.seats.has(o)) or (not game is Game and o == Game.LOCAL):   # a human nation's own flag
+		var nat: Dictionary = game.seats[o].my_nation if game is Game else GameData.c("NATION")
 		em = str(nat.get("emblem", "crown"))
 		sec = str(nat.get("secondary", sec))
 	elif game.nations.has(o):

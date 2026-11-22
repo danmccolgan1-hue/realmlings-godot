@@ -5,6 +5,11 @@ extends Control
 ## web: v106.js renderPatchNotes
 
 const PORT_NOTES := [
+	{"v": "Godot 0.15", "date": "November 22, 2026", "items": [
+		["Multiplayer", "Play together over your network or the internet. On the Multiplayer page, host a game, let your friends join, choose the island's seed and how many computer nations join you, and start. Everyone plays their own nation, with the race, leader and flag from their New Game page. New Game stays a single-player game."],
+		["In the game", "A Players panel shows who is playing, their nation and connection, and a chat (press Enter). Anyone can pause; only the host or whoever paused can go on, and the banner says who paused."],
+		["Drop-outs", "If a player drops out, the game pauses and everyone is told. The host can wait (the player joins again with the same name and takes their nation back) or hand the nation to the computer. If the host leaves, everyone keeps the game, and the host can continue it from the Multiplayer page."],
+		["Staying in step", "Every copy of the game checks every few seconds that it matches the host's, and a copy that drifts is quietly sent the host's game again."]]},
 	{"v": "Godot 0.14", "date": "November 22, 2026", "items": [
 		["Several players in one game", "Under the hood, a game can now hold several human nations, each with its own treasury, research, fog of war, armies and orders, side by side with computer nations. A player who leaves can be handed to the computer mid-game. Every order you give now goes through one door, the same one a multiplayer game will send across the network. Playing together over the network comes next."]]},
 	{"v": "Godot 0.13", "date": "November 21, 2026", "items": [

@@ -1,14 +1,17 @@
 class_name NetSession
 extends RefCounted
 ## The multiplayer connection: one player hosts, up to 7 join, over the local network or the internet (ENet, UDP).
-## For now it carries the lobby: who is in it, their nation, chat, ping, and the check that everyone runs the same
-## version. Playing a game together comes once the rules handle several human players (docs/MULTIPLAYER.md).
-## No drawing here; the Multiplayer screen shows it. Call poll() every frame.
+## It carries the lobby (who is in it, their nation, chat, ping, the check that everyone runs the same version) and,
+## once the game starts, Lockstep's messages (`message`). After the start only players returning to their seat may
+## join (`reserved` names). No drawing here; the Multiplayer screen and the game show it. Call poll() every frame.
 
 signal players_changed
 signal chat(from_name: String, text: String)
 signal status(text: String)
 signal closed(why: String)
+signal message(from: int, m: Dictionary)   # anything the lobby doesn't handle itself (the game's lockstep)
+signal left(id: int, name: String)          # host: a player's connection is gone
+signal rejoined(id: int, name: String)      # host: a player came back to their seat after the start
 
 const PORT := 24565            # the game's port (UDP); forward this one on the host's router
 const DISCOVER_PORT := 24566   # LAN games announce themselves here (UDP broadcast)
@@ -30,6 +33,9 @@ var lan_games := {}            # "ip:port" -> {"name", "players", "version", "ip
 var external := ""             # what UPnP found: the address friends use over the internet
 var upnp_note := ""
 var _thread: Thread
+var locked := false            # the game has started: only `reserved` names (players coming back) may join
+var reserved := {}             # name -> true
+var _gone_ids := {}            # host: peer ids whose connection has closed (nothing more is sent to them)
 
 
 func _init(player_name := "Player", nation_info := {}) -> void:
@@ -161,6 +167,17 @@ func _handle(from: int, m: Dictionary) -> void:
 				_send(from, {"t": "refused", "why": "Different game versions: the host has %s, you have %s" % [version, m.get("version", "?")]})
 				_kick_later(from)
 				return
+			var nm0 := str(m.get("name", "Player")).substr(0, 24)
+			if locked and not reserved.has(nm0):
+				_send(from, {"t": "refused", "why": "This game has already started"})
+				_kick_later(from)
+				return
+			if locked:
+				players[from] = {"name": nm0, "nation": m.get("nation", {}), "ping": 0}
+				_send(from, {"t": "welcome", "id": from})
+				_broadcast_players()
+				rejoined.emit(from, nm0)
+				return
 			if players.size() >= MAX_PLAYERS:
 				_send(from, {"t": "refused", "why": "The game is full (%d players)" % MAX_PLAYERS})
 				_kick_later(from)
@@ -198,6 +215,8 @@ func _handle(from: int, m: Dictionary) -> void:
 			if is_host and players.has(from):
 				players[from].ping = Time.get_ticks_msec() - int(m.get("at", 0))
 				_broadcast_players()
+		_:
+			message.emit(from, m)
 
 
 # drop a player once the reason has reached them
@@ -235,8 +254,28 @@ func _drop_gone() -> void:
 	for id in gone:
 		var nm: String = players[id].name
 		players.erase(id)
+		_gone_ids[id] = true
 		_broadcast_players()
 		_relay_chat(0, "%s left." % nm)
+		left.emit(id, nm)
+
+
+## A message to one player (the host is 1).
+func send_to(id: int, m: Dictionary) -> void:
+	_send(id, m)
+
+
+## A message from the host to every other player.
+func send_all(m: Dictionary) -> void:
+	for id in players:
+		if id != 1:
+			_send(id, m)
+
+
+## A chat line from the game itself (a player dropped, came back...), to everyone.
+func announce(text: String) -> void:
+	if is_host:
+		_relay_chat(0, text)
 
 
 func _connected(id: int) -> bool:
@@ -245,7 +284,7 @@ func _connected(id: int) -> bool:
 
 
 func _send(to: int, m: Dictionary) -> void:
-	if peer == null:
+	if peer == null or _gone_ids.has(to):
 		return
 	peer.set_target_peer(to)
 	peer.set_transfer_mode(MultiplayerPeer.TRANSFER_MODE_RELIABLE)

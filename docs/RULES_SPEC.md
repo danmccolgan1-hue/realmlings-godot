@@ -108,7 +108,8 @@ Each step ends with a headless test and something visible in the placeholder vie
 - Orders: `do(type, args)` from the interface, `apply({player, type, args})`, `COMMANDS`, `pack_args` /
   `unpack_args`; `set_paused` with `paused_by`.
 - Determinism: `STEP`, `step_fixed`, `checksum` (`tests/test_determinism.gd`, `tests/test_seats.gd`).
-- Network: `scripts/net/net_session.gd` (lobby; lockstep comes next).
+- Network: `scripts/net/net_session.gd` (lobby, connection), `scripts/net/lockstep.gd` (playing together: the
+  host's clock, orders, fingerprints and resyncs, drop-outs and returns), `scripts/ui/mp_panel.gd` (in the game).
 
 ## Interface (needed to play-test each step; full UI is Phase 5)
 

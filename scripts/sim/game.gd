@@ -18,6 +18,9 @@ var seats := {HOST: cur}
 ## The seat the fields return to after each step and order: the seat this copy shows (LOCAL in a real game;
 ## tests running several copies in one process give each its own).
 var view_seat := HOST
+## Multiplayer: each human nation's player's name (nation id -> name), so a saved game can be continued by the same
+## players and a player who drops out can come back to their own nation.
+var seat_names := {}
 const RES := ["gold", "wood", "food"]
 const MASON := "mason:A"
 const MAGE := "mage:A"
@@ -5594,7 +5597,7 @@ const SAVE_FIELDS := ["battles", "bandit_count", "monster_count", "leader", "cap
 	"xup", "auto_tech", "roads", "walls", "wall_hp", "artifacts", "gift_vault", "quakes", "quake_seq", "wall_max", "wall_crack", "broken_walls", "rewall_jobs", "gate_own", "fort_walled", "gpc_slow_t", "dev_t", "cd", "paths",
 	"harvest_by", "trap", "reveals", "eyes", "haunts", "mana_pool", "mana_prev_t", "mage_gear", "finds", "treasure_rolled",
 	"sp_found", "slot_races", "spyres", "ftraps", "sacreds", "wrocks", "gelems", "setpieces", "travelers", "train_orders", "train_order_seq", "design_seq", "prov_rename", "nations", "players", "my_nation", "race_of", "wars", "truces", "allies", "war_seq", "met", "occ", "occ_prog", "dipl", "war_log", "war_ever", "war_lock", "ai_met", "fallen", "ally_check", "bandit_next", "bandit_waves", "ally_ask", "crop_scan_at", "ai_scout_t", "wf", "known", "explored", "visible", "queues", "rally", "military", "UNIT_SPEED", "open_nbr", "all_nbr",
-	"yields", "look_seed", "tree_border", "debug_cap", "debug_tech", "reveal_all", "rec", "t", "next_tick", "paused", "last", "started"]
+	"yields", "look_seed", "tree_border", "debug_cap", "debug_tech", "reveal_all", "rec", "t", "next_tick", "paused", "last", "started", "seat_names", "paused_by"]
 
 
 ## The whole game as a plain Dictionary (see SaveCodec for the text form).
@@ -10801,7 +10804,7 @@ const COMMANDS := ["order", "order_group", "order_build", "cancel_build", "queue
 	"save_design", "delete_design", "retrofit_armies", "split_army", "combine_armies", "dismiss", "send_to_rest",
 	"retreat", "retreat_to", "fly_army", "thugs_enter", "thug_out", "dx_act", "answer_request", "make_peace",
 	"declare_war", "proclaim_enemy", "renounce_enemy", "travelers_choose", "dismiss_quake", "dismiss_news",
-	"answer_demand", "set_crop", "set_paused", "set_auto_tech", "rename_prov", "close_school_popup",
+	"answer_demand", "set_crop", "hand_to_ai", "set_paused", "set_auto_tech", "rename_prov", "close_school_popup",
 	"debug_reveal", "debug_resources", "debug_all_tech", "grant_tech", "rec_toggle"]
 
 ## Multiplayer: hands a command to the network instead of applying it here (it comes back through apply()).
@@ -10848,6 +10851,12 @@ func _cmd_set_paused(on: bool) -> void:
 	elif not paused or paused_by == 0 or paused_by == ME or ME == HOST or not seats.has(paused_by):
 		paused = false
 		paused_by = 0
+
+
+## Only the host hands a dropped player's nation to the computer.
+func _cmd_hand_to_ai(o: int) -> void:
+	if ME == HOST:
+		hand_to_ai(o, "difficult")
 
 
 func _cmd_set_auto_tech(tr: String, on: bool) -> void:

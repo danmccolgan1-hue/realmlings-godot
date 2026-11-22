@@ -281,6 +281,25 @@ The plan after milestone 1. Each step is tested against the web game, then commi
      computer nations' war and alliance thinking still mostly treats the host as "the player"; meeting and
      diplomacy between humans is the plain web game's until step 11.
 
+19. **Playing together (multiplayer steps 8, 9 and the lobby's start)** — done (`tests/test_lockstep.gd`):
+   - `scripts/net/lockstep.gd`: the host keeps the clock and sends each step's orders ("go") to every player, then
+     runs it; a player's order goes to the host, which stamps it with that player's nation and schedules it
+     `DELAY` (3) steps ahead. Fingerprints every 100 steps; a copy that differs gets the host's save ("resync").
+     The host waits for a player more than 4 s of steps behind.
+   - Drop-outs: 5 s without a word (or a closed connection) pauses the game, tells everyone and asks the host to
+     wait or hand the nation to the computer (`hand_to_ai` as a host-only order). A player who joins again with the
+     same name gets the game and their nation back (`NetSession.locked` / `reserved`). Every player keeps
+     `user://mp_autosave.json` (every 5 minutes and on leaving); when the host leaves, players are told and sent
+     to the menu. The host's lobby can continue that save: players take back their nations by name, nations
+     nobody returns to are handed to the computer.
+   - Lobby (Multiplayer page): the host picks the seed, the number of computer nations and their difficulty (the
+     island shape and start position come from the New Game page), then Start. New Game stays single-player.
+     In the game, `scripts/ui/mp_panel.gd` lists the players (flag, nation, ping; away / computer), chat (Enter),
+     and what the game is waiting for; the pause banner names who paused. F5 / F9 are off in multiplayer.
+   - `--mpplay` (pictures): a host and a second player in one process over the real network.
+   - Known: units move in 20 steps a second in multiplayer (single-player moves every frame), so movement looks
+     less smooth; loading a multiplayer save from the menu plays only the host's nation (the others stand still).
+
 ## Things to remember
 
 - **Always grep for wrappers** (`name = function`) before porting a function: later web files replace many of them.

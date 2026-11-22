@@ -536,6 +536,7 @@ func _process(_delta: float) -> void:
 	if not game:
 		return
 	paused_label.visible = game.paused
+	paused_label.text = "Paused by %s" % game.seat_names.get(game.paused_by, "a player") if game.paused and game.paused_by != 0 and game.seats.size() > 1 else "Paused"
 	if game.school_popup:
 		game.do("close_school_popup")
 		school.open()

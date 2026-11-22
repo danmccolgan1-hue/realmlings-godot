@@ -378,6 +378,8 @@ var mp_players: VBoxContainer
 var mp_chat: RichTextLabel
 var mp_lan_sig := ""
 var mp_lan_t := 0.0
+var mp_opts_box: VBoxContainer   # the host's choices for the game (island, computer nations)
+var mp_start: Button
 
 
 func _build_multi() -> void:
@@ -452,6 +454,11 @@ func _mp_wire() -> void:
 		_mp_menu()
 		mp_status.text = why)
 	net.players_changed.connect(_mp_players)
+	net.message.connect(func(_from, m):   # the host started the game: main loads it and takes the connection over
+		if m.get("t") == "start" and net != null and not net.is_host:
+			var nt := net
+			net = null
+			main.start_mp_client(nt, m))
 	net.chat.connect(func(n, t2):
 		if mp_chat and is_instance_valid(mp_chat):
 			mp_chat.append_text(("[b]%s:[/b] %s\n" % [n, t2]) if n != "" else ("[i]%s[/i]\n" % t2)))
@@ -524,14 +531,112 @@ func _mp_lobby() -> void:
 			net.leave()
 		net = null
 		_mp_menu()))
-	br.add_child(_tog("Start the game", false, Callable(), true, "Playing together comes once the rules handle several human players; for now the lobby tests your connection"))
+	mp_opts_box = VBoxContainer.new()
+	mp_opts_box.add_theme_constant_override("separation", 6)
+	mp_box.add_child(mp_opts_box)
+	mp_start = _tog("Start the game", false, _mp_begin, true, "Only the host starts the game")
+	br.add_child(mp_start)
 	mp_box.add_child(br)
+	var hint := _lbl("Your nation, race, leader and flag come from the New Game page (set them there before hosting or joining). New Game itself stays a single-player game.", 13, MUTED)
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	hint.custom_minimum_size = Vector2(600, 0)
+	mp_box.add_child(hint)
 	_mp_players()
+	_mp_options()
+
+
+## The host's choices: the island's seed, the computer nations and their difficulty, or carrying on the last
+## multiplayer game. Players see what the host chose once the game starts.
+func _mp_options() -> void:
+	if mp_opts_box == null or not is_instance_valid(mp_opts_box) or net == null:
+		return
+	for c in mp_opts_box.get_children():
+		c.queue_free()
+	if not net.is_host:
+		mp_opts_box.add_child(_lbl("The host chooses the island and the computer nations, and starts the game.", 14, MUTED))
+		return
+	var mo: Dictionary = Settings.menu.get("mp_opts", {})
+	if not mo.has("seed"):
+		mo = {"seed": random_seed(), "ais": 2, "diff": "moderate", "cont": false}
+		Settings.menu.mp_opts = mo
+	var keep := func():
+		Settings.menu.mp_opts = mo
+		Settings.save_all()
+	var cont: bool = mo.get("cont", false) and FileAccess.file_exists(main.MP_SAVE)
+	if FileAccess.file_exists(main.MP_SAVE):
+		var when := Time.get_datetime_string_from_unix_time(FileAccess.get_modified_time(main.MP_SAVE)).replace("T", " ").left(16)
+		var cb := _tog("Continue the last multiplayer game (saved %s)" % when, cont, func():
+			mo.cont = not cont
+			keep.call()
+			_mp_options(), false, "Players take back their own nations by joining with the same name; nations nobody comes back for are played by the computer")
+		mp_opts_box.add_child(cb)
+	if cont:
+		return
+	var sr := HBoxContainer.new()
+	sr.add_theme_constant_override("separation", 8)
+	var se := LineEdit.new()
+	se.text = str(mo.seed)
+	se.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_style_edit(se)
+	se.text_changed.connect(func(t2):
+		mo.seed = t2
+		keep.call())
+	sr.add_child(se)
+	sr.add_child(_dice(func():
+		mo.seed = random_seed()
+		se.text = mo.seed
+		keep.call(), "Random seed"))
+	_row("Map seed", sr, mp_opts_box)
+	var humans := net.players.size()
+	var room := 7 - (humans - 1)
+	mo.ais = clampi(int(mo.get("ais", 2)), 0, room)
+	var ar := HBoxContainer.new()
+	ar.add_theme_constant_override("separation", 4)
+	for n in range(0, room + 1):
+		var k: int = n
+		ar.add_child(_tog(str(n), int(mo.ais) == n, func():
+			mo.ais = k
+			keep.call()
+			_mp_options()))
+	_row("Computer nations", ar, mp_opts_box)
+	var dr := HBoxContainer.new()
+	dr.add_theme_constant_override("separation", 4)
+	for d in ["easy", "moderate", "difficult"]:
+		var dd: String = d
+		dr.add_child(_tog(SLOT_TEXT[d], mo.diff == d, func():
+			mo.diff = dd
+			keep.call()
+			_mp_options()))
+	_row("Their difficulty", dr, mp_opts_box)
+	var island := _lbl("Island: %s, start %s (from the New Game page). %d nations in all." % [str(opts.map.get("shape", "classic")).capitalize(), str(opts.start), humans + int(mo.ais)], 14, MUTED)
+	mp_opts_box.add_child(island)
+
+
+func _mp_begin() -> void:
+	if net == null or not net.is_host:
+		return
+	var mo: Dictionary = Settings.menu.get("mp_opts", {})
+	var o := {"seed": str(mo.get("seed", random_seed())).strip_edges(), "ais": int(mo.get("ais", 2)), "diff": str(mo.get("diff", "moderate")),
+		"cont": mo.get("cont", false) and FileAccess.file_exists(main.MP_SAVE), "start": opts.start, "map": opts.map}
+	if o.seed == "":
+		o.seed = random_seed()
+	mp_start.text = "Building the realm…"
+	mp_start.disabled = true
+	net.set_nation(_mp_nation())
+	var nt := net
+	net = null
+	main.start_mp_host(nt, o)
 
 
 func _mp_players() -> void:
 	if mp_players == null or not is_instance_valid(mp_players) or net == null:
 		return
+	if mp_start and is_instance_valid(mp_start):
+		mp_start.disabled = not net.is_host or net.players.size() < 2
+		mp_start.tooltip_text = "Only the host starts the game" if not net.is_host else "Waiting for at least one more player" if net.players.size() < 2 else "Start the game for everyone"
+	if net.is_host and mp_opts_box and is_instance_valid(mp_opts_box) and mp_opts_box.get_meta("n", 0) != net.players.size():
+		mp_opts_box.set_meta("n", net.players.size())
+		_mp_options()
 	for c in mp_players.get_children():
 		c.queue_free()
 	for id in net.players:
