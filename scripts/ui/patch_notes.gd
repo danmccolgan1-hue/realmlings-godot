@@ -5,6 +5,8 @@ extends Control
 ## web: v106.js renderPatchNotes
 
 const PORT_NOTES := [
+	{"v": "Godot 0.12", "date": "November 21, 2026", "items": [
+		["Flags", "Every race has its own flags. All keep the Crown, Shield, Crossed swords and Eagle. Realmlings add the Fleur-de-lis, Clenched fist, Heart and Rose; Swamplings the Flame, Bleeding eye, Beetle, Claw, Tooth, Skull, Crossed axes and Upside-down pyramid; Woodlings the Triskelion, Trinity knot, Celtic spiral, Great tree, Celtic knot, Shamrock, Dara knot and Shield knot. The Dragon, Horse, Snake and Lion are gone. Computer nations fly their race's flags too."]]},
 	{"v": "Godot 0.11", "date": "November 21, 2026", "items": [
 		["Leaders", "Every Swampling and Woodling leader's bonus now works: Phlyo's free Sacred Pyres, Aarg's burning traps, Nihaarg's stronger curses, Sariel's Mending, Eliwen's weakening, Naobrien's Grand Elemental, Paladomis's bleeding blows, and cheaper Forges for Finn, Glurg and Alathandrious."],
 		["Warlock skulls", "A Swampling Warlock with a wand holds a skull in the other hand: more attack, and a faster Fireball. Choose it in the Armory."],

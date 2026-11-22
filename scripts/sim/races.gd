@@ -6,6 +6,18 @@ extends RefCounted
 const NAME := {"realm": "Realmlings", "swamp": "Swamplings", "wood": "Woodlings"}   # web: swamp.js RACE_NAME
 const HOME := {"realm": "grassland", "swamp": "swamp", "wood": "forest"}         # web: game.js setupGame homeTer
 const FOOTMAN := {"realm": "d-sword", "swamp": "d-sw-axe", "wood": "d-wd-sword"}  # web: equip.js footmanOf
+# The flags each race can fly (the web game's eight emblems trimmed to four, plus each race's own; drawn by
+# tools/make_flags.py)
+const EMBLEMS := {
+	"realm": ["crown", "shield", "swords", "eagle", "fleur", "fist", "heart", "rose"],
+	"swamp": ["crown", "shield", "swords", "eagle", "flame", "bleedeye", "beetle", "claw", "tooth", "skull", "axes", "pyramid"],
+	"wood": ["crown", "shield", "swords", "eagle", "triskelion", "trinity", "spiral", "tree", "celtic", "shamrock", "dara", "shieldknot"],
+}
+const EMBLEM_NAMES := {"crown": "Crown", "shield": "Shield", "swords": "Crossed swords", "eagle": "Eagle", "fleur": "Fleur-de-lis",
+	"fist": "Clenched fist", "heart": "Heart", "rose": "Rose", "flame": "Flame", "bleedeye": "Bleeding eye", "beetle": "Beetle",
+	"claw": "Claw", "tooth": "Tooth", "skull": "Skull", "axes": "Crossed axes", "pyramid": "Upside-down pyramid",
+	"triskelion": "Triskelion", "trinity": "Trinity knot", "spiral": "Celtic spiral", "tree": "Great tree", "celtic": "Celtic knot",
+	"shamrock": "Shamrock", "dara": "Dara knot", "shieldknot": "Shield knot"}
 const HOME_ARMOR := {"realm": "leather1", "swamp": "stag1", "wood": "spirit1"}
 const SUPPLY_STORE := {"gold": 500, "wood": 500, "food": 500}                     # web: swamp.js (the Supply Cache)
 const BANK_STORE := {"gold": 1000}

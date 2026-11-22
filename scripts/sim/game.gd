@@ -7767,6 +7767,22 @@ func hops_list(src, nbr_list = null) -> Array:
 
 
 # web: ai.js spawnAINations (computer nations are Realmlings for now) and the v96.js wrapper
+# a computer nation's flag: the next of its race's emblems in a seeded order, not one already flown
+func race_emblem(rc: String, used: Dictionary) -> String:
+	var list: Array = Races.EMBLEMS.get(rc, Races.EMBLEMS.realm).duplicate()
+	var rr := Mulberry32.from_string(str(world.seed) + ":emblems:" + rc)
+	for i in range(list.size() - 1, 0, -1):
+		var jj := int(floor(rr.next() * (i + 1)))
+		var tmp = list[i]
+		list[i] = list[jj]
+		list[jj] = tmp
+	for em in list:
+		if not used.has(em):
+			used[em] = true
+			return em
+	return list[0]
+
+
 var slot_races := []   # the New Game page's race for each opponent slot: "realm", "swamp", "wood" or "random"
 
 func spawn_ai_nations(slots: Array) -> void:
@@ -7779,7 +7795,8 @@ func spawn_ai_nations(slots: Array) -> void:
 	# Array.sort(() => r() - 0.5): V8's TimSort with a random comparator, reproduced by JS.sort_random
 	var places: Array = JS.sort_random(GameData.c("AI_PLACES").duplicate(), r)
 	var sw_places: Array = JS.sort_random(GameData.c("SW_AI_PLACES").duplicate(), r)
-	var emblems: Array = JS.sort_random(GameData.c("FLAG_EMBLEMS").filter(func(e): return e != NAT.emblem), r)
+	var emblems: Array = JS.sort_random(GameData.c("FLAG_EMBLEMS").filter(func(e): return e != NAT.emblem), r)   # (kept: it draws from the map's random stream)
+	var used_emblems := {NAT.emblem: true}
 	var caps := [capital]
 	var reach := hops_list(capital)
 	var k := 0
@@ -7835,7 +7852,7 @@ func spawn_ai_nations(slots: Array) -> void:
 			aline = {"leather": "stag", "chain": "wyvern", "plate": "dragon"}.get(aline, "stag")
 		elif rc == "wood":
 			aline = {"leather": "spirit", "chain": "mithril", "plate": "ornate"}.get(aline, "spirit")
-		var N := {"id": id, "diff": diff, "name": name, "emblem": emblems[k % emblems.size()] if k < emblems.size() else GameData.c("FLAG_EMBLEMS")[k % GameData.c("FLAG_EMBLEMS").size()],
+		var N := {"id": id, "diff": diff, "name": name, "emblem": race_emblem(rc, used_emblems),
 			"alive": true, "capital": cap, "stock": GameData.c("START_STOCK").duplicate(), "rep": {}, "surveyed": {cap: true}, "exhaust": 0,
 			"ups": {}, "xups": {}, "tech": tech_state, "queue": [], "think": t + 1 + i * 0.37, "nextOutpost": 0, "phase": "grow",
 			"stuckSince": null, "warCheck": warc, "family": fam, "armorLine": aline, "race": rc, "school": null, "wantSchool": school,

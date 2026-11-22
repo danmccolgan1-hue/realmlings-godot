@@ -495,11 +495,16 @@ func _refresh_setup() -> void:
 			_refresh_setup())
 		cols.add_child(b)
 	_row("Color", cols, setup_box)
-	var flags := HBoxContainer.new()
-	flags.add_theme_constant_override("separation", 8)
+	var flags := HFlowContainer.new()
+	flags.add_theme_constant_override("h_separation", 8)
+	flags.add_theme_constant_override("v_separation", 6)
+	flags.custom_minimum_size = Vector2(600, 0)
 	var col_hex := str(NC[int(opts.nation.color)][0]).trim_prefix("#").to_lower()
-	var FN: Dictionary = GameData.c("FLAG_NAMES")
-	for em in GameData.c("FLAG_EMBLEMS"):
+	var FN: Dictionary = Races.EMBLEM_NAMES
+	var ems: Array = Races.EMBLEMS[opts.get("race", "realm")]
+	if not ems.has(opts.nation.emblem):   # each race flies its own flags
+		opts.nation.emblem = "crown"
+	for em in ems:
 		var b := Button.new()
 		b.custom_minimum_size = Vector2(64, 46)
 		b.focus_mode = Control.FOCUS_NONE

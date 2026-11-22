@@ -13,6 +13,8 @@ func run() -> Array:
 		if not f.ends_with(".json"):
 			continue
 		var fx: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(DIR + f))
+		for n in fx.nations:   # the port gives each race its own flags (Races.EMBLEMS), so emblems no longer follow the web game
+			n.erase("emblem")
 		var g := Game.new_world(fx.seed, fx.leader, fx.slots, fx.start)
 		var got := snapshot(g)
 		for k in got:
@@ -40,7 +42,7 @@ static func snapshot(g: Game) -> Dictionary:
 		var td := {}
 		for tr in trees:
 			td[tr] = N.tech[tr].done
-		nats.append({"id": N.id, "diff": N.diff, "name": N.name, "emblem": N.emblem, "capital": N.capital, "family": N.family,
+		nats.append({"id": N.id, "diff": N.diff, "name": N.name, "capital": N.capital, "family": N.family,
 			"armorLine": N.armorLine, "wantSchool": N.wantSchool, "leader": N.leader, "design": N.design, "warCheck": r6.call(N.warCheck),
 			"think": r6.call(N.think), "stock": N.stock, "techDone": td})
 	var pl := {}

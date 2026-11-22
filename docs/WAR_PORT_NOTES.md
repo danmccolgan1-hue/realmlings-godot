@@ -256,6 +256,11 @@ The plan after milestone 1. Each step is tested against the web game, then commi
      errands and flight); art jobs `mcast` (casting poses by race and school) and `dualwield` (Berserkers with two
      weapons). Houses are exported with the roof in each of the 8 nation colors (`house_v<n>_r<hex>.png`).
 
+17. **Flags by race** — `Races.EMBLEMS` / `EMBLEM_NAMES`; the emblems are SVG in `tools/flag_emblems.json`, rendered by
+    `tools/make_flags.py` for every nation color (216 flags). Computer nations take their race's emblems in a seeded order
+    (`race_emblem`); the web game's emblem shuffle is still drawn so the rest of the setup matches the fixtures, whose
+    emblems `tests/test_setup.gd` no longer compares. A save with a retired emblem shows the crown.
+
 ## Things to remember
 
 - **Always grep for wrappers** (`name = function`) before porting a function: later web files replace many of them.

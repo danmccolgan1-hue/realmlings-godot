@@ -95,5 +95,7 @@ static func nation_flag(game, o: int):
 	var key := col + "_" + em
 	if not _flag_cache.has(key):
 		var sp = get_sprite("flags", "nations", "flag_%s.png" % key)
+		if sp == null:   # an emblem no longer drawn (an older save): the crown
+			sp = get_sprite("flags", "nations", "flag_%s_crown.png" % col)
 		_flag_cache[key] = sp.tex if sp else null
 	return _flag_cache[key]

@@ -1,11 +1,36 @@
 {
  "images": {
+  "flag_1f9fa5_axes.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_1f9fa5_beetle.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_1f9fa5_bleedeye.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_1f9fa5_celtic.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_1f9fa5_claw.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
   "flag_1f9fa5_crown.png": {
    "ax": 0,
    "ay": 0,
    "scale": 1
   },
-  "flag_1f9fa5_dragon.png": {
+  "flag_1f9fa5_dara.png": {
    "ax": 0,
    "ay": 0,
    "scale": 1
@@ -15,12 +40,37 @@
    "ay": 0,
    "scale": 1
   },
-  "flag_1f9fa5_horse.png": {
+  "flag_1f9fa5_fist.png": {
    "ax": 0,
    "ay": 0,
    "scale": 1
   },
-  "flag_1f9fa5_lion.png": {
+  "flag_1f9fa5_flame.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_1f9fa5_fleur.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_1f9fa5_heart.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_1f9fa5_pyramid.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_1f9fa5_rose.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_1f9fa5_shamrock.png": {
    "ax": 0,
    "ay": 0,
    "scale": 1
@@ -30,7 +80,17 @@
    "ay": 0,
    "scale": 1
   },
-  "flag_1f9fa5_snake.png": {
+  "flag_1f9fa5_shieldknot.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_1f9fa5_skull.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_1f9fa5_spiral.png": {
    "ax": 0,
    "ay": 0,
    "scale": 1
@@ -40,12 +100,57 @@
    "ay": 0,
    "scale": 1
   },
+  "flag_1f9fa5_tooth.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_1f9fa5_tree.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_1f9fa5_trinity.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_1f9fa5_triskelion.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_2f6fe0_axes.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_2f6fe0_beetle.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_2f6fe0_bleedeye.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_2f6fe0_celtic.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_2f6fe0_claw.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
   "flag_2f6fe0_crown.png": {
    "ax": 0,
    "ay": 0,
    "scale": 1
   },
-  "flag_2f6fe0_dragon.png": {
+  "flag_2f6fe0_dara.png": {
    "ax": 0,
    "ay": 0,
    "scale": 1
@@ -55,12 +160,37 @@
    "ay": 0,
    "scale": 1
   },
-  "flag_2f6fe0_horse.png": {
+  "flag_2f6fe0_fist.png": {
    "ax": 0,
    "ay": 0,
    "scale": 1
   },
-  "flag_2f6fe0_lion.png": {
+  "flag_2f6fe0_flame.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_2f6fe0_fleur.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_2f6fe0_heart.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_2f6fe0_pyramid.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_2f6fe0_rose.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_2f6fe0_shamrock.png": {
    "ax": 0,
    "ay": 0,
    "scale": 1
@@ -70,7 +200,17 @@
    "ay": 0,
    "scale": 1
   },
-  "flag_2f6fe0_snake.png": {
+  "flag_2f6fe0_shieldknot.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_2f6fe0_skull.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_2f6fe0_spiral.png": {
    "ax": 0,
    "ay": 0,
    "scale": 1
@@ -80,12 +220,57 @@
    "ay": 0,
    "scale": 1
   },
+  "flag_2f6fe0_tooth.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_2f6fe0_tree.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_2f6fe0_trinity.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_2f6fe0_triskelion.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_2f9e55_axes.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_2f9e55_beetle.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_2f9e55_bleedeye.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_2f9e55_celtic.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_2f9e55_claw.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
   "flag_2f9e55_crown.png": {
    "ax": 0,
    "ay": 0,
    "scale": 1
   },
-  "flag_2f9e55_dragon.png": {
+  "flag_2f9e55_dara.png": {
    "ax": 0,
    "ay": 0,
    "scale": 1
@@ -95,12 +280,37 @@
    "ay": 0,
    "scale": 1
   },
-  "flag_2f9e55_horse.png": {
+  "flag_2f9e55_fist.png": {
    "ax": 0,
    "ay": 0,
    "scale": 1
   },
-  "flag_2f9e55_lion.png": {
+  "flag_2f9e55_flame.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_2f9e55_fleur.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_2f9e55_heart.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_2f9e55_pyramid.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_2f9e55_rose.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_2f9e55_shamrock.png": {
    "ax": 0,
    "ay": 0,
    "scale": 1
@@ -110,7 +320,17 @@
    "ay": 0,
    "scale": 1
   },
-  "flag_2f9e55_snake.png": {
+  "flag_2f9e55_shieldknot.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_2f9e55_skull.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_2f9e55_spiral.png": {
    "ax": 0,
    "ay": 0,
    "scale": 1
@@ -120,12 +340,57 @@
    "ay": 0,
    "scale": 1
   },
+  "flag_2f9e55_tooth.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_2f9e55_tree.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_2f9e55_trinity.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_2f9e55_triskelion.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_4b4f5c_axes.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_4b4f5c_beetle.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_4b4f5c_bleedeye.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_4b4f5c_celtic.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_4b4f5c_claw.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
   "flag_4b4f5c_crown.png": {
    "ax": 0,
    "ay": 0,
    "scale": 1
   },
-  "flag_4b4f5c_dragon.png": {
+  "flag_4b4f5c_dara.png": {
    "ax": 0,
    "ay": 0,
    "scale": 1
@@ -135,12 +400,37 @@
    "ay": 0,
    "scale": 1
   },
-  "flag_4b4f5c_horse.png": {
+  "flag_4b4f5c_fist.png": {
    "ax": 0,
    "ay": 0,
    "scale": 1
   },
-  "flag_4b4f5c_lion.png": {
+  "flag_4b4f5c_flame.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_4b4f5c_fleur.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_4b4f5c_heart.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_4b4f5c_pyramid.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_4b4f5c_rose.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_4b4f5c_shamrock.png": {
    "ax": 0,
    "ay": 0,
    "scale": 1
@@ -150,7 +440,17 @@
    "ay": 0,
    "scale": 1
   },
-  "flag_4b4f5c_snake.png": {
+  "flag_4b4f5c_shieldknot.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_4b4f5c_skull.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_4b4f5c_spiral.png": {
    "ax": 0,
    "ay": 0,
    "scale": 1
@@ -160,12 +460,57 @@
    "ay": 0,
    "scale": 1
   },
+  "flag_4b4f5c_tooth.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_4b4f5c_tree.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_4b4f5c_trinity.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_4b4f5c_triskelion.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_8a4fd0_axes.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_8a4fd0_beetle.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_8a4fd0_bleedeye.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_8a4fd0_celtic.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_8a4fd0_claw.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
   "flag_8a4fd0_crown.png": {
    "ax": 0,
    "ay": 0,
    "scale": 1
   },
-  "flag_8a4fd0_dragon.png": {
+  "flag_8a4fd0_dara.png": {
    "ax": 0,
    "ay": 0,
    "scale": 1
@@ -175,12 +520,37 @@
    "ay": 0,
    "scale": 1
   },
-  "flag_8a4fd0_horse.png": {
+  "flag_8a4fd0_fist.png": {
    "ax": 0,
    "ay": 0,
    "scale": 1
   },
-  "flag_8a4fd0_lion.png": {
+  "flag_8a4fd0_flame.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_8a4fd0_fleur.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_8a4fd0_heart.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_8a4fd0_pyramid.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_8a4fd0_rose.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_8a4fd0_shamrock.png": {
    "ax": 0,
    "ay": 0,
    "scale": 1
@@ -190,7 +560,17 @@
    "ay": 0,
    "scale": 1
   },
-  "flag_8a4fd0_snake.png": {
+  "flag_8a4fd0_shieldknot.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_8a4fd0_skull.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_8a4fd0_spiral.png": {
    "ax": 0,
    "ay": 0,
    "scale": 1
@@ -200,12 +580,57 @@
    "ay": 0,
    "scale": 1
   },
+  "flag_8a4fd0_tooth.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_8a4fd0_tree.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_8a4fd0_trinity.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_8a4fd0_triskelion.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_8a5a2b_axes.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_8a5a2b_beetle.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_8a5a2b_bleedeye.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_8a5a2b_celtic.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_8a5a2b_claw.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
   "flag_8a5a2b_crown.png": {
    "ax": 0,
    "ay": 0,
    "scale": 1
   },
-  "flag_8a5a2b_dragon.png": {
+  "flag_8a5a2b_dara.png": {
    "ax": 0,
    "ay": 0,
    "scale": 1
@@ -215,12 +640,37 @@
    "ay": 0,
    "scale": 1
   },
-  "flag_8a5a2b_horse.png": {
+  "flag_8a5a2b_fist.png": {
    "ax": 0,
    "ay": 0,
    "scale": 1
   },
-  "flag_8a5a2b_lion.png": {
+  "flag_8a5a2b_flame.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_8a5a2b_fleur.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_8a5a2b_heart.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_8a5a2b_pyramid.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_8a5a2b_rose.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_8a5a2b_shamrock.png": {
    "ax": 0,
    "ay": 0,
    "scale": 1
@@ -230,7 +680,17 @@
    "ay": 0,
    "scale": 1
   },
-  "flag_8a5a2b_snake.png": {
+  "flag_8a5a2b_shieldknot.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_8a5a2b_skull.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_8a5a2b_spiral.png": {
    "ax": 0,
    "ay": 0,
    "scale": 1
@@ -240,12 +700,57 @@
    "ay": 0,
    "scale": 1
   },
+  "flag_8a5a2b_tooth.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_8a5a2b_tree.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_8a5a2b_trinity.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_8a5a2b_triskelion.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_c23f8f_axes.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_c23f8f_beetle.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_c23f8f_bleedeye.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_c23f8f_celtic.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_c23f8f_claw.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
   "flag_c23f8f_crown.png": {
    "ax": 0,
    "ay": 0,
    "scale": 1
   },
-  "flag_c23f8f_dragon.png": {
+  "flag_c23f8f_dara.png": {
    "ax": 0,
    "ay": 0,
    "scale": 1
@@ -255,12 +760,37 @@
    "ay": 0,
    "scale": 1
   },
-  "flag_c23f8f_horse.png": {
+  "flag_c23f8f_fist.png": {
    "ax": 0,
    "ay": 0,
    "scale": 1
   },
-  "flag_c23f8f_lion.png": {
+  "flag_c23f8f_flame.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_c23f8f_fleur.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_c23f8f_heart.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_c23f8f_pyramid.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_c23f8f_rose.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_c23f8f_shamrock.png": {
    "ax": 0,
    "ay": 0,
    "scale": 1
@@ -270,7 +800,17 @@
    "ay": 0,
    "scale": 1
   },
-  "flag_c23f8f_snake.png": {
+  "flag_c23f8f_shieldknot.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_c23f8f_skull.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_c23f8f_spiral.png": {
    "ax": 0,
    "ay": 0,
    "scale": 1
@@ -280,12 +820,57 @@
    "ay": 0,
    "scale": 1
   },
+  "flag_c23f8f_tooth.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_c23f8f_tree.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_c23f8f_trinity.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_c23f8f_triskelion.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_d23b3b_axes.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_d23b3b_beetle.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_d23b3b_bleedeye.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_d23b3b_celtic.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_d23b3b_claw.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
   "flag_d23b3b_crown.png": {
    "ax": 0,
    "ay": 0,
    "scale": 1
   },
-  "flag_d23b3b_dragon.png": {
+  "flag_d23b3b_dara.png": {
    "ax": 0,
    "ay": 0,
    "scale": 1
@@ -295,12 +880,37 @@
    "ay": 0,
    "scale": 1
   },
-  "flag_d23b3b_horse.png": {
+  "flag_d23b3b_fist.png": {
    "ax": 0,
    "ay": 0,
    "scale": 1
   },
-  "flag_d23b3b_lion.png": {
+  "flag_d23b3b_flame.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_d23b3b_fleur.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_d23b3b_heart.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_d23b3b_pyramid.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_d23b3b_rose.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_d23b3b_shamrock.png": {
    "ax": 0,
    "ay": 0,
    "scale": 1
@@ -310,7 +920,17 @@
    "ay": 0,
    "scale": 1
   },
-  "flag_d23b3b_snake.png": {
+  "flag_d23b3b_shieldknot.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_d23b3b_skull.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_d23b3b_spiral.png": {
    "ax": 0,
    "ay": 0,
    "scale": 1
@@ -320,12 +940,57 @@
    "ay": 0,
    "scale": 1
   },
+  "flag_d23b3b_tooth.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_d23b3b_tree.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_d23b3b_trinity.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_d23b3b_triskelion.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_e08a1e_axes.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_e08a1e_beetle.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_e08a1e_bleedeye.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_e08a1e_celtic.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_e08a1e_claw.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
   "flag_e08a1e_crown.png": {
    "ax": 0,
    "ay": 0,
    "scale": 1
   },
-  "flag_e08a1e_dragon.png": {
+  "flag_e08a1e_dara.png": {
    "ax": 0,
    "ay": 0,
    "scale": 1
@@ -335,12 +1000,37 @@
    "ay": 0,
    "scale": 1
   },
-  "flag_e08a1e_horse.png": {
+  "flag_e08a1e_fist.png": {
    "ax": 0,
    "ay": 0,
    "scale": 1
   },
-  "flag_e08a1e_lion.png": {
+  "flag_e08a1e_flame.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_e08a1e_fleur.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_e08a1e_heart.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_e08a1e_pyramid.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_e08a1e_rose.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_e08a1e_shamrock.png": {
    "ax": 0,
    "ay": 0,
    "scale": 1
@@ -350,12 +1040,42 @@
    "ay": 0,
    "scale": 1
   },
-  "flag_e08a1e_snake.png": {
+  "flag_e08a1e_shieldknot.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_e08a1e_skull.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_e08a1e_spiral.png": {
    "ax": 0,
    "ay": 0,
    "scale": 1
   },
   "flag_e08a1e_swords.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_e08a1e_tooth.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_e08a1e_tree.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_e08a1e_trinity.png": {
+   "ax": 0,
+   "ay": 0,
+   "scale": 1
+  },
+  "flag_e08a1e_triskelion.png": {
    "ax": 0,
    "ay": 0,
    "scale": 1
