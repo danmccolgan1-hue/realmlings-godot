@@ -86,16 +86,51 @@ static var _flag_cache := {}
 
 ## A nation's flag image: its color with its emblem (web: v78.js ownerFlag / features.js flagURL); null if none.
 static func nation_flag(game, o: int):
-	var col := str(game.player_info(o).color).trim_prefix("#").to_lower()
+	var col := str(game.player_info(o).color)
 	var em := "swords"
+	var sec := "#faf1dc"
 	if o == Game.ME:
-		em = str(game.my_nation.get("emblem", "crown")) if game is Game else str(GameData.c("NATION").get("emblem", "crown"))
+		var nat: Dictionary = game.my_nation if game is Game else GameData.c("NATION")
+		em = str(nat.get("emblem", "crown"))
+		sec = str(nat.get("secondary", sec))
 	elif game.nations.has(o):
 		em = str(game.nations[o].get("emblem", "swords"))
-	var key := col + "_" + em
-	if not _flag_cache.has(key):
-		var sp = get_sprite("flags", "nations", "flag_%s.png" % key)
-		if sp == null:   # an emblem no longer drawn (an older save): the crown
-			sp = get_sprite("flags", "nations", "flag_%s_crown.png" % col)
-		_flag_cache[key] = sp.tex if sp else null
-	return _flag_cache[key]
+		sec = str(game.nations[o].get("secondary", sec))
+	return flag_texture(col, em, sec)
+
+
+## A flag put together: the cloth in the nation's color, the emblem filled with the emblem color
+## (tools/make_flags.py draws each emblem filled black and filled white: fill = black + (white - black) * color).
+static func flag_texture(col: String, em: String, sec: String):
+	var c := col.trim_prefix("#").to_lower()
+	var key := "%s_%s_%s" % [c, em, sec.trim_prefix("#").to_lower()]
+	if _flag_cache.has(key):
+		return _flag_cache[key]
+	var cloth = get_sprite("flags", "nations", "cloth_%s.png" % c)
+	var k = get_sprite("flags", "nations", "emblem_%s_k.png" % em)
+	var w = get_sprite("flags", "nations", "emblem_%s_w.png" % em)
+	if k == null or w == null:   # an emblem no longer drawn (an older save): the crown
+		k = get_sprite("flags", "nations", "emblem_crown_k.png")
+		w = get_sprite("flags", "nations", "emblem_crown_w.png")
+	if cloth == null or k == null or w == null:
+		_flag_cache[key] = null
+		return null
+	var img: Image = cloth.tex.get_image()
+	img.convert(Image.FORMAT_RGBA8)
+	var ik: Image = k.tex.get_image()
+	ik.convert(Image.FORMAT_RGBA8)
+	var iw: Image = w.tex.get_image()
+	iw.convert(Image.FORMAT_RGBA8)
+	var S := Color(sec)
+	var em_img := Image.create(ik.get_width(), ik.get_height(), false, Image.FORMAT_RGBA8)
+	for y in ik.get_height():
+		for x in ik.get_width():
+			var a := ik.get_pixel(x, y)
+			if a.a <= 0.0:
+				continue
+			var b := iw.get_pixel(x, y)
+			em_img.set_pixel(x, y, Color(a.r + (b.r - a.r) * S.r, a.g + (b.g - a.g) * S.g, a.b + (b.b - a.b) * S.b, a.a))
+	img.blend_rect(em_img, Rect2i(Vector2i.ZERO, em_img.get_size()), Vector2i.ZERO)
+	var tex := ImageTexture.create_from_image(img)
+	_flag_cache[key] = tex
+	return tex

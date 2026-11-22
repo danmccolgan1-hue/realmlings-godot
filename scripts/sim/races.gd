@@ -13,6 +13,17 @@ const EMBLEMS := {
 	"swamp": ["crown", "shield", "swords", "eagle", "flame", "bleedeye", "beetle", "claw", "tooth", "skull", "axes", "pyramid"],
 	"wood": ["crown", "shield", "swords", "eagle", "triskelion", "trinity", "spiral", "tree", "celtic", "shamrock", "dara", "shieldknot"],
 }
+# the emblem's color on the flag, in rows from light to deep; no black (the deepest neutral is a gray)
+const EMBLEM_COLORS := [
+	["#ffffff", "#faf1dc", "#e6e1d6", "#c9c6c0", "#a3a3ab", "#7c7d86"],
+	["#fff6c8", "#f4d35e", "#e8b830", "#d29a1c", "#b07a20", "#8a6a3a"],
+	["#ffd8c2", "#ffad7a", "#f08a3c", "#e06a2a", "#c25a2e", "#9c4a2e"],
+	["#ffd1dc", "#ff9ab0", "#e86a84", "#d23b5b", "#b3263e", "#8e2a3e"],
+	["#f0d7ff", "#cfaaf5", "#b07ae8", "#8a5ad0", "#6f45b0", "#583a8e"],
+	["#d6ecff", "#a8d2ff", "#7ab2f2", "#4a8fe0", "#2f6fc0", "#2f5a9e"],
+	["#c8f2ef", "#8ee0d8", "#5cc8c0", "#2fa8a0", "#238a85", "#2a6e6a"],
+	["#dff7c8", "#b5e69a", "#8ccf6a", "#5fb04a", "#3f8f3a", "#3a6e34"],
+]
 const EMBLEM_NAMES := {"crown": "Crown", "shield": "Shield", "swords": "Crossed swords", "eagle": "Eagle", "fleur": "Fleur-de-lis",
 	"fist": "Clenched fist", "heart": "Heart", "rose": "Rose", "flame": "Flame", "bleedeye": "Bleeding eye", "beetle": "Beetle",
 	"claw": "Claw", "tooth": "Tooth", "skull": "Skull", "axes": "Crossed axes", "pyramid": "Upside-down pyramid",

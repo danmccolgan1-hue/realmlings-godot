@@ -79,7 +79,7 @@ func show_screen(n: String) -> void:
 
 func _load_opts() -> Dictionary:
 	var NAT: Dictionary = GameData.c("NATION")
-	var d := {"seed": random_seed(), "nation": {"name": NAT.name, "color": NAT.color, "emblem": NAT.emblem}, "leader": "random", "race": "realm", "races": ["random", "random", "random", "random", "random", "random", "random"], "start": "center", "practice": false,
+	var d := {"seed": random_seed(), "nation": {"name": NAT.name, "color": NAT.color, "emblem": NAT.emblem, "secondary": "#faf1dc"}, "leader": "random", "race": "realm", "races": ["random", "random", "random", "random", "random", "random", "random"], "start": "center", "practice": false,
 		"map": {"shape": "classic", "pens": 2, "coves": 2, "trees": 0}, "slots": ["easy", "easy", "moderate", "closed", "closed", "closed", "closed"]}
 	var m: Dictionary = Settings.menu
 	for k in ["nation", "leader", "race", "races", "start", "practice", "map", "slots"]:
@@ -512,10 +512,10 @@ func _refresh_setup() -> void:
 		var on: bool = opts.nation.emblem == em
 		for st in ["normal", "hover", "pressed"]:
 			b.add_theme_stylebox_override(st, _sb(Color("#fff2c2") if on else Color(0, 0, 0, 0), 3 if on else 0, 4, 3, SUN))
-		var sp2 = Art.get_sprite("flags", "nations", "flag_%s_%s.png" % [col_hex, em])
-		if sp2:
+		var ftex = Art.flag_texture(col_hex, em, str(opts.nation.get("secondary", "#faf1dc")))
+		if ftex:
 			var r := TextureRect.new()
-			r.texture = sp2.tex
+			r.texture = ftex
 			r.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 			r.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 			r.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -528,6 +528,29 @@ func _refresh_setup() -> void:
 			_refresh_setup())
 		flags.add_child(b)
 	_row("Flag", flags, setup_box)
+	# the emblem's color, on top of the nation's color: a column per hue, light at the top to deep at the bottom
+	# (no black: the deepest neutral is a gray)
+	var sec_box := HBoxContainer.new()
+	sec_box.add_theme_constant_override("separation", 5)
+	for row in Races.EMBLEM_COLORS:
+		var vc := VBoxContainer.new()
+		vc.add_theme_constant_override("separation", 3)
+		for cs in row:
+			var sb := Button.new()
+			sb.custom_minimum_size = Vector2(22, 18)
+			sb.focus_mode = Control.FOCUS_NONE
+			sb.tooltip_text = "Emblem color"
+			var picked: bool = str(opts.nation.get("secondary", "#faf1dc")).to_lower() == cs
+			for st in ["normal", "hover", "pressed"]:
+				sb.add_theme_stylebox_override(st, _sb(Color(cs), 3 if picked else 1, 4, 0, SUN if picked else INK))
+			var c2: String = cs
+			sb.pressed.connect(func():
+				opts.nation.secondary = c2
+				_save_opts()
+				_refresh_setup())
+			vc.add_child(sb)
+		sec_box.add_child(vc)
+	_row("Emblem color", sec_box, setup_box)
 	# the island
 	var sh := HBoxContainer.new()
 	sh.add_theme_constant_override("separation", 8)

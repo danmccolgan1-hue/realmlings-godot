@@ -214,12 +214,12 @@ func is_wd(o := ME) -> bool:
 
 # web: game.js setupGame() (the player's land is grassland). where: "center", "edge" or "random" (menu Start position)
 # web: features.js NATION / applyNation: your nation's name, color and flag (chosen on the New Game page)
-var my_nation := {"name": "My Realm", "color": 0, "emblem": "crown"}
+var my_nation := {"name": "My Realm", "color": 0, "emblem": "crown", "secondary": "#faf1dc"}
 
 
 func set_nation(n: Dictionary) -> void:
 	var NAT: Dictionary = GameData.c("NATION")
-	my_nation = {"name": str(n.get("name", NAT.get("name", "My Realm"))).strip_edges().left(24), "color": int(n.get("color", NAT.color)), "emblem": str(n.get("emblem", NAT.emblem))}
+	my_nation = {"name": str(n.get("name", NAT.get("name", "My Realm"))).strip_edges().left(24), "color": int(n.get("color", NAT.color)), "emblem": str(n.get("emblem", NAT.emblem)), "secondary": str(n.get("secondary", "#faf1dc"))}
 	if my_nation.name == "":
 		my_nation.name = "My Realm"
 	var NC: Array = GameData.c("NATION_COLORS")
@@ -7783,6 +7783,13 @@ func race_emblem(rc: String, used: Dictionary) -> String:
 	return list[0]
 
 
+# a computer nation's emblem color, seeded by the map: a light shade (the first two of a row) of any row
+func ai_emblem_color(id: int) -> String:
+	var rr := Mulberry32.from_string(str(world.seed) + ":emblemcolor:%d" % id)
+	var row: Array = Races.EMBLEM_COLORS[int(floor(rr.next() * Races.EMBLEM_COLORS.size()))]
+	return row[int(floor(rr.next() * 2))]
+
+
 var slot_races := []   # the New Game page's race for each opponent slot: "realm", "swamp", "wood" or "random"
 
 func spawn_ai_nations(slots: Array) -> void:
@@ -7852,7 +7859,7 @@ func spawn_ai_nations(slots: Array) -> void:
 			aline = {"leather": "stag", "chain": "wyvern", "plate": "dragon"}.get(aline, "stag")
 		elif rc == "wood":
 			aline = {"leather": "spirit", "chain": "mithril", "plate": "ornate"}.get(aline, "spirit")
-		var N := {"id": id, "diff": diff, "name": name, "emblem": race_emblem(rc, used_emblems),
+		var N := {"id": id, "diff": diff, "name": name, "emblem": race_emblem(rc, used_emblems), "secondary": ai_emblem_color(id),
 			"alive": true, "capital": cap, "stock": GameData.c("START_STOCK").duplicate(), "rep": {}, "surveyed": {cap: true}, "exhaust": 0,
 			"ups": {}, "xups": {}, "tech": tech_state, "queue": [], "think": t + 1 + i * 0.37, "nextOutpost": 0, "phase": "grow",
 			"stuckSince": null, "warCheck": warc, "family": fam, "armorLine": aline, "race": rc, "school": null, "wantSchool": school,
