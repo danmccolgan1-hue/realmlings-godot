@@ -152,7 +152,8 @@ func _draw() -> void:
 		if orders == null:
 			orders = MapOrders.new(self)
 		orders.draw_sel_provs(game, game.t)
-		_draw_game()
+		if not has_meta("no_game"):
+			_draw_game()
 
 
 const HOSTILE := Color("#d8473a")

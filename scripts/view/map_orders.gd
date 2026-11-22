@@ -45,6 +45,9 @@ func draw_sel_provs(g: Game, t: float) -> void:
 		pts.append(pts[0])
 		Pen.stroke_line(v, pts, Color("#ffe27a", a * 0.5), maxf(16, 10 / z))
 		Pen.stroke_line(v, pts, Color("#fff1b0", a), maxf(4, 2.4 / z))
+		# (0.17) and the marching outline of a selected province, so it stands out at any zoom
+		Pen.stroke_line(v, pts, OL, maxf(7, 4 / z))
+		v._dashes(pts, maxf(4, 2.4 / z), Color("#ffc93c"), 16.0, 10.0, t * 20.0)
 
 
 # web: game.js drawSurvey: the surveyed stretch of the loop traced behind the Wayfinder, stakes at its corners

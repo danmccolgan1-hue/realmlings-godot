@@ -175,7 +175,7 @@ func _fit() -> void:
 func _header() -> void:
 	head_flag.texture = Art.nation_flag(game, Game.LOCAL)
 	var me = game.leader_of(Game.LOCAL)
-	head_pt.texture = Hud.icon("icons/realm/leader_%s.png" % me.id) if me != null else null
+	head_pt.texture = Hud.leader_icon(me.id) if me != null else null
 	head_pt.get_parent().visible = me != null
 	var e = game.enemy_of(Game.LOCAL)
 	head_sub.text = "%s%s · at war with %d of at most %d nations%s · hover a nation to see its opinion of you" % [game.player_info(Game.LOCAL).name,
@@ -948,7 +948,7 @@ func _texrect(w: int, h: int) -> TextureRect:
 func _portrait(L, px: int) -> TextureRect:
 	var t := _texrect(px, px)
 	t.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-	t.texture = Hud.icon("icons/realm/leader_%s.png" % L.id) if L != null else null
+	t.texture = Hud.leader_icon(L.id) if L != null else null
 	t.draw.connect(func(): t.draw_rect(Rect2(Vector2.ZERO, t.size), UiKit.INK, false, 2.0))
 	return t
 

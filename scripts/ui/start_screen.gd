@@ -22,6 +22,7 @@ const PARADE := ["pioneer:B", "mason:A", "d-sword", "d-spear", "d-rider", "mage:
 
 var main                    # the scene's entry node: starts games, loads saves, opens windows
 var card: PanelContainer
+var holder: ScrollContainer
 var screens := {}           # name -> VBoxContainer
 var opts := {}              # the New Game choices (Settings.menu)
 var seed_edit: LineEdit
@@ -45,6 +46,9 @@ func _ready() -> void:
 	card = PanelContainer.new()
 	card.add_theme_stylebox_override("panel", _sb(CARD, 2, 4, 22))
 	add_child(card)
+	holder = ScrollContainer.new()   # (a page taller than the screen scrolls inside the card)
+	holder.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	card.add_child(holder)
 	for n in ["main", "tut", "multi", "setup"]:
 		var v := VBoxContainer.new()
 		v.add_theme_constant_override("separation", 12)
@@ -58,7 +62,11 @@ func _ready() -> void:
 
 func _process(_dt: float) -> void:
 	_mp_poll(_dt)
-	# the card stays in the middle of the screen
+	# the card fits the screen (scrolling when its page is taller) and stays in the middle
+	if holder.get_child_count():
+		var need: Vector2 = holder.get_child(0).get_combined_minimum_size()
+		var room: float = get_viewport_rect().size.y - 110
+		holder.custom_minimum_size = Vector2(need.x + (16 if need.y > room else 0), minf(need.y, room))
 	card.reset_size()
 	var vs := get_viewport_rect().size
 	card.position = ((vs - card.size) / 2).floor()
@@ -67,9 +75,10 @@ func _process(_dt: float) -> void:
 
 
 func show_screen(n: String) -> void:
-	if card.get_child_count():
-		card.remove_child(card.get_child(0))
-	card.add_child(screens[n])
+	if holder.get_child_count():
+		holder.remove_child(holder.get_child(0))
+	holder.add_child(screens[n])
+	holder.scroll_vertical = 0
 	if n == "main" and cont_btn:
 		cont_btn.visible = FileAccess.file_exists(main.AUTOSAVE)
 	if n == "setup":
@@ -105,9 +114,17 @@ static func random_seed() -> String:
 	return "%s-%s-%d" % [W.pick_random(), W.pick_random(), randi_range(10, 99)]
 
 
-## web: features.js randomNationName (the Realmlings' style)
-static func random_nation_name() -> String:
-	var P: Dictionary = GameData.c("NAME_PARTS").realm
+## web: features.js randomNationName: each race names its nations its own way
+static func random_nation_name(race := "realm") -> String:
+	var NP: Dictionary = GameData.c("NAME_PARTS")
+	if race == "swamp" and NP.has("swamp"):   # "Bloodtusk Clan", "Legion of Skullmire"
+		var S: Dictionary = NP.swamp
+		return ("%s %s" % [S.places.pick_random(), S.titles.pick_random()]) if randf() < 0.5 else ("%s of %s" % [S.titles.pick_random(), S.places.pick_random()])
+	if race == "wood" and NP.has("wood"):   # "Moonwatchers", "Hunters of the Dark", "Ancient Defenders"
+		var W: Dictionary = NP.wood
+		var r := randf()
+		return (str(W.pre.pick_random()) + str(W.post.pick_random())) if r < 0.35 else ("%s of %s" % [W.groups.pick_random(), W.of.pick_random()]) if r < 0.75 else ("%s %s" % [W.adj.pick_random(), W.groups.pick_random()])
+	var P: Dictionary = NP.realm
 	return "%s of %s" % [P.titles.pick_random(), P.places.pick_random()]
 
 
@@ -717,10 +734,11 @@ func _build_setup() -> void:
 	_style_edit(nation_edit)
 	nh.add_child(nation_edit)
 	nh.add_child(_dice(func():
-		var n := random_nation_name()
+		var rc := str(opts.get("race", "realm"))
+		var n := random_nation_name(rc)
 		var k := 0
 		while (n.length() > 24 or n == nation_edit.text) and k < 50:
-			n = random_nation_name()
+			n = random_nation_name(rc)
 			k += 1
 		nation_edit.text = n
 		opts.nation.name = n

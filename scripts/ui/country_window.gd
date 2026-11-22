@@ -232,7 +232,7 @@ func _leader() -> VBoxContainer:
 	pt.custom_minimum_size = Vector2(150, 175)
 	pt.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	pt.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-	pt.texture = Hud.icon("icons/realm/leader_%s.png" % L.id) if L != null else null
+	pt.texture = Hud.leader_icon(L.id) if L != null else null
 	fr.add_child(pt)
 	v.add_child(fr)
 	if L == null:

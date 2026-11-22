@@ -111,7 +111,16 @@ func open(tab := 0) -> void:
 	if order_rally < 0 or not game.owned(order_rally):
 		order_rally = game.capital if game.capital >= 0 and game.owned(game.capital) else -1
 	_rebuild()
-	UiKit.center.call_deferred(win.panel)
+	_place.call_deferred()
+
+
+## Designs: centered. The Army Training Order: narrower, just under the Paused sign.
+func _place() -> void:
+	win.panel.custom_minimum_size.x = 1060 if mode == 0 else 0
+	win.panel.reset_size()
+	UiKit.center(win.panel)
+	if mode == 1 and hud != null and hud.paused_label != null:
+		win.panel.position.y = hud.paused_label.position.y + hud.paused_label.size.y + 8
 
 
 func close() -> void:
@@ -128,7 +137,7 @@ func toggle() -> void:
 func _mode(i: int) -> void:
 	mode = i
 	_rebuild()
-	UiKit.center.call_deferred(win.panel)
+	_place.call_deferred()
 
 
 # web: equip.js editDesign
@@ -640,7 +649,7 @@ func _save() -> void:
 
 
 func _delete() -> void:
-	if draft.get("id") != null and game.do("delete_design", [draft.id]):
+	if draft.get("id") != null and game.do("delete_design", [draft.id]) != false:
 		edit(game.designs[0].id)
 
 
@@ -658,7 +667,7 @@ func _build_orders() -> void:
 	cols.add_theme_constant_override("separation", 16)
 	content.add_child(cols)
 	var left := VBoxContainer.new()
-	left.custom_minimum_size = Vector2(500, 0)
+	left.custom_minimum_size = Vector2(340, 0)
 	left.add_theme_constant_override("separation", 5)
 	cols.add_child(left)
 	left.add_child(_group_head("Soldiers"))
@@ -671,7 +680,7 @@ func _build_orders() -> void:
 	for k in kinds:
 		left.add_child(_order_unit(k))
 	var right := VBoxContainer.new()
-	right.custom_minimum_size = Vector2(500, 0)
+	right.custom_minimum_size = Vector2(320, 0)
 	right.add_theme_constant_override("separation", 6)
 	cols.add_child(right)
 	right.add_child(_group_head("The order"))
@@ -718,7 +727,8 @@ func _build_orders() -> void:
 	var btns := HBoxContainer.new()
 	btns.add_theme_constant_override("separation", 8)
 	var buy := _btn("Purchase order", UiKit.GOLD, func():
-		if game.do("purchase_order", [order_draft, order_rally]) >= 0:
+		var r = game.do("purchase_order", [order_draft, order_rally])
+		if r == null or int(r) >= 0:   # (multiplayer: on its way)
 			order_draft = {}
 		_rebuild())
 	if why != null:

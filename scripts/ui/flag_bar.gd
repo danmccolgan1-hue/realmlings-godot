@@ -81,8 +81,8 @@ func flag_list() -> Array:
 			var c = g.ready_caster(F.k, F.mana)
 			if c == null:
 				continue
-			var nm: String = g.TECH_BY_ID[g.line_tech(F.k)].name
-			out.append({"id": "spell:" + F.k, "img": F.img, "label": nm, "tip": "%s is ready and %s can cast it. Left-click to select him, right-click to dismiss" % [nm, c.name]})
+			var nm: String = g.spell_name(F.k)
+			out.append({"id": "spell:" + F.k, "img": F.img, "tip": "%s is ready and %s can cast it. Left-click to select him, right-click to dismiss" % [nm, c.name]})
 	# v102: right-clicked flags stay hidden until their reason goes away, or a new place for them turns up
 	var ids := {}
 	for f in out:

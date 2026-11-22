@@ -23,6 +23,7 @@ var exh_l: Label
 var ring: Glyph
 var tree_g := {}
 var tree_pts := {}
+var tree_ban := {}
 var research_btn: Button
 var clock_l: Label
 var play_g: Glyph
@@ -73,10 +74,12 @@ static func paper_button(text: String, glyph: String, tip: String, f: Callable, 
 	b.add_theme_color_override("font_pressed_color", INK)
 	b.add_theme_font_size_override("font_size", 18)
 	if glyph != "":
-		var g := Glyph.make(glyph, 24.0)
+		# an icon-only button's glyph fills it, centered, at any size (11 px of margin at the usual 46)
+		var gm := 11.0 if px >= 46.0 else maxf(5.0, px * 0.18)
+		var g := Glyph.make(glyph, 24.0 if text != "" else px - 2 * gm)
 		b.add_child(g)
 		if text == "":
-			g.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT, Control.PRESET_MODE_KEEP_SIZE, 11)
+			g.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT, Control.PRESET_MODE_KEEP_SIZE, int(gm))
 		else:
 			g.set_anchors_and_offsets_preset(Control.PRESET_LEFT_WIDE, Control.PRESET_MODE_KEEP_SIZE, 10)
 			g.offset_right = g.offset_left + 24
@@ -157,12 +160,14 @@ func _ready() -> void:
 	var sep := ink_label(16, Color("#6b5a44"))
 	sep.text = " |"
 	rrow.add_child(sep)
-	for tr in TREES:
+	for tr in TREES:   # web: tech.js renderTechBtn: each tree's banner, then its points every 10 s
+		var ban := Glyph.make("rp_" + tr, 22.0)
+		rrow.add_child(ban)
+		tree_ban[tr] = ban
 		var l := ink_label(16, Glyph.TREE_COL["tree_" + tr])
 		l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		rrow.add_child(l)
 		tree_pts[tr] = l
-	rrow.set_anchors_and_offsets_preset(Control.PRESET_CENTER, Control.PRESET_MODE_MINSIZE)
 	# top right: the clock and the map buttons
 	var right := HBoxContainer.new()
 	right.add_theme_constant_override("separation", 8)
@@ -266,9 +271,13 @@ func _process(_dt: float) -> void:
 	var right: Control = get_child(2)
 	right.size = right.get_combined_minimum_size()
 	right.position = Vector2(size.x - right.size.x - 12, 12)
-	var rs: Vector2 = (research_btn.get_child(0) as Control).get_combined_minimum_size() + Vector2(24, 8)
+	var rrow0: Control = research_btn.get_child(0)
+	var rm: Vector2 = rrow0.get_combined_minimum_size()
+	var rs: Vector2 = rm + Vector2(24, 8)
 	research_btn.size = rs
-	research_btn.position = Vector2((size.x - rs.x) / 2, strip.position.y + strip.size.y + 6)
+	research_btn.position = Vector2(round((size.x - rs.x) / 2), strip.position.y + strip.size.y + 6)
+	rrow0.size = rm   # (sized and centered by hand, so it stays centered as its numbers change)
+	rrow0.position = ((rs - rm) / 2).round()
 	ring.set_value(clampf(1.0 - (g.next_tick - g.t) / g.TICK, 0, 1) if g.next_tick > 0 else 0.0)
 	clock_l.text = Game.fmt_time(g.t)
 	play_g.kind = "play" if g.paused else "pause"
@@ -312,6 +321,10 @@ func _process(_dt: float) -> void:
 	exh_l.tooltip_text = "Army Exhaustion: rises every payday you can’t feed your army. At %d the whole army deserts." % GameData.c("EXHAUST_MAX")
 	for tr in TREES:
 		tree_pts[tr].text = str(g.tech_rate(tr)) if g.tech[tr].tier else "–"
+		var bk: String = "rp_%s%s" % [tr, "" if g.tech[tr].tier else "_off"]
+		if tree_ban[tr].kind != bk:
+			tree_ban[tr].kind = bk
+			tree_ban[tr].queue_redraw()
 	var n := g.wars_of(Game.LOCAL).size()
 	war_g.visible = n > 0
 	dip_btn.tooltip_text = ("At war with %d nation%s. " % [n, "s" if n > 1 else ""] if n else "") + "Diplomacy [Y]: wars, peace, alliances and every other nation"

@@ -3,7 +3,8 @@ extends Node2D
 ## Space: pause / play. Left-click: select a unit or a province. Right-click: send the selected unit there.
 ## Command card keys: q w e r / a s d f / z x c v / u i o p. T: research (with no unit selected).
 ## F5: quick save, F9: quick load; an autosave every 5 minutes of play.
-## Drag with the left mouse to box-select your units; drag with the right or middle mouse (or the arrow keys) to pan,
+## Drag with the left mouse to box-select your units; drag with the middle mouse (or the arrow keys, or the mouse at the
+## screen's edge) to pan,
 ## wheel to zoom, Home: back to the capital. G: the Armory. Shift queues orders; Ctrl+right-click opens the survey /
 ## build menu. M: music on or off.
 ## Esc: close a window, or open the menu.
@@ -69,6 +70,8 @@ func _ready() -> void:
 			menu.net.chat.emit("Ann", "Ready when you are!")
 		elif a == "--mpplay":   # pictures: a two-player game over this computer's own network (the host's view)
 			_mp_demo.call_deferred()
+		elif a == "--fps":   # measuring: start a game at once and log the frame rate (see _process)
+			_start.call_deferred()
 		elif a == "--newgame":   # pictures: the New Game page
 			menu.show_screen("setup")
 		elif a == "--tutorial":
@@ -242,6 +245,8 @@ func _on_ready(g: Game, from_thread := true) -> void:
 	var vp := get_viewport_rect().size
 	var z := minf(vp.x / b.size.x, vp.y / b.size.y) * 0.8
 	cam.zoom = Vector2(z, z)
+	if g.capital >= 0:   # the game opens on your capital
+		go_home()
 	_maybe_screenshot()
 
 
@@ -485,7 +490,36 @@ func exit_replay() -> void:
 	_menu_backdrop()
 
 
+var _fps_t := 0.0
+var _fps_n := 0
+var _fps_ms := 0.0
+
 func _process(delta: float) -> void:
+	if game != null and OS.get_cmdline_user_args().has("--fps"):   # measuring: frames and their cost, every 4 s
+		_fps_t += delta
+		_fps_n += 1
+		_fps_ms += Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0
+		if _fps_n == 1 and OS.get_environment("RL_HIDE") != "":   # (measuring: hide some of the map's layers)
+			for nm in OS.get_environment("RL_HIDE").split(","):
+				if map.layers != null and map.layers.layers.has(nm):
+					map.layers.layers[nm].hide()
+				if nm == "game":
+					map.set_meta("no_game", true)
+				if nm == "chunks":
+					for c in map.layers.layers.land.get_children() + map.layers.layers.still.get_children():
+						c.hide()
+		if _fps_t >= 4.0:
+			var line := "FPS %.1f  process %.2f ms  draw calls %d  objects %d  nodes %d" % [_fps_n / _fps_t, _fps_ms / _fps_n,
+				Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME), Performance.get_monitor(Performance.RENDER_TOTAL_OBJECTS_IN_FRAME),
+				Performance.get_monitor(Performance.OBJECT_NODE_COUNT)]
+			print(line)
+			var f := FileAccess.open("user://fps.txt", FileAccess.READ_WRITE if FileAccess.file_exists("user://fps.txt") else FileAccess.WRITE)
+			if f:
+				f.seek_end()
+				f.store_line(line)
+			_fps_t = 0.0
+			_fps_n = 0
+			_fps_ms = 0.0
 	if replay != null:
 		_camera(delta)
 		replay_hud.step(delta)
@@ -671,7 +705,18 @@ func _maybe_screenshot() -> void:
 		game.paused = true
 		var c: Array = game.G.provs[game.capital].ic
 		cam.position = Vector2(c[0] + 150, c[1] + 120)
+	if OS.get_cmdline_user_args().has("--msgs"):   # pictures: the messages box with some messages in it
+		for m in ["Survey of %s complete." % game.prov_name(game.capital), "Bo is building a Farm.", "The Farm in %s is complete." % game.prov_name(game.capital),
+				"Pog: on the way.", "Not enough gold to train a Berserker.", "Berserker queued at the Barracks.", "Autosaved.", "Bo: on the way.", "Survey of the hills complete.", "A Lumber Mill is complete."]:
+			game.toast(m, m.begins_with("Not"))
+	if OS.get_cmdline_user_args().has("--meet") and not game.nations.is_empty():   # pictures: meeting a nation
+		var o0: int = game.nations.keys()[0]
+		game.met.erase(o0)
+		game.meet_nation(o0)
 	if OS.get_cmdline_user_args().has("--research"):
+		var gov: Dictionary = game.tech.gov
+		if gov.cur == null and not gov.opts.is_empty():
+			game.do("pick_tech", [gov.opts[0]])
 		hud.toggle_research()
 	elif spells or battle:
 		map.selected_unit = army
@@ -835,7 +880,23 @@ func _camera(dt: float) -> void:
 		if absf(z - zoom_to) < 0.0005:
 			zoom_to = 0.0
 	var pan := Vector2(Input.get_axis("ui_left", "ui_right"), Input.get_axis("ui_up", "ui_down"))
-	if pan != Vector2.ZERO and not (get_viewport().gui_get_focus_owner() is LineEdit):
+	if get_viewport().gui_get_focus_owner() is LineEdit:
+		pan = Vector2.ZERO
+	# the mouse at the edge of the screen scrolls the map (only while the game's window has the focus)
+	if game != null and DisplayServer.window_is_focused() and not dragging:
+		var mp := get_viewport().get_mouse_position()
+		var vs := get_viewport().get_visible_rect().size
+		if Rect2(Vector2.ZERO, vs).has_point(mp):
+			const EDGE := 6.0
+			if mp.x <= EDGE:
+				pan.x = -1
+			elif mp.x >= vs.x - EDGE:
+				pan.x = 1
+			if mp.y <= EDGE:
+				pan.y = -1
+			elif mp.y >= vs.y - EDGE:
+				pan.y = 1
+	if pan != Vector2.ZERO:
 		cam.position += pan * 900.0 * dt / cam.zoom.x
 	var b := map.bounds().grow(850)
 	cam.position = cam.position.clamp(b.position, b.end)
@@ -948,7 +1009,7 @@ func _unhandled_input(ev: InputEvent) -> void:
 				dragging = false
 				if box_on:
 					_finish_box(ev.position, ev.shift_pressed)
-				elif drag_moved < 7.0 and game:
+				elif (drag_moved < 7.0 or ev.button_index == MOUSE_BUTTON_RIGHT) and game:   # (a right click is an order even if the mouse moved)
 					var ctrl: bool = ev.ctrl_pressed or ev.meta_pressed
 					if ev.button_index == MOUSE_BUTTON_RIGHT or (ev.button_index == MOUSE_BUTTON_LEFT and ctrl and not hud.selection.is_empty()):
 						_right_click(ev.position, ev.shift_pressed, ctrl)
@@ -964,7 +1025,7 @@ func _unhandled_input(ev: InputEvent) -> void:
 				var a := _to_world(drag_from)
 				var b := _to_world(ev.position)
 				map.box = Rect2(a, Vector2.ZERO).expand(b)
-		else:
+		elif drag_btn == MOUSE_BUTTON_MIDDLE:   # (only the middle mouse drags the map; the right one gives orders)
 			cam.position -= ev.relative / cam.zoom
 
 

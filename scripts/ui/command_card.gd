@@ -113,7 +113,7 @@ func _get_tooltip(at: Vector2) -> String:
 	var i := _cell_at(at)
 	if i < 0 or cells[i] == null:
 		return "" if i >= 0 or _tab_at(at) >= 0 else "Select a unit, building or province to see its actions here"
-	return UiKit.wrap(tip_of.call(cells[i])) if tip_of.is_valid() else str(cells[i].get("label", ""))
+	return Races.words(UiKit.wrap(tip_of.call(cells[i])) if tip_of.is_valid() else str(cells[i].get("label", "")), Art.player_race)
 
 
 static func _sb(bg: Color, border: float, radius := 8, col := INK) -> StyleBoxFlat:

@@ -3110,6 +3110,19 @@ func compute_fog() -> void:
 		vis[p] = true
 		for n in open_nbr[p]:
 			exp[n.q] = true
+	# allies share their sight: their land and where their units stand (not part of the web game; asked for in 0.17)
+	var al := allies_of(ME)
+	if not al.is_empty():
+		for p in buildings:
+			if buildings[p].owner in al:
+				vis[p] = true
+				known[p] = true
+				exp[p] = true
+		for u in units:
+			if u.owner in al and u.get("scouting") != u.prov:
+				vis[u.prov] = true
+				known[u.prov] = true
+				exp[u.prov] = true
 	if has_tech("arcscouts"):
 		for p in extras:
 			if owned(p) and extras[p].any(func(e): return e.type == "magetower"):
@@ -3132,6 +3145,11 @@ func compute_fog() -> void:
 			vis[P.prov] = true
 			for n in open_nbr[P.prov]:
 				vis[n.q] = true
+	# web: v95.js towerSight: Death Mountain is seen from any province next to it
+	var U = uq()
+	if U != null and int(U.get("death", -1)) >= 0 and world.provinces[int(U.death)].nbr.any(func(q): return vis.has(int(q))):
+		vis[int(U.death)] = true
+		known[int(U.death)] = true
 	if has_art(ME, "eye"):   # v95: the Lidless Eye shows every army
 		for u in units:
 			if u.kind == "army" and troop_count(u) > 0:
@@ -4738,6 +4756,79 @@ func combine_armies(list: Array) -> void:
 	toast("%d armies combined into %s (%d soldiers)." % [list.size(), main.name, troop_count(main)])
 
 
+## Join army: each selected Mage joins the army of yours in his province (one Mage per army); his mana and autocast
+## go with him. web: magic.js magicCmdUse 'join' + v98.js (mana follows the Magic User)
+func mage_join(list: Array):
+	var n := 0
+	var last = null
+	for m in list:
+		if m == null or m.kind != MAGE or m.owner != ME:
+			continue
+		var a = null
+		var full := false
+		for v in units:
+			if v.kind == "army" and v.owner == ME and v.prov == m.prov and v.get("battle") == null:
+				if v.troops.get(MAGE, 0) > 0:
+					full = true
+				elif a == null:
+					a = v
+		if a == null:
+			if full:
+				toast("An army can have only one %s." % unit_defs[MAGE].name, true)
+			continue
+		cancel_cast(m)
+		a.troops[MAGE] = a.troops.get(MAGE, 0) + 1
+		a.auto = m.get("auto", {}).duplicate()
+		a.mana = mana_of(m)   # (one Mage per army: his mana is the army's)
+		a.grew = t
+		m._gone = true
+		units = units.filter(func(v): return not is_same(v, m))
+		n += 1
+		last = a
+	if n:
+		compute_income()
+		toast("%s joined the army." % (("%d %ss" % [n, unit_defs[MAGE].name]) if n > 1 else "The " + unit_defs[MAGE].name))
+	return last
+
+
+func join_why(m) -> String:
+	if m == null or m.kind != MAGE:
+		return "No %s selected" % unit_defs[MAGE].name
+	if m.moving:
+		return "Stop moving first"
+	if not units.any(func(v): return v.kind == "army" and v.owner == ME and v.prov == m.prov and v.get("battle") == null):
+		return "No army of yours here"
+	return ""
+
+
+## Detach: the army's Mage leaves it and stands on his own (with the army's mana). web: magic.js magicCmdUse 'detach'
+func mage_detach(a: Dictionary):
+	if a.kind != "army" or a.owner != ME or a.troops.get(MAGE, 0) <= 0 or a.get("battle") != null:
+		return null
+	cancel_cast(a)
+	a.troops[MAGE] -= 1
+	if a.troops[MAGE] <= 0:
+		a.troops.erase(MAGE)
+	var k := units.filter(func(v): return v.kind == MAGE and v.owner == ME).size() + 1
+	var m := mk_unit(next_id, MAGE, unit_defs[MAGE].name + ("" if k == 1 else " %d" % k), a.prov, 0)
+	next_id += 1
+	m.owner = ME
+	m.slot = free_slot(a.prov, m)
+	var xy: Array = slot_pos(a.prov, m.slot)
+	m.x = xy[0]
+	m.y = xy[1]
+	m.born = t
+	m.mana = mana_of(a)
+	a.mana = 0.0
+	m.auto = a.get("auto", {}).duplicate()
+	units.append(m)
+	if troop_count(a) <= 0:
+		remove_army(a)
+	compute_income()
+	toast("The %s leaves the army." % unit_defs[MAGE].name)
+	return m
+
+
 func dismiss(list: Array) -> void:
 	for u in list:
 		if u.build != null:
@@ -4954,6 +5045,11 @@ func lvl(line: String) -> int:
 
 func line_tech(line: String) -> String:
 	return LINES[line][maxi(0, lvl(line) - 1)]
+
+
+## A spell's name. Grave Robbing keeps its name: Death Taxes and Charon's Riches are its upgrades.
+func spell_name(line: String) -> String:
+	return str(TECH_BY_ID[LINES[line][0]].name) if line == "graverob" else str(TECH_BY_ID[line_tech(line)].name)
 
 
 func mages_in(u: Dictionary) -> int:
@@ -5202,7 +5298,7 @@ func cast_spell(c: Dictionary, k: String, target := -1) -> bool:
 				toast("%s: %s has 10%% more health for 30 seconds." % [leader_of().full, c.name])
 		"mind", "graverob", "trading", "stasis":
 			begin_cast(c, k)
-			toast("%s: 3 s of casting." % TECH_BY_ID[line_tech(k)].name)
+			toast("%s: 3 s of casting." % spell_name(k))
 		"haunt":
 			spend_mana(c, SPELL_MANA.haunt)
 			haunts.append({"prov": c.prov, "owner": ME, "t0": t, "until": t + SEE_TIME})
@@ -8114,6 +8210,15 @@ var nations := {}           # id -> the computer nation's state
 var players := {}           # id (as text) -> {name, color, light}
 var race_of := {}           # id -> "realm"
 
+## A nation's second color (its flag's emblem): human nations' from the New Game page, computer nations' their own.
+func secondary_of(o: int) -> Color:
+	if seats.has(o):
+		return Color(str(seats[o].my_nation.get("secondary", "#faf1dc")))
+	if nations.has(o):
+		return Color(str(nations[o].get("secondary", "#faf1dc")))
+	return Color(str(player_info(o).get("light", "#cccccc")))
+
+
 func player_info(o: int) -> Dictionary:
 	var k := str(o)
 	if players.has(k):
@@ -9811,9 +9916,11 @@ func meet_nation(o: int) -> void:
 	if on_dialog.is_valid() and ME == view_seat:
 		var N: Dictionary = nations[o] if nations.has(o) else {"diff": "human"}
 		var al := allies_of(o)
+		dialog_nation = o   # (the pop-up shows their flag and leader)
 		on_dialog.call("You have met the %s" % player_info(o).name, "%d province%s · %s%s%s. You can see them now in Diplomacy." % [provs_of(o).size(), "" if provs_of(o).size() == 1 else "s",
 			GameData.c("DIFF_NAME").get(N.diff, "Player"), (" · allied with " + the_name(al[0])) if not al.is_empty() else "", " · at war with you" if at_war(ME, o) else ""],
 			[{"id": "ok", "label": "OK", "why": null}], Callable())
+		dialog_nation = 0
 
 
 # =================================================================================================================
@@ -10856,7 +10963,7 @@ func trav_units(B: Dictionary) -> Dictionary:
 const COMMANDS := ["order", "order_group", "order_build", "cancel_build", "queue_survey", "queue_survey_on", "train",
 	"cancel_training", "purchase_order", "start_upgrade", "cancel_upgrade", "start_xup", "cancel_xup", "start_develop",
 	"rebuild_walls", "pick_tech", "pick_school", "cast_spell", "start_spell2", "end_quake", "start_path", "set_mage_gear",
-	"save_design", "delete_design", "retrofit_armies", "split_army", "combine_armies", "dismiss", "send_to_rest",
+	"save_design", "delete_design", "retrofit_armies", "split_army", "combine_armies", "mage_join", "mage_detach", "dismiss", "send_to_rest",
 	"retreat", "retreat_to", "fly_army", "thugs_enter", "thug_out", "dx_act", "answer_request", "make_peace",
 	"declare_war", "proclaim_enemy", "renounce_enemy", "travelers_choose", "dismiss_quake", "dismiss_news",
 	"answer_demand", "set_crop", "hand_to_ai", "send_message", "issue_proclamation", "offer_barter", "show_request", "set_paused", "set_auto_tech", "rename_prov", "close_school_popup",
@@ -10866,7 +10973,8 @@ const COMMANDS := ["order", "order_group", "order_build", "cancel_build", "queue
 var on_command: Callable
 ## Who paused the game (multiplayer: any player may pause; only the host or that player may go on). 0: nobody.
 var paused_by := 0
-var _from_order := false   # apply() is running a player's order (not the game's own rules)
+var _from_order := false
+var dialog_nation := 0     # while a pop-up about meeting a nation opens: that nation (the view shows its flag and leader)   # apply() is running a player's order (not the game's own rules)
 
 
 ## A player's order, from the interface: applied now (single-player), or sent to every copy (multiplayer, where

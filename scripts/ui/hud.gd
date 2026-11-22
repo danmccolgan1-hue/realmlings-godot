@@ -54,6 +54,7 @@ var flags: FlagBar
 var settings: SettingsWindow
 var dialog: DialogBox
 var minimap: Minimap
+var msglog: MessageLog        # the messages box, beside the minimap
 var roster: Roster
 var menu_win: Dictionary
 var ui_scale := 1.0
@@ -156,6 +157,8 @@ func _ready() -> void:
 	roster.offset_top = 70
 	minimap = Minimap.new()
 	add_child(minimap)
+	msglog = MessageLog.new()
+	add_child(msglog)
 	# bottom left (web: #mini); placed each frame in _process
 	armory = ArmoryWindow.new()
 	add_child(armory)
@@ -183,10 +186,19 @@ func _ready() -> void:
 
 
 func set_game(g: Game) -> void:
+	if game != g and msglog != null and (game == null or game.world != g.world or g.t < game.t):   # (a new game starts a clean box)
+		msglog.clear()
 	game = g
 	g.on_toast = add_toast
 	g.on_dialog = func(title: String, text: String, choices: Array, f: Callable):
-		dialog.ask(title, text, choices, f if f.is_valid() else func(_id): pass)
+		var pics := []
+		if g.dialog_nation != 0:   # meeting a nation: its flag and its leader
+			pics = [Art.nation_flag(g, g.dialog_nation)]
+			var L = g.leader_of(g.dialog_nation)
+			if L != null:
+				pics.append(Hud.leader_icon(L.id))
+				text = "%s leads them.\n%s" % [L.full, text]
+		dialog.ask(title, text, choices, f if f.is_valid() else func(_id): pass, pics)
 	armory.setup(g, self)
 	diplomacy.setup(g, self)
 	school.setup(g, self)
@@ -273,7 +285,11 @@ func _sync_unit() -> void:
 func add_toast(msg: String, warn := false) -> void:
 	if Sound.inst:
 		Sound.inst.on_toast(warn)
-	# web: #toast, a paper note at the bottom center (pink when something went wrong)
+	# every message goes to the messages box beside the minimap (0.17; the web game's #toast note at the bottom center
+	# is kept only for the menus, when no game is shown)
+	if game != null and msglog != null:
+		msglog.add(msg, warn, Game.fmt_time(game.t))
+		return
 	var l := _label(17)
 	l.text = msg
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -300,6 +316,13 @@ func commands_of(u) -> Array:
 	var list: Array = game.CMD.get(u.kind, [])
 	if u.kind == "mage:A" or game.military.has(u.kind):
 		list = []
+	if u.kind == game.MAGE and u.owner == Game.LOCAL:   # web: magic.js CMD[MAGE] 'join' (cell 12)
+		var jw := game.join_why(u)
+		out[12] = {"id": "join", "label": "Join army", "why": null if jw == "" else jw, "name": "Join army",
+			"desc": "The %s joins the army in this province: he fights with it, and its battle spells fire when a battle starts. An army can have one." % game.unit_defs[game.MAGE].name}
+	elif u.kind == "army" and u.owner == Game.LOCAL and u.troops.get(game.MAGE, 0) > 0:   # web: magic.js CMD.army 'detach' (cell 2)
+		out[2] = {"id": "detach", "label": "Detach\n" + game.unit_defs[game.MAGE].name, "why": null if u.get("battle") == null else "Not during battle",
+			"name": "Detach " + game.unit_defs[game.MAGE].name, "desc": "The %s leaves the army and stands on his own." % game.unit_defs[game.MAGE].name}
 	if game.is_caster(u):
 		# the Realmlings' castable spells fill the card's middle rows (web: magic.js SPELL_CELLS)
 		var cell := 4 if u.kind == "army" else 0
@@ -307,7 +330,7 @@ func commands_of(u) -> Array:
 			if game.lvl(k) and cell < 15:
 				var casting: bool = u.get("cast") != null and (u.cast.spell == k or u.cast.spell == "q:" + k)
 				var mana = Game.SPELL_MANA.get(k, 0)
-				var label: String = game.TECH_BY_ID[game.line_tech(k)].name
+				var label: String = game.spell_name(k)
 				var left := ""
 				if casting and is_finite(u.cast.dur):
 					left = " %d s left." % ceili(u.cast.dur - (game.t - u.cast.t0))
@@ -384,7 +407,7 @@ func commands_of(u) -> Array:
 			var why = null
 			if u.get("battle") == null or u.get("retreating", false):
 				why = "Not in battle"
-			elif game.do("retreat_to", [u]) < 0:
+			elif game.retreat_to(u) < 0:
 				why = "No way out: every open border is blocked"
 			elif game.retreat_lock_left(u) > 0:
 				why = "Locked in battle for %d s" % ceili(game.retreat_lock_left(u))
@@ -441,9 +464,19 @@ func _build_desc(u: Dictionary, type: String) -> String:
 		if game.owned(u.prov) and game.build_cap(u.prov, type) > 1:
 			desc += " %d/%d here." % [game.count_of(u.prov, type), game.build_cap(u.prov, type)]
 	elif type == "barracks":
-		desc = "Trains the infantry you design in the Armory. With a Stable in the same province, your cavalry designs too."
+		if game.is_sw():
+			desc = "Trains the Berserkers you design at the Armory."
+		elif game.is_wd():
+			desc = "Trains the Protectors you design at the Armory. With a Hall of Champions in the same province, your Champions too."
+		else:
+			desc = "Trains the infantry you design in the Armory. With a Stable in the same province, your cavalry designs too."
 	elif type == "stable":
-		desc = "Lets a Barracks in this province train Cavalry."
+		if game.is_sw():
+			desc = "Trains Ogres you design at the Armory."
+		elif game.is_wd():
+			desc = "Lets a Barracks in this province train Champions."
+		else:
+			desc = "Lets a Barracks in this province train Cavalry."
 	if desc == "":
 		desc = str(d.get("blurb", ""))
 	var up: Dictionary = d.get("upkeep", {})
@@ -521,6 +554,15 @@ func press(i: int) -> void:
 		game.do("split_army", [unit])
 	elif id == "combine":
 		game.do("combine_armies", [game.units.filter(func(v): return v.kind == "army" and v.owner == Game.LOCAL and v.prov == unit.prov and not v.moving)])
+	elif id == "join":
+		var mages: Array = selection.filter(func(v): return v.kind == game.MAGE and v.owner == Game.LOCAL)
+		var a = game.do("mage_join", [mages if not mages.is_empty() else [unit]])
+		if a is Dictionary:
+			set_selection([a])
+	elif id == "detach":
+		var m = game.do("mage_detach", [unit])
+		if m is Dictionary:
+			set_selection([m])
 
 
 ## A command-card key (q w e r / a s d f / z x c v / u i o p). Returns true when it was used.
@@ -558,8 +600,10 @@ func _process(_delta: float) -> void:
 	card.set_cells(card_cmds, _card_tabs())
 	_refresh_sel_line()
 	_hover_tip()
+	_race_tooltip()
 	minimap.position = Vector2(16, topbar.size.y - Minimap.SIZE.y - 16)
-	sel_line.position = Vector2(16 + Minimap.SIZE.x + 12, topbar.size.y - sel_line.size.y - 14)
+	msglog.place(Vector2(16 + Minimap.SIZE.x + 12, minimap.position.y), Vector2(Minimap.SIZE.x * 2, Minimap.SIZE.y))
+	sel_line.position = Vector2(msglog.position.x, msglog.position.y - sel_line.size.y - 6)
 	sel_rename.visible = sel_line.visible and unit != null and unit.owner == Game.LOCAL
 	sel_rename.position = sel_line.position + Vector2(sel_line.size.x + 4, 0)
 	sel_rename.size = Vector2(sel_line.size.y, sel_line.size.y)
@@ -827,6 +871,19 @@ const BUILD_BG := {"outpost": "#a3a9b3", "farm": "#2aa198", "lumber": "#2e6b34",
 static var _tex := {}
 
 
+## A leader's portrait, whatever his race (they live in their race's own folder).
+static func leader_icon(id) -> Texture2D:
+	if id == null:
+		return null
+	for rc in ["realm", "swamp", "wood"]:
+		var p := "icons/%s/leader_%s.png" % [rc, id]
+		if not _tex.has(p):
+			_tex[p] = load("res://assets/art/" + p) if ResourceLoader.exists("res://assets/art/" + p) else null
+		if _tex[p] != null:
+			return _tex[p]
+	return null
+
+
 static func icon(path: String) -> Texture2D:
 	if Art.player_race != "realm":   # the player's race's own icons first (Swampling buildings, Woodling units...)
 		var rp := ""
@@ -961,10 +1018,21 @@ func _refresh_sel_line() -> void:
 
 
 ## The province under the mouse, in a card by the pointer. web: game.js hoverAt
+## Tooltips wait until the mouse has rested this long (the interface's own use the same delay: project.godot).
+const TIP_DELAY := 5.0
+var _tip_mouse := Vector2(-1, -1)
+var _tip_rest := 0.0
+
 func _hover_tip() -> void:
+	var mp0 := get_viewport().get_mouse_position()
+	if mp0.distance_to(_tip_mouse) > 2.0:   # the mouse moved: start waiting again
+		_tip_mouse = mp0
+		_tip_rest = 0.0
+	else:
+		_tip_rest += get_process_delta_time()
 	var over_ui := get_viewport().gui_get_hovered_control() != null
 	var p := -1
-	if not over_ui and map != null and not dragging_map():
+	if not over_ui and map != null and not dragging_map() and _tip_rest >= TIP_DELAY:
 		p = map.province_at(map.get_global_mouse_position())
 	if p < 0:
 		tip.hide()
@@ -1005,6 +1073,21 @@ func _hover_tip() -> void:
 	var mp := get_viewport().get_mouse_position()
 	var vs := get_viewport().get_visible_rect().size
 	tip.position = Vector2(minf(mp.x + 18, vs.x - tip.size.x - 30), minf(mp.y + 18, vs.y - tip.size.y - 30))
+
+
+## Every tooltip speaks the player's race (Swampwright, not Mason; Ogres, not cavalry): the one under the mouse is
+## put into the race's words before it shows (and again if its text changes).
+func _race_tooltip() -> void:
+	if Art.player_race == "realm":
+		return
+	var c := get_viewport().gui_get_hovered_control()
+	while c != null:
+		if c.tooltip_text != "":
+			if c.get_meta("_rt", "") != c.tooltip_text:
+				c.tooltip_text = Races.words(c.tooltip_text, Art.player_race)
+				c.set_meta("_rt", c.tooltip_text)
+			return
+		c = c.get_parent() as Control
 
 
 func dragging_map() -> bool:
@@ -1475,6 +1558,7 @@ func toggle_research() -> void:
 
 
 var research_open_done := {}   # tree -> the Researched list is unfolded
+var research_open_opts := {}   # tree -> its options are unfolded while it researches something
 
 
 ## web: v101.js researchSettled: every tree with something on offer has an active research
@@ -1489,6 +1573,7 @@ func research_settled() -> bool:
 func _research_pick(id: String) -> void:
 	var before := str(Game.TREE_KEYS.map(func(t): return game.tech[t].cur))
 	game.do("pick_tech", [id])
+	research_open_opts.erase(str(game.TECH_BY_ID[id].tree) if game.TECH_BY_ID.has(id) else "")
 	# web: v101.js: the window closes once every tree with something on offer is researching
 	if research.visible and before != str(Game.TREE_KEYS.map(func(t): return game.tech[t].cur)) and research_settled():
 		research.hide()
@@ -1509,7 +1594,7 @@ func _refresh_research() -> void:
 	var key := ""
 	for tr in Game.TREE_KEYS:
 		var st: Dictionary = game.tech[tr]
-		key += "%s|%s|%d|%d|%s|%s|%d|%s|%s;" % [tr, st.cur, int(st.prog), int(st.bank), ",".join(st.opts), st.tier, st.done.size(), game.auto_tech[tr], research_open_done.get(tr, false)]
+		key += "%s|%s|%d|%d|%s|%s|%d|%s|%s|%s;" % [tr, st.cur, int(st.prog), int(st.bank), ",".join(st.opts), st.tier, st.done.size(), game.auto_tech[tr], research_open_done.get(tr, false), research_open_opts.get(tr, false)]
 	if key == research_key:
 		return
 	research_key = key
@@ -1664,11 +1749,27 @@ func _tree_column(tr: String) -> Control:
 	col.add_child(fold)
 	if open:
 		col.add_child(_ink(", ".join(st.done.map(func(i): return game.TECH_BY_ID[i].name)) if not st.done.is_empty() else "Nothing yet.", 14, Color("#5a5560")))
-	# the options as cards: icon, name, what it does, tier and cost
+	# the options as cards: icon, name, what it does, tier and cost. While a technology is being researched they fold
+	# away (click to see them, to switch)
 	if not st.opts.is_empty():
-		col.add_child(_ink("OPTIONS", 12, Color("#6b5a44")))
-	for id in st.opts:
-		col.add_child(_tech_card(game.TECH_BY_ID[id], col_c))
+		var show_opts: bool = st.cur == null or research_open_opts.get(tr, false)
+		if st.cur == null:
+			col.add_child(_ink("OPTIONS", 12, Color("#6b5a44")))
+		else:
+			var of := Button.new()
+			of.text = "%s Other options (%d)" % ["−" if show_opts else "+", st.opts.size()]
+			of.alignment = HORIZONTAL_ALIGNMENT_LEFT
+			of.focus_mode = Control.FOCUS_NONE
+			of.add_theme_font_size_override("font_size", 14)
+			of.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+			of.tooltip_text = "Show or hide the other options (picking one switches the research)"
+			of.pressed.connect(func():
+				research_open_opts[tr] = not research_open_opts.get(tr, false)
+				research_key = "")
+			col.add_child(of)
+		if show_opts:
+			for id in st.opts:
+				col.add_child(_tech_card(game.TECH_BY_ID[id], col_c))
 	if st.tier < 3:
 		col.add_child(_ink("Tier %s: %s" % [["", "I", "II", "III"][st.tier + 1], str(T.tiers[st.tier]).to_lower()], 13, Color("#6b5a44")))
 	return pan

@@ -46,6 +46,39 @@ const WD_WORDS := [["Mage Towers", "Groves"], ["Mage Tower", "Grove"], ["Mage Sa
 	["Marketplace", "Bazaar"], ["Temples", "Shrines"], ["Temple", "Shrine"], ["Trade Routes", "Community"]]
 
 
+# the Swamplings' words for the Realmlings' things (0.17: every tooltip speaks the player's race)
+const SW_WORDS := [["Mage Towers", "Warlock Towers"], ["Mage Tower", "Warlock Tower"], ["Mage Sanctums", "Warlock Sanctums"], ["Mage Sanctum", "Warlock Sanctum"],
+	["Mage Arcanums", "Warlock Arcanums"], ["Mage Arcanum", "Warlock Arcanum"], ["Mages", "Warlocks"], ["Mage", "Warlock"],
+	["Wayfinders", "Swampstriders"], ["Wayfinder", "Swampstrider"], ["Masons", "Swampwrights"], ["Mason", "Swampwright"],
+	["Marketplaces", "Thug Dens"], ["Marketplace", "Thug Den"], ["Temples", "Hot Springs"], ["Temple", "Hot Springs"],
+	["Stables", "Ogre Caves"], ["Stable", "Ogre Cave"], ["Banks", "Supply Caches"], ["Bank", "Supply Cache"],
+	["infantry and cavalry", "Berserkers"], ["cavalry", "Ogres"], ["Cavalry", "Ogres"], ["Footmen", "Berserkers"], ["Footman", "Berserker"],
+	["Riders", "Ogres"], ["Rider", "Ogre"]]
+# the Woodlings' cavalry is their Champions (trained at the Hall of Champions)
+const WD_EXTRA := [["Stables", "Halls of Champions"], ["Stable", "Hall of Champions"], ["infantry and cavalry", "Protectors and Champions"],
+	["cavalry", "Champions"], ["Cavalry", "Champions"], ["Footmen", "Protectors"], ["Footman", "Protector"], ["Riders", "Champions"], ["Rider", "Champion"]]
+
+
+## A text in the words of race `race` (the Realmlings' own are unchanged). Safe to apply twice.
+static func words(s, race: String):
+	if not (s is String) or race == "realm" or s == "":
+		return s
+	var list: Array = SW_WORDS if race == "swamp" else WD_WORDS + WD_EXTRA if race == "wood" else []
+	for w in list:
+		if s.find(w[0]) < 0:
+			continue
+		var re := _word_re(w[0])
+		s = re.sub(s, w[1], true)
+	return s
+
+
+static var _res := {}
+static func _word_re(w: String) -> RegEx:
+	if not _res.has(w):
+		_res[w] = RegEx.create_from_string("\\b" + w + "\\b")
+	return _res[w]
+
+
 static func race_is(r, race: String) -> bool:
 	if r is Array:
 		return r.has(race)

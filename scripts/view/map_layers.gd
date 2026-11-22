@@ -16,15 +16,27 @@ const BLEND := 70.0
 const FOG_COL := Color("#2f3b55")
 const FOG_MS := 0.08      # fog mask texels per world unit
 
-## One drawing pass: calls `paint(self)` in _draw, every frame when `animated`.
+## One drawing pass: calls `paint(self)` in _draw. An `animated` one is redrawn 20 times a second while the game runs
+## (its waves and swaying trees move with the map's clock, which stops while the game is paused), and whenever the
+## camera moves.
 class Layer extends Node2D:
+	const ANIM_STEP := 0.05
 	var paint: Callable
 	var animated := false
+	var host: MapLayers
+	var _drawn_at := -1.0
+	var _cam := Transform2D()
 	func _draw() -> void:
 		if paint.is_valid():
 			paint.call(self)
 	func _process(_dt: float) -> void:
-		if animated and is_visible_in_tree():
+		if not animated or not is_visible_in_tree():
+			return
+		var ct := get_canvas_transform()
+		var clk: float = host.clock if host != null else 0.0
+		if ct != _cam or absf(clk - _drawn_at) >= ANIM_STEP:
+			_cam = ct
+			_drawn_at = clk
 			queue_redraw()
 
 var view: MapView
@@ -73,6 +85,7 @@ func setup(v: MapView, world: Dictionary, prep: Dictionary) -> void:
 	_add("land", -18, _paint_land)
 	_add("territory", -17, _paint_territory)
 	_add("still", -16, _paint_still)
+	_chunk_items()
 	_add("rivers", -15, _paint_rivers, true)
 	_add("sway", -14, _paint_sway, true)
 	_build_fog()
@@ -87,13 +100,22 @@ func _add(name: String, z: int, paint: Callable, animated := false) -> Layer:
 	L.z_index = z
 	L.paint = paint
 	L.animated = animated
+	L.host = self
 	add_child(L)
 	layers[name] = L
 	return L
 
 
+## The map's animation clock: seconds the game has been running (it stops while the game is paused).
+var clock := 0.0
+
+func _process(dt: float) -> void:
+	if view == null or view.game == null or not view.game.paused:
+		clock += dt
+
+
 func now() -> float:
-	return Time.get_ticks_msec() / 1000.0 - t0
+	return clock
 
 
 func cam_zoom() -> float:
@@ -253,27 +275,63 @@ func _paint_land(ci: CanvasItem) -> void:
 			ci.draw_polygon(pts, PackedColorArray([Color.WHITE]), uv, terrain_tex)
 		else:
 			fill(ci, pts, Color(TER[G.provs[i].terrain][0]))
+	# (0.17: the province borders in one call, and the beach as one mesh of round-ended strokes, instead of a call each)
+	var el := PackedVector2Array()
 	for e in w.edges:
-		ci.draw_line(_v(V, e.v[0]), _v(V, e.v[1]), Color(OL, 0.5), 1.6, true)
+		el.append(_v(V, e.v[0]))
+		el.append(_v(V, e.v[1]))
+	ci.draw_multiline(el, Color(OL, 0.5), 1.6, true)
+	var beach := []
 	for c in coast_segs:
-		var a := _v(V, c[0])
-		var b := _v(V, c[1])
-		ci.draw_line(a, b, SAND, 24.0)
-		ci.draw_circle(a, 12.0, SAND)
-		ci.draw_circle(b, 12.0, SAND)
+		beach.append([_v(V, c[0]), _v(V, c[1])])
+	_round_strokes(ci, beach, 24.0, SAND)
 	_paint_lakes(ci)
-	for items in D.items:
-		for it in items:
-			_sprite(ci, it)
-	for c in D.crossings:
-		ci.draw_set_transform(Vector2(c.x, c.y), c.ang, Vector2.ONE)
-		fill(ci, ellipse(Vector2.ZERO, 10, 15, 0, 16), Color("#d9b77a"))
-		ci.draw_polyline(closed(ellipse(Vector2.ZERO, 10, 15, 0, 16)), OL, 1.6, true)
-		for dy in [-6.0, 6.0]:
-			var e := ellipse(Vector2(dy * 0.3, dy), 3.6, 2.6, 0, 10)
-			fill(ci, e, Color("#b08a55"))
-			ci.draw_polyline(closed(e), OL, 1.1, true)
-		ci.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	# (the land's thousands of little pictures and its stepping stones are drawn by the chunks: see _chunk_items)
+
+
+func _crossing(ci: CanvasItem, c: Dictionary) -> void:
+	ci.draw_set_transform(Vector2(c.x, c.y), c.ang, Vector2.ONE)
+	fill(ci, ellipse(Vector2.ZERO, 10, 15, 0, 16), Color("#d9b77a"))
+	ci.draw_polyline(closed(ellipse(Vector2.ZERO, 10, 15, 0, 16)), OL, 1.6, true)
+	for dy in [-6.0, 6.0]:
+		var e := ellipse(Vector2(dy * 0.3, dy), 3.6, 2.6, 0, 10)
+		fill(ci, e, Color("#b08a55"))
+		ci.draw_polyline(closed(e), OL, 1.1, true)
+	ci.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+
+## Many thick strokes with round ends as one triangle mesh: one draw call however many there are.
+static func _round_strokes(ci: CanvasItem, segs: Array, width: float, col: Color) -> void:
+	var pts := PackedVector2Array()
+	var idx := PackedInt32Array()
+	var r := width / 2
+	const N := 10
+	var caps := {}
+	for sg in segs:
+		var a: Vector2 = sg[0]
+		var b: Vector2 = sg[1]
+		var d := b - a
+		if d.length() < 0.001:
+			continue
+		var n := Vector2(-d.y, d.x).normalized() * r
+		var i0 := pts.size()
+		pts.append_array([a + n, b + n, b - n, a - n])
+		idx.append_array([i0, i0 + 1, i0 + 2, i0, i0 + 2, i0 + 3])
+		caps[a] = true
+		caps[b] = true
+	for c in caps:
+		var i0 := pts.size()
+		pts.append(c)
+		for k in N:
+			pts.append(c + Vector2(r, 0).rotated(TAU * k / N))
+		for k in N:
+			idx.append_array([i0, i0 + 1 + k, i0 + 1 + (k + 1) % N])
+	if pts.is_empty():
+		return
+	var cols := PackedColorArray()
+	cols.resize(pts.size())
+	cols.fill(col)
+	RenderingServer.canvas_item_add_triangle_array(ci.get_canvas_item(), idx, pts, cols)
 
 
 func _paint_lakes(ci: CanvasItem) -> void:
@@ -296,9 +354,38 @@ func _paint_lakes(ci: CanvasItem) -> void:
 		ci.draw_arc(Vector2(m.x + 6, m.y), 6, PI * 1.15, PI * 1.85, 6, col, 2.5)
 
 
-func _paint_still(ci: CanvasItem) -> void:
-	for it in D.still:
-		_sprite(ci, it)
+func _paint_still(_ci: CanvasItem) -> void:
+	pass   # (drawn by the chunks: see _chunk_items)
+
+
+## The land's little pictures (rocks, grass, flowers...) and the still trees, split into square chunks of the map, each
+## its own canvas item: the renderer skips the chunks off the screen, which saves most of the drawing (0.17: the map
+## drew all of them every frame, over 10,000 draw calls on a full island).
+const CHUNK := 1024.0
+
+func _chunk_items() -> void:
+	var land_items: Array = D.items.reduce(func(acc, items): return acc + items, [])
+	for c in D.crossings:   # (stepping stones after the land's pictures, as before)
+		land_items.append({"x": c.x, "y": c.y, "crossing": c})
+	for pair in [["land", land_items], ["still", D.still]]:
+		var host: Layer = layers[pair[0]]
+		var groups := {}
+		for it in pair[1]:
+			var k := Vector2i(floori(it.x / CHUNK), floori(it.y / CHUNK))
+			if not groups.has(k):
+				groups[k] = []
+			groups[k].append(it)
+		for k in groups:
+			var L := Layer.new()
+			L.name = "%s_%d_%d" % [pair[0], k.x, k.y]
+			var list: Array = groups[k]
+			L.paint = func(ci: CanvasItem):
+				for it in list:
+					if it.has("crossing"):
+						_crossing(ci, it.crossing)
+					else:
+						_sprite(ci, it)
+			host.add_child(L)
 
 
 func _sprite(ci: CanvasItem, it: Dictionary, rot := 0.0) -> void:

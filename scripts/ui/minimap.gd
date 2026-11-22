@@ -125,13 +125,29 @@ func _draw() -> void:
 		if not game.visible.has(i):
 			col = col.darkened(0.3)
 		draw_colored_polygon(pts, col)
-		if known and Settings.view.get("miniColor", false):   # web: game.js Z14, each nation's color over its land
+		if known and Settings.view.get("miniColor", false):   # each nation's land filled with its second color (0.17)
 			var own := game.nation_of(i)
 			if own > 0:
-				draw_colored_polygon(pts, Color(game.player_info(own).color, 0.8))
-		if game.buildings.has(i):
-			pts.append(pts[0])
-			draw_polyline(pts, Color(game.player_info(game.buildings[i].owner).color), 2.5)
+				draw_colored_polygon(pts, Color(game.secondary_of(own), 0.8))
+	# one line around each nation's land, in its color: the borders between provinces of different owners and the
+	# coasts of owned provinces (not every province's own outline)
+	var V: Array = game.world.vertices
+	for e in game.world.edges:
+		var oa = game.buildings[e.a].owner if game.buildings.has(e.a) else 0
+		var ob = game.buildings[e.b].owner if game.buildings.has(e.b) else 0
+		if oa == ob:
+			continue
+		var a := _to_mini(Vector2(V[e.v[0]][0], V[e.v[0]][1]))
+		var b := _to_mini(Vector2(V[e.v[1]][0], V[e.v[1]][1]))
+		for o in [[oa, e.a], [ob, e.b]]:
+			if o[0] and game.explored.has(o[1]):
+				draw_line(a, b, Color(game.player_info(o[0]).color), 2.5, true)
+	for p in game.buildings:
+		if not game.explored.has(p):
+			continue
+		var c := Color(game.player_info(game.buildings[p].owner).color)
+		for cs in game.world.provinces[p].coast:
+			draw_line(_to_mini(Vector2(V[cs[0]][0], V[cs[0]][1])), _to_mini(Vector2(V[cs[1]][0], V[cs[1]][1])), c, 2.5, true)
 	for u in game.units:
 		if u.owner != Game.LOCAL and not game.visible.has(u.prov):
 			continue

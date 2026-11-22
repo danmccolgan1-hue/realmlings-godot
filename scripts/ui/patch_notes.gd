@@ -5,6 +5,14 @@ extends Control
 ## web: v106.js renderPatchNotes
 
 const PORT_NOTES := [
+	{"v": "Godot 0.17", "date": "November 22, 2026", "items": [
+		["Messages box", "Every message now goes to a see-through box beside the minimap. It keeps the last 48, shows 8 at a time, and has a scroll bar."],
+		["Camera and mouse", "The game opens on your capital. Move the mouse to the edge of the screen to scroll. Only the middle mouse drags the map now, so right-click drags never get in the way of orders. Tooltips wait until the mouse has rested for 5 seconds."],
+		["Mages join armies", "Select a Mage, Warlock or Druid standing with one of your armies and press Join army; Detach takes him out again."],
+		["Allies and Death Mountain", "Allies share their sight with you. Death Mountain shows as soon as you see a province beside it."],
+		["Swamplings and Woodlings", "Random nation names fit your race, tooltips use your race's words (Swampwright, Ogres...), the Ogre Cave and Barracks describe what they really do, Ogre Caves appear in the army outliner, and Swift and Hardy Ogres have Ogre-head icons."],
+		["Screens", "The New Game page fits the screen, event choices are stacked and centered, meeting a nation shows its flag and leader, research options fold away once you pick one, the research strip shows each tree's banner, and the Army Training Order is smaller and sits under the Paused sign. The minimap draws one border around each nation, filled with its second color."],
+		["Faster", "The map now draws far less each frame (about a seventh of the draw calls on a full island), and its waves and trees stop moving while the game is paused."]]},
 	{"v": "Godot 0.16", "date": "November 22, 2026", "items": [
 		["Diplomacy between players", "Other players appear in Diplomacy. Players have no opinion of each other, so Flirt and Growl just let them know, and there is no Bribe. Offering access is up to you; asking for access, an alliance (any race may ally any other), a Trade Network, Organized Crime or a white peace is up to them, with 30 seconds to answer. Proclaiming an enemy is heard by every player who has met you."],
 		["Messages, proclamations and barter", "Send a message to one player (50 gold, up to 80 letters), issue a proclamation to every player you have met (100 gold), or barter any gold, wood and food for any in return: the other player has 30 seconds to accept. They arrive as flags."]]},

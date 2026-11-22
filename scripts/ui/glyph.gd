@@ -76,6 +76,42 @@ func _draw() -> void:
 					pts.append(c + Vector2(cos(a), sin(a)) * r)
 				draw_colored_polygon(pts, SUN)
 			draw_arc(c, r, 0, TAU, 40, INK, 1.6 * s, true)
+		"rp_gov", "rp_mil", "rp_mag", "rp_gov_off", "rp_mil_off", "rp_mag_off":   # web: content.js rpSVG, a tree's banner
+			var off: bool = kind.ends_with("_off")
+			var tr: String = kind.substr(3, 3)
+			var col: Color = Color("#9aa0aa") if off else {"gov": Color("#3f72d9"), "mil": Color("#c8473d"), "mag": Color("#7a55c9")}[tr]
+			var cream := Color("#eceef2") if off else Color("#faf1dc")
+			var rod := Color("#c9ced8") if off else Color("#ffc93c")
+			# (the web's 20 × 24 banner, moved 2 to the right on this 24 grid)
+			var o := Vector2(2, 0)
+			var ban := PackedVector2Array([Vector2(3, 3.2) + o, Vector2(17, 3.2) + o, Vector2(17, 21.5) + o, Vector2(10, 18) + o, Vector2(3, 21.5) + o])
+			draw_colored_polygon(ban, col)
+			var bl := ban.duplicate()
+			bl.append(ban[0])
+			draw_polyline(bl, INK, 1.4, true)
+			draw_rect(Rect2(Vector2(1.4, 1.4) + o, Vector2(17.2, 2.4)), rod)
+			draw_rect(Rect2(Vector2(1.4, 1.4) + o, Vector2(17.2, 2.4)), INK, false, 1.0)
+			if tr == "gov":
+				for r in [Rect2(5.6, 6.2, 8.8, 1.9), Rect2(7.3, 8.1, 5.4, 6.9), Rect2(5.6, 15, 8.8, 1.9)]:
+					var rr: Rect2 = Rect2(r.position + o, r.size)
+					draw_rect(rr, cream)
+					draw_rect(rr, INK, false, 0.8)
+			elif tr == "mil":
+				for ln in [[6, 5.6, 13.4, 13.4, 1.5], [14, 5.6, 6.6, 13.4, 1.5], [11.3, 14.4, 14.4, 11.3, 1.3], [8.7, 14.4, 5.6, 11.3, 1.3], [13.6, 13.6, 15, 15, 1.4], [6.4, 13.6, 5, 15, 1.4]]:
+					var a := Vector2(ln[0], ln[1]) + o
+					var b := Vector2(ln[2], ln[3]) + o
+					draw_line(a, b, INK, ln[4] + 1.3, true)
+					draw_line(a, b, cream, ln[4], true)
+			else:
+				var st := PackedVector2Array()
+				for k in 14:
+					var ang := -PI / 2 + k * PI / 7
+					var rad := 2.1 if k % 2 else 4.9
+					st.append(Vector2(10 + cos(ang) * rad, 11.4 + sin(ang) * rad) + o)
+				draw_colored_polygon(st, cream)
+				var sl := st.duplicate()
+				sl.append(st[0])
+				draw_polyline(sl, INK, 0.8, true)
 		"tree_gov", "tree_mil", "tree_mag":   # a research tree: empty when idle, its color filling as research goes
 			var r := 12 - 1.5 * s
 			draw_circle(c, r, Color("#f4ead2"))

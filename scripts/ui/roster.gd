@@ -137,7 +137,7 @@ func _sig(tab: String) -> String:
 		for p in game.extras:
 			if game.owned(p):
 				for e in game.extras[p]:
-					if e.type in ["barracks", "magetower"]:
+					if e.type in ["barracks", "magetower", "stable"]:
 						out += "%d%s%d:%d|" % [p, e.type, e.get("level", 1), game.queues.get("%s:%d" % [e.type, p], []).size()]
 		out += (hud.part + str(hud.prov)) if hud else ""
 	return out
@@ -398,7 +398,8 @@ func _armies_tab() -> void:
 			_none("%d in armies" % in_armies)
 		if mages.is_empty() and in_armies == 0:
 			_none("None yet")
-	for kind in ["barracks", "magetower"]:
+	# (Swamplings: the Ogre Cave trains Ogres by itself, so it is listed with the Barracks)
+	for kind in (["barracks", "stable", "magetower"] if game.is_sw() else ["barracks", "magetower"]):
 		var rows := []
 		for p in game.extras:
 			if game.owned(p):
@@ -406,7 +407,7 @@ func _armies_tab() -> void:
 					if e.type == kind:
 						rows.append([p, e])
 		var D: Dictionary = game.BUILD_DEFS[kind]
-		if not _head(kind, str(D.name) + ("" if kind == "barracks" else "s"), str(rows.size())):
+		if not _head(kind, str(D.name) + ("" if kind in ["barracks", "stable"] else "s"), str(rows.size())):
 			continue
 		if rows.is_empty():
 			_none("None yet")
@@ -415,8 +416,14 @@ func _armies_tab() -> void:
 			var e: Dictionary = r[1]
 			var Q: Array = game.queues.get("%s:%d" % [kind, p], [])
 			var lv: int = e.get("level", 1)
-			var what: String = ("infantry and cavalry" if game.extras_in(p).any(func(x): return x.type == "stable") else "infantry") if kind == "barracks" else str(D.levels[lv - 1])
-			var tex: Texture2D = hud.icon("icons/realm/build_%s.png" % kind) if kind == "barracks" else hud.icon("icons/realm/build_magetower_l%d.png" % lv)
+			var what: String
+			if kind == "barracks":
+				what = "infantry" if game.race() != "realm" else ("infantry and cavalry" if game.extras_in(p).any(func(x): return x.type == "stable") else "infantry")
+			elif kind == "stable":
+				what = "Ogres"
+			else:
+				what = str(D.levels[lv - 1])
+			var tex: Texture2D = hud.icon("icons/realm/build_magetower_l%d.png" % lv) if kind == "magetower" else hud.icon("icons/realm/build_%s.png" % kind)
 			var on: bool = hud.prov == p and hud.part == "%s@%d" % [kind, e.slot] and hud.unit == null
 			_row(tex, game.prov_name(p), "", not Q.is_empty(), "%s · %s" % [("training %d" % Q.size()) if not Q.is_empty() else "idle", what], on,
 				_pick_part.bind(p, "%s@%d" % [kind, e.slot]), hud.look_at_prov.bind(p, false), "Click to select and train, double-click to go to")

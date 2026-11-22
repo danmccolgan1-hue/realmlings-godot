@@ -317,6 +317,26 @@ The plan after milestone 1. Each step is tested against the web game, then commi
    - Known: the flags reuse the war, peace and request banners (no letter or scroll art yet); the leader portrait of
      a player of another race is blank in Diplomacy.
 
+21. **Playtest notes (0.17)** — done (`tests/test_playtest17.gd`):
+   - Rules: Join army / Detach for Mages (Warlocks, Druids; web magic.js, not ported before), Death Mountain seen
+     from any province beside it (web v95.js towerSight), allies share their sight (new), Grave Robbing keeps its
+     name (`spell_name`).
+   - Interface: race-styled random nation names; the New Game page scrolls inside the screen; the game opens on the
+     capital; the map scrolls at the screen's edge; only the middle mouse drags the map (a right click is always an
+     order); tooltips wait 5 s with the mouse still (`TIP_DELAY`, project `tooltip_delay_sec`); every message goes
+     to the messages box beside the minimap (`scripts/ui/message_log.gd`: 48 kept, 8 shown); the selected unit's
+     province has the marching outline; event choices stacked, centered, their effect on a second line; meeting a
+     nation shows its flag and leader; leader portraits of any race (`Hud.leader_icon`); research: centered close
+     button, options fold away once a technology is picked, the strip centered with each tree's banner
+     (`Glyph` rp_*); Army Training Order narrower, under the Paused sign; tooltips in the race's words
+     (`Races.words`, applied to the hovered tooltip and the command card); Barracks / Ogre Cave texts per race; Ogre
+     Caves in the army outliner; minimap: one border per nation, filled with its second color (`secondary_of`);
+     Swift / Hardy Ogres icons as Ogre heads (`tools/make_ogre_icons.py`).
+   - Frame rate: the land's details and still trees are drawn in 1024-unit chunks the renderer skips off screen;
+     borders in one call, the beach as one mesh; animated layers redraw 20 times a second and stop while paused
+     (the trees stop swaying). A full island went from about 13,800 draw calls a frame to about 2,000. `--fps`
+     logs the frame rate (RL_HIDE=layer,... hides layers while measuring).
+
 ## Things to remember
 
 - **Always grep for wrappers** (`name = function`) before porting a function: later web files replace many of them.
