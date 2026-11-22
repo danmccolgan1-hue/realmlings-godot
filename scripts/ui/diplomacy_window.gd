@@ -26,6 +26,7 @@ var key := ""
 var tick := 0.0
 var open_set := {}      # the nations whose sections are open (web: dxUI.open)
 var bribe_o := 0        # the nation whose bribe targets are shown (web: dxUI.bribe)
+var drafts := {}        # multiplayer: what you are writing or offering, kept while the window redraws
 
 
 ## A nation's summary row: a button whose tooltip is its opinion of you, part by part (web: the #dxTip tooltip).
@@ -82,7 +83,7 @@ func toggle() -> void:
 
 ## Open Diplomacy; with a nation, its section opens (web: openDip(o)).
 func open(o := 0) -> void:
-	if game == null or game.nations.is_empty():
+	if game == null or (game.nations.is_empty() and game.seats.size() < 2):
 		if hud:
 			hud.add_toast("There are no other nations on the Practice island.", true)
 		return
@@ -94,6 +95,7 @@ func open(o := 0) -> void:
 		scroll.custom_minimum_size.y = minf(620, get_viewport_rect().size.y - 220)
 	win.panel.show()
 	UiKit.center.call_deferred(win.panel)
+	_fit.call_deferred()
 
 
 func close() -> void:
@@ -118,6 +120,11 @@ func _state_key() -> String:
 		parts.append([w.id, game.warscore(w, Game.LOCAL), game.exhaustion_of(w), int(game.t - w.since) / 30])
 	for sp in D.spies.values():
 		parts.append(int(sp.until - game.t) / 5)
+	for o in game.seat_ids():
+		if o != Game.LOCAL:
+			parts.append([o, game.alive_nation(o), game.knows(o), game.provs_of(o).size(), game.enemy_of(o), game.allied(Game.LOCAL, o), game.access_given(o, Game.LOCAL),
+				game.access_given(Game.LOCAL, o), game.declare_why(Game.LOCAL, o), game.proclaim_why(Game.LOCAL, o), int(game.truce_left(Game.LOCAL, o)) / 30,
+				["growl", "gift", "ask", "ally", "trade", "crime"].map(func(a): return game.player_act_why(a, o))])
 	for o in game.ai_ids():
 		parts.append([o, game.alive_nation(o), game.knows(o), game.opinion(o, Game.LOCAL), game.declare_why(Game.LOCAL, o), game.proclaim_why(Game.LOCAL, o),
 			int(game.truce_left(Game.LOCAL, o)) / 30, game.provs_of(o).size(), game.enemy_of(o)])
@@ -125,6 +132,9 @@ func _state_key() -> String:
 
 
 func _refresh() -> void:
+	var fo := get_viewport().gui_get_focus_owner() if is_inside_tree() else null
+	if fo != null and (fo is LineEdit or fo is SpinBox or fo.get_parent() is SpinBox) and body.is_ancestor_of(fo):
+		return   # (not while you are typing)
 	var k := _state_key()
 	if k == key:
 		return
@@ -132,9 +142,14 @@ func _refresh() -> void:
 	var sv := scroll.scroll_vertical
 	_header()
 	UiKit.clear(body)
+	var players: Array = game.seat_ids().filter(func(o): return o != Game.LOCAL and game.knows(o))
+	if game.seats.size() > 1:
+		body.add_child(_proclamation())
+	for o in players:
+		body.add_child(_player_section(o))
 	var met := game.ai_ids().filter(func(o): return game.knows(o))
-	var unmet := game.ai_ids().filter(func(o): return game.alive_nation(o) and not game.knows(o)).size()
-	if met.is_empty():
+	var unmet := game.ai_ids().filter(func(o): return game.alive_nation(o) and not game.knows(o)).size() + game.seat_ids().filter(func(o): return o != Game.LOCAL and game.alive_nation(o) and not game.knows(o)).size()
+	if met.is_empty() and players.is_empty():
 		body.add_child(_note("You haven't met anyone yet. Explore with your %ss to find the other nations." % game.unit_defs[game.WAYFINDER].name, 15))
 	for o in met:
 		body.add_child(_section(o))
@@ -143,6 +158,17 @@ func _refresh() -> void:
 	_between()
 	_news()
 	scroll.set_deferred("scroll_vertical", sv)
+	if win.panel.visible:   # (a window that grew while its sections were laid out shrinks back to fit)
+		_fit.call_deferred()
+
+
+func _fit() -> void:
+	var h0: float = win.panel.size.y
+	win.panel.reset_size()
+	if absf(win.panel.size.y - h0) > 1:
+		UiKit.center(win.panel)
+	if win.panel.size.y > get_viewport_rect().size.y:   # (once more after the labels have their widths)
+		get_tree().process_frame.connect(_fit, CONNECT_ONE_SHOT)
 
 
 # web: v105.js dxPanelHTML's header (+ v106.js your proclaimed enemy)
@@ -255,6 +281,211 @@ func _section(o: int) -> PanelContainer:
 	if w != null:
 		right.add_child(_war_block(o, w))
 	right.add_child(_actions(o))
+	return pc
+
+
+# ------------------------------------------------------------------ multiplayer: another player's nation (step 11)
+
+## Issue Proclamation: a message to every player you have met (100 gold).
+func _proclamation() -> PanelContainer:
+	var pc := PanelContainer.new()
+	pc.add_theme_stylebox_override("panel", UiKit.box(Color("#fbf6e8"), 6, 1, LINE))
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 8)
+	pc.add_child(h)
+	var ic := _texrect(28, 28)
+	ic.texture = Hud.icon("icons/common/dx_enemy.png")
+	h.add_child(ic)
+	var e := _line("procl", "A proclamation to every player you have met (80 letters)")
+	h.add_child(e)
+	var why := game.proclamation_why()
+	var b := _plain_btn("Issue Proclamation (%d gold)" % Game.PROCLAIM_COST.gold, func():
+		game.do("issue_proclamation", [str(drafts.get("procl", ""))])
+		drafts.erase("procl")
+		key = "")
+	b.disabled = why != ""
+	b.tooltip_text = why if why != "" else "Every player you have met reads it in their flags"
+	h.add_child(b)
+	return pc
+
+
+func _line(k: String, hint: String) -> LineEdit:
+	var e := LineEdit.new()
+	e.max_length = Game.MSG_LEN
+	e.placeholder_text = hint
+	e.text = str(drafts.get(k, ""))
+	e.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	e.add_theme_font_size_override("font_size", 14)
+	e.text_changed.connect(func(t2): drafts[k] = t2)
+	return e
+
+
+func _player_section(o: int) -> PanelContainer:
+	var alive: bool = game.alive_nation(o)
+	var is_open: bool = open_set.has(o) and alive
+	var rel := _relation(o)
+	var bg: Color = {"war": Color("#f6ddd6"), "ally": Color("#e2f1da"), "truce": Color("#f3ecd6")}.get(rel.cls, Color("#fbf6e8"))
+	var pc := PanelContainer.new()
+	var bx := UiKit.box(bg, 6, 2 if is_open else 1, UiKit.INK if is_open else LINE)
+	bx.set_content_margin_all(0)
+	pc.add_theme_stylebox_override("panel", bx)
+	var col := VBoxContainer.new()
+	pc.add_child(col)
+	var sum := Button.new()
+	sum.flat = true
+	sum.focus_mode = Control.FOCUS_NONE
+	sum.custom_minimum_size = Vector2(0, 54)
+	sum.pressed.connect(func():
+		if open_set.has(o):
+			open_set.erase(o)
+		else:
+			open_set[o] = true
+		key = ""
+		_refresh())
+	col.add_child(sum)
+	var h := HBoxContainer.new()
+	h.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	h.offset_left = 10
+	h.offset_right = -10
+	h.add_theme_constant_override("separation", 8)
+	h.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	sum.add_child(h)
+	var chev := UiKit.ink(16)
+	chev.text = "▾" if is_open else "▸"
+	h.add_child(chev)
+	var fl := _texrect(36, 24)
+	fl.texture = Art.nation_flag(game, o)
+	h.add_child(fl)
+	var L = game.leader_of(o)
+	if L != null:
+		h.add_child(_portrait(L, 34))
+	var nv := VBoxContainer.new()
+	nv.add_theme_constant_override("separation", -2)
+	nv.alignment = BoxContainer.ALIGNMENT_CENTER
+	nv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	h.add_child(nv)
+	var nm := UiKit.ink(17)
+	nm.text = game.player_info(o).name
+	nv.add_child(nm)
+	var sm := UiKit.ink(13)
+	sm.add_theme_color_override("font_color", MUTED)
+	var np := game.provs_of(o).size()
+	sm.text = ("Player: %s · %s%ss · %d province%s" % [game.seat_names.get(o, "?"), (L.full + " · ") if L != null else "", CountryWindow.RACE_WORD.get(game.race(o), "Realmling"),
+		np, "" if np == 1 else "s"]) if alive else "Fallen"
+	nv.add_child(sm)
+	if alive:
+		for b in _badges(o):
+			var ic := _texrect(26, 26)
+			ic.texture = Hud.icon("icons/common/dx_%s.png" % b[0])
+			ic.tooltip_text = b[1]
+			ic.mouse_filter = Control.MOUSE_FILTER_PASS
+			h.add_child(ic)
+		h.add_child(_chip(rel))
+	for c in h.get_children():
+		if c.mouse_filter != Control.MOUSE_FILTER_PASS:
+			c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if not is_open:
+		return pc
+	var m := MarginContainer.new()
+	for side in ["left", "right", "bottom"]:
+		m.add_theme_constant_override("margin_" + side, 10)
+	col.add_child(m)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 6)
+	m.add_child(v)
+	var e = game.enemy_of(o)
+	var facts := []
+	facts.append("Proclaimed enemy: %s" % (("you" if e == Game.LOCAL else "the " + game.player_info(e).name) if e != null and int(e) > 0 else "none"))
+	var al := game.allies_of(o).filter(func(x): return x != Game.LOCAL)
+	if not al.is_empty():
+		facts.append("Allied with " + ", ".join(al.map(func(x): return game.player_info(x).name)))
+	var wr := game.enemies_of(o).filter(func(x): return x != Game.LOCAL)
+	if not wr.is_empty():
+		facts.append("At war with " + ", ".join(wr.map(func(x): return game.player_info(x).name)))
+	v.add_child(_note(" · ".join(facts), 14))
+	var w = game.war_between(Game.LOCAL, o)
+	if w != null:
+		v.add_child(_war_block(o, w))
+	# the actions: no opinion between players, so each is your choice, or theirs to accept
+	v.add_child(_sec("Actions"))
+	var gd := GridContainer.new()
+	gd.columns = 3
+	gd.add_theme_constant_override("h_separation", 6)
+	gd.add_theme_constant_override("v_separation", 6)
+	v.add_child(gd)
+	var D := game.dipl_state()
+	var DL: Dictionary = Game.DIPL
+	if game.enemy_of(Game.LOCAL) == o:
+		gd.add_child(_act(o, "proclaim", "enemy", "Renounce enemy", "", "Lift your proclamation"))
+	else:
+		gd.add_child(_act(o, "proclaim", "enemy", "Proclaim Enemy", game.proclaim_why(Game.LOCAL, o), "Every player who has met you hears of it", true))
+	gd.add_child(_act(o, "flirt", "flirt", "Flirt", "", "They’ll know; players have no opinion to sway"))
+	gd.add_child(_act(o, "growl", "growl", "Growl", "", "They’ll hear it; players have no opinion to sway"))
+	gd.add_child(_act(o, "gift", "gift", "Gift", game.player_act_why("gift", o), "%d gold, straight to their treasury" % DL.gift.gold))
+	if game.access_given(Game.LOCAL, o):
+		gd.add_child(_act(o, "grant", "revoke", "Revoke access", "", "Their armies may no longer march through your land"))
+	else:
+		gd.add_child(_act(o, "grant", "access", "Offer access", game.player_act_why("grant", o), "Their armies may march through your land"))
+	if game.access_given(o, Game.LOCAL):
+		gd.add_child(_act(o, "giveback", "revoke", "Give back access", "", "You may march through their land; give it back"))
+	else:
+		gd.add_child(_act(o, "ask", "access", "Ask for access", game.player_act_why("ask", o), "They choose: 30 s to answer"))
+	if game.allied(Game.LOCAL, o):
+		gd.add_child(_act(o, "ally", "ally", "End alliance", "", "%d-minute truce afterwards" % (int(game.W("allyTruce")) / 60)))
+	else:
+		gd.add_child(_act(o, "ally", "ally", "Alliance", game.player_act_why("ally", o), "Any race; they choose: 30 s to answer"))
+	if not game.is_sw():
+		if game.pair_has(D.trade, Game.LOCAL, o) != null:
+			gd.add_child(_act(o, "trade", "trade", "End Trade Network", "", "Stop trading"))
+		else:
+			gd.add_child(_act(o, "trade", "trade", "Trade Network", game.player_act_why("trade", o), "A shared border: +10% Community / Trade Routes. They choose"))
+	else:
+		if game.pair_has(D.crime, Game.LOCAL, o) != null:
+			gd.add_child(_act(o, "crime", "crime", "End Organized Crime", "", "Extra Thugs leave their dens 10 s later"))
+		else:
+			gd.add_child(_act(o, "crime", "crime", "Organized Crime", game.player_act_why("crime", o), "+1 Thug in every Thug Den. They choose"))
+	if not game.at_war(Game.LOCAL, o) and not game.allied(Game.LOCAL, o):
+		var dc: Dictionary = game.W("declareCost")
+		gd.add_child(_act(o, "declare", "war", "Declare war", game.declare_why(Game.LOCAL, o), "−%s" % UiKit.cost_line(dc), true))
+	# Send Message
+	v.add_child(_sec("Send a message (%d gold)" % Game.MSG_COST.gold))
+	var mr := HBoxContainer.new()
+	mr.add_theme_constant_override("separation", 8)
+	mr.add_child(_line("msg:%d" % o, "Up to 80 letters, for their eyes only"))
+	var mwhy := game.message_why(o)
+	var mb := _plain_btn("Send", func():
+		game.do("send_message", [o, str(drafts.get("msg:%d" % o, ""))])
+		drafts.erase("msg:%d" % o)
+		key = "")
+	mb.disabled = mwhy != ""
+	mb.tooltip_text = mwhy
+	mr.add_child(mb)
+	v.add_child(mr)
+	# Barter
+	v.add_child(_sec("Barter: they have 30 s to accept"))
+	var br := HBoxContainer.new()
+	br.add_theme_constant_override("separation", 6)
+	var bd: Dictionary = drafts.get("barter:%d" % o, {"give": {"gold": 0, "wood": 0, "food": 0}, "want": {"gold": 0, "wood": 0, "food": 0}})
+	drafts["barter:%d" % o] = bd
+	for side in ["give", "want"]:
+		br.add_child(_ink("You give" if side == "give" else "for", 14))
+		for k in Game.RES:
+			var sp := SpinBox.new()
+			sp.min_value = 0
+			sp.max_value = 99999
+			sp.step = 10
+			sp.value = int(bd[side][k])
+			sp.suffix = k
+			sp.custom_minimum_size = Vector2(110, 0)
+			var sd: String = side
+			var kk: String = k
+			sp.value_changed.connect(func(x): bd[sd][kk] = int(x))
+			br.add_child(sp)
+	var ob := _plain_btn("Offer", func():
+		game.do("offer_barter", [o, bd.give.duplicate(), bd.want.duplicate()])
+		key = "")
+	br.add_child(ob)
+	v.add_child(br)
 	return pc
 
 
@@ -659,6 +890,9 @@ func _news() -> void:
 		return
 	body.add_child(_sec("News"))
 	for n in D.news:
+		if n.has("text"):   # a message, proclamation or answer from another player
+			body.add_child(_note("%s: %s" % [Game.fmt_time(n.t), n.text], 13))
+			continue
 		body.add_child(_note(("%s: the %s declared war on the %s" if n.kind == "war" else "%s: the %s and the %s made peace") % [Game.fmt_time(n.t), game.player_info(n.a).name, game.player_info(n.b).name], 13))
 
 

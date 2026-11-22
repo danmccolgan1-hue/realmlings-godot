@@ -71,7 +71,7 @@ func _process(_dt: float) -> void:
 	btns.add_child(UiKit.button(tx[1], 18, func(): game.do("answer_request", [r, true])))
 	btns.add_child(UiKit.button(tx[2], 18, func(): game.do("answer_request", [r, false])))
 	btns.add_child(UiKit.button("Later", 18, func():
-		r.min = true
+		game.do("show_request", [r.id, false])
 		shown_id = -1))
 	if hud and hud.has_method("focus_nation"):
 		btns.add_child(UiKit.button("Show me", 18, func(): hud.focus_nation(o)))

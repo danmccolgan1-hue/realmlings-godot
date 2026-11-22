@@ -167,8 +167,10 @@ func _war() -> Array:
 		errs.append("the armies of two human nations never fought")
 	for w in a.wars.duplicate():
 		if (w.a == Game.HOST and w.b == o) or (w.a == o and w.b == Game.HOST):
-			for g in [a, b]:
+			for g in [a, b]:   # a white peace between players is offered, and the other accepts
 				g.apply({"player": Game.HOST, "type": "make_peace", "args": [g.pack_args([w])[0], Game.HOST, {"kind": "white"}]})
+				var rid: int = g.in_seat(o, func(): return g.dipl_state().reqs.filter(func(r): return r.kind == "h_peace")[0].id)
+				g.apply({"player": o, "type": "answer_request", "args": [{"_r": rid}, true]})
 	if a.at_war(Game.HOST, o):
 		errs.append("the human nations could not make peace")
 	if a.checksum() != b.checksum():

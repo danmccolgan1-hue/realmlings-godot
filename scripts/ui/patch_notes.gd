@@ -5,6 +5,9 @@ extends Control
 ## web: v106.js renderPatchNotes
 
 const PORT_NOTES := [
+	{"v": "Godot 0.16", "date": "November 22, 2026", "items": [
+		["Diplomacy between players", "Other players appear in Diplomacy. Players have no opinion of each other, so Flirt and Growl just let them know, and there is no Bribe. Offering access is up to you; asking for access, an alliance (any race may ally any other), a Trade Network, Organized Crime or a white peace is up to them, with 30 seconds to answer. Proclaiming an enemy is heard by every player who has met you."],
+		["Messages, proclamations and barter", "Send a message to one player (50 gold, up to 80 letters), issue a proclamation to every player you have met (100 gold), or barter any gold, wood and food for any in return: the other player has 30 seconds to accept. They arrive as flags."]]},
 	{"v": "Godot 0.15", "date": "November 22, 2026", "items": [
 		["Multiplayer", "Play together over your network or the internet. On the Multiplayer page, host a game, let your friends join, choose the island's seed and how many computer nations join you, and start. Everyone plays their own nation, with the race, leader and flag from their New Game page. New Game stays a single-player game."],
 		["In the game", "A Players panel shows who is playing, their nation and connection, and a chat (press Enter). Anyone can pause; only the host or whoever paused can go on, and the banner says who paused."],

@@ -222,7 +222,7 @@ var rng := RandomNumberGenerator.new()   # stands in for the web's Math.random (
 # --- seats (multiplayer step 1): each human nation's own fields ---
 ## The fields each human nation has its own copy of. The properties above read and write the current seat's
 ## record (`cur`); use_seat() switches it. A single-player game has one seat, HOST.
-const SEAT_FIELDS := ["leader", "capital", "stock", "income", "income_parts", "army_counter", "tech", "rep", "surveyed", "designs", "exhaust", "exhaust_ok", "harvest", "upgrades", "xup", "cd", "harvest_by", "trap", "school_popup", "reveals", "eyes", "haunts", "mana_pool", "mana_prev", "mana_prev_t", "mage_gear", "auto_tech", "queues", "rally", "wf", "known", "explored", "visible", "my_nation", "train_orders", "met", "dipl", "fallen", "ally_ask", "met_at", "dx_step_t", "gift_vault", "demand", "ally_offer", "BUILD_DEFS", "TECH_BY_ID", "TECHS", "TECH_TREES", "UNIT_BASE", "BUILD_ORDER", "CMD"]
+const SEAT_FIELDS := ["leader", "capital", "stock", "income", "income_parts", "army_counter", "tech", "rep", "surveyed", "designs", "exhaust", "exhaust_ok", "harvest", "upgrades", "xup", "cd", "harvest_by", "trap", "school_popup", "reveals", "eyes", "haunts", "mana_pool", "mana_prev", "mana_prev_t", "mage_gear", "auto_tech", "queues", "rally", "wf", "known", "explored", "visible", "my_nation", "train_orders", "met", "fallen", "ally_ask", "met_at", "dx_step_t", "gift_vault", "demand", "ally_offer", "BUILD_DEFS", "TECH_BY_ID", "TECHS", "TECH_TREES", "UNIT_BASE", "BUILD_ORDER", "CMD"]
 
 ## A new seat's record: every seat field at its starting value.
 static func seat_defaults() -> Dictionary:
@@ -270,7 +270,6 @@ static func seat_defaults() -> Dictionary:
 		"my_nation": {"name": "My Realm", "color": 0, "emblem": "crown", "secondary": "#faf1dc"},
 		"train_orders": [],
 		"met": {},
-		"dipl": {"access": []},
 		"demand": null,
 		"ally_offer": null,
 		"ally_ask": {},
@@ -284,8 +283,34 @@ static func seat_defaults() -> Dictionary:
 ## Switch the seat fields to human nation o's; for anyone else (a computer nation, raiders) they stay as they are.
 func use_seat(o) -> void:
 	if o != ME and seats.has(o):
+		_swap_dipl(o)
 		ME = o
 		cur = seats[o]
+
+
+static func _sorted(d: Dictionary) -> Dictionary:
+	var ks := d.keys()
+	ks.sort_custom(func(x, y): return str(x) < str(y))
+	var out := {}
+	for k in ks:
+		out[k] = d[k]
+	return out
+
+
+# use_seat: the seat in use's own diplomacy (requests, news, spies) out of `dipl`, seat o's in
+func _swap_dipl(o: int) -> void:
+	var park := {}
+	for k in DIPL_SEAT_KEYS:
+		if dipl.has(k):
+			park[k] = dipl[k]
+	seat_dipl[ME] = park
+	var mine: Dictionary = seat_dipl.get(o, {})
+	for k in DIPL_SEAT_KEYS:
+		if mine.has(k):
+			dipl[k] = mine[k]
+		else:
+			dipl.erase(k)
+	seat_dipl.erase(o)
 
 
 func is_human(o) -> bool:
@@ -365,8 +390,7 @@ func seat_start(rc: String) -> void:
 func add_seat(o: int, cap: int, rc: String, nation: Dictionary = {}) -> void:
 	var keep: int = ME
 	seats[o] = seat_defaults()
-	ME = o
-	cur = seats[o]
+	use_seat(o)
 	var names := {}   # (the unit table is shared: it keeps the host's race's names)
 	for k in unit_defs:
 		names[k] = [unit_defs[k].get("name"), unit_defs[k].get("blurb")]
@@ -377,8 +401,7 @@ func add_seat(o: int, cap: int, rc: String, nation: Dictionary = {}) -> void:
 			unit_defs[k].blurb = names[k][1]
 	set_nation(nation)
 	start_capital(cap, false)
-	ME = keep
-	cur = seats[keep]
+	use_seat(keep)
 
 
 ## A new Practice-island game, as menu.js startGame() runs it for a Realmling player with every computer slot closed.
@@ -5597,7 +5620,7 @@ const SAVE_FIELDS := ["battles", "bandit_count", "monster_count", "leader", "cap
 	"xup", "auto_tech", "roads", "walls", "wall_hp", "artifacts", "gift_vault", "quakes", "quake_seq", "wall_max", "wall_crack", "broken_walls", "rewall_jobs", "gate_own", "fort_walled", "gpc_slow_t", "dev_t", "cd", "paths",
 	"harvest_by", "trap", "reveals", "eyes", "haunts", "mana_pool", "mana_prev_t", "mage_gear", "finds", "treasure_rolled",
 	"sp_found", "slot_races", "spyres", "ftraps", "sacreds", "wrocks", "gelems", "setpieces", "travelers", "train_orders", "train_order_seq", "design_seq", "prov_rename", "nations", "players", "my_nation", "race_of", "wars", "truces", "allies", "war_seq", "met", "occ", "occ_prog", "dipl", "war_log", "war_ever", "war_lock", "ai_met", "fallen", "ally_check", "bandit_next", "bandit_waves", "ally_ask", "crop_scan_at", "ai_scout_t", "wf", "known", "explored", "visible", "queues", "rally", "military", "UNIT_SPEED", "open_nbr", "all_nbr",
-	"yields", "look_seed", "tree_border", "debug_cap", "debug_tech", "reveal_all", "rec", "t", "next_tick", "paused", "last", "started", "seat_names", "paused_by"]
+	"yields", "look_seed", "tree_border", "debug_cap", "debug_tech", "reveal_all", "rec", "t", "next_tick", "paused", "last", "started", "seat_names", "paused_by", "seat_dipl"]
 
 
 ## The whole game as a plain Dictionary (see SaveCodec for the text form).
@@ -5630,6 +5653,8 @@ func _to_save() -> Dictionary:
 		d.units.append(c)
 	d.mana_prev = mana_prev.keys()   # unit ids
 	d.rng = [rng.seed, rng.state]
+	d.dipl = _sorted(dipl)   # (seats swap parts of it in and out: saved in one order, so copies compare alike)
+	d.seat_dipl = _sorted(seat_dipl)
 	if seats.size() > 1:   # multiplayer: the other human nations' own fields (the host's are the ones above)
 		var ss := {}
 		for o in seat_ids():
@@ -8469,9 +8494,11 @@ var war_seq := 0
 var met: Dictionary:  # nations the player has met
 	get: return cur["met"]
 	set(v): cur["met"] = v
-var dipl: Dictionary:  # v105: military access given {from, to}
-	get: return cur["dipl"]
-	set(v): cur["dipl"] = v
+var dipl := {"access": []}  # v105: military access given {from, to}; shared by every nation, except DIPL_SEAT_KEYS
+## The parts of `dipl` that are each human nation's own (its requests, news, spies and what they found). The seat in
+## use has them in `dipl`; the others' wait in seat_dipl (use_seat swaps them).
+const DIPL_SEAT_KEYS := ["reqs", "news", "spies", "spyLock", "intel"]
+var seat_dipl := {}
 
 func nation_of(p: int) -> int:
 	return buildings[p].owner if buildings.has(p) else 0
@@ -9451,6 +9478,11 @@ func end_war0(w: Dictionary) -> void:
 func make_peace(w, winner: int, terms: Dictionary) -> void:
 	if w == null or not wars.has(w):
 		return
+	# multiplayer: a white peace between two players is offered, and the other player chooses (step 11)
+	if _from_order and terms.get("kind") == "white" and seats.has(foe_of(w, ME)) and not terms.get("agreed", false):
+		_ask_player(foe_of(w, ME), "h_peace", {"war": w.id})
+		toast("You offered the %s a white peace." % player_info(foe_of(w, ME)).name)
+		return
 	Recorder.peace(self, w, winner, terms)   # web: v102.js makePeace wrapper
 	var loser := foe_of(w, winner)
 	# (multiplayer: the peace is told from a human side's view, the loser's when both are human)
@@ -10074,6 +10106,9 @@ func finish_spy(o: int) -> void:
 
 ## web: v105.js dxAct + v106.js: the player's request to a computer nation
 func dx_act(act: String, o: int, arg := -1) -> void:
+	if seats.has(o) and o != ME and not act in ["proclaim", "declare", "giveback"]:   # another player (step 11)
+		_dx_player(act, o)
+		return
 	var D := dipl_state()
 	var nm: String = player_info(o).name if is_nation(o) else ""
 	var why := ""
@@ -10165,11 +10200,24 @@ func dx_act(act: String, o: int, arg := -1) -> void:
 
 
 # --- requests from computer nations (web: v105.js dipRequest / answerRequest / stepRequests): 30 s, then declined ---
-const REQ_NAME := {"flirt": "Flirting", "gift": "Gift", "access": "Access request", "alliance": "Alliance offer", "trade": "Trade Network", "crime": "Organized Crime"}
+const REQ_NAME := {"flirt": "Flirting", "gift": "Gift", "access": "Access request", "alliance": "Alliance offer", "trade": "Trade Network", "crime": "Organized Crime",
+	"h_access": "Access request", "h_ally": "Alliance offer", "h_trade": "Trade Network", "h_crime": "Organized Crime", "barter": "Barter", "h_peace": "Peace offer"}
 
 func req_text(r: Dictionary) -> Array:
 	var o: int = r.from
 	match r.kind:
+		"h_access":
+			return ["They ask for military access: their armies would march through your land (you can revoke it at any time).", "Grant", "Refuse"]
+		"h_ally":
+			return ["They propose an alliance: if anyone declares war on one of you, the other joins (a Proxy War).", "Ally", "Decline"]
+		"h_trade":
+			return ["They propose a Trade Network: Community and Trade Routes give both nations 10% more gold.", "Agree", "Decline"]
+		"h_crime":
+			return ["They propose an Organized Crime Agreement: every Thug Den of both nations holds one more Thug.", "Agree", "Decline"]
+		"h_peace":
+			return ["They offer a white peace: the war ends, no one gains anything, and a truce follows.", "Make peace", "Fight on"]
+		"barter":
+			return ["They offer %s for %s." % [res_text(r.data.give), res_text(r.data.want)], "Accept", "Decline"]
 		"flirt":
 			return ["%s is flirting with you." % (leader_of(o).full if leader_of(o) != null else "Their leader"), "Flirt back", "Ignore"]
 		"gift":
@@ -10188,7 +10236,7 @@ func req_text(r: Dictionary) -> Array:
 
 func dip_request(from: int, kind: String, data := {}):
 	var D := dipl_state()
-	if not nations.has(from) or not alive_nation(from) or fallen or D.reqs.any(func(r): return r.from == from and r.kind == kind):
+	if not is_nation(from) or not alive_nation(from) or fallen or D.reqs.any(func(r): return r.from == from and r.kind == kind):
 		return null
 	var r := {"id": D.seq, "from": from, "kind": kind, "data": data, "t": t, "until": t + DIPL.reqTime, "min": false}
 	D.seq += 1
@@ -10201,6 +10249,9 @@ func dip_request(from: int, kind: String, data := {}):
 func answer_request(r: Dictionary, yes: bool, quiet := false) -> void:
 	var D := dipl_state()
 	D.reqs = D.reqs.filter(func(x): return not is_same(x, r))
+	if seats.has(r.from):   # (from another player: multiplayer step 11)
+		_answer_player(r, yes, quiet)
+		return
 	var o: int = r.from
 	var nm: String = player_info(o).name
 	if not alive_nation(o):
@@ -10396,6 +10447,10 @@ func proclaim_enemy(o: int, t2: int) -> void:
 	var D := enemy_state()
 	D.enemy[o] = {"t": t2, "since": t}
 	D.enemyAt[o] = t
+	if seats.size() > 1:   # multiplayer: every player who has met them hears of it
+		for h in seat_ids():
+			if h != o and (seats[h].met.has(o) or h == t2):
+				notify(h, "enemy", o, "The %s proclaim %s their enemy!" % [player_info(o).name, "you" if h == t2 else "the " + player_info(t2).name], h == t2)
 	if o == ME:
 		sfx("war_declare", -1, 0.5)
 		toast("You proclaim the %s your enemy: %d opinion with them for as long as it stands. Nations with the same enemy like you more (+%d)." % [player_info(t2).name, DIPL_ENEMY, DIPL_SHARED])
@@ -10804,13 +10859,14 @@ const COMMANDS := ["order", "order_group", "order_build", "cancel_build", "queue
 	"save_design", "delete_design", "retrofit_armies", "split_army", "combine_armies", "dismiss", "send_to_rest",
 	"retreat", "retreat_to", "fly_army", "thugs_enter", "thug_out", "dx_act", "answer_request", "make_peace",
 	"declare_war", "proclaim_enemy", "renounce_enemy", "travelers_choose", "dismiss_quake", "dismiss_news",
-	"answer_demand", "set_crop", "hand_to_ai", "set_paused", "set_auto_tech", "rename_prov", "close_school_popup",
+	"answer_demand", "set_crop", "hand_to_ai", "send_message", "issue_proclamation", "offer_barter", "show_request", "set_paused", "set_auto_tech", "rename_prov", "close_school_popup",
 	"debug_reveal", "debug_resources", "debug_all_tech", "grant_tech", "rec_toggle"]
 
 ## Multiplayer: hands a command to the network instead of applying it here (it comes back through apply()).
 var on_command: Callable
 ## Who paused the game (multiplayer: any player may pause; only the host or that player may go on). 0: nobody.
 var paused_by := 0
+var _from_order := false   # apply() is running a player's order (not the game's own rules)
 
 
 ## A player's order, from the interface: applied now (single-player), or sent to every copy (multiplayer, where
@@ -10838,7 +10894,9 @@ func apply(cmd: Dictionary):
 			"answer_request", "make_peace", "thug_out"] and args.size() > 0 and args[0] == null:
 		r = null   # (what it was about is gone: a unit died, a war ended, a request ran out)
 	else:
+		_from_order = true
 		r = callv("_cmd_" + type, args) if has_method("_cmd_" + type) else callv(type, args)
+		_from_order = false
 	use_seat(view_seat)
 	return r
 
@@ -10963,9 +11021,10 @@ func hand_to_ai(o: int, diff := "difficult") -> void:
 		"wantSchool": school if school != null else "arcane", "spellT": 0, "dv": 0,
 		"design": {"inf": "d-sw-axe", "cav": "d-sw-ogre"} if rc == "swamp" else {"inf": "d-sword", "cav": "d-rider"}, "armyN": S.army_counter,
 		"income": S.income.duplicate(), "leader": S.leader, "fromHuman": true}
-	seats.erase(o)
 	if ME == o:
 		use_seat(HOST)
+	seats.erase(o)
+	seat_dipl.erase(o)
 	if view_seat == o:
 		view_seat = HOST
 	nations[o] = N
@@ -10979,3 +11038,302 @@ func hand_to_ai(o: int, diff := "difficult") -> void:
 	ai_redesign(N)
 	N.income = Ai.income(self, N)
 	toast("%s is now played by the computer (%s)." % [N.name, GameData.c("DIFF_NAME").get(diff, diff)])
+
+
+
+# =================================================================================================================
+# diplomacy between human players (multiplayer step 11): no opinion between players, so Flirt and Growl only tell
+# the other player; no Bribe; access, alliances and pacts are the other player's choice (a request, 30 s); any two
+# human nations may ally whatever their race. New: Send Message, Barter and Issue Proclamation.
+
+const MSG_COST := {"gold": 50}
+const PROCLAIM_COST := {"gold": 100}
+const MSG_LEN := 80
+
+## A note on player o's flags (and a message on their screen): kind is "msg", "procl", "enemy", "growl", "flirt",
+## "gift", "answer" or "access"; from: the nation it's about.
+func notify(o: int, kind: String, from: int, text: String, warn := false) -> void:
+	if not seats.has(o):
+		return
+	var keep: int = ME
+	use_seat(o)
+	var D := dipl_state()
+	D.news.append({"id": D.seq, "kind": kind, "a": from, "b": o, "t": t, "text": text})
+	D.seq += 1
+	if D.news.size() > 8:
+		D.news = D.news.slice(D.news.size() - 8)
+	sfx("wn_ally")
+	toast(text, warn)
+	use_seat(keep)
+
+
+func res_text(r: Dictionary) -> String:
+	var parts := []
+	for k in RES:
+		if int(r.get(k, 0)) > 0:
+			parts.append("%d %s" % [int(r[k]), k])
+	return " and ".join(parts) if not parts.is_empty() else "nothing"
+
+
+func _pays(c: Dictionary) -> bool:
+	for k in c:
+		if stock.get(k, 0) < c[k]:
+			return false
+	return true
+
+
+func message_why(o: int) -> String:
+	if not seats.has(o) or o == ME or not seats[o].met.has(ME) and not met.has(o):
+		return "Only to a player you have met"
+	if not _pays(MSG_COST):
+		return "Needs %d gold" % MSG_COST.gold
+	return ""
+
+
+## Send Message: 50 gold, up to 80 characters, to one player you have met.
+func send_message(o: int, text: String) -> bool:
+	var tx := text.strip_edges().replace("\n", " ").left(MSG_LEN)
+	var why := message_why(o)
+	if why == "" and tx == "":
+		why = "Write something first"
+	if why != "":
+		toast(why, true)
+		return false
+	stock.gold -= MSG_COST.gold
+	notify(o, "msg", ME, "%s: “%s”" % [player_info(ME).name, tx])
+	toast("Your message is on its way to the %s." % player_info(o).name)
+	return true
+
+
+func proclamation_why() -> String:
+	if not _pays(PROCLAIM_COST):
+		return "Needs %d gold" % PROCLAIM_COST.gold
+	if seat_ids().filter(func(h): return h != ME and met.has(h)).is_empty():
+		return "You haven’t met another player yet"
+	return ""
+
+
+## Issue Proclamation: 100 gold, a message to every player you have met.
+func issue_proclamation(text: String) -> bool:
+	var tx := text.strip_edges().replace("\n", " ").left(MSG_LEN)
+	var why := proclamation_why()
+	if why == "" and tx == "":
+		why = "Write something first"
+	if why != "":
+		toast(why, true)
+		return false
+	stock.gold -= PROCLAIM_COST.gold
+	var n := 0
+	for h in seat_ids():
+		if h != ME and met.has(h):
+			notify(h, "procl", ME, "Proclamation of the %s: “%s”" % [player_info(ME).name, tx])
+			n += 1
+	toast("Your proclamation is read in %d court%s." % [n, "" if n == 1 else "s"])
+	return true
+
+
+func barter_why(o: int, give: Dictionary, want: Dictionary) -> String:
+	if not seats.has(o) or o == ME or not met.has(o):
+		return "Only with a player you have met"
+	var any := false
+	for d in [give, want]:
+		for k in d:
+			if not k in RES or int(d[k]) < 0:
+				return "Not a fair offer"
+			any = any or int(d[k]) > 0
+	if not any:
+		return "Offer or ask for something"
+	if not _pays(give):
+		return "You don’t have %s" % res_text(give)
+	if dipl_state().reqs.any(func(r): return r.kind == "barter" and r.from == o) or in_seat(o, func(): return dipl_state().reqs.any(func(r): return r.kind == "barter" and r.from == ME)):
+		return "An offer is already waiting"
+	return ""
+
+
+## Barter: any amounts of gold, wood and food for any amounts in return. The other player has 30 s to accept.
+func offer_barter(o: int, give: Dictionary, want: Dictionary) -> bool:
+	var g2 := {}
+	var w2 := {}
+	for k in RES:
+		g2[k] = maxi(0, int(give.get(k, 0)))
+		w2[k] = maxi(0, int(want.get(k, 0)))
+	var why := barter_why(o, g2, w2)
+	if why != "":
+		toast(why, true)
+		return false
+	_ask_player(o, "barter", {"give": g2, "want": w2})
+	toast("Your offer is on its way to the %s: %s for %s." % [player_info(o).name, res_text(g2), res_text(w2)])
+	return true
+
+
+# a request to another player (it waits 30 s in their requests)
+func _ask_player(o: int, kind: String, data := {}) -> void:
+	var from: int = ME
+	var keep: int = ME
+	use_seat(o)
+	dip_request(from, kind, data)
+	use_seat(keep)
+
+
+# answer_request for a request from another player (this player is the one answering)
+func _answer_player(r: Dictionary, yes: bool, quiet: bool) -> void:
+	var o: int = r.from
+	var nm: String = player_info(o).name
+	var what: String = REQ_NAME.get(r.kind, "offer").to_lower()
+	if not yes:
+		toast(("No answer to the %s’s %s: declined." if quiet else "You declined the %s’s %s.") % [nm, what])
+		notify(o, "answer", ME, ("The %s didn’t answer your %s." if quiet else "The %s declined your %s.") % [player_info(ME).name, what], true)
+		return
+	var why := ""
+	match r.kind:
+		"h_access":
+			if not access_given(ME, o):
+				dipl_state().access.append({"from": ME, "to": o})
+		"h_ally":
+			why = player_ally_why(o)
+			if why == "":
+				form_alliance(o, ME, 0)
+		"h_trade", "h_crime":
+			var k: String = r.kind.substr(2)
+			why = trade_why(ME, o) if k == "trade" else crime_why(ME, o)
+			if why == "":
+				form_pact(k, o, ME)
+		"h_peace":
+			var wp = null
+			for w in wars:
+				if w.id == r.data.war:
+					wp = w
+			if wp == null:
+				why = "That war is already over"
+			else:
+				make_peace(wp, ME, {"kind": "white", "agreed": true})
+		"barter":
+			var give: Dictionary = r.data.give
+			var want: Dictionary = r.data.want
+			var S: Dictionary = seats[o].stock
+			if not _pays(want):
+				why = "You don’t have %s any more" % res_text(want)
+			elif RES.any(func(k): return S.get(k, 0) < give.get(k, 0)):
+				why = "They don’t have %s any more" % res_text(give)
+			else:
+				for k in RES:
+					S[k] = S.get(k, 0) - give.get(k, 0) + want.get(k, 0)
+					stock[k] = stock.get(k, 0) + give.get(k, 0) - want.get(k, 0)
+				in_seat(o, compute_income)
+	if why != "":
+		toast("It can’t be done: %s." % (why[0].to_lower() + why.substr(1)), true)
+		notify(o, "answer", ME, "The %s agreed to your %s, but it can’t be done: %s." % [player_info(ME).name, what, why[0].to_lower() + why.substr(1)], true)
+		return
+	toast("You accepted the %s’s %s." % [nm, what])
+	notify(o, "answer", ME, "The %s accepted your %s!" % [player_info(ME).name, what])
+
+
+## Alliances between players: no opinion and no race rule; one ally at a time, no war, truce or proclaimed enmity.
+func player_ally_why(o: int) -> String:
+	if allied(ME, o):
+		return "Already allies"
+	if treaty_count(o) >= 1 or treaty_count(ME) >= 1:
+		return "One of you already has an ally"
+	if at_war(ME, o):
+		return "You are at war"
+	if truce_left(ME, o) > 0:
+		return "Truce: %s left" % fmt_time(truce_left(ME, o))
+	if enemy_of(o) == ME or enemy_of(ME) == o:
+		return "One of you proclaims the other an enemy"
+	return ""
+
+
+## Why a diplomatic action can't be taken toward another player ("" when it can). The window asks this.
+func player_act_why(act: String, o: int) -> String:
+	match act:
+		"growl", "flirt":
+			return ""
+		"gift":
+			return "" if _pays({"gold": DIPL.gift.gold}) else "Needs %d gold" % DIPL.gift.gold
+		"bribe", "spy":
+			return "Not between players"
+		"grant":
+			return "" if access_given(ME, o) else "You are at war" if at_war(ME, o) else "Allies already have access" if allied(ME, o) else ""
+		"ask":
+			return "They already let you through" if access_given(o, ME) else "You are at war" if at_war(ME, o) else "Allies already have access" if allied(ME, o) else _waiting(o, "h_access")
+		"ally":
+			return "" if allied(ME, o) else (player_ally_why(o) if player_ally_why(o) != "" else _waiting(o, "h_ally"))
+		"trade":
+			return "" if pair_has(dipl_state().trade, ME, o) != null else (trade_why(ME, o) if trade_why(ME, o) != "" else _waiting(o, "h_trade"))
+		"crime":
+			return "" if pair_has(dipl_state().crime, ME, o) != null else (crime_why(ME, o) if crime_why(ME, o) != "" else _waiting(o, "h_crime"))
+	return ""
+
+
+func _waiting(o: int, kind: String) -> String:
+	var me0: int = ME
+	return "Waiting for their answer" if in_seat(o, func(): return dipl_state().reqs.any(func(r): return r.kind == kind and r.from == me0)) else ""
+
+
+# dx_act toward another player
+func _dx_player(act: String, o: int) -> void:
+	var nm: String = player_info(o).name
+	var me_nm: String = player_info(ME).name
+	var why := player_act_why(act, o)
+	if why != "":
+		toast(why, true)
+		return
+	match act:
+		"growl":
+			toast("You growl at the %s. Players aren’t swayed by growls, but they heard it." % nm)
+			notify(o, "growl", ME, "The %s growl at you!" % me_nm)
+		"flirt":
+			toast("You flirt with the %s. Players aren’t swayed by it, but they noticed." % nm)
+			notify(o, "flirt", ME, "%s flirts with you." % (leader_of(ME).full if leader_of(ME) != null else "The " + me_nm))
+		"gift":
+			var gold: int = DIPL.gift.gold
+			stock.gold -= gold
+			var S: Dictionary = seats[o]
+			var room: int = maxi(0, int(in_seat(o, func(): return storage_cap("gold"))) - int(S.stock.gold))
+			S.stock.gold += mini(room, gold)
+			S.gift_vault += gold - mini(room, gold)
+			toast("You sent the %s %d gold." % [nm, gold])
+			notify(o, "gift", ME, "The %s sent you a gift of %d gold." % [me_nm, gold])
+		"grant":
+			if access_given(ME, o):
+				end_access(ME, o, "you revoked it")
+				notify(o, "access", ME, "The %s withdrew your military access." % me_nm, true)
+			else:
+				dipl_state().access.append({"from": ME, "to": o})
+				toast("The %s’s armies may now march through your land. You can revoke it at any time." % nm)
+				notify(o, "access", ME, "The %s give you military access: your armies may march through their land." % me_nm)
+		"ask":
+			_ask_player(o, "h_access")
+			toast("You asked the %s for military access." % nm)
+		"ally":
+			if allied(ME, o):
+				for A in allies:
+					if (A.a == ME and A.b == o) or (A.b == ME and A.a == o):
+						end_alliance(A, "you ended it")
+						notify(o, "answer", ME, "The %s ended your alliance." % me_nm, true)
+						return
+			_ask_player(o, "h_ally")
+			toast("You proposed an alliance to the %s." % nm)
+		"trade", "crime":
+			var P = pair_has(dipl_state()[act], ME, o)
+			if P != null:
+				end_pact(act, P, "you ended it")
+				return
+			_ask_player(o, "h_" + act)
+			toast("You proposed %s to the %s." % ["a Trade Network" if act == "trade" else "Organized Crime", nm])
+
+
+func _cmd_show_request(id: int, on_screen: bool) -> void:
+	var D := dipl_state()
+	var pick = null
+	for r in D.reqs:
+		if r.id == id:
+			pick = r
+	if pick == null:
+		return
+	if not on_screen:
+		pick.min = true
+		return
+	for r in D.reqs:
+		r.min = not is_same(r, pick)
+	D.reqs = [pick] + D.reqs.filter(func(r): return not is_same(r, pick))

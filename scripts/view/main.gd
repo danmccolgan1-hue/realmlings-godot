@@ -789,6 +789,17 @@ func _mp_demo() -> void:
 			_demo_lock.process(0.016)
 		await get_tree().process_frame
 	_demo_net.send_chat("Hello from the swamp!")
+	if OS.get_cmdline_user_args().has("--dip"):   # pictures: Diplomacy with the other player, and her message
+		for g in [game, _demo_lock.game]:
+			g.seats[Game.HOST].met[_demo_lock.me] = true
+			g.seats[_demo_lock.me].met[Game.HOST] = true
+		_demo_lock.game.do("send_message", [Game.HOST, "Shall we share the river? I'll trade wood for gold."])
+		_demo_lock.game.do("offer_barter", [Game.HOST, {"wood": 40}, {"gold": 30}])
+		for i in 30:
+			_demo_net.poll(0.016)
+			_demo_lock.process(0.016)
+			await get_tree().process_frame
+		hud.diplomacy.open(_demo_lock.me)
 	_demo_lock.game.do("set_paused", [true])
 	for i in 60:
 		_demo_net.poll(0.016)

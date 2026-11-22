@@ -300,6 +300,23 @@ The plan after milestone 1. Each step is tested against the web game, then commi
    - Known: units move in 20 steps a second in multiplayer (single-player moves every frame), so movement looks
      less smooth; loading a multiplayer save from the menu plays only the host's nation (the others stand still).
 
+20. **Diplomacy between human players (multiplayer step 11)** — done (`tests/test_mp_dipl.gd`):
+   - `dipl` is shared by every nation again (access, pacts, enemies, opinion modifiers); each player's own requests,
+     news, spies and findings (`DIPL_SEAT_KEYS`) swap in with `use_seat` (`seat_dipl` keeps the others'). Saves
+     write `dipl` and `seat_dipl` with sorted keys so copies compare alike.
+   - Toward another player (`_dx_player`, `player_act_why`): Flirt and Growl only tell them; Gift (1000 gold) goes
+     straight to their treasury (over the limit, to their gift vault); no Bribe or Spy; Offer access is yours to
+     give; Ask for access, Alliance (any race), Trade Network and Organized Crime are requests they answer within
+     30 s (`h_access`, `h_ally`, `h_trade`, `h_crime`); a white peace between players is offered (`h_peace`).
+   - New orders: `send_message` (50 gold, 80 letters, one player), `issue_proclamation` (100 gold, every player
+     you have met), `offer_barter` (any gold, wood and food for any in return; 30 s, then declined), and
+     `show_request` (which request is on screen is game state, so it is an order too). Proclaim Enemy is heard by
+     every player who has met the proclaimer. Notes arrive as flags (`notify`, news with a `text`) and toasts.
+   - Diplomacy window: other players' sections (actions, Send a message, Barter) and Issue Proclamation on top;
+     it shrinks back to fit after laying out (`_fit`).
+   - Known: the flags reuse the war, peace and request banners (no letter or scroll art yet); the leader portrait of
+     a player of another race is blank in Diplomacy.
+
 ## Things to remember
 
 - **Always grep for wrappers** (`name = function`) before porting a function: later web files replace many of them.

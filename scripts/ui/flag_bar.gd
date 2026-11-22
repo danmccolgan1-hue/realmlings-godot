@@ -117,6 +117,11 @@ func flag_list() -> Array:
 			if not is_same(r, on_screen):
 				out.append({"id": "dxreq:%d" % r.id, "img": "dxreq", "warn": true, "label": Game.REQ_NAME[r.kind], "tip": "%s from the %s: left-click to answer (declined when the time runs out), right-click to decline" % [Game.REQ_NAME[r.kind], g.player_info(r.from).name]})
 		for n in D.news:
+			if n.has("text"):   # from another player (multiplayer): a message, a proclamation, an answer...
+				var LB := {"msg": "Message", "procl": "Proclamation", "enemy": "Enemy", "growl": "Growl", "flirt": "Flirt", "gift": "Gift", "answer": "Answer", "access": "Access"}
+				out.append({"id": "dxnews:%d" % n.id, "img": "dxwar" if n.kind == "enemy" else "dxreq" if n.kind in ["msg", "procl"] else "dxpeace",
+					"label": LB.get(n.kind, "News"), "warn": n.kind == "enemy", "tip": "%s\nLeft-click to read it again and open Diplomacy, right-click to dismiss" % n.text})
+				continue
 			var war: bool = n.kind == "war"
 			out.append({"id": "dxnews:%d" % n.id, "img": "dxwar" if war else "dxpeace", "label": "War" if war else "Peace",
 				"tip": ("The %s declared war on the %s. Left-click for Diplomacy, right-click to dismiss" if war else "The %s and the %s made peace. Left-click for Diplomacy, right-click to dismiss") % [g.player_info(n.a).name, g.player_info(n.b).name]})
@@ -338,10 +343,11 @@ func click(id: String) -> void:
 				pick = r
 		if pick == null:
 			return
-		for r in D.reqs:
-			r.min = not is_same(r, pick)
-		D.reqs = [pick] + D.reqs.filter(func(r): return not is_same(r, pick))
+		g.do("show_request", [pick.id, true])
 	elif id.begins_with("dxnews:"):
+		for n in g.dipl_state().news:
+			if "dxnews:%d" % n.id == id and n.has("text"):
+				hud.add_toast(n.text)
 		g.do("dismiss_news", [int(id.split(":")[1])])
 		hud.diplomacy.open()
 	elif id == "overlimit":
