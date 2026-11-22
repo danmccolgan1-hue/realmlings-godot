@@ -77,9 +77,11 @@
     },
     houses: () => {
       const out = [], n = E('HOUSE_LOOKS').length;
-      for (let v = 0; v < n; v++) for (const roof of [null, '#3f72d9']) {
+      // the plain house, and its roof in every nation color (content.js drawHouse: an owned house's roof)
+      const roofs = [null].concat(E('NATION_COLORS').map(c => c[0]));
+      for (let v = 0; v < n; v++) for (const roof of roofs) {
         const s = houseSprite(v, roof, R), k = HOUSE_K;
-        out.push(shoot(`houses/${R}/house_v${v}${roof ? '_owned' : ''}.png`, 3, c => c.drawImage(s, -50 * k, -70 * k, 100 * k, 100 * k), { variant: v, owned: !!roof }));
+        out.push(shoot(`houses/${R}/house_v${v}${roof ? '_r' + roof.slice(1).toLowerCase() : ''}.png`, 3, c => c.drawImage(s, -50 * k, -70 * k, 100 * k, 100 * k), { variant: v, roof: roof || null }));
       }
       return out;
     },

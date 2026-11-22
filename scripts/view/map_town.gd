@@ -318,8 +318,13 @@ func draw_houses(g: Game) -> void:
 			var c: Array = g.G.provs[p].ic
 			var b = g.buildings.get(p)
 			var rc: String = g.race(b.owner) if b != null else "realm"
-			var own := b != null and int(h.n) % 3 != 2 and str(g.player_info(b.owner).color).to_lower() == "#3f72d9"   # (the roofed art is exported in blue)
-			var sp = Art.race_sprite("houses", rc, "house_v%d%s.png" % [h.v, "_owned" if own else ""])
+			# two houses in three wear their owner's color on the roof (web: content.js drawHouse)
+			var roof := ""
+			if b != null and int(h.n) % 3 != 2:
+				roof = "_r" + str(g.player_info(b.owner).color).trim_prefix("#").to_lower()
+			var sp = Art.race_sprite("houses", rc, "house_v%d%s.png" % [h.v, roof])
+			if sp == null:
+				sp = Art.race_sprite("houses", rc, "house_v%d.png" % h.v)
 			if sp != null:
 				Art.draw(v, sp, Vector2(c[0] + h.x, c[1] + h.y), _pop(g.t - h.born))
 

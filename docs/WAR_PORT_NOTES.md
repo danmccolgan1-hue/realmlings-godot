@@ -254,7 +254,7 @@ The plan after milestone 1. Each step is tested against the web game, then commi
      Pyromancers' pyre income, race counter designs (`CD_NAMES_RACE`).
    - Views: `scripts/view/map_town.gd` (houses round buildings and developed settlements, townsfolk with their
      errands and flight); art jobs `mcast` (casting poses by race and school) and `dualwield` (Berserkers with two
-     weapons). The roofed house art is exported in blue only, so other nations' houses keep their plain roofs.
+     weapons). Houses are exported with the roof in each of the 8 nation colors (`house_v<n>_r<hex>.png`).
 
 ## Things to remember
 

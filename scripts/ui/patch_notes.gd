@@ -10,7 +10,7 @@ const PORT_NOTES := [
 		["Warlock skulls", "A Swampling Warlock with a wand holds a skull in the other hand: more attack, and a faster Fireball. Choose it in the Armory."],
 		["Organized Crime", "Swampling nations can agree on Organized Crime: every Thug Den of both holds one more Thug. Swamplings form no Trade Networks."],
 		["Computer nations", "Computer Pyromancers count their Sacred Pyres, and the counter designs Swampling and Woodling nations train are their own Berserkers and Protectors."],
-		["Villages", "Houses grow around your buildings and developed settlements, and townsfolk walk between them, running indoors when danger comes. Realmlings, Swamplings and Woodlings each have their own."],
+		["Villages", "Houses grow around your buildings and developed settlements, and townsfolk walk between them, running indoors when danger comes. Realmlings, Swamplings and Woodlings each have their own, and two houses in three wear their nation's color on the roof (0.11.1)."],
 		["Casting and dual wielding", "Mages, Warlocks and Druids raise their staff in their school's lightning while casting, and Berserkers with Dual Wielding carry both weapons on the map and in the Armory."]]},
 	{"v": "Godot 0.10", "date": "November 21, 2026", "items": [
 		["Grand Elemental", "Woodling Druids with the School of the Elements can call up a Grand Elemental: a towering man of living water who joins the army for 2 minutes."],
