@@ -120,7 +120,7 @@ func flag_list() -> Array:
 			if n.has("text"):   # from another player (multiplayer): a message, a proclamation, an answer...
 				var LB := {"msg": "Message", "procl": "Proclamation", "enemy": "Enemy", "growl": "Growl", "flirt": "Flirt", "gift": "Gift", "answer": "Answer", "access": "Access"}
 				out.append({"id": "dxnews:%d" % n.id, "img": "dxwar" if n.kind == "enemy" else "dxreq" if n.kind in ["msg", "procl"] else "dxpeace",
-					"label": LB.get(n.kind, "News"), "warn": n.kind == "enemy", "tip": "%s\nLeft-click to read it again and open Diplomacy, right-click to dismiss" % n.text})
+					"label": LB.get(n.kind, "News"), "warn": n.kind == "enemy", "tip": "%s\nLeft-click to open Diplomacy, right-click to dismiss" % n.text})
 				continue
 			var war: bool = n.kind == "war"
 			out.append({"id": "dxnews:%d" % n.id, "img": "dxwar" if war else "dxpeace", "label": "War" if war else "Peace",
@@ -345,9 +345,6 @@ func click(id: String) -> void:
 			return
 		g.do("show_request", [pick.id, true])
 	elif id.begins_with("dxnews:"):
-		for n in g.dipl_state().news:
-			if "dxnews:%d" % n.id == id and n.has("text"):
-				hud.add_toast(n.text)
 		g.do("dismiss_news", [int(id.split(":")[1])])
 		hud.diplomacy.open()
 	elif id == "overlimit":

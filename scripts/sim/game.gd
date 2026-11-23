@@ -43,6 +43,8 @@ var G: Dictionary            # WorldPrep.prep(world): provs (pts, ic, coastal...
 var open_nbr := []           # province -> [{q, m}] across open borders
 var all_nbr := []
 var yields := []             # province -> {gold, wood, food, bonus, deposit}
+var variant := []            # province -> "" or a terrain variant ("drylands", "meadow", "fae", "bog"), Godot 0.18
+static var VARIANTS := true  # tests that compare against the web game's numbers turn the variants off
 var tree_border := []
 
 # --- the nation ---
@@ -467,7 +469,10 @@ var my_nation: Dictionary:
 
 func set_nation(n: Dictionary) -> void:
 	var NAT: Dictionary = GameData.c("NATION")
-	my_nation = {"name": str(n.get("name", NAT.get("name", "My Realm"))).strip_edges().left(24), "color": int(n.get("color", NAT.color)), "emblem": str(n.get("emblem", NAT.emblem)), "secondary": str(n.get("secondary", "#faf1dc"))}
+	var em := str(n.get("emblem", NAT.emblem))
+	if not em in Races.EMBLEMS.get(race(), Races.EMBLEMS.realm):   # (each race flies its own flags)
+		em = Races.EMBLEMS.get(race(), Races.EMBLEMS.realm)[0]
+	my_nation = {"name": str(n.get("name", NAT.get("name", "My Realm"))).strip_edges().left(24), "color": int(n.get("color", NAT.color)), "emblem": em, "secondary": str(n.get("secondary", "#faf1dc"))}
 	if my_nation.name == "":
 		my_nation.name = "My Realm"
 	var NC: Array = GameData.c("NATION_COLORS")
@@ -549,6 +554,8 @@ func setup_game(where := "center") -> void:
 func start_capital(best: int, first: bool) -> void:
 	if G.provs[best].terrain != Races.HOME[race()]:
 		G.provs[best].terrain = Races.HOME[race()]
+		if best < variant.size():
+			variant[best] = ""   # (a capital moved onto its race's home terrain is plain)
 	capital = best
 	buildings[best] = {"stage": 2, "born": -10, "owner": ME}
 	surveyed[best] = -10
@@ -621,6 +628,91 @@ func roll_yields() -> void:
 			for q in world.provinces[U.death].nbr:
 				yields[q].gold += 5
 				yields[q].bonus.gold += 5
+	roll_variants()
+
+
+## Terrain variants (Godot 0.18, not in the web game): a tenth of each terrain is Drylands, Meadow, Fae Forest or Bog,
+## picked with their own random numbers so the island and every other roll stay as the web game makes them.
+const VARIANT_OF := {"desert": "drylands", "grassland": "meadow", "forest": "fae", "swamp": "bog"}
+const VARIANT_NAME := {"drylands": "Drylands", "meadow": "Meadow", "fae": "Fae Forest", "bog": "Bog"}
+const VARIANT_YIELD := {"drylands": {"gold": 1, "food": 1, "wood": 1}, "meadow": {"gold": 2, "food": 3, "wood": 3},
+	"fae": {"gold": 1, "food": 3, "wood": 5}, "bog": {"gold": 2, "food": 2, "wood": 2}}
+const VARIANT_LUCK := {"meadow": 0.25, "fae": 0.25}   # a chance of +1 in a random resource
+const VARIANT_TEXT := {"drylands": "Golden grass over dry ground: a little of everything.",
+	"meadow": "Flowering meadow: Farms here give +3 food each.",
+	"fae": "An old, enchanted wood: Lumber Mills here harvest +3 wood each.",
+	"bog": "Deep bog: everyone but Swamplings moves at half speed, defenders +30%. Buildings cost double (Swamplings: half)."}
+const BOG_DEF := 1.3
+
+
+func roll_variants() -> void:
+	variant = []
+	variant.resize(world.provinces.size())
+	variant.fill("")
+	if not VARIANTS:
+		return
+	var r := Mulberry32.from_string(str(world.seed) + ":variants")
+	var U = uq()
+	var skip := {}
+	if U != null:
+		for k in ["death", "oasis", "heart"]:
+			skip[int(U.get(k, -1))] = true
+		for q in (world.provinces[U.oasis].nbr if int(U.get("oasis", -1)) >= 0 else []):
+			skip[q] = true   # (the deserts round the Oasis border forests and mountains: they stay plain desert)
+	for ter in VARIANT_OF:
+		var cands := []
+		for i in world.provinces.size():
+			if G.provs[i].terrain == ter and not skip.has(i) and not (ter == "desert" and _by_woods_or_peaks(i)):
+				cands.append(i)
+		var n := int(floor(cands.size() * 0.1 + 0.5))
+		for k in n:
+			var j := k + int(floor(r.next() * (cands.size() - k)))
+			var tmp = cands[k]
+			cands[k] = cands[j]
+			cands[j] = tmp
+			var p: int = cands[k]
+			var v: String = VARIANT_OF[ter]
+			variant[p] = v
+			var y: Dictionary = yields[p]
+			for res in VARIANT_YIELD[v]:
+				y[res] = VARIANT_YIELD[v][res]
+			y.bonus = {"gold": 0, "wood": 0, "food": 0}
+			if r.next() < VARIANT_LUCK.get(v, 0.0):
+				var res: String = ["gold", "wood", "food"][int(floor(r.next() * 3))]
+				y[res] += 1
+				y.bonus[res] = 1
+
+
+## Drylands never border a forest or a mountain range.
+func _by_woods_or_peaks(p: int) -> bool:
+	for q in world.provinces[p].nbr:
+		if G.provs[q].terrain == "forest":
+			return true
+	for id in world.provinces[p].edges:
+		if world.edges[id].style == "mountains":
+			return true
+	return false
+
+
+func variant_of(p: int) -> String:
+	return str(variant[p]) if p >= 0 and p < variant.size() else ""
+
+
+## A building's price in province p for nation o: double in a Bog, half for Swamplings.
+func bog_cost(p: int, o: int, cost: Dictionary) -> Dictionary:
+	if variant_of(p) != "bog":
+		return cost
+	var m := 0.5 if is_sw(o) else 2.0
+	var out := {}
+	for k in cost:
+		out[k] = int(ceil(cost[k] * m))
+	return out
+
+
+## The terrain's name with its variant, e.g. "Fae Forest" or "grassland".
+func terrain_name(p: int) -> String:
+	var v := variant_of(p)
+	return VARIANT_NAME[v] if v != "" else str(G.provs[p].terrain)
 
 
 func refresh_tree_borders() -> void:
@@ -1384,6 +1476,13 @@ func extras_bonus(p: int) -> Dictionary:
 		for e in extras_in(p):
 			if e.type == "farm":
 				y[Ai.CROP_PLUS[Ai.crop_of(e)]] += 1
+	var v := variant_of(p)
+	if v == "meadow" or v == "fae":   # 0.18: Farms in a Meadow +3 food, Lumber Mills in a Fae Forest +3 wood
+		for e in extras_in(p):
+			if v == "meadow" and e.type == "farm":
+				y.food += 3
+			elif v == "fae" and e.type == "lumber":
+				y.wood += 3
 	var r = devel.get(p)
 	if r != null and r.deep and extras_in(p).any(func(e): return e.type == "goldmine"):
 		y.gold += GameData.c("DEV").deepGold   # v106: a Deep Gold Deposit
@@ -2058,6 +2157,8 @@ func speed_mod(u: Dictionary) -> float:
 		m *= 1.2
 	if ter == "forest" and is_wd(u.owner):   # web: wood.js (Woodlings: 10% faster in a forest)
 		m *= 1.1
+	if u.prov >= 0 and variant_of(u.prov) == "bog" and not is_sw(u.owner):   # 0.18: a Bog halves everyone else
+		m *= 0.5
 	return m
 
 
@@ -2714,7 +2815,7 @@ func build_check0(p: int, type: String):
 		var lim = outpost_why()
 		if lim != null:
 			return lim
-		return lack_text(GameData.c("OUTPOST_COST"))
+		return lack_text(bog_cost(p, ME, GameData.c("OUTPOST_COST")))
 	var d: Dictionary = BUILD_DEFS[type]
 	if d.has("tech") and d.tech != null and not has_tech(d.tech):
 		return "Research " + str(TECH_BY_ID[d.tech].name).replace("Building: ", "") + " first"
@@ -2741,7 +2842,7 @@ func build_check0(p: int, type: String):
 			waiting += 1
 	if used_slots(p).size() + waiting >= plot_cap(p):
 		return "Province full (%d/%d)" % [plot_cap(p), plot_cap(p)] + (" · upgrade to a Fort for 4" if buildings[p].stage == 0 else "")
-	return lack_text(d.cost)
+	return lack_text(bog_cost(p, ME, d.cost))
 
 
 # used_slots with building sites and pending orders (web: game.js usedSlots)
@@ -2784,7 +2885,7 @@ func start_build(u: Dictionary) -> bool:
 		return false
 	if u.build != null:
 		return false
-	var cost: Dictionary = GameData.c("OUTPOST_COST")
+	var cost: Dictionary = bog_cost(u.prov, ME, GameData.c("OUTPOST_COST"))
 	for k in cost:
 		stock[k] -= cost[k]
 	u.build = {"prov": u.prov, "type": "outpost", "t0": t, "dur": build_time("outpost"), "paid": cost.duplicate()}
@@ -2807,13 +2908,14 @@ func begin_extra(u: Dictionary, type: String, want := -1) -> bool:
 	var slot := want if want >= 0 and not used.has(want) else 0
 	while used.has(slot):
 		slot += 1
-	for k in d.cost:
-		stock[k] -= d.cost[k]
+	var cost := bog_cost(p, ME, d.cost)
+	for k in cost:
+		stock[k] -= cost[k]
 	var o := bslot_of(p, slot)
-	u.build = {"prov": p, "type": type, "slot": slot, "ox": o[0], "oy": o[1], "t0": t, "dur": build_time(type), "paid": d.cost.duplicate()}
+	u.build = {"prov": p, "type": type, "slot": slot, "ox": o[0], "oy": o[1], "t0": t, "dur": build_time(type), "paid": cost.duplicate()}
 	sfx("bld_work", p)
 	u.th = atan2(o[0] + G.provs[p].ic[0] - u.x, o[1] + G.provs[p].ic[1] - u.y)
-	toast("Building a %s… (−%s)" % [d.name, cost_text(d.cost)])
+	toast("Building a %s… (−%s)" % [d.name, cost_text(cost)])
 	return true
 
 
@@ -5716,7 +5818,7 @@ const SAVE_FIELDS := ["battles", "bandit_count", "monster_count", "leader", "cap
 	"xup", "auto_tech", "roads", "walls", "wall_hp", "artifacts", "gift_vault", "quakes", "quake_seq", "wall_max", "wall_crack", "broken_walls", "rewall_jobs", "gate_own", "fort_walled", "gpc_slow_t", "dev_t", "cd", "paths",
 	"harvest_by", "trap", "reveals", "eyes", "haunts", "mana_pool", "mana_prev_t", "mage_gear", "finds", "treasure_rolled",
 	"sp_found", "slot_races", "spyres", "ftraps", "sacreds", "wrocks", "gelems", "setpieces", "travelers", "train_orders", "train_order_seq", "design_seq", "prov_rename", "nations", "players", "my_nation", "race_of", "wars", "truces", "allies", "war_seq", "met", "occ", "occ_prog", "dipl", "war_log", "war_ever", "war_lock", "ai_met", "fallen", "ally_check", "bandit_next", "bandit_waves", "ally_ask", "crop_scan_at", "ai_scout_t", "wf", "known", "explored", "visible", "queues", "rally", "military", "UNIT_SPEED", "open_nbr", "all_nbr",
-	"yields", "look_seed", "tree_border", "debug_cap", "debug_tech", "reveal_all", "rec", "t", "next_tick", "paused", "last", "started", "seat_names", "paused_by", "seat_dipl"]
+	"yields", "look_seed", "tree_border", "debug_cap", "debug_tech", "reveal_all", "rec", "t", "next_tick", "paused", "last", "started", "seat_names", "paused_by", "seat_dipl", "mp_cd", "variant"]
 
 
 ## The whole game as a plain Dictionary (see SaveCodec for the text form).
@@ -6238,6 +6340,7 @@ func side_strength(armies: Array, prov: int, defender: bool, foe: Dictionary) ->
 func side_strength0(armies: Array, prov: int, defender: bool, foe: Dictionary) -> float:
 	var ter: String = world.provinces[prov].terrain
 	var s := 0.0
+	var bog := BOG_DEF if defender and variant_of(prov) == "bog" else 1.0   # 0.18: defenders +30% in a Bog
 	for a in armies:
 		var home: bool = ter == "swamp" and is_sw(a.owner)   # web: game.js sideStrength (Swamplings at home in a swamp)
 		var crit := 1.0
@@ -6256,7 +6359,7 @@ func side_strength0(armies: Array, prov: int, defender: bool, foe: Dictionary) -
 				blows += c
 			s += blows * st.atk * terrain_mod(ter, st.get("cav", false) and not st.get("rough", false) and not home, defender) * (1.2 if home else 1.0) * crit \
 				* ((1 + 0.5 * foe.cavFrac) if st.get("fam") == "pole" else 1.0) * ((1 + 0.5 * foe.plateFrac) if st.get("fam") == "blunt" else 1.0) \
-				* (1 + a.get("curse", 0.0)) * (two_mul(a) if st.get("two", false) else 1.0)
+				* (1 + a.get("curse", 0.0)) * (two_mul(a) if st.get("two", false) else 1.0) * bog
 	return s
 
 
@@ -6337,7 +6440,7 @@ func step_battles(now: float) -> void:
 			battles.append(b)
 			if list.any(func(a): return a.owner == ME):
 				sfx("bat_loop", p)
-				toast("Battle in the %s! %s." % [world.provinces[p].terrain, TERRAIN_MOD[world.provinces[p].terrain]])
+				toast("Battle in the %s! %s." % [terrain_name(p), TERRAIN_MOD[world.provinces[p].terrain] + (", defenders +30%" if variant_of(p) == "bog" else "")])
 		for a in list:
 			if a.get("battle") == null and pair.has(a.owner):
 				on_battle_join(a, now)
@@ -8880,6 +8983,8 @@ func opinion_parts(o: int, t2: int) -> Array:
 			forts += 1
 	if forts:
 		out.append(["%d fort%s on their border" % [forts, "s" if forts > 1 else ""], DIPL.fort * forts])
+	if race(o) != race(t2):   # (0.18: every computer nation distrusts another race)
+		out.append(["Another race (%s)" % Races.NAME.get(race(t2), "others"), DIPL_OTHER_RACE])
 	if t2 == ME and nations[o].diff == "difficult":
 		out.append(["Difficult nation", DIPL.difficult])
 	if provs_of(t2).size() >= DIPL.threatProvs:
@@ -8907,6 +9012,8 @@ func opinion_parts(o: int, t2: int) -> Array:
 		out.append(["Shared Enemies: the %s" % player_info(eo).name, DIPL_SHARED])
 	return out
 
+
+const DIPL_OTHER_RACE := -100
 
 func opinion(o: int, t2: int) -> int:
 	var v := 0
@@ -8972,6 +9079,8 @@ func exhaustion_of(w: Dictionary) -> int:
 
 # --- declaring war ---
 func cap_break(pairs: Array) -> bool:
+	if seats.size() > 1:   # multiplayer: a player may be at war with as many nations as they like (0.18)
+		return false
 	var foes := {}
 	for f in enemies_of(ME):
 		foes[f] = true
@@ -10974,6 +11083,7 @@ var on_command: Callable
 ## Who paused the game (multiplayer: any player may pause; only the host or that player may go on). 0: nobody.
 var paused_by := 0
 var _from_order := false
+var mp_cd := {}            # multiplayer: "<from>><to>:<flirt|growl>" -> when (the 10-minute wait between players)
 var dialog_nation := 0     # while a pop-up about meeting a nation opens: that nation (the view shows its flag and leader)   # apply() is running a player's order (not the game's own rules)
 
 
@@ -11352,10 +11462,19 @@ func player_ally_why(o: int) -> String:
 
 
 ## Why a diplomatic action can't be taken toward another player ("" when it can). The window asks this.
+## Flirt and Growl between players wait this long before the same player can be flirted with or growled at again.
+const MP_SWAY_CD := 600.0
+
 func player_act_why(act: String, o: int) -> String:
 	match act:
 		"growl", "flirt":
-			return ""
+			# Swamplings growl, the others flirt (0.18); each once in 10 minutes toward the same player
+			if act == "growl" and race() != "swamp":
+				return "Only Swamplings growl"
+			if act == "flirt" and race() == "swamp":
+				return "Swamplings don’t flirt"
+			var left: float = float(mp_cd.get("%d>%d:%s" % [ME, o, act], -INF)) + MP_SWAY_CD - t
+			return "Again in %s" % fmt_time(left) if left > 0 else ""
 		"gift":
 			return "" if _pays({"gold": DIPL.gift.gold}) else "Needs %d gold" % DIPL.gift.gold
 		"bribe", "spy":
@@ -11388,9 +11507,11 @@ func _dx_player(act: String, o: int) -> void:
 		return
 	match act:
 		"growl":
+			mp_cd["%d>%d:growl" % [ME, o]] = t
 			toast("You growl at the %s. Players aren’t swayed by growls, but they heard it." % nm)
 			notify(o, "growl", ME, "The %s growl at you!" % me_nm)
 		"flirt":
+			mp_cd["%d>%d:flirt" % [ME, o]] = t
 			toast("You flirt with the %s. Players aren’t swayed by it, but they noticed." % nm)
 			notify(o, "flirt", ME, "%s flirts with you." % (leader_of(ME).full if leader_of(ME) != null else "The " + me_nm))
 		"gift":

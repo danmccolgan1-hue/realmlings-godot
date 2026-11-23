@@ -309,13 +309,15 @@ static func _pop(a: float) -> float:
 	return maxf(0.01, 1 - exp(-a * 7) * cos(a * 15)) if a < 1.2 else 1.0
 
 
-func draw_houses(g: Game) -> void:
+func draw_houses(g: Game, vr := Rect2(-1e9, -1e9, 2e9, 2e9)) -> void:
 	for key in houses:
 		for h in houses[key]:
 			var p: int = h.prov
 			if not g.visible.has(p):
 				continue
 			var c: Array = g.G.provs[p].ic
+			if not vr.has_point(Vector2(c[0] + h.x, c[1] + h.y)):
+				continue
 			var b = g.buildings.get(p)
 			var rc: String = g.race(b.owner) if b != null else "realm"
 			# two houses in three wear their owner's color on the roof (web: content.js drawHouse)
@@ -329,9 +331,11 @@ func draw_houses(g: Game) -> void:
 				Art.draw(v, sp, Vector2(c[0] + h.x, c[1] + h.y), _pop(g.t - h.born))
 
 
-func draw_civs(g: Game, t: float) -> void:
+func draw_civs(g: Game, t: float, vr := Rect2(-1e9, -1e9, 2e9, 2e9)) -> void:
 	for cv in civs:
 		if cv.get("inside", false) or not g.visible.has(cv.prov) or g.t < cv.born:
+			continue
+		if cv.has("x") and not vr.has_point(Vector2(cv.x, cv.y)):
 			continue
 		_civ(g, cv, t)
 

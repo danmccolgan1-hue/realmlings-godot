@@ -2,7 +2,7 @@ class_name MessageLog
 extends PanelContainer
 ## The messages box, bottom left beside the minimap: every message the game gives you (surveys done, orders taken,
 ## buildings started and finished, warnings...), newest at the bottom. It keeps the last 48 and shows 8 at a time,
-## with a scroll bar. See-through, so the map shows behind it. Views only.
+## with a scroll bar. Completely see-through, so the map shows behind it. Views only.
 
 const KEEP := 48
 const SHOWN := 8
@@ -17,9 +17,7 @@ var _follow := true
 
 func _init() -> void:
 	var st := StyleBoxFlat.new()
-	st.bg_color = Color("#faf1dc", 0.55)
-	st.border_color = Color(INK, 0.45)
-	st.set_border_width_all(1)
+	st.bg_color = Color(0, 0, 0, 0)   # (completely see-through: only the words show, with a light outline)
 	st.set_corner_radius_all(4)
 	st.set_content_margin_all(6)
 	add_theme_stylebox_override("panel", st)
@@ -50,8 +48,8 @@ func add(text: String, warn := false, clock := "") -> void:
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	l.add_theme_font_size_override("font_size", 14)
 	l.add_theme_color_override("font_color", WARN if warn else INK)
-	l.add_theme_color_override("font_outline_color", Color("#faf1dc", 0.8))
-	l.add_theme_constant_override("outline_size", 3)
+	l.add_theme_color_override("font_outline_color", Color("#faf1dc", 0.95))
+	l.add_theme_constant_override("outline_size", 6)
 	l.mouse_filter = Control.MOUSE_FILTER_PASS
 	if hint != null:
 		hint.queue_free()

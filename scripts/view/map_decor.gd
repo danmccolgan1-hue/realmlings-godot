@@ -216,6 +216,90 @@ static func build(w: Dictionary, G: Dictionary) -> Dictionary:
 
 
 ## A river as a smooth line: the web's quadratic curves through the midpoints, sampled. web: page.html prep rivers
+## The 0.18 terrain variants' extra look, from their own random numbers (the web game's decoration stays as it is):
+## golden grass swaying in Drylands, more flowers in a Meadow, more and darker trees in a Fae Forest, big pools in a
+## Bog, and mangroves instead of cypresses in the tree bands round a Bog.
+static func add_variants(D: Dictionary, w: Dictionary, G: Dictionary, variant: Array) -> void:
+	var r := Mulberry32.from_string(str(w.seed) + ":variant-decor")
+	var V: Array = w.vertices
+	var FAE := Color(0.62, 0.74, 0.7)
+	for i in mini(variant.size(), G.provs.size()):
+		var v: String = variant[i]
+		if v == "":
+			continue
+		var p: Dictionary = G.provs[i]
+		var items: Array = D.items[i]
+		if v == "fae":   # the trees already there grow darker too
+			for it in items:
+				if str(it.s).begins_with("tree") or str(it.s).begins_with("pine"):
+					it.m = FAE
+		var inner: Array = p.inner
+		var ic: Array = p.ic
+		var bx0 := INF
+		var by0 := INF
+		var bx1 := -INF
+		var by1 := -INF
+		var rs := 0.0
+		for q in inner:
+			bx0 = minf(bx0, q[0])
+			bx1 = maxf(bx1, q[0])
+			by0 = minf(by0, q[1])
+			by1 = maxf(by1, q[1])
+			rs += JS.hypot(q[0] - ic[0], q[1] - ic[1])
+		var clear_r := rs / inner.size() * 0.45
+		var spot := func(min_gap: float, edge_gap: float):
+			for t in 40:
+				var x: float = bx0 + r.next() * (bx1 - bx0)
+				var y: float = by0 + r.next() * (by1 - by0)
+				if not Geo.in_poly(x, y, inner) or Geo.dist_to_edges(x, y, inner) < edge_gap:
+					continue
+				if JS.hypot(x - ic[0], y - ic[1]) < clear_r:
+					continue
+				if items.any(func(it): return JS.hypot(it.x - x, it.y - y) < min_gap):
+					continue
+				return [x, y]
+			return null
+		match v:
+			"meadow":
+				for k in 30:
+					var at = spot.call(11.0, 10.0)
+					if at != null:
+						items.append({"x": at[0], "y": at[1], "s": "flower%d" % int(floor(r.next() * 3))})
+			"fae":
+				for k in 6:
+					var at = spot.call(30.0, 26.0)
+					if at == null:
+						continue
+					for j in 3 + int(floor(r.next() * 2)):
+						var a: float = j * 2.1 + r.next()
+						var rad: float = 11 + r.next() * 4 if j else 0.0
+						items.append({"x": at[0] + cos(a) * rad, "y": at[1] + sin(a) * rad * 0.7, "s": ["tree0", "tree1", "pine0", "pine1"][int(floor(r.next() * 4))], "m": FAE})
+			"drylands":
+				for k in 22:
+					var at = spot.call(24.0, 16.0)
+					if at != null:
+						D.sway.append({"x": at[0], "y": at[1], "s": "goldgrass", "ph": r.next() * 6.28})
+			"bog":
+				# half its puddles spread into wide pools, swallowing the reeds and lilies beside them
+				var pools := []
+				for it in items:
+					if it.s == "puddle" and r.next() < 0.5 and Geo.dist_to_edges(it.x, it.y, inner) > 40:
+						it.s = "bigpuddle"
+						pools.append(it)
+				items = items.filter(func(it): return it.s == "bigpuddle" or not pools.any(func(q): return absf(q.x - it.x) < 52 and absf(q.y - it.y) < 30))
+				# the cypresses on this Bog's tree borders become mangroves
+				for e in w.edges:
+					if (e.a != i and e.b != i) or e.open or e.style != "trees":
+						continue
+					var a2 := Vector2(V[e.v[0]][0], V[e.v[0]][1])
+					var b2 := Vector2(V[e.v[1]][0], V[e.v[1]][1])
+					for it in D.sway:
+						if str(it.s).begins_with("cypress") and Geometry2D.get_closest_point_to_segment(Vector2(it.x, it.y - 8), a2, b2).distance_to(Vector2(it.x, it.y - 8)) < 26:
+							it.s = "mangrove_L"
+		D.items[i] = JS.stable_sort(items, func(a, b): return signf(a.y - b.y))
+	D.sway = JS.stable_sort(D.sway, func(a, b): return signf(a.y - b.y))
+
+
 static func river_points(w: Dictionary, rv: Dictionary) -> PackedVector2Array:
 	var V: Array = w.vertices
 	var pts := []

@@ -2011,11 +2011,11 @@ static func workers_step(g: Game, N: Dictionary, now: float) -> void:
 						u.aiJob = null
 						u.aiWait = 0
 				continue
-			var oc: Dictionary = GameData.c("OUTPOST_COST")
+			var oc: Dictionary = g.bog_cost(j.prov, N.id, GameData.c("OUTPOST_COST"))
 			pay(N.stock, oc)
 			u.build = {"prov": j.prov, "type": "outpost", "t0": now, "dur": g.build_time("outpost"), "paid": oc.duplicate()}
 		else:
-			var cost := build_cost(g, N, j.type)
+			var cost := g.bog_cost(j.prov, N.id, build_cost(g, N, j.type))
 			var why := build_why(g, N, j.prov, j.type, u)
 			if why != "" or not can_pay(N.stock, cost):
 				var drop := why != ""

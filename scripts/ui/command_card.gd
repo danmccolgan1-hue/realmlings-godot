@@ -109,7 +109,71 @@ func _notification(what: int) -> void:
 		queue_redraw()
 
 
-func _get_tooltip(at: Vector2) -> String:
+## The action buttons' tips show after 1 s of the mouse resting on one (the rest of the interface waits 5 s), in a
+## note of their own beside the card.
+const TIP_DELAY := 1.0
+var _tip: PanelContainer
+var _tip_label: Label
+var _tip_rest := 0.0
+var _tip_at := Vector2(-1, -1)
+var _tip_for := ""
+
+
+func _process(dt: float) -> void:
+	if not is_visible_in_tree():
+		_hide_tip()
+		return
+	var mp := get_local_mouse_position()
+	var inside := Rect2(Vector2.ZERO, size).has_point(mp)
+	if not inside:
+		_hide_tip()
+		return
+	if mp.distance_to(_tip_at) > 2.0:
+		_tip_at = mp
+		_tip_rest = 0.0
+		_hide_tip()
+		return
+	_tip_rest += dt
+	if _tip_rest < TIP_DELAY:
+		return
+	var text := _tip_text(mp)
+	if text == "":
+		_hide_tip()
+		return
+	if _tip == null:
+		_tip = PanelContainer.new()
+		_tip.add_theme_stylebox_override("panel", _sb(Color("#faf1dc"), 2, 6))
+		_tip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_tip.top_level = true
+		_tip.z_index = 100
+		_tip_label = Label.new()
+		_tip_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_tip_label.custom_minimum_size = Vector2(320, 0)
+		_tip_label.add_theme_color_override("font_color", INK)
+		_tip_label.add_theme_font_size_override("font_size", 15)
+		_tip.add_child(_tip_label)
+		add_child(_tip)
+	if text != _tip_for:
+		_tip_for = text
+		_tip_label.text = text
+		_tip.reset_size()
+	_tip.show()
+	var g := get_global_mouse_position()
+	var vp := get_viewport_rect().size
+	_tip.global_position = Vector2(clampf(g.x - _tip.size.x - 12, 8, vp.x - _tip.size.x - 8), clampf(g.y - _tip.size.y - 12, 8, vp.y - _tip.size.y - 8))
+
+
+func _hide_tip() -> void:
+	if _tip != null and _tip.visible:
+		_tip.hide()
+
+
+# (the built-in tooltip would wait the interface's 5 s: the card shows its own)
+func _get_tooltip(_at: Vector2) -> String:
+	return ""
+
+
+func _tip_text(at: Vector2) -> String:
 	var i := _cell_at(at)
 	if i < 0 or cells[i] == null:
 		return "" if i >= 0 or _tab_at(at) >= 0 else "Select a unit, building or province to see its actions here"
