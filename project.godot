@@ -15,10 +15,10 @@ config/description="A little fantasy grand strategy game: explore, settle, resea
 config/version="0.17.0"
 run/main_scene="res://scenes/main.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
-config/icon="res://icon.svg"
-config/windows_native_icon="res://assets/icon/realmlings.ico"
 boot_splash/bg_color=Color(0.184, 0.231, 0.333, 1)
 boot_splash/show_image=false
+config/icon="res://icon.svg"
+config/windows_native_icon="res://assets/icon/realmlings.ico"
 
 [display]
 
@@ -33,15 +33,14 @@ window/stretch/aspect="expand"
 
 naming/script_name_casing=2
 
+[gui]
+
+timers/tooltip_delay_sec=5.0
+theme/custom="res://assets/ui/theme.tres"
+
 [rendering]
 
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
-textures/canvas_textures/default_texture_filter=1
 anti_aliasing/quality/msaa_2d=1
 environment/defaults/default_clear_color=Color(0.184, 0.231, 0.333, 1)
-
-[gui]
-
-theme/custom="res://assets/ui/theme.tres"
-timers/tooltip_delay_sec=5.0
