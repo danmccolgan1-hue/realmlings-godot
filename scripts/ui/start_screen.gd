@@ -25,7 +25,6 @@ var card: PanelContainer
 var holder: ScrollContainer
 var screens := {}           # name -> VBoxContainer
 var opts := {}              # the New Game choices (Settings.menu)
-var seed_edit: LineEdit
 var nation_edit: LineEdit
 var setup_box: VBoxContainer
 var leader_info: RichTextLabel
@@ -49,7 +48,7 @@ func _ready() -> void:
 	holder = ScrollContainer.new()   # (a page taller than the screen scrolls inside the card)
 	holder.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	card.add_child(holder)
-	for n in ["main", "tut", "multi", "setup"]:
+	for n in ["main", "tut", "multi", "setup", "setup_map"]:
 		var v := VBoxContainer.new()
 		v.add_theme_constant_override("separation", 12)
 		screens[n] = v
@@ -57,6 +56,7 @@ func _ready() -> void:
 	_build_tut()
 	_build_multi()
 	_build_setup()
+	_build_setup_map()
 	show_screen("main")
 
 
@@ -83,6 +83,8 @@ func show_screen(n: String) -> void:
 		cont_btn.visible = FileAccess.file_exists(main.AUTOSAVE)
 	if n == "setup":
 		_refresh_setup()
+	if n == "setup_map" and map_box:
+		_refresh_map()
 
 
 # --- remembered choices (web: localStorage realm-map, realm-slots, realm-start, realm-nation, realm-leader) ---
@@ -238,12 +240,12 @@ func _dice(f: Callable, tip: String) -> Button:
 
 
 ## A labelled row of the New Game page (web: .menu-row)
-func _row(label: String, content: Control, parent: Container) -> void:
+func _row(label: String, content: Control, parent: Container, top := false) -> void:
 	var h := HBoxContainer.new()
 	h.add_theme_constant_override("separation", 14)
 	var l := _lbl(label.to_upper(), 13, MUTED)
 	l.custom_minimum_size = Vector2(130, 0)
-	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	l.vertical_alignment = VERTICAL_ALIGNMENT_TOP if top else VERTICAL_ALIGNMENT_CENTER
 	h.add_child(l)
 	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	h.add_child(content)
@@ -274,10 +276,13 @@ func _build_main() -> void:
 		_audio_row(v, a[0], a[1], a[2])
 	cont_btn = _big("Continue", Color("#3e9b4f"), func(): main.load_from(main.AUTOSAVE), "your last autosave")
 	v.add_child(cont_btn)
-	v.add_child(_big("New Game", BLUE, func(): show_screen("setup")))
+	v.add_child(_big("New Game", BLUE, func(): open_setup(false)))
 	v.add_child(_big("Tutorial", PURPLE, func(): show_screen("tut")))
 	v.add_child(_big("Multiplayer", PURPLE, func(): show_screen("multi")))
 	v.add_child(_big("Patch Notes", PURPLE, func(): main.patch_notes.open()))
+	v.add_child(_big("Exit", Color("#8a5a44"), func():
+		Settings.save_all()
+		get_tree().quit(), "Close the game"))
 	var links := HFlowContainer.new()
 	links.alignment = FlowContainer.ALIGNMENT_CENTER
 	links.add_theme_constant_override("h_separation", 18)
@@ -351,7 +356,7 @@ func _draw_parade() -> void:
 
 # --- Tutorial and Multiplayer ---
 
-func _sub_head(v: VBoxContainer, title: String) -> void:
+func _sub_head(v: VBoxContainer, title: String, back_to := Callable()) -> Button:
 	var h := HBoxContainer.new()
 	var back := Button.new()
 	back.text = "← Back"
@@ -361,7 +366,11 @@ func _sub_head(v: VBoxContainer, title: String) -> void:
 		back.add_theme_stylebox_override(st, _sb(CHIP_HI if st != "hover" else Color("#fff7d9"), 2, 2, 6))
 	back.add_theme_color_override("font_color", INK)
 	back.add_theme_color_override("font_hover_color", INK)
-	back.pressed.connect(func(): show_screen("main"))
+	back.pressed.connect(func():
+		if back_to.is_valid():
+			back_to.call()
+		else:
+			show_screen("main"))
 	h.add_child(back)
 	var t := _lbl(title, 34, Color("#f2b632"))
 	Fonts.title(t)
@@ -374,6 +383,7 @@ func _sub_head(v: VBoxContainer, title: String) -> void:
 	pad.custom_minimum_size = Vector2(back.get_combined_minimum_size().x, 0)
 	h.add_child(pad)
 	v.add_child(h)
+	return back
 
 
 func _build_tut() -> void:
@@ -392,7 +402,6 @@ var mp_status: Label
 var mp_note: Label
 var mp_lan: VBoxContainer
 var mp_players: VBoxContainer
-var mp_chat: RichTextLabel
 var mp_lan_sig := ""
 var mp_lan_t := 0.0
 var mp_opts_box: VBoxContainer   # the host's choices for the game (island, computer nations)
@@ -411,8 +420,7 @@ func _build_multi() -> void:
 
 
 func _mp_clear() -> void:
-	for c in mp_box.get_children():
-		c.queue_free()
+	_clear_now(mp_box)
 
 
 func _mp_nation() -> Dictionary:
@@ -431,7 +439,7 @@ func _mp_menu() -> void:
 		Settings.save_all())
 	_row("Your name", name_edit, mp_box)
 	mp_box.add_child(_big("Host a game", BLUE, func(): _mp_host(name_edit.text),
-		"Up to 8 players. Your nation, race and flag come from the New Game page"))
+		"Up to 8 players. Everyone picks their nation in the lobby"))
 	var jr := HBoxContainer.new()
 	jr.add_theme_constant_override("separation", 8)
 	var addr := LineEdit.new()
@@ -476,9 +484,6 @@ func _mp_wire() -> void:
 			var nt := net
 			net = null
 			main.start_mp_client(nt, m))
-	net.chat.connect(func(n, t2):
-		if mp_chat and is_instance_valid(mp_chat):
-			mp_chat.append_text(("[b]%s:[/b] %s\n" % [n, t2]) if n != "" else ("[i]%s[/i]\n" % t2)))
 
 
 func _mp_host(nm: String) -> void:
@@ -514,138 +519,140 @@ func _mp_lobby() -> void:
 	_mp_clear()
 	mp_status = _lbl("", 15, INK)
 	mp_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	mp_status.custom_minimum_size = Vector2(600, 0)
+	mp_status.custom_minimum_size = Vector2(600, 44)   # (fixed heights: rows coming and going don't move the page)
 	mp_box.add_child(mp_status)
 	mp_note = _lbl("", 14, MUTED)
 	mp_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	mp_note.custom_minimum_size = Vector2(600, 0)
+	mp_note.custom_minimum_size = Vector2(600, 40)
 	mp_box.add_child(mp_note)
+	var name_edit := LineEdit.new()
+	name_edit.text = str(Settings.menu.get("mp_name", "Player"))
+	name_edit.max_length = 24
+	_style_edit(name_edit)
+	name_edit.text_changed.connect(func(t2):
+		Settings.menu.mp_name = t2
+		Settings.save_all()
+		if net:
+			net.set_name(t2.strip_edges() if t2.strip_edges() != "" else "Player"))
+	_row("Your name", name_edit, mp_box)
 	mp_players = VBoxContainer.new()
 	mp_players.add_theme_constant_override("separation", 4)
-	_row("Players", mp_players, mp_box)
-	mp_chat = RichTextLabel.new()
-	mp_chat.bbcode_enabled = true
-	mp_chat.scroll_following = true
-	mp_chat.custom_minimum_size = Vector2(600, 160)
-	mp_chat.add_theme_color_override("default_color", INK)
-	mp_box.add_child(mp_chat)
-	var cr := HBoxContainer.new()
-	var ce := LineEdit.new()
-	ce.placeholder_text = "Say something"
-	ce.max_length = 200
-	ce.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_style_edit(ce)
-	ce.text_submitted.connect(func(t2):
-		if net:
-			net.send_chat(t2)
-		ce.clear())
-	cr.add_child(ce)
-	mp_box.add_child(cr)
+	mp_players.custom_minimum_size = Vector2(0, 8 * 32)   # room for 8 players from the start
+	_row("Players", mp_players, mp_box, true)
+	var pr := HBoxContainer.new()
+	pr.add_theme_constant_override("separation", 8)
+	var yb := _big("Your Nation", Color("#5aa05a"), func(): open_setup(true, "setup"))
+	yb.tooltip_text = "Choose your nation's name, race, leader and flag for this game"
+	yb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	pr.add_child(yb)
+	if net != null and net.is_host:
+		var mb := _big("Map Settings", PURPLE, func(): open_setup(true, "setup_map"))
+		mb.tooltip_text = "Choose the island and the computer nations"
+		mb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		pr.add_child(mb)
+	mp_box.add_child(pr)
+	mp_opts_box = VBoxContainer.new()
+	mp_opts_box.add_theme_constant_override("separation", 6)
+	mp_opts_box.custom_minimum_size = Vector2(0, 64)
+	mp_box.add_child(mp_opts_box)
 	var br := HBoxContainer.new()
 	br.add_theme_constant_override("separation", 8)
-	br.add_child(_tog("Leave", false, func():
+	var lb := _big("Leave", Color("#8a5a44"), func():
 		if net:
 			net.leave()
 		net = null
-		_mp_menu()))
-	mp_opts_box = VBoxContainer.new()
-	mp_opts_box.add_theme_constant_override("separation", 6)
-	mp_box.add_child(mp_opts_box)
-	mp_start = _tog("Start the game", false, _mp_begin, true, "Only the host starts the game")
+		_mp_menu())
+	lb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	br.add_child(lb)
+	mp_start = _big("Start Game", BLUE, _mp_begin)
+	mp_start.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	br.add_child(mp_start)
 	mp_box.add_child(br)
-	var hint := _lbl("Your nation, race, leader and flag come from the New Game page (set them there before hosting or joining). New Game itself stays a single-player game.", 13, MUTED)
-	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	hint.custom_minimum_size = Vector2(600, 0)
-	mp_box.add_child(hint)
 	_mp_players()
 	_mp_options()
 
 
-## The host's choices: the island's seed, the computer nations and their difficulty, or carrying on the last
-## multiplayer game. Players see what the host chose once the game starts.
+## What the host chose: carrying on the last multiplayer game, or a summary of the new island.
 func _mp_options() -> void:
 	if mp_opts_box == null or not is_instance_valid(mp_opts_box) or net == null:
 		return
-	for c in mp_opts_box.get_children():
-		c.queue_free()
+	_clear_now(mp_opts_box)
 	if not net.is_host:
 		mp_opts_box.add_child(_lbl("The host chooses the island and the computer nations, and starts the game.", 14, MUTED))
 		return
-	var mo: Dictionary = Settings.menu.get("mp_opts", {})
-	if not mo.has("seed"):
-		mo = {"seed": random_seed(), "ais": 2, "diff": "moderate", "cont": false}
-		Settings.menu.mp_opts = mo
-	var keep := func():
-		Settings.menu.mp_opts = mo
-		Settings.save_all()
-	var cont: bool = mo.get("cont", false) and FileAccess.file_exists(main.MP_SAVE)
+	var M := _mp_map()
+	var cont: bool = M.get("cont", false) and FileAccess.file_exists(main.MP_SAVE)
 	if FileAccess.file_exists(main.MP_SAVE):
 		var when := Time.get_datetime_string_from_unix_time(FileAccess.get_modified_time(main.MP_SAVE)).replace("T", " ").left(16)
-		var cb := _tog("Continue the last multiplayer game (saved %s)" % when, cont, func():
-			mo.cont = not cont
-			keep.call()
-			_mp_options(), false, "Players take back their own nations by joining with the same name; nations nobody comes back for are played by the computer")
-		mp_opts_box.add_child(cb)
+		mp_opts_box.add_child(_tog("Continue the last multiplayer game (saved %s)" % when, cont, func():
+			M.cont = not cont
+			Settings.menu.mp_map = M
+			Settings.save_all()
+			_mp_options(), false, "Players take back their own nations by joining with the same name; nations nobody comes back for are played by the computer"))
 	if cont:
 		return
-	var sr := HBoxContainer.new()
-	sr.add_theme_constant_override("separation", 8)
-	var se := LineEdit.new()
-	se.text = str(mo.seed)
-	se.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_style_edit(se)
-	se.text_changed.connect(func(t2):
-		mo.seed = t2
-		keep.call())
-	sr.add_child(se)
-	sr.add_child(_dice(func():
-		mo.seed = random_seed()
-		se.text = mo.seed
-		keep.call(), "Random seed"))
-	_row("Map seed", sr, mp_opts_box)
 	var humans := net.players.size()
-	var room := 7 - (humans - 1)
-	mo.ais = clampi(int(mo.get("ais", 2)), 0, room)
-	var ar := HBoxContainer.new()
-	ar.add_theme_constant_override("separation", 4)
-	for n in range(0, room + 1):
-		var k: int = n
-		ar.add_child(_tog(str(n), int(mo.ais) == n, func():
-			mo.ais = k
-			keep.call()
-			_mp_options()))
-	_row("Computer nations", ar, mp_opts_box)
-	var dr := HBoxContainer.new()
-	dr.add_theme_constant_override("separation", 4)
-	for d in ["easy", "moderate", "difficult"]:
-		var dd: String = d
-		dr.add_child(_tog(SLOT_TEXT[d], mo.diff == d, func():
-			mo.diff = dd
-			keep.call()
-			_mp_options()))
-	_row("Their difficulty", dr, mp_opts_box)
-	var island := _lbl("Island: %s, start %s (from the New Game page). %d nations in all." % [str(opts.map.get("shape", "classic")).capitalize(), str(opts.start), humans + int(mo.ais)], 14, MUTED)
-	mp_opts_box.add_child(island)
+	var ais := 0
+	for i in range(humans - 1, 7):
+		if i < M.slots.size() and str(M.slots[i]) != "closed":
+			ais += 1
+	var l := _lbl("Island: %s, seed %s, start %s. %d players and %d computer nation%s." % [str(M.map.get("shape", "classic")).capitalize(), str(M.seed), str(M.start), humans, ais, "" if ais == 1 else "s"], 14, MUTED)
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	l.custom_minimum_size = Vector2(600, 0)
+	mp_opts_box.add_child(l)
+
+
+## The multiplayer host's map settings (whichever page is open).
+func _mp_map() -> Dictionary:
+	var was := mp_mode
+	mp_mode = true
+	var M: Dictionary = _map_opts()
+	mp_mode = was
+	return M
+
+
+## Two nations can't fly the same color or share a leader. Returns why not, or "".
+func _mp_clash() -> String:
+	var colors := {}
+	var leaders := {}
+	for id in net.players:
+		var P: Dictionary = net.players[id]
+		var n: Dictionary = P.get("nation", {})
+		var c := int(n.get("color", 0))
+		if colors.has(c):
+			return "%s and %s fly the same color: one of you picks another under Your Nation." % [colors[c], P.name]
+		colors[c] = P.name
+		var ld := str(n.get("leader", "random"))
+		if ld != "random":
+			if leaders.has(ld):
+				return "%s and %s chose the same leader: one of you picks another under Your Nation." % [leaders[ld], P.name]
+			leaders[ld] = P.name
+	return ""
 
 
 func _mp_begin() -> void:
 	if net == null or not net.is_host:
 		return
-	var mo: Dictionary = Settings.menu.get("mp_opts", {})
-	var o := {"seed": str(mo.get("seed", random_seed())).strip_edges(), "ais": int(mo.get("ais", 2)), "diff": str(mo.get("diff", "moderate")),
-		"cont": mo.get("cont", false) and FileAccess.file_exists(main.MP_SAVE), "start": opts.start, "map": opts.map}
+	net.set_nation(_mp_nation())
+	var why := _mp_clash()
+	if why != "":
+		mp_status.text = why
+		return
+	var M := _mp_map()
+	var o := {"seed": str(M.get("seed", random_seed())).strip_edges(), "slots": M.slots.duplicate(), "races": M.races.duplicate(),
+		"cont": M.get("cont", false) and FileAccess.file_exists(main.MP_SAVE), "start": M.start, "map": M.map}
 	if o.seed == "":
 		o.seed = random_seed()
 	mp_start.text = "Building the realm…"
 	mp_start.disabled = true
-	net.set_nation(_mp_nation())
 	var nt := net
 	net = null
 	main.start_mp_host(nt, o)
 
 
 func _mp_players() -> void:
+	if mp_mode and net != null and screens.setup.is_inside_tree():   # (someone took a color or leader: gray it out now)
+		_refresh_setup()
 	if mp_players == null or not is_instance_valid(mp_players) or net == null:
 		return
 	if mp_start and is_instance_valid(mp_start):
@@ -654,8 +661,7 @@ func _mp_players() -> void:
 	if net.is_host and mp_opts_box and is_instance_valid(mp_opts_box) and mp_opts_box.get_meta("n", 0) != net.players.size():
 		mp_opts_box.set_meta("n", net.players.size())
 		_mp_options()
-	for c in mp_players.get_children():
-		c.queue_free()
+	_clear_now(mp_players)
 	for id in net.players:
 		var P: Dictionary = net.players[id]
 		var n: Dictionary = P.get("nation", {})
@@ -689,8 +695,7 @@ func _mp_poll(dt: float) -> void:
 		var sig := ",".join(net.lan_games.keys())
 		if sig != mp_lan_sig:
 			mp_lan_sig = sig
-			for c in mp_lan.get_children():
-				c.queue_free()
+			_clear_now(mp_lan)
 			if net.lan_games.is_empty():
 				mp_lan.add_child(_lbl("No games found yet (looking...)", 14, MUTED))
 			for k in net.lan_games:
@@ -706,21 +711,7 @@ func _build_setup() -> void:
 	var v: VBoxContainer = screens.setup
 	v.custom_minimum_size = Vector2(760, 0)
 	v.add_theme_constant_override("separation", 8)
-	_sub_head(v, "New Game")
-	# seed and nation name, each with its dice
-	var sh := HBoxContainer.new()
-	seed_edit = LineEdit.new()
-	seed_edit.text = opts.seed
-	seed_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	seed_edit.add_theme_font_size_override("font_size", 18)
-	seed_edit.text_changed.connect(func(t): opts.seed = t)
-	seed_edit.text_submitted.connect(func(_t): start_game())
-	_style_edit(seed_edit)
-	sh.add_child(seed_edit)
-	sh.add_child(_dice(func():
-		opts.seed = random_seed()
-		seed_edit.text = opts.seed, "Random seed"))
-	_row("Map seed", sh, v)
+	_sub_head(v, "New Game: Nation", func(): show_screen("multi" if mp_mode else "main"))
 	var nh := HBoxContainer.new()
 	nation_edit = LineEdit.new()
 	nation_edit.text = opts.nation.name
@@ -747,7 +738,131 @@ func _build_setup() -> void:
 	setup_box = VBoxContainer.new()
 	setup_box.add_theme_constant_override("separation", 8)
 	v.add_child(setup_box)
-	start_btn = _big("Start game", BLUE, start_game)
+	nation_next = _big("Continue", BLUE, _nation_done)
+	nation_next.custom_minimum_size = Vector2(0, 62)
+	v.add_child(nation_next)
+
+
+# --- the New Game pages, for a single-player game or a multiplayer lobby ---
+
+var mp_mode := false      # the New Game pages are open from the multiplayer lobby (their buttons lead back there)
+var map_box: VBoxContainer
+var seed_map_edit: LineEdit
+var nation_next: Button   # Continue (or Done, in a lobby)
+var map_back: Button
+
+
+## Remove a container's children at once (queue_free alone leaves them for a frame, and the page jumps).
+func _clear_now(c: Node) -> void:
+	for ch in c.get_children():
+		c.remove_child(ch)
+		ch.queue_free()
+
+
+## In a multiplayer lobby: the colors and leaders other players have chosen. {colors: {i: name}, leaders: {id: name}}
+func _mp_taken() -> Dictionary:
+	var out := {"colors": {}, "leaders": {}}
+	if not mp_mode or net == null:
+		return out
+	for id in net.players:
+		if int(id) == net.my_id:
+			continue
+		var n: Dictionary = net.players[id].get("nation", {})
+		out.colors[int(n.get("color", -1))] = str(net.players[id].name)
+		if str(n.get("leader", "random")) != "random":
+			out.leaders[str(n.leader)] = str(net.players[id].name)
+	return out
+
+
+## In a multiplayer lobby: the other players' names, in the order they take the slots.
+func _mp_humans() -> Array:
+	if not mp_mode or net == null:
+		return []
+	var ids := net.players.keys()
+	ids.sort()
+	return ids.filter(func(x): return int(x) != 1).map(func(x): return str(net.players[x].name))
+
+
+## The map settings the page changes: the New Game ones, or the multiplayer host's own (kept apart).
+func _map_opts() -> Dictionary:
+	if not mp_mode:
+		return opts
+	var M: Dictionary = Settings.menu.get("mp_map", {})
+	if not M.has("slots"):
+		M = {"seed": random_seed(), "start": opts.start, "map": opts.map.duplicate(true), "slots": ["moderate", "moderate", "closed", "closed", "closed", "closed", "closed"],
+			"races": ["random", "random", "random", "random", "random", "random", "random"], "practice": false, "cont": false}
+		Settings.menu.mp_map = M
+	return M
+
+
+func _save_map() -> void:
+	if mp_mode:
+		Settings.menu.mp_map = _map_opts()
+		Settings.save_all()
+	else:
+		_save_opts()
+
+
+func _pick_map(k: String, val) -> void:
+	_map_opts()[k] = val
+	_save_map()
+	_refresh_map()
+
+
+## Open the New Game pages: from the main menu (lobby false) or from a multiplayer lobby.
+func open_setup(lobby: bool, page := "setup") -> void:
+	mp_mode = lobby
+	nation_next.text = "Done" if lobby else "Continue"
+	map_back.visible = true
+	start_btn.text = "Done" if lobby else "Start Game"
+	seed_map_edit.text = str(_map_opts().get("seed", ""))
+	_refresh_setup()
+	_refresh_map()
+	show_screen(page)
+
+
+func _nation_done() -> void:
+	if mp_mode:
+		if net != null:
+			net.set_nation(_mp_nation())
+		show_screen("multi")
+		_mp_players()
+	else:
+		show_screen("setup_map")
+
+
+func _map_done() -> void:
+	if mp_mode:
+		show_screen("multi")
+		_mp_options()
+	else:
+		start_game()
+
+
+func _build_setup_map() -> void:
+	var v: VBoxContainer = screens.setup_map
+	v.custom_minimum_size = Vector2(760, 0)
+	v.add_theme_constant_override("separation", 8)
+	map_back = _sub_head(v, "New Game: Map Settings", func(): show_screen("multi" if mp_mode else "setup"))
+	var sh := HBoxContainer.new()
+	seed_map_edit = LineEdit.new()
+	seed_map_edit.text = str(opts.seed)
+	seed_map_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	seed_map_edit.add_theme_font_size_override("font_size", 18)
+	seed_map_edit.text_changed.connect(func(t):
+		_map_opts().seed = t
+		_save_map())
+	_style_edit(seed_map_edit)
+	sh.add_child(seed_map_edit)
+	sh.add_child(_dice(func():
+		_map_opts().seed = random_seed()
+		seed_map_edit.text = _map_opts().seed
+		_save_map(), "Random seed"))
+	_row("Map seed", sh, v)
+	map_box = VBoxContainer.new()
+	map_box.add_theme_constant_override("separation", 8)
+	v.add_child(map_box)
+	start_btn = _big("Start Game", BLUE, _map_done)
 	start_btn.custom_minimum_size = Vector2(0, 62)
 	v.add_child(start_btn)
 	var foot := _lbl("The same seed always makes the same island", 13, MUTED)
@@ -777,9 +892,11 @@ func _pick_race(r: String) -> void:
 	_refresh_setup()
 
 
+## The New Game: Nation page's choices: race, leader, color, flag and emblem color (in a multiplayer lobby, colors and
+## leaders other players have taken are grayed out).
 func _refresh_setup() -> void:
-	UiKit.clear(setup_box)
-	var practice: bool = opts.practice
+	_clear_now(setup_box)
+	var taken := _mp_taken()
 	# race (web: menu.js #mRace): the leader list follows it
 	var race := HBoxContainer.new()
 	race.add_theme_constant_override("separation", 8)
@@ -788,16 +905,6 @@ func _refresh_setup() -> void:
 		race.add_child(_tog(r[1], opts.get("race", "realm") == r[0], _pick_race.bind(r[0]), false, r[2]))
 	_row("Race", race, setup_box)
 	_row("Leader", _leader_pick(), setup_box)
-	var mp := HBoxContainer.new()
-	mp.add_theme_constant_override("separation", 8)
-	mp.add_child(_tog("Full island", not practice, _pick.bind("practice", false), false, "Computer nations, wars and diplomacy"))
-	mp.add_child(_tog("Practice island", practice, _pick.bind("practice", true), false, "10 provinces, just you: explore, settle and try things out"))
-	_row("Map", mp, setup_box)
-	var sp := HBoxContainer.new()
-	sp.add_theme_constant_override("separation", 8)
-	for s in [["center", "Center"], ["edge", "Edge"], ["random", "Random"]]:
-		sp.add_child(_tog(s[1], opts.start == s[0], _pick.bind("start", s[0]), practice, "Where your capital starts: %s always start on %s" % [Races.NAME[opts.get("race", "realm")], Races.HOME[opts.get("race", "realm")]]))
-	_row("Start position", sp, setup_box)
 	# color and flag
 	var NC: Array = GameData.c("NATION_COLORS")
 	var cols := HBoxContainer.new()
@@ -809,7 +916,11 @@ func _refresh_setup() -> void:
 		b.tooltip_text = "Color %d" % (i + 1)
 		var on: bool = int(opts.nation.color) == i
 		var c := Color(NC[i][0])
-		for st in ["normal", "hover", "pressed"]:
+		b.disabled = taken.colors.has(i) and not on
+		if b.disabled:   # (multiplayer: another nation flies this color)
+			c = c.lerp(Color("#c8c8c8"), 0.75)
+			b.tooltip_text = "Taken by %s" % taken.colors[i]
+		for st in ["normal", "hover", "pressed", "disabled"]:
 			var sb := _sb(c, 3 if on else 1, 17, 0, SUN if on else INK)
 			b.add_theme_stylebox_override(st, sb)
 		var ci := i
@@ -827,7 +938,7 @@ func _refresh_setup() -> void:
 	var FN: Dictionary = Races.EMBLEM_NAMES
 	var ems: Array = Races.EMBLEMS[opts.get("race", "realm")]
 	if not ems.has(opts.nation.emblem):   # each race flies its own flags
-		opts.nation.emblem = "crown"
+		opts.nation.emblem = ems[0]
 	for em in ems:
 		var b := Button.new()
 		b.custom_minimum_size = Vector2(64, 46)
@@ -875,15 +986,34 @@ func _refresh_setup() -> void:
 			vc.add_child(sb)
 		sec_box.add_child(vc)
 	_row("Emblem color", sec_box, setup_box)
+
+
+## The New Game: Map Settings page's choices: the map, start position, island and the opponents. M: the settings it
+## changes (the New Game ones, or the multiplayer host's own).
+func _refresh_map() -> void:
+	_clear_now(map_box)
+	var M: Dictionary = _map_opts()
+	var practice: bool = M.practice and not mp_mode
+	if not mp_mode:   # (a multiplayer game is always on a full island)
+		var mp := HBoxContainer.new()
+		mp.add_theme_constant_override("separation", 8)
+		mp.add_child(_tog("Full island", not practice, _pick_map.bind("practice", false), false, "Computer nations, wars and diplomacy"))
+		mp.add_child(_tog("Practice island", practice, _pick_map.bind("practice", true), false, "10 provinces, just you: explore, settle and try things out"))
+		_row("Map", mp, map_box)
+	var sp := HBoxContainer.new()
+	sp.add_theme_constant_override("separation", 8)
+	for s in [["center", "Center"], ["edge", "Edge"], ["random", "Random"]]:
+		sp.add_child(_tog(s[1], M.start == s[0], _pick_map.bind("start", s[0]), practice, "Where your capital starts: %s always start on %s" % [Races.NAME[opts.get("race", "realm")], Races.HOME[opts.get("race", "realm")]]))
+	_row("Start position", sp, map_box)
 	# the island
 	var sh := HBoxContainer.new()
 	sh.add_theme_constant_override("separation", 8)
 	for s in SHAPES:
-		sh.add_child(_tog(s[1], opts.map.shape == s[0], func():
-			opts.map.shape = s[0]
-			_save_opts()
-			_refresh_setup(), practice, s[2]))
-	_row("Island", sh, setup_box)
+		sh.add_child(_tog(s[1], M.map.shape == s[0], func():
+			M.map.shape = s[0]
+			_save_map()
+			_refresh_map(), practice, s[2]))
+	_row("Island", sh, map_box)
 	for sl in [["Peninsulas", "pens", 5], ["Coves", "coves", 5], ["Trees", "trees", 4]]:
 		var h := HBoxContainer.new()
 		h.add_theme_constant_override("separation", 12)
@@ -891,7 +1021,7 @@ func _refresh_setup() -> void:
 		s.min_value = 0
 		s.max_value = sl[2]
 		s.step = 1
-		s.value = opts.map[sl[1]]
+		s.value = M.map[sl[1]]
 		s.editable = not practice
 		s.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		s.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -899,12 +1029,12 @@ func _refresh_setup() -> void:
 		val.custom_minimum_size = Vector2(70, 0)
 		var key: String = sl[1]
 		s.value_changed.connect(func(x):
-			opts.map[key] = int(x)
+			M.map[key] = int(x)
 			val.text = TREE_WORDS[int(x)] if key == "trees" else str(int(x))
-			_save_opts())
+			_save_map())
 		h.add_child(s)
 		h.add_child(val)
-		_row(sl[0], h, setup_box)
+		_row(sl[0], h, map_box)
 	# the opponents
 	var ob := VBoxContainer.new()
 	ob.add_theme_constant_override("separation", 6)
@@ -912,10 +1042,25 @@ func _refresh_setup() -> void:
 	grid.columns = 4
 	grid.add_theme_constant_override("h_separation", 8)
 	grid.add_theme_constant_override("v_separation", 6)
+	var humans := _mp_humans()
 	for i in 7:
-		var d: String = opts.slots[i]
+		var d: String = M.slots[i]
 		var wrap := HBoxContainer.new()
 		wrap.add_theme_constant_override("separation", 3)
+		if i < humans.size():   # a player's nation takes this slot
+			var hb := Button.new()
+			hb.text = "%d   %s" % [i + 1, str(humans[i]).left(12)]
+			hb.alignment = HORIZONTAL_ALIGNMENT_LEFT
+			hb.custom_minimum_size = Vector2(159, 32)
+			hb.disabled = true
+			hb.tooltip_text = "%s plays this nation" % humans[i]
+			hb.add_theme_font_size_override("font_size", 15)
+			for st in ["normal", "disabled"]:
+				hb.add_theme_stylebox_override(st, _sb(Color("#dbe8ff"), 1, 2, 4))
+			hb.add_theme_color_override("font_disabled_color", INK)
+			wrap.add_child(hb)
+			grid.add_child(wrap)
+			continue
 		var b := Button.new()
 		b.text = "%d   %s" % [i + 1, SLOT_TEXT[d]]
 		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
@@ -932,15 +1077,15 @@ func _refresh_setup() -> void:
 		var si := i
 		b.gui_input.connect(func(ev):
 			if ev is InputEventMouseButton and ev.pressed and ev.button_index in [MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT] and not practice:
-				var k := SLOT_CYCLE.find(opts.slots[si])
-				opts.slots[si] = SLOT_CYCLE[(k + (1 if ev.button_index == MOUSE_BUTTON_LEFT else SLOT_CYCLE.size() - 1)) % SLOT_CYCLE.size()]
-				_save_opts()
-				_refresh_setup.call_deferred()
+				var k := SLOT_CYCLE.find(M.slots[si])
+				M.slots[si] = SLOT_CYCLE[(k + (1 if ev.button_index == MOUSE_BUTTON_LEFT else SLOT_CYCLE.size() - 1)) % SLOT_CYCLE.size()]
+				_save_map()
+				_refresh_map.call_deferred()
 				b.accept_event())
 		wrap.add_child(b)
 		# the opponent's race: Realmling, Swampling, Woodling or ? (random); web: menu.js slot race buttons
 		var rb := Button.new()
-		var sr: String = str(opts.races[si])
+		var sr: String = str(M.races[si])
 		rb.text = {"realm": "R", "swamp": "S", "wood": "W"}.get(sr, "?")
 		rb.disabled = d == "closed" or practice
 		rb.focus_mode = Control.FOCUS_NONE
@@ -954,9 +1099,9 @@ func _refresh_setup() -> void:
 		var ri: int = si
 		rb.pressed.connect(func():
 			var cyc := ["realm", "swamp", "wood", "random"]
-			opts.races[ri] = cyc[(cyc.find(str(opts.races[ri])) + 1) % cyc.size()]
-			_save_opts()
-			_refresh_setup.call_deferred())
+			M.races[ri] = cyc[(cyc.find(str(M.races[ri])) + 1) % cyc.size()]
+			_save_map()
+			_refresh_map.call_deferred())
 		wrap.add_child(rb)
 		grid.add_child(wrap)
 	ob.add_child(grid)
@@ -975,13 +1120,15 @@ func _refresh_setup() -> void:
 		b.add_theme_color_override("font_disabled_color", Color(INK, 0.35))
 		var qq: String = q[0]
 		b.pressed.connect(func():
-			opts.slots = [qq, qq, qq, qq, qq, qq, qq]
-			_save_opts()
-			_refresh_setup())
+			M.slots = [qq, qq, qq, qq, qq, qq, qq]
+			_save_map()
+			_refresh_map())
 		quick.add_child(b)
 	ob.add_child(quick)
-	var n: int = opts.slots.filter(func(x): return x != "closed").size()
-	_row("Opponents\n%s" % ("" if practice else "%d nation%s" % [n + 1, "s" if n else ""]), ob, setup_box)
+	var n: int = range(humans.size(), 7).filter(func(x): return M.slots[x] != "closed").size() + humans.size()
+	_row("Opponents\n%s" % ("" if practice else "%d nation%s" % [n + 1, "s" if n else ""]), ob, map_box)
+
+
 
 
 ## Portrait cards for every Realmling leader, and Random; the chosen one's start, bonus, likes and dislikes.
@@ -996,10 +1143,14 @@ func _leader_pick() -> Control:
 	for id in L:
 		if L[id].race == opts.get("race", "realm"):
 			ids.append(id)
+	var taken: Dictionary = _mp_taken().leaders
 	for id in ids:
 		var on: bool = opts.leader == id
 		var b := Button.new()
 		b.custom_minimum_size = Vector2(66, 104)
+		if taken.has(id) and not on:   # (multiplayer: another player leads with them)
+			b.disabled = true
+			b.modulate = Color(1, 1, 1, 0.35)
 		b.focus_mode = Control.FOCUS_NONE
 		b.tooltip_text = "A random %s leader" % CountryWindow.RACE_WORD[opts.get("race", "realm")] if id == "random" else str(L[id].full)
 		for st in ["normal", "hover", "pressed"]:
@@ -1035,6 +1186,8 @@ func _leader_pick() -> Control:
 			c.add_child(tl)
 		for k in c.get_children():
 			k.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		if b.disabled:
+			b.tooltip_text = "Taken by %s" % taken[id]
 		var lid: String = id
 		b.pressed.connect(_pick.bind("leader", lid))
 		row.add_child(b)
@@ -1090,11 +1243,11 @@ static func leader_like_text(L: Dictionary) -> Array:
 
 
 func start_game() -> void:
-	var seed := seed_edit.text.strip_edges() if seed_edit else ""
+	var seed := seed_map_edit.text.strip_edges() if seed_map_edit else str(opts.seed)
 	if seed == "":
 		seed = random_seed()
-		if seed_edit:
-			seed_edit.text = seed
+		if seed_map_edit:
+			seed_map_edit.text = seed
 	opts.seed = seed
 	_save_opts()
 	if start_btn:
@@ -1105,5 +1258,5 @@ func start_game() -> void:
 
 func reset_start() -> void:
 	if start_btn:
-		start_btn.text = "Start game"
+		start_btn.text = "Done" if mp_mode else "Start Game"
 		start_btn.disabled = false

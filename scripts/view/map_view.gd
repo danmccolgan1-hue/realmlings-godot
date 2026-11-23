@@ -159,6 +159,15 @@ func _draw() -> void:
 const HOSTILE := Color("#d8473a")
 
 
+## The part of the world on the screen, grown by pad.
+func view_rect(pad: float) -> Rect2:
+	var c := get_viewport().get_camera_2d()
+	if c == null:
+		return Rect2(-1e9, -1e9, 2e9, 2e9)
+	var half := get_viewport_rect().size / c.zoom / 2
+	return Rect2(c.get_screen_center_position() - half, half * 2).grow(pad)
+
+
 ## A dashed line along a polyline; the dashes march by `offset`. (web: setLineDash, lineDashOffset)
 func _dashes(pts: PackedVector2Array, w: float, col: Color, on: float, off: float, offset: float) -> void:
 	var period := on + off
@@ -356,12 +365,15 @@ func _draw_game() -> void:
 	if effects == null:
 		effects = MapEffects.new(self)
 	effects.draw_under(game, game.t)
+	var vr := view_rect(260)   # 0.18: only what's on the screen is drawn (this is redrawn every frame)
 	for p in game.buildings:
 		if not game.explored.has(p):
 			continue   # other nations' settlements stay hidden under the fog
 		var b: Dictionary = game.buildings[p]
 		var P: Dictionary = game.G.provs[p]
 		var at := Vector2(P.ic[0], P.ic[1])
+		if not vr.has_point(at):
+			continue
 		var src: String = str(b.get("ccRace")) if b.get("cc", false) and b.get("ccRace") != null else game.race(b.owner)
 		var sname := "%s_%s_v%d" % [STAGE_ART[b.stage], P.terrain, p % 10]
 		var sp = Art.race_sprite("settlements", src, sname + ".png")
@@ -394,15 +406,17 @@ func _draw_game() -> void:
 	town.sync(game)
 	var civs_shown: bool = get_viewport().get_canvas_transform().get_scale().x >= town.civ_z and not Settings.calm_map
 	town.step(game, civs_shown)
-	town.draw_houses(game)
+	town.draw_houses(game, vr)
 	for p in game.extras:
 		if not game.explored.has(p):
 			continue
 		var ic: Array = game.G.provs[p].ic
+		if not vr.has_point(Vector2(ic[0], ic[1])):
+			continue
 		for e in game.extras[p]:
 			_building(e.type, e.slot, p, ic, 1.0, e.get("level", 1))
 	if civs_shown:
-		town.draw_civs(game, Time.get_ticks_msec() / 1000.0)
+		town.draw_civs(game, Time.get_ticks_msec() / 1000.0, vr)
 	# battles: the melee in the middle of the province (web: game.js drawBattle)
 	for b in game.battles:
 		if game.visible.has(b.prov):
@@ -417,6 +431,8 @@ func _draw_game() -> void:
 	for u in us:
 		if u.owner != Game.LOCAL and not game.visible.has(u.prov):
 			continue   # raiders under the fog stay hidden
+		if not vr.has_point(Vector2(u.x, u.y)) and (u.build == null or not vr.has_point(Vector2(game.G.provs[u.build.prov].ic[0], game.G.provs[u.build.prov].ic[1]))):
+			continue
 		if u.build != null and game.BUILD_DEFS.has(u.build.type) and u.build.get("slot") != null:   # (roads and walls have no plot)
 			var ic: Array = game.G.provs[u.build.prov].ic
 			_building(u.build.type, u.build.slot, u.build.prov, ic, (game.t - u.build.t0) / u.build.dur, 1)
@@ -480,7 +496,7 @@ func _draw_game() -> void:
 				_mana_bar(u, u.x, u.y - top - 3.2 * sqrt(UK_K) - 7, 18 * UK_K, UK_K)
 		else:
 			draw_circle(at, 18.0, OL)
-		if n > 0:
+		if n > 0 and u.get("monster") == null:   # (a boss is one creature: no number on it)
 			_badge(at + Vector2(26, -70), str(n))
 		if u.survey != null:
 			_bar(at + Vector2(0, -60), minf(1.0, (game.t - u.survey.t0) / u.survey.dur), Color("#7fc8f0"))

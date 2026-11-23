@@ -337,6 +337,29 @@ The plan after milestone 1. Each step is tested against the web game, then commi
      (the trees stop swaying). A full island went from about 13,800 draw calls a frame to about 2,000. `--fps`
      logs the frame rate (RL_HIDE=layer,... hides layers while measuring).
 
+22. **Playtest notes (0.18)** — done (`tests/test_terrain18.gd`, `test_ui.gd`):
+   - Menus: New Game is two pages, "New Game: Nation" (`_build_setup`, `_refresh_setup`, Continue) and "New Game:
+     Map Settings" (`_build_setup_map`, `_refresh_map`, Back / Start Game); `open_setup(lobby, page)` opens them from
+     the main menu or a multiplayer lobby (`mp_mode`: their buttons say Done and lead back). Exit on the main menu.
+   - Lobby: name box (`NetSession.set_name`), Your Nation (anyone), Map Settings (host; `Settings.menu.mp_map`
+     with per-slot computers and races), plain Leave / Start Game, colors and leaders other players took grayed out
+     (`_mp_taken`) and checked on start (`_mp_clash`); `_clear_now` removes rows at once so the page stops jumping.
+     `main._mp_gen` takes `o.slots` / `o.races`. The chat is gone (lobby and game).
+   - Rules: terrain variants (`roll_variants`, own random stream `seed + ':variants'`, after `rollYields`, so the
+     web game's numbers are untouched; `Game.VARIANTS` off in the fixture tests): Drylands / Meadow / Fae Forest /
+     Bog with their yields (`VARIANT_YIELD`, `VARIANT_LUCK`), Meadow Farms +3 food and Fae Lumber Mills +3 wood
+     (`extras_bonus`), Bogs halve non-Swamplings (`speed_mod`), +30% defenders (`side_strength0`), double / half
+     building prices (`bog_cost`, also the computer nations). Drylands never border a forest or mountains; the
+     Oasis's deserts stay plain. `variant` is saved. Another race −100 opinion (`DIPL_OTHER_RACE`). Multiplayer:
+     growl only for Swamplings, flirt for the others, 10 min per pair (`mp_cd`); no war cap; no boss counts.
+   - Art: `tools/make_variant_art.py` (gold grass, wide pools, mangroves, stepping stones), `tools/make_wood_houses.py`;
+     the variants' look (`MapDecor.add_variants`, own stream `seed + ':variant-decor'`; `MapLayers.TER_VARIANT`).
+   - Frame rate: the map's little pictures are packed into one atlas at start (`MapLayers._build_atlas`, with
+     mipmaps) and drawn without transforms so a chunk batches; stepping stones are atlas pictures; the swaying
+     layer is chunked and bends in `SWAY_SHADER` (phase, anchor and scale ride in the color) so it is never
+     redrawn; `MapView._draw_game` and `MapTown` skip what is off the screen. About 2,000 → 700 draw calls on a
+     full island (most of the rest is the interface and the animated sea).
+
 ## Things to remember
 
 - **Always grep for wrappers** (`name = function`) before porting a function: later web files replace many of them.

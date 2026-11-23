@@ -31,7 +31,8 @@ func setup(g: Game, m: MapView, c: Camera2D) -> void:
 
 var togs: HBoxContainer
 const TOGS := [["res", "Show or hide each province’s resources"], ["names", "Show each province’s name under its resources"],
-	["realm", "Show nation names over their land"], ["miniColor", "Fill the minimap with each nation’s color"]]
+	["realm", "Show nation names over their land"], ["miniColor", "Fill the minimap with each nation’s color"],
+	["miniClaimed", "Hide the provinces no nation has claimed on the minimap"]]
 
 
 func _build_toggles() -> void:
@@ -89,12 +90,27 @@ func _draw_toggle(b: Control, key: String) -> void:
 		"miniColor":
 			var q := Rect2(c - Vector2(11, 11), Vector2(22, 22))
 			b.draw_rect(q, Color("#faf1dc"))
-			for i in 5:
-				var o := -11.0 + i * 6.0
-				var a := c + Vector2(-11, o + 6)
-				var e := c + Vector2(o + 6, -11)
+			# stripes from the left and bottom edges to the top and right ones: all inside the square
+			for i in range(1, 8):
+				var t0 := i * 5.5
+				var a := q.position + (Vector2(0, t0) if t0 <= 22 else Vector2(t0 - 22, 22))
+				var e := q.position + (Vector2(t0, 0) if t0 <= 22 else Vector2(22, t0 - 22))
 				b.draw_line(a, e, Color("#c7362b", 1.0 if on else 0.35), 2.0)
 			b.draw_rect(q, Color(UiKit.INK, mod.a), false, 2.0)
+		"miniClaimed":   # a claimed province (a flag on it) beside an empty, dashed one
+			var hx := func(o: Vector2) -> PackedVector2Array:
+				var hh := PackedVector2Array()
+				for k in 7:
+					hh.append(o + Vector2(7.5, 0).rotated(TAU * k / 6.0 + PI / 6))
+				return hh
+			var h1: PackedVector2Array = hx.call(c + Vector2(-6, 2))
+			b.draw_colored_polygon(h1, Color("#9bd95f") * mod if on else Color(0.62, 0.62, 0.62, 0.35))
+			b.draw_polyline(h1, Color(UiKit.INK, mod.a), 1.6, true)
+			b.draw_line(c + Vector2(-6, 2), c + Vector2(-6, -11), Color(UiKit.INK, mod.a), 1.6)
+			b.draw_colored_polygon(PackedVector2Array([c + Vector2(-6, -11), c + Vector2(1, -8.5), c + Vector2(-6, -6)]), Color("#2f6fe0", mod.a))
+			var h2: PackedVector2Array = hx.call(c + Vector2(7, 4))
+			for k in 6:
+				b.draw_line(h2[k], h2[k].lerp(h2[k + 1], 0.55), Color(UiKit.INK, mod.a * 0.8), 1.4)
 
 
 func _to_mini(v: Vector2) -> Vector2:
@@ -118,10 +134,12 @@ func _draw() -> void:
 		var known: bool = game.explored.has(i)
 		if not known:
 			continue
+		if Settings.view.get("miniClaimed", false) and not game.buildings.has(i):   # only claimed provinces
+			continue
 		var pts := PackedVector2Array()
 		for v in map.polys[i]:
 			pts.append(_to_mini(v))
-		var col := Color(MapLayers.TER[game.G.provs[i].terrain][0])
+		var col := Color(MapLayers.ter_of(game.G, game, i)[0])
 		if not game.visible.has(i):
 			col = col.darkened(0.3)
 		draw_colored_polygon(pts, col)

@@ -11,6 +11,14 @@ const SHALLOW := Color("#55a6dc")
 const FOAM := Color("#d8f1ff")
 const SAND := Color("#f2dfa2")
 const TER := {"grassland": ["#9bd95f", "#76b744"], "forest": ["#4ba557", "#378243"], "desert": ["#f4cd72", "#d9a94c"], "swamp": ["#7b9c86", "#5d7d69"]}
+## 0.18 terrain variants: golden Drylands, a brighter Meadow, a darker Fae Forest, a paler Bog
+const TER_VARIANT := {"drylands": ["#ecc95e", "#d4aa3e"], "meadow": ["#a6df68", "#7fbf4a"], "fae": ["#327d42", "#245f33"], "bog": ["#a3baa8", "#86a08e"]}
+
+
+## A province's ground colors (its terrain's, or its variant's).
+static func ter_of(G: Dictionary, g, i: int) -> Array:
+	var v: String = g.variant_of(i) if g != null else ""
+	return TER_VARIANT[v] if v != "" else TER[G.provs[i].terrain]
 const PADT := 260.0
 const BLEND := 70.0
 const FOG_COL := Color("#2f3b55")
@@ -66,6 +74,8 @@ func setup(v: MapView, world: Dictionary, prep: Dictionary) -> void:
 		c.queue_free()
 	layers.clear()
 	D = MapDecor.build(w, G)
+	if view.game != null and not view.game.variant.is_empty():
+		MapDecor.add_variants(D, w, G, view.game.variant)
 	var V: Array = w.vertices
 	polys.clear()
 	coast_segs.clear()
@@ -85,9 +95,9 @@ func setup(v: MapView, world: Dictionary, prep: Dictionary) -> void:
 	_add("land", -18, _paint_land)
 	_add("territory", -17, _paint_territory)
 	_add("still", -16, _paint_still)
-	_chunk_items()
 	_add("rivers", -15, _paint_rivers, true)
-	_add("sway", -14, _paint_sway, true)
+	_add("sway", -14, _paint_sway)
+	_chunk_items()
 	_build_fog()
 	_add("dim", -12, _paint_dim)
 	_add("clouds", 5, _paint_clouds, true)
@@ -112,6 +122,9 @@ var clock := 0.0
 func _process(dt: float) -> void:
 	if view == null or view.game == null or not view.game.paused:
 		clock += dt
+	if sway_mat != null:
+		sway_mat.set_shader_parameter("t", clock)
+		sway_mat.set_shader_parameter("amp", 0.0 if Settings.calm_map else 0.07)   # Settings: Calm map
 
 
 func now() -> float:
@@ -199,11 +212,11 @@ func _bake_terrain() -> void:
 	var L := Layer.new()
 	L.paint = func(ci: CanvasItem):
 		for i in polys.size():
-			var col := Color(TER[G.provs[i].terrain][0])
+			var col := Color(ter_of(G, view.game, i)[0])
 			for q in Geometry2D.offset_polygon(polys[i], PADT, Geometry2D.JOIN_ROUND):
 				fill(ci, _scaled(q, origin, TS), col)
 		for i in polys.size():
-			var T: Array = TER[G.provs[i].terrain]
+			var T: Array = ter_of(G, view.game, i)
 			fill(ci, _scaled(polys[i], origin, TS), Color(T[0]))
 			var sh := Color(T[1], 0.35)
 			for e in D.shade[i]:
@@ -274,7 +287,7 @@ func _paint_land(ci: CanvasItem) -> void:
 				uv.append((v - terrain_at.position) / terrain_at.size)
 			ci.draw_polygon(pts, PackedColorArray([Color.WHITE]), uv, terrain_tex)
 		else:
-			fill(ci, pts, Color(TER[G.provs[i].terrain][0]))
+			fill(ci, pts, Color(ter_of(G, view.game, i)[0]))
 	# (0.17: the province borders in one call, and the beach as one mesh of round-ended strokes, instead of a call each)
 	var el := PackedVector2Array()
 	for e in w.edges:
@@ -290,6 +303,10 @@ func _paint_land(ci: CanvasItem) -> void:
 
 
 func _crossing(ci: CanvasItem, c: Dictionary) -> void:
+	var k := int(round(fposmod(float(c.ang), PI) / (PI / 8))) % 8
+	if atlas_at.has("crossing%d.png" % k):   # 0.18: a picture from the atlas (batches with the land's other pictures)
+		_sprite(ci, {"x": c.x, "y": c.y, "s": "crossing%d" % k})
+		return
 	ci.draw_set_transform(Vector2(c.x, c.y), c.ang, Vector2.ONE)
 	fill(ci, ellipse(Vector2.ZERO, 10, 15, 0, 16), Color("#d9b77a"))
 	ci.draw_polyline(closed(ellipse(Vector2.ZERO, 10, 15, 0, 16)), OL, 1.6, true)
@@ -364,10 +381,11 @@ func _paint_still(_ci: CanvasItem) -> void:
 const CHUNK := 1024.0
 
 func _chunk_items() -> void:
+	_build_atlas()
 	var land_items: Array = D.items.reduce(func(acc, items): return acc + items, [])
 	for c in D.crossings:   # (stepping stones after the land's pictures, as before)
 		land_items.append({"x": c.x, "y": c.y, "crossing": c})
-	for pair in [["land", land_items], ["still", D.still]]:
+	for pair in [["land", land_items], ["still", D.still], ["sway", D.sway]]:
 		var host: Layer = layers[pair[0]]
 		var groups := {}
 		for it in pair[1]:
@@ -375,17 +393,97 @@ func _chunk_items() -> void:
 			if not groups.has(k):
 				groups[k] = []
 			groups[k].append(it)
+		var swaying: bool = pair[0] == "sway"
 		for k in groups:
 			var L := Layer.new()
 			L.name = "%s_%d_%d" % [pair[0], k.x, k.y]
+			L.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+			if swaying:
+				L.material = sway_mat
 			var list: Array = groups[k]
 			L.paint = func(ci: CanvasItem):
 				for it in list:
 					if it.has("crossing"):
 						_crossing(ci, it.crossing)
+					elif swaying:
+						_sway_sprite(ci, it)
 					else:
 						_sprite(ci, it)
 			host.add_child(L)
+
+
+# --- the map's little pictures share one texture (an atlas), so the renderer draws a whole chunk of them at once
+# (0.18: each picture was its own texture and its own draw call) ---
+
+static var atlas: ImageTexture
+static var atlas_at := {}      # file -> Rect2 (pixels in the atlas)
+static var sway_mat: ShaderMaterial
+const ATLAS_W := 4096
+const ATLAS_PAD := 8
+
+## The swaying trees and grass bend in a shader (each one's phase, anchor and scale ride in its color), so their
+## chunks are drawn once and never redrawn (0.18: the whole layer was redrawn 20 times a second).
+const SWAY_SHADER := """
+shader_type canvas_item;
+uniform float t = 0.0;
+uniform float amp = 0.07;
+uniform float atlas_h = 4096.0;
+void vertex() {
+	float lever = (COLOR.g - UV.y) * atlas_h / max(COLOR.b * 8.0, 0.001);   // world units above the anchor
+	VERTEX.x += sin(t * 1.7 + COLOR.r * 6.2832) * amp * lever;
+}
+void fragment() {
+	COLOR = texture(TEXTURE, UV);
+}
+"""
+
+
+static func _build_atlas() -> void:
+	if atlas != null:
+		return
+	var dir := "res://assets/art/map/common/"
+	var man: Dictionary = (JSON.parse_string(FileAccess.get_file_as_string(dir + "manifest.json")) as Dictionary).get("images", {})
+	var imgs := []
+	for f in man:
+		var sp = Art.get_sprite("map", "common", f)
+		if sp == null:
+			continue
+		var im: Image = sp.tex.get_image()
+		if im == null:
+			continue
+		if im.is_compressed():
+			im.decompress()
+		im.convert(Image.FORMAT_RGBA8)
+		imgs.append([f, im])
+	imgs.sort_custom(func(a, b): return a[1].get_height() > b[1].get_height())
+	var x := 0
+	var y := 0
+	var row_h := 0
+	var spots := {}
+	for e in imgs:
+		var im: Image = e[1]
+		if x + im.get_width() + ATLAS_PAD > ATLAS_W:
+			x = 0
+			y += row_h + ATLAS_PAD
+			row_h = 0
+		spots[e[0]] = Vector2i(x, y)
+		x += im.get_width() + ATLAS_PAD
+		row_h = maxi(row_h, im.get_height())
+	var h := 1
+	while h < y + row_h:
+		h *= 2
+	var big := Image.create(ATLAS_W, h, false, Image.FORMAT_RGBA8)
+	for e in imgs:
+		var im: Image = e[1]
+		big.blit_rect(im, Rect2i(Vector2i.ZERO, im.get_size()), spots[e[0]])
+		atlas_at[e[0]] = Rect2(Vector2(spots[e[0]]), Vector2(im.get_size()))
+	big.generate_mipmaps()
+	atlas = ImageTexture.create_from_image(big)
+	var sh := Shader.new()
+	sh.code = SWAY_SHADER
+	sway_mat = ShaderMaterial.new()
+	sway_mat.shader = sh
+	sway_mat.set_shader_parameter("atlas_h", float(h))
 
 
 func _sprite(ci: CanvasItem, it: Dictionary, rot := 0.0) -> void:
@@ -394,12 +492,28 @@ func _sprite(ci: CanvasItem, it: Dictionary, rot := 0.0) -> void:
 		return
 	var s: float = 1.0 / sp.scale
 	var at := Vector2(it.x, it.y)
+	var reg = atlas_at.get(it.s + ".png") if rot == 0.0 else null
+	if reg != null:   # (no transform: consecutive pictures batch into one draw)
+		ci.draw_texture_rect_region(atlas, Rect2(at - Vector2(sp.ax, sp.ay) * s, reg.size * s), reg, it.get("m", Color.WHITE))
+		return
 	if rot == 0.0:
 		ci.draw_set_transform(at - Vector2(sp.ax, sp.ay) * s, 0.0, Vector2(s, s))
 	else:
 		ci.draw_set_transform(at + (-Vector2(sp.ax, sp.ay) * s).rotated(rot), rot, Vector2(s, s))
-	ci.draw_texture(sp.tex, Vector2.ZERO)
+	ci.draw_texture(sp.tex, Vector2.ZERO, it.get("m", Color.WHITE))
 	ci.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+
+## A swaying picture: its phase, its anchor's height in the atlas and its scale go to the sway shader in its color.
+func _sway_sprite(ci: CanvasItem, it: Dictionary) -> void:
+	var sp = Art.get_sprite("map", "common", it.s + ".png")
+	var reg = atlas_at.get(it.s + ".png")
+	if sp == null or reg == null:
+		return
+	var s: float = 1.0 / sp.scale
+	var at := Vector2(it.x, it.y)
+	var code := Color(fposmod(float(it.ph), 6.2832) / 6.2832, (reg.position.y + sp.ay) / atlas.get_height(), sp.scale / 8.0, 1.0)
+	ci.draw_texture_rect_region(atlas, Rect2(at - Vector2(sp.ax, sp.ay) * s, reg.size * s), reg, code)
 
 
 func _paint_rivers(ci: CanvasItem) -> void:
@@ -434,12 +548,8 @@ func _paint_rivers(ci: CanvasItem) -> void:
 			along += ln
 
 
-func _paint_sway(ci: CanvasItem) -> void:
-	var t := now()
-	var vr := view_rect(120)
-	for it in D.sway:
-		if vr.has_point(Vector2(it.x, it.y)):
-			_sprite(ci, it, 0.0 if Settings.calm_map else sin(t * 1.7 + it.ph) * 0.07)   # Settings: Calm map
+func _paint_sway(_ci: CanvasItem) -> void:
+	pass   # (drawn by the chunks with the sway shader: see _chunk_items)
 
 
 # --- nation borders (web: game.js buildTerritory / drawTerritory) ---------------------------------------------

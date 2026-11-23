@@ -1,15 +1,13 @@
 class_name MpPanel
 extends PanelContainer
-## Multiplayer, in the game: who is playing (flag, name, nation, connection speed; away or played by the computer),
-## the chat, and what the game is waiting for. Views only: chat goes through the NetSession, orders through Game.do.
+## Multiplayer, in the game: who is playing (flag, name, nation, connection speed; away or played by the computer)
+## and what the game is waiting for. No chat: players talk through Diplomacy. Views only.
 
 const INK := Color("#1d1a22")
 const MUTED := Color("#5a6475")
 
 var lock: Lockstep
 var rows: VBoxContainer
-var log_box: RichTextLabel
-var entry: LineEdit
 var wait_label: Label
 var _sig := ""
 var _t := 0.0
@@ -36,32 +34,11 @@ func _init() -> void:
 	wait_label.custom_minimum_size = Vector2(280, 0)
 	wait_label.visible = false
 	v.add_child(wait_label)
-	log_box = RichTextLabel.new()
-	log_box.bbcode_enabled = true
-	log_box.scroll_following = true
-	log_box.custom_minimum_size = Vector2(280, 96)
-	log_box.add_theme_color_override("default_color", INK)
-	log_box.add_theme_font_size_override("normal_font_size", 14)
-	log_box.add_theme_font_size_override("bold_font_size", 14)
-	log_box.add_theme_font_size_override("italics_font_size", 14)
-	v.add_child(log_box)
-	entry = LineEdit.new()
-	entry.placeholder_text = "Chat (Enter to send)"
-	entry.max_length = 200
-	entry.add_theme_font_size_override("font_size", 14)
-	entry.text_submitted.connect(func(t2):
-		if lock != null and lock.net != null:
-			lock.net.send_chat(t2)
-		entry.clear()
-		entry.release_focus())
-	v.add_child(entry)
+	# (no chat in the game: players talk through Diplomacy's messages and proclamations)
 
 
 func setup(lk: Lockstep) -> void:
 	lock = lk
-	lk.net.chat.connect(func(n, t2):
-		if is_instance_valid(log_box):
-			log_box.append_text(("[b]%s:[/b] %s\n" % [n, t2]) if n != "" else ("[i]%s[/i]\n" % t2)))
 	lk.waiting.connect(func(t2):
 		if is_instance_valid(wait_label):
 			wait_label.text = t2

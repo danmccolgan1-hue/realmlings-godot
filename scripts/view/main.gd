@@ -55,7 +55,7 @@ func _ready() -> void:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--seed="):
 			menu.opts.seed = a.substr(7)
-			menu.seed_edit.text = a.substr(7)
+			menu.seed_map_edit.text = a.substr(7)
 		elif a.begins_with("--leader="):
 			menu.opts.leader = a.substr(9)
 			var LL: Dictionary = GameData.c("LEADERS")
@@ -66,14 +66,16 @@ func _ready() -> void:
 		elif a == "--mphost":   # pictures: a hosted multiplayer lobby
 			menu.show_screen("multi")
 			menu._mp_host("Daniel")
-			menu.net.chat.emit("", "Ann joined.")
-			menu.net.chat.emit("Ann", "Ready when you are!")
+			if OS.get_cmdline_user_args().has("--mpnation"):
+				menu.open_setup(true, "setup")
+			if OS.get_cmdline_user_args().has("--mpmap"):
+				menu.open_setup(true, "setup_map")
 		elif a == "--mpplay":   # pictures: a two-player game over this computer's own network (the host's view)
 			_mp_demo.call_deferred()
 		elif a == "--fps":   # measuring: start a game at once and log the frame rate (see _process)
 			_start.call_deferred()
-		elif a == "--newgame":   # pictures: the New Game page
-			menu.show_screen("setup")
+		elif a == "--newgame":   # pictures: the New Game pages (--newgame --mapsettings: the second one)
+			menu.open_setup(false, "setup_map" if OS.get_cmdline_user_args().has("--mapsettings") else "setup")
 		elif a == "--tutorial":
 			start_tutorial.call_deferred()
 		elif a == "--record":   # record this game (for pictures of a replay), without changing the saved setting
@@ -302,16 +304,17 @@ func _mp_gen(o: Dictionary, players: Dictionary) -> void:
 				"nation": {"name": str(n.get("nation", players[pid].name)), "color": int(n.get("color", 0)), "emblem": str(n.get("emblem", "crown")), "secondary": str(n.get("secondary", "#faf1dc"))},
 				"pid": pid}
 			slots.append("human")
-		for i in int(o.get("ais", 2)):
-			if slots.size() < 7:
-				slots.append(str(o.get("diff", "moderate")))
-		while slots.size() < 7:
-			slots.append("closed")
+		var cs: Array = o.get("slots", [])   # the host's computer nations, slot by slot (players take the first slots)
+		var races := []
+		for i in 7:
+			races.append("random" if i < slots.size() else str(o.get("races", []).get(i) if i < o.get("races", []).size() else "random"))
+		for i in range(slots.size(), 7):
+			slots.append(str(cs[i]) if i < cs.size() else "closed")
 		var hn: Dictionary = players[1].get("nation", {})
 		var leader := "" if str(hn.get("leader", "random")) == "random" else str(hn.get("leader", ""))
 		g = Game.new_world(str(o.seed), leader, slots, str(o.get("start", "center")), {}, o.get("map", {}),
 			{"name": str(hn.get("nation", "My Realm")), "color": int(hn.get("color", 0)), "emblem": str(hn.get("emblem", "crown")), "secondary": str(hn.get("secondary", "#faf1dc"))},
-			str(hn.get("race", "realm")), [], humans)
+			str(hn.get("race", "realm")), races, humans)
 		seat_of[1] = Game.HOST
 		g.seat_names[Game.HOST] = str(players[1].name)
 		for i in humans:
@@ -493,6 +496,7 @@ func exit_replay() -> void:
 var _fps_t := 0.0
 var _fps_n := 0
 var _fps_ms := 0.0
+var _upd_ms := 0.0   # (measuring: the game's own update, inside the process time)
 
 func _process(delta: float) -> void:
 	if game != null and OS.get_cmdline_user_args().has("--fps"):   # measuring: frames and their cost, every 4 s
@@ -505,11 +509,17 @@ func _process(delta: float) -> void:
 					map.layers.layers[nm].hide()
 				if nm == "game":
 					map.set_meta("no_game", true)
+				if nm == "hud":
+					hud.hide()
+				if nm == "labels" or nm == "fog":
+					for c in map.get_children() + map.layers.get_children():
+						if c.name.to_lower().contains(nm) or c.get_class().to_lower().contains(nm) or str(c.get_script().resource_path if c.get_script() else "").contains(nm):
+							c.hide()
 				if nm == "chunks":
 					for c in map.layers.layers.land.get_children() + map.layers.layers.still.get_children():
 						c.hide()
 		if _fps_t >= 4.0:
-			var line := "FPS %.1f  process %.2f ms  draw calls %d  objects %d  nodes %d" % [_fps_n / _fps_t, _fps_ms / _fps_n,
+			var line := "FPS %.1f  process %.2f ms (game %.2f)  draw calls %d  objects %d  nodes %d" % [_fps_n / _fps_t, _fps_ms / _fps_n, _upd_ms / _fps_n,
 				Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME), Performance.get_monitor(Performance.RENDER_TOTAL_OBJECTS_IN_FRAME),
 				Performance.get_monitor(Performance.OBJECT_NODE_COUNT)]
 			print(line)
@@ -520,6 +530,7 @@ func _process(delta: float) -> void:
 			_fps_t = 0.0
 			_fps_n = 0
 			_fps_ms = 0.0
+			_upd_ms = 0.0
 	if replay != null:
 		_camera(delta)
 		replay_hud.step(delta)
@@ -534,7 +545,9 @@ func _process(delta: float) -> void:
 	if game:
 		_camera(delta)
 		if lock == null:
+			var u0 := Time.get_ticks_usec()
 			game.update(Time.get_ticks_msec() / 1000.0)
+			_upd_ms += (Time.get_ticks_usec() - u0) / 1000.0
 		if game.t >= next_autosave:
 			next_autosave = (floor(game.t / AUTOSAVE_EVERY) + 1) * AUTOSAVE_EVERY
 			if lock != null:
@@ -750,6 +763,11 @@ func _maybe_screenshot() -> void:
 			var c := game.capital_of(o)
 			if c >= 0:
 				cam.position = Vector2(game.G.provs[c].ic[0], game.G.provs[c].ic[1])
+		if a.begins_with("--variant="):   # pictures: the first province of a terrain variant (drylands | meadow | fae | bog)
+			var vp := game.variant.find(a.substr(10))
+			if vp >= 0:
+				cam.position = Vector2(game.G.provs[vp].ic[0], game.G.provs[vp].ic[1])
+				hud.select_province(vp, "")
 		if a.begins_with("--rtab="):   # pictures: the outliner's tab
 			Settings.roster_tab = a.substr(7)
 		if a.begins_with("--landmark="):   # pictures: death | oasis | heart | setpiece | ruins | travelers | lair
@@ -823,7 +841,7 @@ func _mp_demo() -> void:
 		if h.players.size() == 2 and _demo_net.joined:
 			break
 		OS.delay_msec(10)
-	start_mp_host(h, {"seed": "ember-oak-12", "ais": 2, "diff": "moderate", "start": "center", "map": {}})
+	start_mp_host(h, {"seed": "ember-oak-12", "slots": ["moderate", "moderate", "moderate", "closed", "closed", "closed", "closed"], "races": ["random", "random", "swamp", "random", "random", "random", "random"], "start": "center", "map": {}})
 	var shot := ""
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--shot="):
@@ -979,10 +997,6 @@ func _unhandled_input(ev: InputEvent) -> void:
 			return
 		if ev.keycode == KEY_F9 and lock == null:
 			load_from(QUICKSAVE)
-			return
-		if (ev.keycode == KEY_ENTER or ev.keycode == KEY_KP_ENTER) and mp_panel != null and mp_panel.visible:
-			mp_panel.entry.grab_focus()
-			get_viewport().set_input_as_handled()
 			return
 		if ev.keycode == KEY_T and hud.unit == null:
 			hud.toggle_research()

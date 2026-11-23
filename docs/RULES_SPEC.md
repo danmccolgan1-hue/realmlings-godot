@@ -64,6 +64,7 @@ Each step ends with a headless test and something visible in the placeholder vie
 
 ### 2. World setup and resources — `game.js`
 - `rollYields()`: per-province gold / wood / food from terrain plus rolls, and the hidden gold deposit (25% desert, 5% elsewhere). Uses `rngFrom(world.seed + ':resources')`.
+- Godot 0.18 (not in the web game): `roll_variants()` after it turns a tenth of each terrain into Drylands, Meadow, Fae Forest or Bog with their own yields and rules (see WAR_PORT_NOTES 22), from its own stream `world.seed + ':variants'`.
 - `treeBorder`, `buildCap(p, type)` (4 farms, one Lumber Mill per tree border, one of anything else).
 - `setupGame()`: initial `S`, start position, starting units and stock (`START_STOCK`), the capital. Leader starts: `applyLeaderStart` (`v105.js`, wrapped in `v106.js`).
 - `CAPITAL_BONUS`, province names (`war.js` province naming).

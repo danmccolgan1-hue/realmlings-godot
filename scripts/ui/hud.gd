@@ -368,7 +368,7 @@ func commands_of(u) -> Array:
 			if type != "outpost" and not game.BUILD_DEFS.has(type):
 				continue
 			var name: String = "Outpost" if type == "outpost" else game.BUILD_DEFS[type].name
-			var cost: Dictionary = GameData.c("OUTPOST_COST") if type == "outpost" else game.BUILD_DEFS[type].cost
+			var cost: Dictionary = game.bog_cost(u.prov, game.ME, GameData.c("OUTPOST_COST") if type == "outpost" else game.BUILD_DEFS[type].cost)
 			var short := []
 			for k in cost:
 				short.append("%d%s" % [cost[k], k.left(1)])
@@ -602,7 +602,7 @@ func _process(_delta: float) -> void:
 	_hover_tip()
 	_race_tooltip()
 	minimap.position = Vector2(16, topbar.size.y - Minimap.SIZE.y - 16)
-	msglog.place(Vector2(16 + Minimap.SIZE.x + 12, minimap.position.y), Vector2(Minimap.SIZE.x * 2, Minimap.SIZE.y))
+	msglog.place(Vector2(16 + Minimap.SIZE.x + 12, minimap.position.y), Vector2(Minimap.SIZE.x * 1.6, Minimap.SIZE.y))   # (twice the minimap's width, less a fifth)
 	sel_line.position = Vector2(msglog.position.x, msglog.position.y - sel_line.size.y - 6)
 	sel_rename.visible = sel_line.visible and unit != null and unit.owner == Game.LOCAL
 	sel_rename.position = sel_line.position + Vector2(sel_line.size.x + 4, 0)
@@ -748,7 +748,9 @@ func set_ui_scale(v: float) -> void:
 
 func _province_text(p: int) -> String:
 	var P: Dictionary = game.G.provs[p]
-	var s := "[b]%s[/b] · %s\n" % [game.prov_name(p), P.terrain.capitalize()]
+	var s := "[b]%s[/b] · %s\n" % [game.prov_name(p), game.terrain_name(p).capitalize()]
+	if game.variant_of(p) != "":
+		s += Game.VARIANT_TEXT[game.variant_of(p)] + "\n"
 	if game.setpieces.has(p) and game.sp_known(p):
 		var why = game.setpiece_why(p)
 		var D: Dictionary = game.SETPIECES[game.setpieces[p]]
@@ -1049,7 +1051,7 @@ func _hover_tip() -> void:
 		if st == "unexplored":
 			t = "[b]Unexplored[/b]\nOnly a Wayfinder can go here."
 		else:
-			t = "[b]%s[/b]\n%s%s" % [str(P.terrain).capitalize(), "Visible" if st == "visible" else "Explored · contents unknown", (" · " + ("Conquered Capital" if b.get("cc", false) else STAGE_NAME[b.stage])) if b != null else ""]
+			t = "[b]%s[/b]\n%s%s" % [game.terrain_name(p).capitalize(), "Visible" if st == "visible" else "Explored · contents unknown", (" · " + ("Conquered Capital" if b.get("cc", false) else STAGE_NAME[b.stage])) if b != null else ""]
 			if not game.owned(p):
 				t += "\n" + ("Outpost allowed here" if game.borders_owned(p) else "Too far from your land for an outpost")
 			else:
@@ -1282,7 +1284,7 @@ func _open_crop_menu(e: Dictionary) -> void:
 ## Build on an empty plot: the nearest free Mason walks over. web: game.js openPlotMenu
 func open_plot_menu(p0: int, slot: int, anchor: Control) -> void:
 	var m = game.nearest_mason(p0)
-	var T: String = str(game.G.provs[p0].terrain).capitalize()
+	var T: String = game.terrain_name(p0).capitalize()
 	var order: Array = game.BUILD_ORDER.filter(func(t): return game.BUILD_DEFS.has(t))
 	order.sort_custom(func(a, b): return int(game.build_check(p0, a) == null) > int(game.build_check(p0, b) == null))
 	var items := []
@@ -1404,7 +1406,7 @@ func open_build_menu(p: int, at: Vector2, shift: bool, pt: Vector2) -> void:
 	var head_sub := ("%d/%d buildings" % [n, game.plot_cap(p)]) if game.owned(p) and m != null else ""
 	if m != null and m.prov != p and not types.is_empty():
 		head_sub += " · Mason will walk there"
-	pick.open(str(game.G.provs[p].terrain).capitalize() if game.explored.has(p) else "Unexplored", head_sub, items, at,
+	pick.open(game.terrain_name(p).capitalize() if game.explored.has(p) else "Unexplored", head_sub, items, at,
 		"Build an outpost first to unlock farms, mills, mines and more." if m != null and not types.is_empty() and not game.owned(p) else "")
 
 

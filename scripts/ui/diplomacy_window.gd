@@ -124,7 +124,7 @@ func _state_key() -> String:
 		if o != Game.LOCAL:
 			parts.append([o, game.alive_nation(o), game.knows(o), game.provs_of(o).size(), game.enemy_of(o), game.allied(Game.LOCAL, o), game.access_given(o, Game.LOCAL),
 				game.access_given(Game.LOCAL, o), game.declare_why(Game.LOCAL, o), game.proclaim_why(Game.LOCAL, o), int(game.truce_left(Game.LOCAL, o)) / 30,
-				["growl", "gift", "ask", "ally", "trade", "crime"].map(func(a): return game.player_act_why(a, o))])
+				["growl", "flirt", "gift", "ask", "ally", "trade", "crime"].map(func(a): return game.player_act_why(a, o))])
 	for o in game.ai_ids():
 		parts.append([o, game.alive_nation(o), game.knows(o), game.opinion(o, Game.LOCAL), game.declare_why(Game.LOCAL, o), game.proclaim_why(Game.LOCAL, o),
 			int(game.truce_left(Game.LOCAL, o)) / 30, game.provs_of(o).size(), game.enemy_of(o)])
@@ -419,8 +419,10 @@ func _player_section(o: int) -> PanelContainer:
 		gd.add_child(_act(o, "proclaim", "enemy", "Renounce enemy", "", "Lift your proclamation"))
 	else:
 		gd.add_child(_act(o, "proclaim", "enemy", "Proclaim Enemy", game.proclaim_why(Game.LOCAL, o), "Every player who has met you hears of it", true))
-	gd.add_child(_act(o, "flirt", "flirt", "Flirt", "", "They’ll know; players have no opinion to sway"))
-	gd.add_child(_act(o, "growl", "growl", "Growl", "", "They’ll hear it; players have no opinion to sway"))
+	if game.race() == "swamp":   # (Swamplings growl, the others flirt; once in 10 minutes)
+		gd.add_child(_act(o, "growl", "growl", "Growl", game.player_act_why("growl", o), "They’ll hear it; players have no opinion to sway"))
+	else:
+		gd.add_child(_act(o, "flirt", "flirt", "Flirt", game.player_act_why("flirt", o), "They’ll know; players have no opinion to sway"))
 	gd.add_child(_act(o, "gift", "gift", "Gift", game.player_act_why("gift", o), "%d gold, straight to their treasury" % DL.gift.gold))
 	if game.access_given(Game.LOCAL, o):
 		gd.add_child(_act(o, "grant", "revoke", "Revoke access", "", "Their armies may no longer march through your land"))

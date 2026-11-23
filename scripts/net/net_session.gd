@@ -118,6 +118,16 @@ func send_chat(text: String) -> void:
 		_send(1, {"t": "chat", "text": tx})
 
 
+## This player's name in the lobby (Steam will give its own name, once the game is on Steam).
+func set_name(nm: String) -> void:
+	my_name = nm.strip_edges().left(24) if nm.strip_edges() != "" else "Player"
+	if is_host:
+		players[1].name = my_name
+		_broadcast_players()
+	elif joined:
+		_send(1, {"t": "name", "name": my_name})
+
+
 func set_nation(n: Dictionary) -> void:
 	nation = n
 	if is_host:
@@ -202,6 +212,11 @@ func _handle(from: int, m: Dictionary) -> void:
 		"nation":
 			if is_host and players.has(from):
 				players[from].nation = m.get("nation", {})
+				_broadcast_players()
+		"name":
+			if is_host and players.has(from) and not locked:
+				var nm := str(m.get("name", "Player")).strip_edges().left(24)
+				players[from].name = nm if nm != "" else "Player"
 				_broadcast_players()
 		"chat":
 			if is_host:

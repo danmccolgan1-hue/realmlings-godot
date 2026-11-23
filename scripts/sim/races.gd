@@ -10,8 +10,8 @@ const FOOTMAN := {"realm": "d-sword", "swamp": "d-sw-axe", "wood": "d-wd-sword"}
 # tools/make_flags.py)
 const EMBLEMS := {
 	"realm": ["crown", "shield", "swords", "eagle", "fleur", "fist", "heart", "rose"],
-	"swamp": ["crown", "shield", "swords", "eagle", "flame", "bleedeye", "beetle", "claw", "tooth", "skull", "axes", "pyramid"],
-	"wood": ["crown", "shield", "swords", "eagle", "triskelion", "trinity", "spiral", "tree", "celtic", "shamrock", "dara", "shieldknot"],
+	"swamp": ["flame", "bleedeye", "beetle", "claw", "tooth", "skull", "axes", "pyramid"],
+	"wood": ["triskelion", "trinity", "spiral", "tree", "celtic", "shamrock", "dara", "shieldknot"],
 }
 # the emblem's color on the flag, in rows from light to deep; no black (the deepest neutral is a gray)
 const EMBLEM_COLORS := [

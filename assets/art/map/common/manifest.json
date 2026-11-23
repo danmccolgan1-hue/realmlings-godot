@@ -294,6 +294,90 @@
    "ax": 72,
    "ay": 88,
    "scale": 4
+  },
+  "goldgrass.png": {
+   "w": 64,
+   "h": 96,
+   "ax": 32,
+   "ay": 88,
+   "scale": 2
+  },
+  "bigpuddle.png": {
+   "w": 184,
+   "h": 96,
+   "ax": 92,
+   "ay": 48,
+   "scale": 2
+  },
+  "mangrove.png": {
+   "w": 176,
+   "h": 216,
+   "ax": 88,
+   "ay": 200,
+   "scale": 4
+  },
+  "mangrove_L.png": {
+   "w": 352,
+   "h": 432,
+   "ax": 176,
+   "ay": 400,
+   "scale": 4
+  },
+  "crossing0.png": {
+   "w": 136,
+   "h": 136,
+   "ax": 68,
+   "ay": 68,
+   "scale": 4
+  },
+  "crossing1.png": {
+   "w": 136,
+   "h": 136,
+   "ax": 68,
+   "ay": 68,
+   "scale": 4
+  },
+  "crossing2.png": {
+   "w": 136,
+   "h": 136,
+   "ax": 68,
+   "ay": 68,
+   "scale": 4
+  },
+  "crossing3.png": {
+   "w": 136,
+   "h": 136,
+   "ax": 68,
+   "ay": 68,
+   "scale": 4
+  },
+  "crossing4.png": {
+   "w": 136,
+   "h": 136,
+   "ax": 68,
+   "ay": 68,
+   "scale": 4
+  },
+  "crossing5.png": {
+   "w": 136,
+   "h": 136,
+   "ax": 68,
+   "ay": 68,
+   "scale": 4
+  },
+  "crossing6.png": {
+   "w": 136,
+   "h": 136,
+   "ax": 68,
+   "ay": 68,
+   "scale": 4
+  },
+  "crossing7.png": {
+   "w": 136,
+   "h": 136,
+   "ax": 68,
+   "ay": 68,
+   "scale": 4
   }
  }
 }

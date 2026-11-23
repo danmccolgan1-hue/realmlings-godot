@@ -105,6 +105,8 @@ static func _clickable(c: Control, f: Callable, tip := "") -> void:
 func _build() -> void:
 	var P: Dictionary = game.G.provs[p]
 	var T: Array = TER.get(P.terrain, ["#cccccc", str(P.terrain).capitalize()])
+	if game.variant_of(p) != "":   # 0.18 terrain variants
+		T = [MapLayers.TER_VARIANT[game.variant_of(p)][0], Game.VARIANT_NAME[game.variant_of(p)]]
 	var vis: bool = game.visible.has(p)
 	var b = game.buildings.get(p) if vis else null
 	var y: Dictionary = game.yields[p]
@@ -131,6 +133,9 @@ func _build() -> void:
 	rn.pressed.connect(func(): hud.renamer.open(game, "prov:%d" % p))
 	head.add_child(rn)
 	var tl := _lbl(T[1], 13, MUTED)
+	if game.variant_of(p) != "":
+		tl.mouse_filter = Control.MOUSE_FILTER_STOP
+		tl.tooltip_text = Game.VARIANT_TEXT[game.variant_of(p)]
 	tl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	tl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(tl)

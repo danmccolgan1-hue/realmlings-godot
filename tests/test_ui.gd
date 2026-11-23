@@ -284,15 +284,15 @@ func _new_game_choices(errs: Array) -> void:
 		errs.append("new game: map modes are %s / %s" % [Game.map_mode(opts), Game.map_mode({"shape": "classic", "pens": 2, "coves": 2, "trees": 0})])
 	if Game.map_opts_of("map:ring:1:3:2") != opts:
 		errs.append("new game: map_opts_of doesn't read the mode back")
-	var nat := {"name": "The Thistle Crown", "color": 3, "emblem": "wolf"}
+	var nat := {"name": "The Thistle Crown", "color": 3, "emblem": "fleur"}
 	var g := Game.new_world("lantern-fable-63", "cormac", ["easy", "moderate"], "center", {}, opts, nat)
 	var NC: Array = GameData.c("NATION_COLORS")
 	if g.world.mode != "map:ring:1:3:2":
 		errs.append("new game: the world's mode is %s" % g.world.mode)
-	if g.player_info(Game.HOST).name != "The Thistle Crown" or g.player_info(Game.HOST).color != NC[3][0] or g.my_nation.emblem != "wolf":
+	if g.player_info(Game.HOST).name != "The Thistle Crown" or g.player_info(Game.HOST).color != NC[3][0] or g.my_nation.emblem != "fleur":
 		errs.append("new game: your nation is %s / %s" % [g.player_info(Game.HOST), g.my_nation])
 	for o in g.nations:
-		if g.player_info(o).color == NC[3][0] or g.nations[o].get("emblem") == "wolf":
+		if g.player_info(o).color == NC[3][0] or g.nations[o].get("emblem") == "fleur":
 			errs.append("new game: nation %d took your color or flag" % o)
 	var back := Game.from_save(JSON.parse_string(JSON.stringify(g.to_save())))
 	if back == null or back.world.mode != g.world.mode or back.my_nation != g.my_nation or back.G.provs.size() != g.G.provs.size():
