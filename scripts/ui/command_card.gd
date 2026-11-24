@@ -113,7 +113,7 @@ func _notification(what: int) -> void:
 ## note of their own beside the card.
 const TIP_DELAY := 1.0
 var _tip: PanelContainer
-var _tip_label: Label
+var _tip_label: RichTextLabel   # (0.19: BBCode, so costs show the resources' icons)
 var _tip_rest := 0.0
 var _tip_at := Vector2(-1, -1)
 var _tip_for := ""
@@ -146,16 +146,20 @@ func _process(dt: float) -> void:
 		_tip.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		_tip.top_level = true
 		_tip.z_index = 100
-		_tip_label = Label.new()
+		_tip_label = RichTextLabel.new()
+		_tip_label.bbcode_enabled = true
+		_tip_label.fit_content = true
+		_tip_label.scroll_active = false
 		_tip_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		_tip_label.custom_minimum_size = Vector2(320, 0)
-		_tip_label.add_theme_color_override("font_color", INK)
-		_tip_label.add_theme_font_size_override("font_size", 15)
+		_tip_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_tip_label.add_theme_color_override("default_color", INK)
+		_tip_label.add_theme_font_size_override("normal_font_size", 15)
 		_tip.add_child(_tip_label)
 		add_child(_tip)
 	if text != _tip_for:
 		_tip_for = text
-		_tip_label.text = text
+		_tip_label.text = UiKit.res_icons(text)
 		_tip.reset_size()
 	_tip.show()
 	var g := get_global_mouse_position()

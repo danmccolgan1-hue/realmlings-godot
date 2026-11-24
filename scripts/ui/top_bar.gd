@@ -190,6 +190,7 @@ func _ready() -> void:
 	right.add_child(paper_button("", "plus", "Zoom in", func(): hud.main.zoom_by(1.25)))
 	right.add_child(paper_button("", "minus", "Zoom out", func(): hud.main.zoom_by(0.8)))
 	right.add_child(paper_button("", "home", "Back to your capital [Home]", func(): hud.main.go_home()))
+	right.add_child(paper_button("", "bug", "Report a bug: what happened, with a screenshot", func(): hud.bug.toggle()))
 	# top left: the menu, your nation, Armory and Diplomacy
 	var left := VBoxContainer.new()
 	left.add_theme_constant_override("separation", 8)
@@ -286,7 +287,10 @@ func _process(_dt: float) -> void:
 		var st: Dictionary = g.tech[tr]
 		var gl: Glyph = tree_g[tr]
 		gl.active = st.cur != null
-		gl.set_value(float(st.prog) / maxf(1.0, float(g.TECH_BY_ID[st.cur].cost)) if st.cur != null else 0.0)
+		# (0.19: against the real cost, which doubles for Government and Military and grows with your land; it used
+		# the bare cost, so the circles overflowed and stopped drawing)
+		var gx = g.TECH_BY_ID.get(st.cur) if st.cur != null else null
+		gl.set_value(clampf(float(st.prog) / maxf(1.0, float(g.tech_cost(gx))), 0.0, 1.0) if gx != null else 0.0)
 		gl.queue_redraw()
 	var k := "%s|%s|%s|%d|%d|%d|%d|%d|%d|%d" % [g.stock, g.income, [g.storage_cap("gold"), g.storage_cap("wood"), g.storage_cap("food")],
 		g.mana_regen(Game.LOCAL), g.fort_count(), g.fort_limit(), g.provs_of(Game.LOCAL).size(), g.prov_limit(), g.exhaust, g.wars_of(Game.LOCAL).size()]

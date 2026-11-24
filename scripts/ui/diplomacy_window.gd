@@ -47,6 +47,7 @@ func setup(g: Game, h) -> void:
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
 		win = UiKit.window("Diplomacy", 1000, func(): close())
 		add_child(win.panel)
+		UiKit.draggable(win.panel, win.title, "diplomacy")   # 0.19
 		var head: HBoxContainer = win.title.get_parent()
 		head.add_theme_constant_override("separation", 8)
 		head_flag = _texrect(42, 28)
@@ -124,7 +125,7 @@ func _state_key() -> String:
 		if o != Game.LOCAL:
 			parts.append([o, game.alive_nation(o), game.knows(o), game.provs_of(o).size(), game.enemy_of(o), game.allied(Game.LOCAL, o), game.access_given(o, Game.LOCAL),
 				game.access_given(Game.LOCAL, o), game.declare_why(Game.LOCAL, o), game.proclaim_why(Game.LOCAL, o), int(game.truce_left(Game.LOCAL, o)) / 30,
-				["growl", "flirt", "gift", "ask", "ally", "trade", "crime"].map(func(a): return game.player_act_why(a, o))])
+				["growl", "flirt", "gift", "ask", "share", "ally", "trade", "crime"].map(func(a): return game.player_act_why(a, o))])
 	for o in game.ai_ids():
 		parts.append([o, game.alive_nation(o), game.knows(o), game.opinion(o, Game.LOCAL), game.declare_why(Game.LOCAL, o), game.proclaim_why(Game.LOCAL, o),
 			int(game.truce_left(Game.LOCAL, o)) / 30, game.provs_of(o).size(), game.enemy_of(o)])
@@ -242,8 +243,8 @@ func _section(o: int) -> PanelContainer:
 	var sm := UiKit.ink(13)
 	sm.add_theme_color_override("font_color", MUTED)
 	var np := game.provs_of(o).size()
-	sm.text = ("%s%ss · %d province%s · %s" % [(L.full + " · ") if L != null else "", CountryWindow.RACE_WORD.get(N.get("race", "realm"), "Realmling"),
-		np, "" if np == 1 else "s", DIFF_NAME.get(N.diff, str(N.diff))]) if alive else "Fallen"
+	sm.text = ("%s%ss · %d province%s · %s%s" % [(L.full + " · ") if L != null else "", CountryWindow.RACE_WORD.get(N.get("race", "realm"), "Realmling"),
+		np, "" if np == 1 else "s", DIFF_NAME.get(N.diff, str(N.diff)), _opinion_word(o)]) if alive else "Fallen"
 	nv.add_child(sm)
 	if alive:
 		for b in _badges(o):
@@ -432,6 +433,7 @@ func _player_section(o: int) -> PanelContainer:
 		gd.add_child(_act(o, "giveback", "revoke", "Give back access", "", "You may march through their land; give it back"))
 	else:
 		gd.add_child(_act(o, "ask", "access", "Ask for access", game.player_act_why("ask", o), "They choose: 30 s to answer"))
+	gd.add_child(_act(o, "share", "contacts", "Request Share Contacts", game.player_act_why("share", o), "They choose: you would meet the nations they know"))
 	if game.allied(Game.LOCAL, o):
 		gd.add_child(_act(o, "ally", "ally", "End alliance", "", "%d-minute truce afterwards" % (int(game.W("allyTruce")) / 60)))
 	else:
@@ -760,6 +762,7 @@ func _actions(o: int) -> VBoxContainer:
 		gd.add_child(_act(o, "giveback", "revoke", "Give back access", "", "You may march through their land; give it back"))
 	else:
 		gd.add_child(_act(o, "ask", "access", "Ask for access", game.ask_why(o), "Your armies march through their land"))
+	gd.add_child(_act(o, "share", "contacts", "Request Share Contacts", game.share_why(o), "If they like you, you meet every nation they know"))
 	if game.allied(Game.LOCAL, o):
 		gd.add_child(_act(o, "ally", "ally", "End alliance", "", "%d-minute truce afterwards" % (int(game.W("allyTruce")) / 60)))
 	else:
@@ -896,6 +899,12 @@ func _news() -> void:
 			body.add_child(_note("%s: %s" % [Game.fmt_time(n.t), n.text], 13))
 			continue
 		body.add_child(_note(("%s: the %s declared war on the %s" if n.kind == "war" else "%s: the %s and the %s made peace") % [Game.fmt_time(n.t), game.player_info(n.a).name, game.player_info(n.b).name], 13))
+
+
+## 0.19: the opinion points beside the difficulty in a nation's title, e.g. " · Opinion +35"
+func _opinion_word(o: int) -> String:
+	var v := game.opinion(o, Game.LOCAL)
+	return " · Opinion %s%d" % ["+" if v > 0 else "−" if v < 0 else "", absi(v)]
 
 
 # web: v105.js the #dxTip tooltip

@@ -34,6 +34,7 @@ var order_key := ""
 ## designs only, so a design shows the starting soldier of its weapon family (see Art.design_art).
 class Preview extends Control:
 	var kind := "d-sword"
+	var look := 0   # the armor it wears (Art.armored)
 	var game
 
 	func _process(_dt: float) -> void:
@@ -50,7 +51,7 @@ class Preview extends Control:
 		pts.append(pts[0])
 		draw_polyline(pts, UiKit.INK, 3.0, true)
 		var dir := int(Time.get_ticks_msec() / 1000.0 * 0.6 / (PI / 4)) % 8
-		var sp = Art.race_sprite("units", game.race(), Art.unit_file(Art.design_art(game, kind), "d%d" % dir))
+		var sp = Art.armored(Art.race_sprite("units", game.race(), Art.unit_file(Art.design_art(game, kind), "d%d" % dir)), look)
 		if sp == null:
 			return
 		var tex: Texture2D = sp.tex
@@ -83,6 +84,7 @@ func setup(g: Game, h) -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	win = UiKit.window("Armory", 1060, func(): close())
 	add_child(win.panel)
+	UiKit.draggable(win.panel, win.title, "armory")   # 0.19
 	var head: HBoxContainer = win.title.get_parent()
 	win.title.size_flags_horizontal = 0
 	sub = UiKit.ink(15)
@@ -119,7 +121,7 @@ func _place() -> void:
 	win.panel.custom_minimum_size.x = 1060 if mode == 0 else 0
 	win.panel.reset_size()
 	UiKit.center(win.panel)
-	if mode == 1 and hud != null and hud.paused_label != null:
+	if mode == 1 and hud != null and hud.paused_label != null and not UiKit.is_placed("armory"):
 		win.panel.position.y = hud.paused_label.position.y + hud.paused_label.size.y + 8
 
 
@@ -300,6 +302,9 @@ func _top(ed: VBoxContainer, st: Dictionary, kind_text: String, named: bool) -> 
 	var pv := Preview.new()
 	pv.game = game
 	pv.kind = game.MAGE if draft.type == "mage" else _draft_art()
+	if draft.type != "mage":   # 0.19: the preview wears the chosen armor
+		var A = GameData.c("ARMORS").get(str(draft.get("armor", "")))
+		pv.look = {"chain": 1, "wyvern": 1, "mithril": 1, "plate": 2, "dragon": 2, "ornate": 2}.get(str(A.type), 0) if A is Dictionary else 0
 	pv.custom_minimum_size = Vector2(176, 176)
 	frame.add_child(pv)
 	var sm := VBoxContainer.new()

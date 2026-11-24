@@ -257,6 +257,7 @@ func _on_ready(g: Game, from_thread := true) -> void:
 
 const MP_SAVE := "user://mp_autosave.json"   # the last multiplayer game, kept by every player
 var _mp_pending := {}
+var drop_asking := false   # the host is being asked whether to wait for a player who dropped out
 
 
 ## The host starts the game from the lobby. o: the lobby's choices {seed, map, start, ais, diff, cont};
@@ -367,10 +368,17 @@ func _mp_wire() -> void:
 		game = g
 		map.set_game(g)
 		hud.set_game(g))
+	lock.resumed.connect(func():   # (0.19: everyone is back: the host's question goes away and the game goes on)
+		if drop_asking and hud.dialog.visible:
+			drop_asking = false
+			hud.dialog.hide()
+			hud.add_toast("Everyone is back: the game goes on."))
 	lock.ask_drop.connect(func(o, nm):
+		drop_asking = true
 		hud.dialog.ask("%s has dropped out" % nm, "The game is paused. Wait for %s to come back (they join again with the same name and take their nation back), or hand their nation to the computer (Difficult)." % nm,
 			[{"id": "wait", "label": "Wait", "why": null}, {"id": "ai", "label": "Hand to the computer", "why": null}],
 			func(id):
+				drop_asking = false
 				if id == "ai" and lock != null:
 					lock.hand_over(o)))
 	lock.ended.connect(func(why):
@@ -898,7 +906,7 @@ func _camera(dt: float) -> void:
 		if absf(z - zoom_to) < 0.0005:
 			zoom_to = 0.0
 	var pan := Vector2(Input.get_axis("ui_left", "ui_right"), Input.get_axis("ui_up", "ui_down"))
-	if get_viewport().gui_get_focus_owner() is LineEdit:
+	if get_viewport().gui_get_focus_owner() is LineEdit or get_viewport().gui_get_focus_owner() is TextEdit:
 		pan = Vector2.ZERO
 	# the mouse at the edge of the screen scrolls the map (only while the game's window has the focus)
 	if game != null and DisplayServer.window_is_focused() and not dragging:
@@ -1075,6 +1083,9 @@ func _finish_box(at: Vector2, shift: bool) -> void:
 # web: game.js clickAt (a left click): the spell or Slippers aim, a unit (Shift adds or removes it), a building, the province
 func _left_click(shift: bool) -> void:
 	var at := get_global_mouse_position()
+	if hud.aim != null and hud.aim.spell == "road":   # 0.19: picking a road's start and end
+		hud.road_click(map.province_at(at))
+		return
 	if hud.aim != null:
 		var tp := map.province_at(at)
 		if tp >= 0:

@@ -96,11 +96,54 @@ static func cost_line(c: Dictionary) -> String:
 	return ", ".join(parts) if not parts.is_empty() else "free"
 
 
-## Put a window in the middle of the screen (call when it opens: its size is known then).
+## Put a window in the middle of the screen (call when it opens: its size is known then). A window the player has
+## dragged somewhere (0.19) goes back where they left it instead.
 static func center(panel: Control) -> void:
 	panel.reset_size()
 	var vs := panel.get_viewport_rect().size
+	var key := str(panel.get_meta("drag_key", ""))
+	if key != "" and placed.has(key):
+		panel.position = on_screen(panel, placed[key])
+		return
 	panel.position = ((vs - panel.size) / 2).floor()
+
+
+# --- windows the player can drag about by their title (0.19) ---
+
+## window key -> where the player last dragged it (kept while the game runs)
+static var placed := {}
+
+
+## Let the player drag `panel` about by `handle` (its title). key: remembers where it was left, so it opens there
+## again. Call again with a new handle when the title is rebuilt.
+static func draggable(panel: Control, handle: Control, key: String) -> void:
+	panel.set_meta("drag_key", key)
+	handle.mouse_filter = Control.MOUSE_FILTER_STOP
+	handle.mouse_default_cursor_shape = Control.CURSOR_MOVE
+	if handle.tooltip_text == "":
+		handle.tooltip_text = "Drag to move this window"
+	handle.gui_input.connect(func(ev):
+		if ev is InputEventMouseButton and ev.button_index == MOUSE_BUTTON_LEFT:
+			panel.set_meta("drag_on", ev.pressed)
+			handle.accept_event()
+		elif ev is InputEventMouseMotion and panel.get_meta("drag_on", false):
+			if not (ev.button_mask & MOUSE_BUTTON_MASK_LEFT):
+				panel.set_meta("drag_on", false)
+				return
+			panel.position = on_screen(panel, panel.position + ev.relative)
+			placed[key] = panel.position
+			handle.accept_event())
+
+
+## p kept so that at least the window's top edge (its title) stays on the screen.
+static func on_screen(panel: Control, p: Vector2) -> Vector2:
+	var vs := panel.get_viewport_rect().size
+	return Vector2(clampf(p.x, 80.0 - panel.size.x, vs.x - 80.0), clampf(p.y, 0.0, maxf(0.0, vs.y - 40.0))).floor()
+
+
+## Has the player moved the window kept under key?
+static func is_placed(key: String) -> bool:
+	return placed.has(key)
 
 
 ## Break a long tooltip into lines of about `width` characters (Godot's plain tooltips don't wrap by themselves).
@@ -116,6 +159,16 @@ static func wrap(text: String, width := 64) -> String:
 				line = w if line == "" else line + " " + w
 		out.append(line)
 	return "\n".join(out)
+
+
+## A tooltip's "50 gold, 20 wood" as numbers with the resources' icons, in BBCode for a RichTextLabel (0.19).
+## Square brackets already in plain text are kept as they are; bbcode: the text is BBCode already (left alone).
+static func res_icons(text: String, bbcode := false, px := 18) -> String:
+	var out := text if bbcode else text.replace("[", "[lb]")
+	for r in ["gold", "wood", "food"]:
+		var rx := RegEx.create_from_string("([+−-]?\\d+)\\s+%s\\b" % r)
+		out = rx.sub(out, "$1 [img=%dx%d]res://assets/art/icons/common/res_%s.png[/img]" % [px, px, r], true)
+	return out
 
 
 ## A number as the web game prints it: 5, not 5.0; 0.5 stays 0.5.

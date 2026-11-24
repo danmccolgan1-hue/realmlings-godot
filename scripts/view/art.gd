@@ -34,15 +34,66 @@ static func draw(ci: CanvasItem, sp: Dictionary, at: Vector2, size_mul := 1.0, a
 	ci.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 
+## draw, stretched (sc: x and y) and turned by rot about the art's anchor (0.19: monsters on the move).
+static func draw_xf(ci: CanvasItem, sp: Dictionary, at: Vector2, sc: Vector2, rot := 0.0, alpha := 1.0) -> void:
+	var s: Vector2 = sc / float(sp.scale)
+	var tex: Texture2D = sp.tex
+	ci.draw_set_transform(at, rot, s)
+	ci.draw_texture(tex, -Vector2(sp.ax, sp.ay), Color(1, 1, 1, alpha))
+	ci.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+
+# --- armor on the map (0.19): the soldiers' art is drawn in leather; chain and plate (and the other races' twins)
+# turn its leather browns to steel, darker for chain, brighter for plate ---
+
+static var _armor_cache := {}
+
+## How heavy a troop kind's armor looks: 0 leather, 1 chain, 2 plate.
+static func armor_look(game, kind: String) -> int:
+	if game == null or not game.DSTATS.has(kind):
+		return 0
+	return int(game.DSTATS[kind].get("look", 0))
+
+
+## sp with its leather turned to the armor of `look` (sp itself for leather); made once per picture and kept.
+static func armored(sp, look: int):
+	if sp == null or look <= 0:
+		return sp
+	var tex: Texture2D = sp.tex
+	var key := "%s#%d" % [tex.resource_path if tex.resource_path != "" else str(tex.get_instance_id()), look]
+	if _armor_cache.has(key):
+		return _armor_cache[key]
+	var img: Image = tex.get_image()
+	if img == null:
+		_armor_cache[key] = sp
+		return sp
+	if img.is_compressed():
+		img.decompress()
+	img.convert(Image.FORMAT_RGBA8)
+	for y in img.get_height():
+		for x in img.get_width():
+			var c := img.get_pixel(x, y)
+			if c.a < 0.04:
+				continue
+			if c.h >= 0.02 and c.h <= 0.13 and c.s >= 0.38 and c.v <= 0.72:   # leather browns (not skin, not cloth)
+				var n := Color.from_hsv(0.6, 0.10, minf(1.0, c.v * 1.15 + 0.05), c.a) if look == 1 else Color.from_hsv(0.58, 0.07, minf(1.0, c.v * 1.3 + 0.1), c.a)
+				img.set_pixel(x, y, n)
+	var out: Dictionary = sp.duplicate()
+	out.tex = ImageTexture.create_from_image(img)
+	_armor_cache[key] = out
+	return out
+
+
 ## The art file name of a unit kind: "pioneer:B" -> "pioneer_b", "d-sword" -> "d_sword".
 static func unit_file(kind: String, dir := "d0") -> String:
 	return "%s_%s.png" % [kind.replace(":", "_").replace("-", "_").to_lower(), dir]
 
 
 ## The art an Armory design is drawn with. The port has art for the starting designs only, so a design made in the
-## Armory shows the starting soldier of its weapon family (Rider for cavalry); a gear-accurate look comes later.
+## Armory shows the starting soldier of its weapon family (Rider for cavalry). Monsters ("m-") keep their own kind,
+## so they are drawn as themselves (0.19: Zombies in a battle were drawn as club infantry).
 static func design_art(game, kind: String) -> String:
-	if kind.begins_with("d-") or not game.DSTATS.has(kind) or game.DSTATS[kind].get("fam") == "magic":
+	if kind.begins_with("d-") or kind.begins_with("m-") or not game.DSTATS.has(kind) or game.DSTATS[kind].get("fam") == "magic":
 		return kind
 	var st: Dictionary = game.DSTATS[kind]
 	var rc: String = str(st.get("race", "realm"))

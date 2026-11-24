@@ -9,13 +9,15 @@ static var ui_scale := 1.0
 static var calm_map := false        # web: v96.js Calm map (trees stand still; the web game also hides its villagers)
 static var fullscreen := false
 static var record_games := false    # web: v102.js Record games (off by default)
-static var view := {"names": false, "realm": true, "res": true, "miniColor": false, "hideFull": false}   # web: v78.js VIEW (realm-view)
+static var view := {"names": false, "realm": true, "res": true, "miniColor": false, "hideFull": false, "players": true, "quickQueue": false}   # web: v78.js VIEW (realm-view)
 static var roster_tab := "units"     # web: game.js rosterTab (realm-roster-tab)
 static var roster_folded := []       # web: v96.js RO_COL (realm-rocol)
 static var music_on := true          # web: realmlings-music (sound comes later; remembered now)
 static var music_vol := 0.35
 static var sfx_on := true
 static var sfx_vol := 0.7
+static var bug_token := ""          # 0.19: a GitHub token that may write to bug_repo (bug reports go there)
+static var bug_repo := "danmccolgan1-hue/realmlings-godot"
 static var menu := {}                # the New Game page's last choices (web: realm-map, realm-slots, realm-nation, realm-leader…)
 static var _loaded := false
 
@@ -43,6 +45,8 @@ static func load_all() -> void:
 	music_vol = clampf(float(d.get("music_vol", 0.35)), 0, 1)
 	sfx_on = bool(d.get("sfx_on", true))
 	sfx_vol = clampf(float(d.get("sfx_vol", 0.7)), 0, 1)
+	bug_token = str(d.get("bug_token", ""))
+	bug_repo = str(d.get("bug_repo", bug_repo))
 	var mn = d.get("menu", {})
 	menu = mn if mn is Dictionary else {}
 	var rf = d.get("roster_folded", [])
@@ -67,7 +71,7 @@ static func save_all() -> void:
 	var f := FileAccess.open(PATH, FileAccess.WRITE)
 	if f == null:
 		return
-	f.store_string(JSON.stringify({"ui_scale": ui_scale, "calm_map": calm_map, "fullscreen": fullscreen, "record_games": record_games, "view": view, "roster_tab": roster_tab, "roster_folded": roster_folded, "music_on": music_on, "music_vol": music_vol, "sfx_on": sfx_on, "sfx_vol": sfx_vol, "menu": menu}, " "))
+	f.store_string(JSON.stringify({"ui_scale": ui_scale, "calm_map": calm_map, "fullscreen": fullscreen, "record_games": record_games, "view": view, "roster_tab": roster_tab, "roster_folded": roster_folded, "music_on": music_on, "music_vol": music_vol, "sfx_on": sfx_on, "sfx_vol": sfx_vol, "bug_token": bug_token, "bug_repo": bug_repo, "menu": menu}, " "))
 	f.close()
 
 

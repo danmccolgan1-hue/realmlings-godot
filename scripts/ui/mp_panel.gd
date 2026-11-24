@@ -10,6 +10,7 @@ var lock: Lockstep
 var rows: VBoxContainer
 var wait_label: Label
 var _sig := ""
+var heads := []
 var _t := 0.0
 
 
@@ -24,6 +25,8 @@ func _init() -> void:
 	head.add_theme_font_size_override("font_size", 17)
 	head.add_theme_color_override("font_color", INK)
 	v.add_child(head)
+	UiKit.draggable(self, head, "players")   # 0.19: drag it by its title
+	heads = [head]
 	rows = VBoxContainer.new()
 	rows.add_theme_constant_override("separation", 2)
 	v.add_child(rows)
@@ -50,8 +53,17 @@ func setup(lk: Lockstep) -> void:
 func _process(dt: float) -> void:
 	if lock == null or lock.game == null:
 		return
-	# beside the outliner, under the clock
-	position = Vector2(get_viewport_rect().size.x - 300 - size.x, 76)
+	# beside the outliner, under the clock (until the player drags it elsewhere)
+	if not UiKit.is_placed("players"):
+		position = Vector2(get_viewport_rect().size.x - 300 - size.x, 76)
+	# 0.19: Settings can hide it; what the game is waiting for still shows
+	var on: bool = Settings.view.get("players", true)
+	rows.visible = on
+	for h in heads:
+		h.visible = on
+	visible = on or wait_label.visible
+	if not visible:
+		return
 	_t -= dt
 	if _t > 0:
 		return
