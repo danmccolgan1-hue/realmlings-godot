@@ -4091,7 +4091,8 @@ func on_road(u: Dictionary, wp: Dictionary) -> bool:
 	return RULES19 and near_road(float(u.x), float(u.y))   # 0.19: anyone walking along a road, not only from end to end
 
 
-## 0.19: how far from a road's middle a unit still walks on it (three times the old road's width)
+## 0.19: how far from a road's middle a unit still walks on it: three times the road's drawn width (20), which
+## stays as it is
 const ROAD_HALF := 30.0
 var _road_lines := {}   # link key -> [a, middle of the border, b] (from the map: not saved)
 

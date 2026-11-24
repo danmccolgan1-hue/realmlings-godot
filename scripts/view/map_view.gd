@@ -108,7 +108,7 @@ func _draw() -> void:
 				if game.roads.has(k2):
 					continue
 				var L: Array = game.road_line(k2)
-				draw_polyline(PackedVector2Array([L[0], L[1], L[2]]), Color(ROAD_COL, 0.35), 60.0, true)
+				draw_polyline(PackedVector2Array([L[0], L[1], L[2]]), Color(ROAD_COL, 0.35), 20.0, true)
 		# roads and walls being built grow from the Mason's side (web: govtech.js drawLinks)
 		for u in game.units:
 			var bu = u.get("build")
@@ -267,10 +267,8 @@ func _stroke_road(pts: PackedVector2Array, f: float) -> void:
 			line.append(pts[1].lerp(pts[2], minf(1.0, (left - L0) / maxf(L1, 0.01))))
 	if line.size() < 2:
 		return
-	# 0.19: three times as wide as before (units within it walk faster: Game.ROAD_HALF)
-	draw_polyline(line, OL, 66.0, true)
-	draw_polyline(line, ROAD_COL, 60.0, true)
-	draw_polyline(line, ROAD_COL.lightened(0.12), 22.0, true)
+	draw_polyline(line, OL, 26.0, true)
+	draw_polyline(line, ROAD_COL, 20.0, true)
 
 
 func _wall_edge(a: Vector2, b: Vector2, f: float, stone: bool) -> void:
