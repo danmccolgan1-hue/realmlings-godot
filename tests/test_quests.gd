@@ -21,6 +21,9 @@ func run() -> Array:
 	_mason_pages(g, errs)
 	_dig(errs)
 	_stars(errs)
+	_engine(errs)
+	_race(errs)
+	_armament(errs)
 	Game.QUESTS = was
 	return errs
 
@@ -320,3 +323,122 @@ func _stars(errs: Array) -> void:
 			errs.append("stars: no shooting star for the view")
 	if g.stars_fallen != 6:
 		errs.append("stars: %d fallen, want 6" % g.stars_fallen)
+
+
+## A Reliquary at nation o's capital, as if just built.
+func _reliq(g: Game, o: int) -> Dictionary:
+	var cap: int = g.seats[o].capital
+	var e := {"type": "reliquary", "slot": 40 + o, "born": 0.0}
+	if not g.extras.has(cap):
+		g.extras[cap] = []
+	g.extras[cap].append(e)
+	return e
+
+
+## Session 4: a relic in the Reliquary starts its quest; filling it finishes it, takes its relics and pays for good.
+func _engine(errs: Array) -> void:
+	var g := Game.new_world(SEED, "cormac", SLOTS, "center")
+	g.quest_pick = ["callum", "quarterroyal", "freakarmor"]
+	_reliq(g, Game.HOST)
+	var said := []
+	g.on_dialog = func(title, _text, _ch, _f): said.append(title)
+	Quests.deposit(g, Game.HOST, "callum")
+	if g.quest_log.get("callum", {}).get("state") != "active" or said.is_empty() or not str(said[0]).begins_with("New quest"):
+		errs.append("engine: one Lawbook didn't start its quest (%s, %s)" % [g.quest_log, said])
+	var before := g.tech_rate("gov")
+	Quests.deposit(g, Game.HOST, "callum")
+	Quests.deposit(g, Game.HOST, "coin")   # (another quest's relic stays)
+	if Quests.goal_text(g, Game.HOST, "callum") != "Find copies of Lord Callum's Lawbook 2/3":
+		errs.append("engine: goal text '%s'" % Quests.goal_text(g, Game.HOST, "callum"))
+	Quests.deposit(g, Game.HOST, "callum")
+	if g.quest_log.callum.state != "done":
+		errs.append("engine: three Lawbooks didn't finish it")
+	if Quests.count(g, Game.HOST, "callum") != 0 or Quests.count(g, Game.HOST, "coin") != 1:
+		errs.append("engine: relics left %s" % [Quests.items_of(g, Game.HOST)])
+	if g.tech_rate("gov") != before + 6 or g.quest_rate.get("gov") != 6:
+		errs.append("engine: Government research %d, want %d" % [g.tech_rate("gov"), before + 6])
+	# extra copies found later start nothing again
+	Quests.deposit(g, Game.HOST, "callum")
+	if g.quest_log.callum.state != "done":
+		errs.append("engine: a finished quest started again")
+	# a Mage's Request waits for a Mage Tower
+	Quests.deposit(g, Game.HOST, "quarterroyal")
+	if g.quest_log.has("quarterroyal"):
+		errs.append("engine: the Mage's Request started without a Mage Tower")
+	g.extras[g.capital].append({"type": "magetower", "slot": 39, "born": 0.0})
+	Quests.payday(g)
+	if g.quest_log.get("quarterroyal", {}).get("state") != "active":
+		errs.append("engine: the Mage's Request didn't start once a Mage Tower stood")
+	# a Battlegear quest needs a Fallen Star too, and unlocks its armor
+	var e2 := {"type": "reliquary", "slot": 38, "born": 0.0}   # (a second Reliquary: the first is nearly full)
+	g.extras[g.capital].append(e2)
+	for id in ["fbones", "fbones", "fbones", "fbones", "fribs", "fskull"]:
+		Quests.deposit(g, Game.HOST, id)
+	if g.quest_log.freakarmor.state != "active":
+		errs.append("engine: the Freak Man finished without a Fallen Star")
+	Quests.deposit(g, Game.HOST, "star")
+	if g.quest_log.freakarmor.state != "done" or not g.quest_unlocks.has("armor:bone_regalia"):
+		errs.append("engine: the Freak Man's Skeleton: %s, unlocks %s" % [g.quest_log.freakarmor, g.quest_unlocks])
+	# the log: open quests first, every text, the race's words
+	var ids := QuestLogWindow.entries(g)
+	if ids[0] != "quarterroyal":
+		errs.append("log: order %s" % [ids])
+	if not QuestLogWindow.body_text(g, "callum").contains("+6 Government Research"):
+		errs.append("log: the finished quest's text: %s" % QuestLogWindow.body_text(g, "callum"))
+	# saved and loaded, the quests and their rewards come back
+	var g2 := Game.load_text(g.save_text())
+	if g2.quest_log != g.quest_log or g2.tech_rate("gov") != g.tech_rate("gov") or g2.quest_unlocks != g.quest_unlocks:
+		errs.append("engine: quests changed in a save")
+
+
+const HUMANS := {0: {"nation": {"name": "Bog Kings", "emblem": "skull", "color": 3}, "race": "swamp"}}
+
+## Session 4: two players with the same quest; the first to finish wins it, the other fails. The words are each race's.
+func _race(errs: Array) -> void:
+	var g := Game.new_world(SEED, "cormac", ["human", "moderate"], "center", {}, {}, {"name": "Hosts"}, "realm", [], HUMANS.duplicate(true))
+	var other: int = g.seat_ids().filter(func(o): return o != Game.HOST)[0]
+	g.quest_pick = ["lionheart"]
+	_reliq(g, Game.HOST)
+	_reliq(g, other)
+	Quests.deposit(g, Game.HOST, "lionheart")
+	Quests.deposit(g, other, "lionheart")
+	if Quests.log_of(g, other).get("lionheart", {}).get("state") != "active" or g.quest_log.get("lionheart", {}).get("state") != "active":
+		errs.append("race: both should have the quest")
+	for i in 3:
+		Quests.deposit(g, other, "lionheart")
+	if Quests.log_of(g, other).lionheart.state != "done" or g.quest_log.lionheart.state != "failed" or int(g.quest_log.lionheart.by) != other:
+		errs.append("race: %s / %s" % [Quests.log_of(g, other).lionheart, g.quest_log.lionheart])
+	if g.in_seat(other, func(): return g.tech_rate("gov")) == g.tech_rate("gov") + 8:
+		pass
+	if int(g.seats[other].quest_rate.get("gov", 0)) != 8 or int(g.quest_rate.get("gov", 0)) != 0:
+		errs.append("race: the reward went to the wrong nation")
+	# the Swampling reads Warlocks
+	g.quest_pick = ["peacock"]
+	if not Quests.words(g, other, str(Quests.quest("peacock").text)).contains("Warlocks"):
+		errs.append("race: the Swampling's quest doesn't say Warlocks")
+
+
+## Session 4: a Lost Armament's map, then its prize dug up in your own land (a site only you see), then the star.
+func _armament(errs: Array) -> void:
+	var g := Game.new_world(SEED, "cormac", SLOTS, "center")
+	g.quest_pick = ["cutlass"]
+	_reliq(g, Game.HOST)
+	for i in 4:
+		Quests.deposit(g, Game.HOST, "jmap")
+	var st: Dictionary = g.quest_log.get("cutlass", {})
+	if st.get("state") != "active" or int(st.get("part", 0)) != 2 or Quests.count(g, Game.HOST, "jmap") != 0:
+		errs.append("armament: part 2 didn't start (%s)" % [st])
+		return
+	var p := int(st.get("site", -1))
+	if p < 0 or g.nation_of(p) != Game.HOST or g.digs.get(p, {}).get("item") != "cutlass":
+		errs.append("armament: the prize's site %d is %s" % [p, g.digs.get(p)])
+		return
+	if not Quests.dig_seen(g, p) and g.visible.has(p):
+		errs.append("armament: the owner can't see the prize's site")
+	Quests.deposit(g, Game.HOST, "star")
+	if g.quest_log.cutlass.state != "active":
+		errs.append("armament: finished without the Cutlass")
+	g.digs.erase(p)
+	Quests.deposit(g, Game.HOST, "cutlass")
+	if g.quest_log.cutlass.state != "done" or not g.quest_unlocks.has("weapon:cutlass") or Quests.count(g, Game.HOST, "star") != 0:
+		errs.append("armament: %s, unlocks %s, stars left %d" % [g.quest_log.cutlass, g.quest_unlocks, Quests.count(g, Game.HOST, "star")])

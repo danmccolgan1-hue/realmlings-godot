@@ -176,9 +176,15 @@ var chests := {}             # province -> [item ids]: relics left on the ground
 var star_next := -1.0        # when the next Fallen Star falls
 var stars_fallen := 0        # how many have fallen (each draws from its own stream)
 var star_fx := []            # the view's shooting stars: {prov, t0} (not saved)
-var quest_log: Dictionary:   # this human nation's quests: id -> {state, t0, ...} (the quest engine, session 4)
+var quest_log: Dictionary:   # this human nation's quests: id -> {state: active|done|failed, t0, part, t1, by}
 	get: return cur["quest_log"]
 	set(v): cur["quest_log"] = v
+var quest_rate: Dictionary:  # research points every cycle won from quests, for good: tree -> points
+	get: return cur["quest_rate"]
+	set(v): cur["quest_rate"] = v
+var quest_unlocks: Array:    # what quests have unlocked: "armor:bone_regalia", "spell:flamewall", ...
+	get: return cur["quest_unlocks"]
+	set(v): cur["quest_unlocks"] = v
 
 # --- fog (web: S.wf, S.known, S.explored, S.visible) ---
 var wf: Dictionary:  # provinces a Wayfinder has entered
@@ -237,7 +243,7 @@ var rng := RandomNumberGenerator.new()   # stands in for the web's Math.random (
 # --- seats (multiplayer step 1): each human nation's own fields ---
 ## The fields each human nation has its own copy of. The properties above read and write the current seat's
 ## record (`cur`); use_seat() switches it. A single-player game has one seat, HOST.
-const SEAT_FIELDS := ["leader", "capital", "stock", "income", "income_parts", "army_counter", "tech", "rep", "surveyed", "designs", "exhaust", "exhaust_ok", "harvest", "upgrades", "xup", "cd", "harvest_by", "trap", "school_popup", "reveals", "eyes", "haunts", "mana_pool", "mana_prev", "mana_prev_t", "mage_gear", "auto_tech", "queues", "rally", "wf", "known", "explored", "visible", "my_nation", "train_orders", "met", "fallen", "ally_ask", "met_at", "dx_step_t", "gift_vault", "demand", "ally_offer", "quest_log", "BUILD_DEFS", "TECH_BY_ID", "TECHS", "TECH_TREES", "UNIT_BASE", "BUILD_ORDER", "CMD"]
+const SEAT_FIELDS := ["leader", "capital", "stock", "income", "income_parts", "army_counter", "tech", "rep", "surveyed", "designs", "exhaust", "exhaust_ok", "harvest", "upgrades", "xup", "cd", "harvest_by", "trap", "school_popup", "reveals", "eyes", "haunts", "mana_pool", "mana_prev", "mana_prev_t", "mage_gear", "auto_tech", "queues", "rally", "wf", "known", "explored", "visible", "my_nation", "train_orders", "met", "fallen", "ally_ask", "met_at", "dx_step_t", "gift_vault", "demand", "ally_offer", "quest_log", "quest_rate", "quest_unlocks", "BUILD_DEFS", "TECH_BY_ID", "TECHS", "TECH_TREES", "UNIT_BASE", "BUILD_ORDER", "CMD"]
 
 ## A new seat's record: every seat field at its starting value.
 static func seat_defaults() -> Dictionary:
@@ -293,6 +299,8 @@ static func seat_defaults() -> Dictionary:
 		"gift_vault": 0,
 		"dx_step_t": -1.0,
 		"quest_log": {},
+		"quest_rate": {},
+		"quest_unlocks": [],
 	}
 
 
@@ -3675,7 +3683,7 @@ func tech_rate(tree: String) -> int:
 	for p in buildings:
 		if buildings[p].owner == ME:
 			n += prov_research(p)[tree]
-	return n
+	return n + int(quest_rate.get(tree, 0))   # (quests: research won for good)
 
 
 func bank_cap(tree: String) -> float:
@@ -6025,7 +6033,7 @@ const SAVE_FIELDS := ["battles", "bandit_count", "monster_count", "leader", "cap
 	"harvest_by", "trap", "reveals", "eyes", "haunts", "mana_pool", "mana_prev_t", "mage_gear", "finds", "treasure_rolled",
 	"sp_found", "slot_races", "spyres", "ftraps", "sacreds", "wrocks", "gelems", "setpieces", "travelers", "train_orders", "train_order_seq", "design_seq", "prov_rename", "nations", "players", "my_nation", "race_of", "wars", "truces", "allies", "war_seq", "met", "occ", "occ_prog", "dipl", "war_log", "war_ever", "war_lock", "ai_met", "fallen", "ally_check", "bandit_next", "bandit_waves", "ally_ask", "crop_scan_at", "ai_scout_t", "wf", "known", "explored", "visible", "queues", "rally", "military", "UNIT_SPEED", "open_nbr", "all_nbr",
 	"yields", "look_seed", "tree_border", "debug_cap", "debug_tech", "reveal_all", "rec", "t", "next_tick", "paused", "last", "started", "seat_names", "paused_by", "seat_dipl", "mp_cd", "variant",
-	"quests_on", "quest_pick", "digs", "chests", "star_next", "stars_fallen", "quest_log"]
+	"quests_on", "quest_pick", "digs", "chests", "star_next", "stars_fallen", "quest_log", "quest_rate", "quest_unlocks"]
 
 
 ## The whole game as a plain Dictionary (see SaveCodec for the text form).

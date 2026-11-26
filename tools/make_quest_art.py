@@ -393,6 +393,16 @@ def card_icons():
     cv.poly([(40, 40), (56, 44), (54, 66), (44, 70), (36, 62)], hexc("#c9ced6"))
     cv.poly([(46, 4), (60, 7), (58, 12), (46, 9)], hexc("#7a4a26"), OL, 1.6)
     cv.save(os.path.join(ART, "icons", "common", "cmd_dig.png"))
+    cv = Canvas(84, 84)  # the Quest Log: an unrolled scroll with a red seal and a quill
+    cv.poly([(16, 14), (62, 14), (62, 70), (16, 70)], hexc("#f3ecd8"))
+    cv.ell(16, 42, 6, 28, hexc("#e3d6b4"))
+    cv.ell(62, 42, 6, 28, hexc("#e3d6b4"))
+    for y in (26, 34, 42, 50):
+        cv.line([(24, y), (54, y)], hexc("#8a7a5a"), 1.8)
+    cv.ell(44, 60, 7, 7, hexc("#c8473d"))
+    cv.poly([(76, 6), (80, 10), (52, 52), (48, 52), (48, 48)], hexc("#efe6cf"))
+    cv.line([(50, 50), (44, 60)], OL, 2)
+    cv.save(os.path.join(ART, "icons", "common", "ui_quests.png"))
 
 
 if __name__ == "__main__":

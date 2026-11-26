@@ -51,6 +51,8 @@ var armory: ArmoryWindow
 var diplomacy: DiplomacyWindow
 var school: SchoolPopup
 var country: CountryWindow
+var quests: QuestLogWindow    # the Quest Log (L)
+var dialog_queue := []         # pop-ups waiting for the open one to close: [title, text, choices, f, pics]
 var requests: RequestBox
 var flags: FlagBar
 var settings: SettingsWindow
@@ -170,6 +172,8 @@ func _ready() -> void:
 	add_child(school)
 	country = CountryWindow.new()
 	add_child(country)
+	quests = QuestLogWindow.new()
+	add_child(quests)
 	requests = RequestBox.new()
 	requests.set_anchors_preset(Control.PRESET_CENTER_TOP)
 	requests.position = Vector2(-260, 70)
@@ -193,6 +197,8 @@ func _ready() -> void:
 func set_game(g: Game) -> void:
 	if game != g and msglog != null and (game == null or game.world != g.world or g.t < game.t):   # (a new game starts a clean box)
 		msglog.clear()
+	if game != g:
+		dialog_queue.clear()
 	game = g
 	g.on_toast = add_toast
 	g.on_dialog = func(title: String, text: String, choices: Array, f: Callable):
@@ -203,11 +209,15 @@ func set_game(g: Game) -> void:
 			if L != null:
 				pics.append(Hud.leader_icon(L.id))
 				text = "%s leads them.\n%s" % [L.full, text]
+		if dialog.visible:   # (one at a time: a new pop-up waits its turn instead of replacing an open one)
+			dialog_queue.append([title, text, choices, f, pics])
+			return
 		dialog.ask(title, text, choices, f if f.is_valid() else func(_id): pass, pics)
 	armory.setup(g, self)
 	diplomacy.setup(g, self)
 	school.setup(g, self)
 	country.setup(g, self)
+	quests.setup(g, self)
 	requests.setup(g, self)
 	flags.setup(g, self)
 	g.on_game_over = func(w):   # web: war.js gameOver
@@ -667,6 +677,9 @@ func _process(_delta: float) -> void:
 	if not game:
 		return
 	paused_label.visible = game.paused
+	if not dialog.visible and not dialog_queue.is_empty():
+		var dq: Array = dialog_queue.pop_front()
+		dialog.ask(dq[0], dq[1], dq[2], dq[3] if dq[3].is_valid() else func(_id): pass, dq[4])
 	paused_label.text = "Paused by %s" % game.seat_names.get(game.paused_by, "a player") if game.paused and game.paused_by != 0 and game.seats.size() > 1 else "Paused"
 	if game.school_popup:
 		game.do("close_school_popup")
@@ -1200,6 +1213,8 @@ func _status(u: Dictionary) -> String:
 	if u.get("build") != null:
 		var bt: String = u.build.type
 		return "building " + ("an outpost" if bt == "outpost" else "a wall back up" if bt == "rewall" else ("a " + bt) if bt in ["road", "wall", "bridge"] else str(game.BUILD_DEFS[bt].name) if game.BUILD_DEFS.has(bt) else bt)
+	if u.get("dig") != null:
+		return "digging"
 	if u.get("pending") != null:
 		return "going to build"
 	if u.get("cast") != null:

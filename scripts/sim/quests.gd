@@ -217,9 +217,9 @@ static func deposit(g, o: int, id: String) -> bool:
 	return true
 
 
-## A relic has just reached nation o's Reliquary (the quest engine listens here: session 4).
-static func added(_g, _o: int, _id: String) -> void:
-	pass
+## A relic has just reached nation o's Reliquary: its quests may start or finish.
+static func added(g, o: int, _id: String) -> void:
+	check(g, o)
 
 
 ## Take relics out of nation o's Reliquaries (a finished quest, a trade, a raid); how many were taken.
@@ -349,6 +349,8 @@ static func step(g) -> void:
 ## Every payday: diggers roll; what scouting units carry moves into a Reliquary as soon as one has room.
 static func payday(g) -> void:
 	dig_payday(g)
+	for o in g.seat_ids():   # (a Mage Tower built since: the quests waiting on one start)
+		check(g, o)
 	for u in g.units:
 		var b = u.get("bag")
 		if not (b is Array) or b.is_empty() or u.get("_gone", false):
@@ -369,6 +371,8 @@ static func payday(g) -> void:
 static func dig_seen(g, p: int) -> bool:
 	var d = g.digs.get(p)
 	if d == null:
+		return false
+	if d.get("only") != null and int(d.only) != g.ME:
 		return false
 	if d.get("star", false):
 		return g.explored.has(p) or g.reveal_all
@@ -403,7 +407,7 @@ static func dig_why(g, u: Dictionary) -> String:
 	if not is_scout(g, u):
 		return "Only scouting units dig"
 	var d = g.digs.get(u.prov)
-	if d == null or not (d.get("shown", false) or d.get("star", false)):
+	if d == null or not (d.get("shown", false) or d.get("star", false)) or (d.get("only") != null and int(d.only) != int(u.owner)):
 		return "No dig site here"
 	if not d.get("star", false) and not g.in_seat(u.owner, func(): return g.visible.has(u.prov)) and g.seats.has(u.owner):
 		return "No dig site here"
@@ -516,3 +520,175 @@ static func step_stars(g) -> void:
 			else "A star streaks across the sky and falls somewhere beyond your maps.")
 		if seen:
 			g.in_seat(o, func(): g.sfx("wn_ally", p))
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# the quest engine (session 4): a quest starts when one of its relics reaches a human nation's Reliquary (and, for
+# some, once it has a Mage Tower); it is done when the Reliquaries hold everything it asks for. The first nation to
+# finish wins it: everyone else who had it fails. Finishing destroys that quest's relics (and the Fallen Stars it used).
+
+const LOG_TEXT := {"active": "", "done": "Complete", "failed": "Failed"}
+
+
+static func has_tower(g, o: int) -> bool:
+	for p in g.extras:
+		if g.nation_of(p) == o and g.extras[p].any(func(e): return e.type == "magetower"):
+			return true
+	return false
+
+
+static func log_of(g, o: int) -> Dictionary:
+	return g.seats[o]["quest_log"] if g.seats.has(o) else {}
+
+
+## The goals of a quest at the stage it has reached (a Lost Armament's map, then its prize).
+static func goals_of(qid: String, st) -> Array:
+	var q: Dictionary = quest(qid)
+	if st is Dictionary and int(st.get("part", 1)) == 2 and q.has("part2"):
+		return q.part2.goals
+	return q.goals
+
+
+## Each goal with what nation o has: [{label, item, have, n}] (have counts the relics in its Reliquaries).
+static func progress(g, o: int, qid: String) -> Array:
+	var out := []
+	var st = log_of(g, o).get(qid)
+	for x in goals_of(qid, st):
+		var n := int(x.n)
+		out.append({"label": str(x.label), "item": str(x.item), "have": mini(count(g, o, str(x.item)), n), "n": n})
+	return out
+
+
+static func goals_met(g, o: int, qid: String) -> bool:
+	return progress(g, o, qid).all(func(x): return x.have >= x.n)
+
+
+## Whether quest qid starts for nation o now: one of its relics in a Reliquary (and a Mage Tower if it asks for one).
+static func triggered(g, o: int, qid: String) -> bool:
+	var tr: Dictionary = quest(qid).trigger
+	if tr.get("tower", false) and not has_tower(g, o):
+		return false
+	return tr.items.any(func(i): return count(g, o, str(i)) > 0)
+
+
+## Look over human nation o's quests: start the ones it has triggered, move on the ones it has finished.
+static func check(g, o: int) -> void:
+	if not g.quests_on or not g.seats.has(o):
+		return
+	var L: Dictionary = log_of(g, o)
+	for qid in g.quest_pick:
+		var st = L.get(qid)
+		if st == null:
+			if not _won_by_other(g, o, qid) and triggered(g, o, qid):
+				acquire(g, o, qid)
+				st = L.get(qid)
+		if st != null and st.state == "active" and goals_met(g, o, qid):
+			advance(g, o, qid)
+
+
+static func _won_by_other(g, o: int, qid: String) -> bool:
+	for o2 in g.seat_ids():
+		if o2 != o and log_of(g, o2).get(qid, {}).get("state") == "done":
+			return true
+	return false
+
+
+static func acquire(g, o: int, qid: String) -> void:
+	log_of(g, o)[qid] = {"state": "active", "t0": g.t, "part": 1}
+	var q: Dictionary = quest(qid)
+	popup(g, o, "New quest: " + str(q.title), str(q.text) + "\n\n" + goal_text(g, o, qid), "Onward")
+
+
+## A Lost Armament's map is whole (part 1 done): its pieces are used up, and the prize lies buried somewhere in the
+## nation's own land, a site only it can see and dig.
+static func advance(g, o: int, qid: String) -> void:
+	var q: Dictionary = quest(qid)
+	var st: Dictionary = log_of(g, o)[qid]
+	if q.has("part2") and int(st.get("part", 1)) == 1:
+		for x in q.goals:
+			take_everywhere(g, o, str(x.item))
+		st.part = 2
+		var p := place_prize(g, o, str(q.part2.site))
+		st.site = p
+		popup(g, o, str(q.title), str(q.part2.text) + ("\n\nA dig site has appeared in %s." % g.prov_name(p) if p >= 0 else "") + "\n\n" + goal_text(g, o, qid), "Onward")
+		if goals_met(g, o, qid):
+			complete(g, o, qid)
+		return
+	complete(g, o, qid)
+
+
+## The prize's dig site: a random province of nation o's without one (its own stream), seen only by o.
+static func place_prize(g, o: int, id: String) -> int:
+	var pool: Array = g.provs_of(o).filter(func(p): return not g.digs.has(p))
+	pool.sort()
+	if pool.is_empty():
+		return -1
+	var r := Mulberry32.from_string("%s:prize:%s:%d" % [str(g.world.seed), id, o])
+	var p: int = pool[int(floor(r.next() * pool.size()))]
+	g.digs[p] = {"item": id, "shown": true, "star": false, "only": o}
+	return p
+
+
+static func complete(g, o: int, qid: String) -> void:
+	var q: Dictionary = quest(qid)
+	var st: Dictionary = log_of(g, o)[qid]
+	# the quest's own relics go, used or not; the Fallen Stars only as many as it asked for
+	for id in data().ITEMS:
+		if str(item(id).quest) == qid:
+			take_everywhere(g, o, id)
+	for x in goals_of(qid, st):
+		if str(x.item) == "star":
+			take(g, o, "star", int(x.n))
+	st.state = "done"
+	st.t1 = g.t
+	var rw: Dictionary = q.get("reward", {})
+	if rw.has("rate"):
+		var R: Dictionary = g.seats[o]["quest_rate"]
+		for tr in rw.rate:
+			R[tr] = int(R.get(tr, 0)) + int(rw.rate[tr])
+	if rw.has("unlock"):
+		var U: Array = g.seats[o]["quest_unlocks"]
+		if not U.has(str(rw.unlock)):
+			U.append(str(rw.unlock))
+	popup(g, o, "Quest complete: " + str(q.title), str(q.done_text) + "\n\n" + str(q.reward_text), "Splendid")
+	# everyone else who had it fails
+	for o2 in g.seat_ids():
+		if o2 == o:
+			continue
+		var s2 = log_of(g, o2).get(qid)
+		if s2 != null and s2.state == "active":
+			s2.state = "failed"
+			s2.t1 = g.t
+			s2.by = o
+			popup(g, o2, "Quest failed: " + str(q.title), "The %s finished it first." % g.player_info(o).name, "Oh well")
+	# a part-2 site nobody can dig any more
+	for p in g.digs.keys():
+		if g.digs[p].get("only") != null and str(g.digs[p].item) == str(q.get("part2", {}).get("site", "")):
+			g.digs.erase(p)
+
+
+## Take every relic `id` from nation o's Reliquaries and from what its scouting units carry.
+static func take_everywhere(g, o: int, id: String) -> void:
+	take(g, o, id)
+	for u in g.units:
+		if u.owner == o and u.get("bag") is Array:
+			u.bag = u.bag.filter(func(x): return x != id)
+
+
+## A quest's goal lines with counts, as the Quest Log shows them: "Find copies of Lord Callum's Lawbook 1/3".
+static func goal_text(g, o: int, qid: String) -> String:
+	return "\n".join(progress(g, o, qid).map(func(x): return "%s %d/%d" % [x.label, x.have, x.n]))
+
+
+## A quest's text in nation o's race's words.
+static func words(g, o: int, text: String) -> String:
+	return Races.words(text, g.race(o))
+
+
+static func popup(g, o: int, title: String, text: String, ok: String) -> void:
+	if not g.seats.has(o):
+		return
+	tell(g, o, title)
+	g.in_seat(o, func():
+		if g.on_dialog.is_valid() and g.ME == g.view_seat:
+			g.on_dialog.call(words(g, o, title), words(g, o, text), [{"id": "ok", "label": ok, "why": null}], Callable()))

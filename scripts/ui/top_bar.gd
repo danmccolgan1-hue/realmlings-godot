@@ -30,6 +30,7 @@ var play_g: Glyph
 var nation_l: Label
 var nation_sw: TextureRect
 var dip_btn: Button
+var quest_btn: Button   # the Quest Log, under Diplomacy (games with quests only)
 var war_g: Glyph
 var key := ""
 
@@ -232,7 +233,10 @@ func _ready() -> void:
 	war_g.set_anchors_and_offsets_preset(Control.PRESET_RIGHT_WIDE, Control.PRESET_MODE_KEEP_SIZE, 8)
 	war_g.offset_left = war_g.offset_right - 24
 	left.add_child(dip_btn)
-	for b in [arm, dip_btn]:
+	quest_btn = paper_button("", "", "Quest Log (L): your quests, their texts and the relics you still need", func(): hud.quests.toggle(), 54.0)
+	_icon_on(quest_btn, "icons/common/ui_quests.png")
+	left.add_child(quest_btn)
+	for b in [arm, dip_btn, quest_btn]:
 		b.custom_minimum_size = Vector2(140, 54)
 		b.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 
@@ -259,6 +263,7 @@ func setup(g: Game) -> void:
 	var L = g.leader_of(Game.LOCAL)
 	nation_l.get_parent().get_parent().tooltip_text = "%s%s" % [P.name, (", led by %s" % L.full) if L != null else ""]
 	dip_btn.visible = not g.nations.is_empty()
+	quest_btn.visible = g.quests_on
 
 
 func _process(_dt: float) -> void:

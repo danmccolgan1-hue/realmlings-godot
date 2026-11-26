@@ -757,6 +757,9 @@ func _maybe_screenshot() -> void:
 		hud.school.open()
 	if OS.get_cmdline_user_args().has("--country"):
 		hud.country.open()
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--quests=") and game.quests_on:   # pictures (Godot only): log | reliq | mason | masonadv | scout
+			_quest_shot(a.substr(9))
 	var b := map.bounds()
 	go_home()   # the game opens on your capital, as the web game's home button frames it
 	for a in OS.get_cmdline_user_args():
@@ -827,6 +830,52 @@ func _maybe_screenshot() -> void:
 	await RenderingServer.frame_post_draw
 	get_viewport().get_texture().get_image().save_png(shot)
 	get_tree().quit()
+
+
+## Pictures of the quests (--world=… --quests=log|reliq|mason|masonadv|scout): a Reliquary at the capital with relics
+## in it, a dig site and a Fallen Star next door, a chest, two quests, and the window or card asked for.
+func _quest_shot(what: String) -> void:
+	var cap: int = game.capital
+	var e := {"type": "reliquary", "slot": 3, "born": -10.0}
+	game.extras[cap] = game.extras_in(cap).filter(func(x): return x.slot != 3) + [e]
+	game.quest_pick = ["callum", "cutlass"]
+	for id in ["callum", "callum", "jmap", "coin", "star"]:
+		Quests.deposit(game, Game.LOCAL, id)
+	var nb: Array = game.open_nbr[cap].map(func(n): return n.q)
+	for q in nb:
+		game.explored[q] = true
+		game.visible[q] = true
+	game.digs[nb[0]] = {"item": "brune", "shown": true, "star": false}
+	game.digs[nb[1 % nb.size()]] = {"item": "star", "shown": true, "star": true}
+	game.chests[cap] = ["signet"]
+	var w = null
+	for u in game.units:
+		if u.owner == Game.LOCAL and u.kind == game.WAYFINDER:
+			w = u
+	hud.dialog_queue.clear()
+	for i in 6:   # (the new-quest pop-ups: closed for the picture)
+		if hud.dialog.visible:
+			hud.dialog.pick("close")
+	if what == "log":
+		hud.quests.open()
+	elif what == "reliq":
+		map.selected_unit = null
+		hud.select_unit(null)
+		hud.select_province(cap, "reliquary@3")
+		map.selected_prov = cap
+		map.selected_part = "reliquary@3"
+	elif what == "scout" and w != null:
+		game.digs[w.prov] = {"item": "darksoc", "shown": true, "star": false}
+		w.bag = ["fbones"]
+		game.start_dig(w)
+		map.selected_unit = w
+		hud.select_unit(w)
+	elif what.begins_with("mason"):
+		for u in game.units:
+			if u.owner == Game.LOCAL and u.kind == Game.MASON:
+				map.selected_unit = u
+				hud.select_unit(u)
+		hud.mason_adv = what == "masonadv"
 
 
 ## A picture of the start screen with the Patch Notes open (--patch), for checking the view.
@@ -971,6 +1020,8 @@ func _unhandled_input(ev: InputEvent) -> void:
 				hud.school.hide()
 			elif hud.country.visible:
 				hud.country.hide()
+			elif hud.quests.visible:
+				hud.quests.hide()
 			elif hud.armory.visible:
 				hud.armory.close()
 			elif hud.diplomacy.win.panel.visible:
@@ -983,6 +1034,10 @@ func _unhandled_input(ev: InputEvent) -> void:
 			return
 		if ev.keycode == KEY_Y and not ev.ctrl_pressed:
 			hud.diplomacy.toggle()
+			get_viewport().set_input_as_handled()
+			return
+		if ev.keycode == KEY_L and not ev.ctrl_pressed and game.quests_on:   # the Quest Log
+			hud.quests.toggle()
 			get_viewport().set_input_as_handled()
 			return
 		if ev.keycode == KEY_G and not ev.ctrl_pressed:
