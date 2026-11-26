@@ -55,17 +55,17 @@ Godot-only content: nothing here exists in the web game, so none of it is in `da
 | 2 | **Reliquary and carrying items**: the Reliquary for all three races (art, build menus), its 9 slots on the building's card, scouts carrying one, auto-deposit, chests on the map, chests dropped by dying scouts and lost Reliquaries, picking chests up | Done |
 | 3 | **Digging and Fallen Stars**: surveys uncover dig sites (red X), Dig on the scouting unit's card and its animation, the rarity roll every cycle, the site gone once dug, Fallen Stars (timer, shooting star, silver X) | Done |
 | 4 | **Quest engine and Quest Log**: triggers, progress, completion and failing everyone else, item removal, popups, the Quest Log window and hotkey (all texts, counts), race words, the nine research quests (and the engine for every quest: Battlegear, Spell Books and the Lost Armaments' part 2 already finish and record their unlocks) | Done |
-| 5 | **Battlegear and armor**: the three Battlegear quests, the three armors (hidden until unlocked), armor prices −10%, Siegebreaker's siege speed, the Bone Regalia's buff theft | |
-| 6 | **Primal beasts**: four monsters in Meadow, Fae Forest, Drylands and Bog with their counts and drops | |
-| 7 | **Lost Armaments**: the four map quests and their part-2 dig spot, Cutlass, Axe, Maul, Shield of Sham (first blow negated), Triune Staff | |
-| 8 | **Spells**: the two Spell Book quests, Wall of Flame, Time Warp | |
-| 9 | **Dungeon**: the building (multiplayer only, three looks), prisoner slots and silhouettes, Detained, Prisoner Escape | |
-| 10 | **Ransom quests and their war**: the Captured Royal Lady, Captured Envoy and its four variants, the two-player dialogs, the 40 s answer, the ransom war (50% frees, Demand Concession), research penalties | |
-| 11 | **Jailbreak**: Convict Gangs, recovering convicts, execute or pardon | |
-| 12 | **Trade and raids**: Diplomacy's Trade (items, prisoners, resources), Raid Reliquary and Free Prisoners at 50% warscore | |
-| 13 | **Computer nations and finishing**: AI Reliquaries, digging and chests (no quests), patch notes, How to Play, a balance pass | |
+| 5 | **Battlegear and armor**: the three Battlegear quests, the three armors (hidden until unlocked), armor prices −10%, Siegebreaker's siege speed, the Bone Regalia's buff theft || Done |
+| 6 | **Primal beasts**: four monsters in Meadow, Fae Forest, Drylands and Bog with their counts and drops || Done |
+| 7 | **Lost Armaments**: the four map quests and their part-2 dig spot, Cutlass, Axe, Maul, Shield of Sham (first blow negated), Triune Staff || Done |
+| 8 | **Spells**: the two Spell Book quests, Wall of Flame, Time Warp || Done |
+| 9 | **Dungeon**: the building (multiplayer only, three looks), prisoner slots and silhouettes, Detained, Prisoner Escape || Done |
+| 10 | **Ransom quests and their war**: the Captured Royal Lady, Captured Envoy and its four variants, the two-player dialogs, the 40 s answer, the ransom war (50% frees, Demand Concession), research penalties || Done |
+| 11 | **Jailbreak**: Convict Gangs, recovering convicts, execute or pardon || Done |
+| 12 | **Trade and raids**: Diplomacy's Trade (items, prisoners, resources), Raid Reliquary and Free Prisoners at 50% warscore || Done |
+| 13 | **Computer nations and finishing**: AI Reliquaries, digging and chests (no quests), patch notes, How to Play, a balance pass || Done |
 
-## What sessions 1 to 4 built
+## What was built
 
 - `data/quests.json`: every quest (texts, triggers, goals, rewards, the Lost Armaments' part 2) and relic (rarity,
   dig-site count, icon look), the Reliquary's building entry, the carry limit, slot count and Fallen Star timings.
@@ -118,3 +118,42 @@ Godot-only content: nothing here exists in the web game, so none of it is in `da
   --quests=log|reliq|mason|masonadv|scout`.
 - Also fixed on the way (0.19): a nation handed to the computer registers its designs as loading a save does, so
   `tests/test_seats.gd` passes again.
+
+### Sessions 5 to 13
+
+- **Battlegear (5):** `Quests.install_gear` adds Tier V to every armor family in GameData's ARMORS (Godot-only keys
+  `<family>5`): Yenny's Beastleather (light: +60 health, 20% faster), the Freak Man's Bone Regalia (medium: +70
+  health, takes the enemy's Hardened Skin and Cursed Weapons in battle, `Quests.steal_buffs`) and Siegebreaker
+  Runeplate (heavy: +80 health, no speed penalty, sieges 20% faster). Armor one tier step above Tier IV, Tier IV's
+  price. `Game.armor_hp` / `Game.armor_cost` (every armor 10% cheaper under RULES19). Shown in the Armory only
+  once unlocked; computer nations never look past Tier IV.
+- **Primal beasts (6):** `Quests.BEASTS`, four monster kinds added to MONSTERS / DSTATS / UNIT_DEFS; placed when
+  Hides of Mythical Beasts is chosen (stream `<seed>:beasts`) on Meadows, Fae Forests, Drylands and Bogs (their
+  plain terrain when a map has none); one creature each at 2000 / 2000 / 3500 / 4000 power; the hide goes to the
+  victor (`Quests.beast_fell`).
+- **Lost Armaments (7):** `Quests.ARMS` in WEAPONS / SHIELD_DEFS / MAGE_WEAPONS. Cutlass (25) and Freak Man's Axe (27)
+  at the end of the sword, axe and thrusting-sword rows; the Maul of Greed (35, two-handed) after the blunt
+  weapons; the Shield of Sham (a Tower Shield's defense, every race; not with two weapons or a two-handed grip; the
+  first blow against an all-Sham front line comes to nothing, `Quests.sham_blocks`); the Triune Staff (+100 mana,
+  +10 a cycle, spells 20% faster).
+- **Spells (8):** Wall of Flame (`Quests.cast_flamewall`: a wall with the caster's gate, `flame_walls`, unbreakable,
+  60 s, one at a time) and Time Warp (`Quests.cast_timewarp`: the seat's `time_warp`; income, research and
+  training of one building doubled). 100 mana, 10 s cooldown, on the caster's card once unlocked.
+- **Dungeons (9):** `scripts/sim/dungeons.gd` (`Dungeons`). Multiplayer only. 3 cells each; `jail`, `release`,
+  `holder`; Detained prisoners escape after 3 cycles.
+- **Ransoms (10):** `Dungeons.events_payday / start / answer / ransom_war / step`; the order `answer_ransom`. Ransom
+  amounts are offered as 50, 100, 250, 500 and 1000 gold. "Kill him" (the envoy's third choice, left open in the
+  design) just tells both players; it has no other effect. Each envoy variant is equally likely. The new peace
+  kinds (`freeprisoner`, `concession`, `raid`, `freeall`) go through `Game.peace_check` / `make_peace` and show in
+  Diplomacy's war section.
+- **Jailbreak (11):** `Dungeons.jailbreak / convict_beaten / answer_jail`; the order `answer_jailbreak`; the Convicts'
+  soldier `d-convict` (mace, Chain I). A quest log entry `jailbreak` with the goal "Recover Criminals X/8".
+- **Trade (12):** `offer_barter` takes relics and prisoners too (`Quests.trade_*`); toggles under Barter in
+  Diplomacy.
+- **Computer nations and finishing (13):** `Quests.ai_payday`: computer scouts dig at sites they stand on, walk to
+  uncovered sites in their own land, and their nation raises a Reliquary at its capital when it holds a relic.
+  How to Play has the quests' lines (`Quests.HOWTO`); the 0.19 patch notes list everything. A 31-minute full game
+  with quests on runs clean and saves and loads to the same game (`tests/test_quests.gd`).
+
+Not done, for a later pass: real art (every new picture is a code-drawn placeholder from `tools/make_quest_art.py`),
+soldiers' looks for the new gear (they borrow their weapon family's figure), and a balance pass with real games.

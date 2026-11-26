@@ -32,6 +32,8 @@ func run() -> Array:
 	_ransom(errs)
 	_jailbreak(errs)
 	_trade(errs)
+	_ai(errs)
+	_long(errs)
 	Game.QUESTS = was
 	return errs
 
@@ -795,3 +797,42 @@ func _trade(errs: Array) -> void:
 		errs.append("trade: a traded Lawbook didn't start its quest")
 	if g.offer_barter(y, {}, {}, {"wi": ["brune"]}):
 		errs.append("trade: asked for a relic they don't keep")
+
+
+## Session 13: a computer nation's scout digs where it stands and keeps the relic in a Reliquary it raises.
+func _ai(errs: Array) -> void:
+	var g := Game.new_world(SEED, "cormac", SLOTS, "center")
+	var o: int = g.nations.keys()[0]
+	var u = null
+	for v in g.units:
+		if v.owner == o and v.kind == g.WAYFINDER:
+			u = v
+	if u == null:
+		errs.append("ai: no computer scout")
+		return
+	u.path = []
+	u.moving = false
+	g.digs[u.prov] = {"item": "callum", "shown": true, "star": false}
+	g.nations[o].stock.gold = 500
+	g.nations[o].stock.wood = 500
+	var n := 0
+	while (g.digs.has(u.prov) or Quests.reliquaries(g, o).is_empty() or not Quests.bag_of(u).is_empty()) and n < 400:
+		u.moving = false
+		Quests.payday(g)
+		n += 1
+	if Quests.count(g, o, "callum") != 1 or g.nations[o].get("quest_log") != null:
+		errs.append("ai: after %d cycles: relics %s, Reliquaries %d" % [n, Quests.items_of(g, o), Quests.reliquaries(g, o).size()])
+
+
+## A long game with quests on and every system running: 31 minutes of a full map, no errors, a Fallen Star by then,
+## saved and loaded to the same game.
+func _long(errs: Array) -> void:
+	var g := Game.new_world("moss", "finn", ["moderate", "easy", "difficult"], "center")
+	g.paused = false
+	while g.t < 1860.0:
+		g.step_fixed()
+	if g.stars_fallen != 1:
+		errs.append("long: %d stars by 31 minutes" % g.stars_fallen)
+	var g2 := Game.load_text(g.save_text())
+	if g2 == null or g2.checksum() != g.checksum():
+		errs.append("long: the saved game loads differently")

@@ -23,7 +23,7 @@ func _ready() -> void:
 	t.add_theme_color_override("default_color", UiKit.INK)
 	t.add_theme_font_size_override("normal_font_size", 16)
 	t.add_theme_font_size_override("bold_font_size", 16)
-	var items: Array = GameData.c("HOWTO_GUIDE")
+	var items: Array = GameData.c("HOWTO_GUIDE") + Quests.HOWTO   # (and the quests' lines, Godot only)
 	t.text = "\n\n".join(items.map(func(s): return "• " + str(s).replace("[", "[lb]").replace("[lb]b]", "[b]").replace("[lb]/b]", "[/b]")))
 	scroll.add_child(t)
 	win.panel.hide()

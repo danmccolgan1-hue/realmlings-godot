@@ -870,6 +870,28 @@ func _quest_shot(what: String) -> void:
 		game.start_dig(w)
 		map.selected_unit = w
 		hud.select_unit(w)
+	elif what == "armory":   # every quest's gear unlocked
+		game.quest_unlocks.append_array(["armor:beastleather", "armor:bone_regalia", "armor:siegebreaker", "weapon:cutlass", "weapon:freakaxe", "weapon:greedmaul", "shield:sham", "staff:triune"])
+		hud.armory.open()
+	elif what == "spells":   # a Mage with both spells, a Wall of Flame burning, a warped building
+		game.quest_unlocks.append_array(["spell:flamewall", "spell:timewarp"])
+		var c: Dictionary = game.new_army(cap, {game.MAGE: 1})
+		c.mana = 300.0
+		game.cast_flamewall(c, nb[0])
+		game.cd.clear()
+		var bar = null
+		for ex in game.extras_in(cap):
+			if Quests.WARP_TYPES.has(str(ex.type)):
+				bar = ex
+		if bar != null:
+			game.cast_timewarp(c, int(bar.slot))
+		game.cd.clear()
+		c.mana = 300.0
+		hud.dialog_queue.clear()
+		if hud.dialog.visible:
+			hud.dialog.pick("close")
+		map.selected_unit = c
+		hud.select_unit(c)
 	elif what.begins_with("mason"):
 		for u in game.units:
 			if u.owner == Game.LOCAL and u.kind == Game.MASON:

@@ -357,6 +357,7 @@ static func step(g) -> void:
 
 ## Every payday: diggers roll; what scouting units carry moves into a Reliquary as soon as one has room.
 static func payday(g) -> void:
+	ai_payday(g)
 	dig_payday(g)
 	if not g.detained.is_empty():
 		Dungeons.payday(g)
@@ -1202,3 +1203,64 @@ static func _all_prisoners(g) -> Array:
 	for o in g.seat_ids():
 		out.append_array(Dungeons.prisoners_of(g, o))
 	return out
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# Computer nations (session 13): no quests, but they keep what they find. Their scouting units dig at an uncovered
+# site (or a Fallen Star) they stand on, an idle one walks to the nearest such site in its nation's land, and a
+# nation holding a relic with nowhere to keep it raises a Reliquary at its capital when it can pay for it.
+
+static func ai_payday(g) -> void:
+	if g.nations.is_empty():
+		return
+	var R: Dictionary = c("BUILD_DEFS").reliquary
+	for u in g.units:
+		if u.get("_gone", false) or not is_scout(g, u) or not g.nations.has(u.owner) or not g.nations[u.owner].get("alive", true):
+			continue
+		var o: int = u.owner
+		var N: Dictionary = g.nations[o]
+		# a relic and nowhere to put it: a Reliquary at the capital
+		if not bag_of(u).is_empty() and reliquaries(g, o).is_empty():
+			var cap: int = g.capital_of(o)
+			if cap >= 0 and g.extras_in(cap).size() < g.plot_cap(cap) and R.cost.keys().all(func(k): return int(N.stock.get(k, 0)) >= int(R.cost[k])):
+				for k in R.cost:
+					N.stock[k] = int(N.stock[k]) - int(R.cost[k])
+				var used := {}
+				for e in g.extras_in(cap):
+					used[int(e.slot)] = true
+				var slot := 0
+				while used.has(slot):
+					slot += 1
+				if not g.extras.has(cap):
+					g.extras[cap] = []
+				g.extras[cap].append({"type": RELIQUARY, "slot": slot, "born": g.t})
+		if u.get("dig") != null or u.moving or u.get("survey") != null:
+			continue
+		var d = g.digs.get(u.prov)
+		if d != null and d.get("only") == null and (d.get("shown", false) or d.get("star", false)):
+			u["dig"] = {"prov": u.prov, "n": 0, "t0": g.t}
+			continue
+		# the nearest uncovered site in its own land
+		var best := -1
+		var hops: Array = []
+		for p in g.digs:
+			var dp: Dictionary = g.digs[p]
+			if dp.get("only") != null or not (dp.get("shown", false) or dp.get("star", false)) or g.nation_of(p) != o:
+				continue
+			if hops.is_empty():
+				hops = g.hops_list(u.prov)
+			if hops[p] != INF and (best < 0 or hops[p] < hops[best] or (hops[p] == hops[best] and p < best)):
+				best = p
+		if best >= 0 and best != u.prov:
+			g.order(u, best, true)
+
+
+## How to Play's quest lines (Godot only), after the web game's guide.
+const HOWTO := [
+	"[b]Quests and relics[/b] (full maps): each map hides the relics of six quests. A Wayfinder's survey uncovers a province's dig site (a red X, seen by anyone with vision); stand on it and press [b]Dig[/b]: every 10 s there is a chance to unearth the relic (common 20%, uncommon 10%, rare 5%).",
+	"[b]Reliquary[/b]: 100 gold and 100 wood, 9 slots, one per province. Relics go straight into a Reliquary with room, wherever they are found; with none, the Wayfinder carries one, and the rest wait in a chest. A relic in a Reliquary starts its quest; the [b]Quest Log[/b] (L, under Diplomacy) shows every text and what is left to find.",
+	"[b]Fallen Stars[/b]: the first falls 30 minutes in, then one every 15 to 25 minutes, marked by a silver X for anyone who has explored the province. Battlegear, Spell Books and Lost Armaments need them.",
+	"[b]Rewards[/b]: research every 10 s for good, Tier V armor, new weapons, the Shield of Sham, the Triune Staff, and the spells Wall of Flame and Time Warp. The first nation to finish a quest wins it; everyone else who had it fails.",
+	"[b]Mason[/b]: the buildings that need no research come first; [b]Advanced Buildings[/b] (U) opens the ones research unlocks.",
+	"[b]Multiplayer[/b]: Dungeons hold prisoners from the ransom events and Jailbreak; Diplomacy's barter trades relics and prisoners; at 50% warscore you may Raid a Reliquary or Free Prisoners.",
+]
