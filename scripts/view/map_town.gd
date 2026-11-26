@@ -20,6 +20,7 @@ var houses := {}     # "<prov>@<slot>" or "<prov>@d<level>" -> [{x, y, v, born, 
 var civs := []
 var sig := ""
 var dsig := ""
+var bsig := ""   # 0.19: the outposts and forts, as last given their hamlets
 var last_t := -1.0
 var civ_z := 0.0
 var seed := ""
@@ -34,6 +35,7 @@ func reset() -> void:
 	civs.clear()
 	sig = ""
 	dsig = ""
+	bsig = ""
 	last_t = -1.0
 	civ_z = 0.0
 
@@ -101,6 +103,17 @@ func _place(g: Game, p: int, slot: int, n: int, taken: Array) -> Array:
 			if _ok_spot(g, p, x, y, taken, out, 30, 60, 32):
 				out.append({"x": roundf(x), "y": roundf(y), "v": int(floor(r.next() * HOUSE_LOOKS))})
 				break
+	# 0.19: a smaller province often had no room by those rules, and its buildings stood alone: try again closer in
+	var more := n - out.size()
+	for i in more:
+		for tries in 80:
+			var a := r.next() * TAU
+			var rad := 40 + r.next() * 80
+			var x: float = b[0] + cos(a) * rad
+			var y: float = b[1] + sin(a) * rad * 0.75
+			if _ok_spot(g, p, x, y, taken, out, 18, 40, 28):
+				out.append({"x": roundf(x), "y": roundf(y), "v": int(floor(r.next() * HOUSE_LOOKS))})
+				break
 	return out
 
 
@@ -165,7 +178,7 @@ func sync(g: Game) -> void:
 				civs = civs.filter(func(cv): return cv.key != key)
 				_add_civs(g, key, p, hs, r, 2)
 		for k in houses.keys():
-			if not k.contains("@d") and not live.has(k):
+			if not k.contains("@d") and not k.contains("@s") and not live.has(k):
 				houses.erase(k)
 				civs = civs.filter(func(cv): return cv.key != k)
 	var dparts := []
@@ -198,6 +211,37 @@ func sync(g: Game) -> void:
 				houses[key] = hs
 				_add_civs(g, key, int(p), hs, Mulberry32.from_string(seed + ":devciv:" + key), 1)
 		dsig = ",".join(dparts) + "|" + str(houses.size())
+	# 0.19: every outpost and fort has a hamlet of its own (2 houses, a fort 3), not only the capital's buildings
+	var bparts := []
+	for p in g.buildings:
+		bparts.append("%s:%d" % [p, int(g.buildings[p].stage)])
+	var bs := ",".join(bparts)
+	if bs != bsig:
+		bsig = bs
+		var blive := {}
+		for p in g.buildings:
+			var B: Dictionary = g.buildings[p]
+			if int(B.stage) >= 2:
+				continue
+			var key := "%d@s%d" % [p, int(B.stage)]
+			blive[key] = true
+			if houses.has(key):
+				continue
+			var tk := _taken(int(p), key)
+			var hs := _place_dev(g, int(p), 100 + int(B.stage), 2 + int(B.stage), tk)
+			var ord := tk.size()
+			for h in hs:
+				h.born = float(B.get("born", g.t)) + 1.0
+				h.prov = int(p)
+				h.n = ord
+				h.type = "hamlet"
+				ord += 1
+			houses[key] = hs
+			_add_civs(g, key, int(p), hs, Mulberry32.from_string(seed + ":hamletciv:" + key), 1)
+		for k in houses.keys():
+			if k.contains("@s") and not blive.has(k):
+				houses.erase(k)
+				civs = civs.filter(func(cv): return cv.key != k)
 
 
 func _danger(g: Game, p: int) -> bool:

@@ -7,6 +7,7 @@ const TESTS := ["res://tests/test_world_gen.gd", "res://tests/test_economy.gd", 
 func _initialize() -> void:
 	var failures := 0
 	Game.VARIANTS = false   # (the web game has no terrain variants: tests that compare against it see plain terrain)
+	Game.RULES19 = false    # (nor 0.19's changes to Aithne's kit and to roads)
 	# a script that doesn't compile fails the run (its tests could otherwise pass vacuously)
 	for dir in ["res://scripts/core/", "res://scripts/gen/", "res://scripts/sim/", "res://scripts/view/", "res://scripts/ui/"]:
 		for f in DirAccess.get_files_at(dir):

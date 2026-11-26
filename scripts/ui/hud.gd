@@ -15,6 +15,7 @@ var prov := -1
 var part := ""               # the selected building of `prov`: "settlement" or "<type>@<slot>" (web: S.selPart)
 var tip: PanelContainer      # the province under the mouse (web: #tip)
 var tip_text: RichTextLabel
+var bug: Control   # BugReport
 var tip_key := ""
 var renamer: RenameBox
 var sel_rename: Button        # ✎ beside the selection line
@@ -177,6 +178,9 @@ func _ready() -> void:
 	_build_menu()
 	settings = SettingsWindow.new()
 	add_child(settings)
+	bug = preload("res://scripts/ui/bug_report.gd").new()   # 0.19: the bug report box (the bug button, top right)
+	bug.hud = self
+	add_child(bug)
 	# drawing order: the Paused plaque, the top bar, the flags and the toasts under every window and panel
 	move_child(paused_label, 0)
 	move_child(topbar, 1)
@@ -389,13 +393,16 @@ func commands_of(u) -> Array:
 			var nm := ""
 			if b != null:
 				nm = "outpost" if b.type == "outpost" else "road" if b.type == "road" else "wall" if b.type in ["wall", "rewall"] else (game.BUILD_DEFS[b.type].name if game.BUILD_DEFS.has(b.type) else "building")
-			cmd = {"id": id, "label": "Cancel build", "why": null if b != null else "He isn’t building anything", "name": ("Cancel the " + nm) if b != null else "Cancel construction",
+			var planning: bool = u.get("roadPlan") != null or (aim != null and aim.spell == "road" and is_same(aim.unit, u))
+			if b == null and planning:   # 0.19: a road being picked, or one he is walking off to pave
+				nm = "road"
+			cmd = {"id": id, "label": "Cancel build", "why": null if b != null or planning else "He isn’t building anything", "name": ("Cancel the " + nm) if b != null else "Cancel construction",
 				"desc": ("Stop building and get back everything paid (%s)." % Game.cost_text(b.get("paid", {}))) if b != null else "When the Mason is building, this stops it and refunds what was paid.", "ok": "Click to cancel and get a refund"}
-		elif id == "road":
-			var q := game.mason_road_border(u)
-			var why = "Research Dirt Roads first" if not game.has_tech("roads") else "Walk up to an open border, or a wall between two of your provinces, first" if q < 0 else game.link_why("road", u, q)
-			cmd = {"id": id, "label": "Road\n25g 75w", "why": why, "name": ("Build a road to " + game.prov_name(q)) if q >= 0 else "Build a road", "cost": {"gold": 25, "wood": 75},
-				"desc": "The Mason paves the border he stands next to: an open one, or through the gate of a wall between two of your provinces. %d s. Units move faster along roads." % int(Game.ROAD_TIME)}
+		elif id == "road":   # 0.19: pick where the road starts and where it ends
+			var why = "Research Dirt Roads first" if not game.has_tech("roads") else null
+			var picking: bool = aim != null and aim.spell == "road" and is_same(aim.unit, u)
+			cmd = {"id": id, "label": "Road\n25g 75w", "why": why, "name": "Build a road" + (" (picking…)" if picking else ""), "cost": GameData.c("ROAD_COST"),
+				"desc": "Click the province where the road starts, then the one where it ends: both your own, joined by your own land. The Mason paves every border along the way (%d s and %s each). Units move %d%% faster on roads. Esc, right-click or Cancel stops it before it begins." % [int(Game.ROAD_TIME), Game.cost_text(GameData.c("ROAD_COST")), roundi(game.road_bonus() * 100)]}
 		elif id == "thugin":
 			cmd = {"id": id, "label": "Enter den", "why": null if game.extras.keys().any(func(p): return game.den_room_in(p) != null) else "No Thug Den with room",
 				"name": "Enter a Thug Den", "desc": "The Thug goes into the Thug Den here, or walks to the nearest one with room. Inside, he makes 1 gold every 10 s."}
@@ -507,10 +514,15 @@ func press(i: int) -> void:
 		for w in tab_units():
 			w.auto = not on
 	elif id == "cancelbuild":
+		if aim != null and aim.spell == "road" and is_same(aim.unit, unit):
+			aim = null
+			add_toast("Road cancelled.")
+			return
 		game.do("cancel_build", [unit])
 		add_toast("Construction cancelled. Resources refunded.")
-	elif id == "road":
-		game.start_link(unit, game.mason_road_border(unit), "road")
+	elif id == "road":   # 0.19: the next clicks pick where the road starts and ends
+		aim = {"unit": unit, "spell": "road", "start": -1}
+		add_toast("Road: click the province where it starts (one of yours). Esc or right-click cancels.")
 	elif id == "thugin":
 		game.do("thugs_enter", [tab_units().filter(func(w): return w.kind == Game.THUG)])
 		set_selection(selection.filter(func(w): return game.units.has(w)))
@@ -563,6 +575,44 @@ func press(i: int) -> void:
 		var m = game.do("mage_detach", [unit])
 		if m is Dictionary:
 			set_selection([m])
+
+
+## 0.19: a click while a road is being planned: first its start, then its end (both the player's own provinces).
+## A start that isn't yours is refused (nothing more to pick); an end that isn't yours, or with no way there through
+## your land, is refused but the start stays.
+func road_click(p: int) -> void:
+	if aim == null or aim.spell != "road":
+		return
+	var m = aim.unit
+	if not game.units.any(func(v): return is_same(v, m)):
+		aim = null
+		return
+	if int(aim.start) < 0:
+		if p < 0 or not game.owned(p):
+			Sound.play("ui_deny")
+			add_toast("A road has to start in one of your own provinces.", true)
+			return
+		aim.start = p
+		if map:
+			map.selected_prov = p
+			map.selected_part = ""
+		Sound.play("ui_confirm")
+		add_toast("Road from %s: now click the province where it ends." % game.prov_name(p))
+		return
+	if p < 0 or not game.owned(p):
+		Sound.play("ui_deny")
+		add_toast("A road has to end in one of your own provinces. Pick another end (Esc cancels).", true)
+		return
+	if p == int(aim.start):
+		return
+	var path := game.road_path(int(aim.start), p)
+	var why := game.road_plan_why(m, path) if not path.is_empty() else "There is no way for a road from %s to %s through your own provinces" % [game.prov_name(int(aim.start)), game.prov_name(p)]
+	if why != "":
+		Sound.play("ui_deny")
+		add_toast(why + ".", true)
+		return
+	aim = null
+	game.do("plan_road", [m, path])
 
 
 ## A command-card key (q w e r / a s d f / z x c v / u i o p). Returns true when it was used.
@@ -828,7 +878,7 @@ func _refresh_actions() -> void:
 					continue
 				var why = game.path_why(unit, q, kind, false)
 				if why == null or str(why).begins_with("Not enough mana"):
-					rows.append({"btn": "Open a %s to province %d (200 mana)" % ["forest path" if kind == "forest" else "tunnel", q], "why": why, "do": game.start_path.bind(unit, q, kind, false)})
+					rows.append({"btn": "Open a %s to province %d (200 mana)" % ["forest path" if kind == "forest" else "tunnel", q], "why": why, "do": func(): game.do("start_path", [unit, q, kind, false])})
 	if unit != null and unit.kind == Game.MASON and unit.prov == prov and not unit.moving:
 		rows.append({"label": ("%s: roads and walls to a neighbour" % game.unit_defs[game.MASON].name) if game.race() == "realm" else ("%s: walls to a neighbour" % game.unit_defs[game.MASON].name)})
 		for q in game.all_nbr[prov]:
@@ -837,7 +887,7 @@ func _refresh_actions() -> void:
 				if why != null and not str(why).begins_with("Need"):
 					continue   # only the links he could build now (or with more resources)
 				var cost: Dictionary = GameData.c("ROAD_COST") if type == "road" else GameData.c("WALL_COST")
-				rows.append({"btn": "%s to province %d (%s)" % [type.capitalize(), q, Game.cost_text(cost)], "why": why, "do": game.start_link.bind(unit, q, type)})
+				rows.append({"btn": "%s to province %d (%s)" % [type.capitalize(), q, Game.cost_text(cost)], "why": why, "do": func(): game.do("start_link", [unit, q, type])})
 	for r in rows:
 		key += str(r.get("label", "")) + str(r.get("btn", "")) + str(r.get("why", "")) + "|"
 	if key == actions_key:
@@ -1069,7 +1119,7 @@ func _hover_tip() -> void:
 			var tb: int = game.tree_border[p]
 			if tb:
 				t += "\n%d tree border%s · room for %d Lumber Mill%s" % [tb, "s" if tb > 1 else "", tb, "s" if tb > 1 else ""]
-		tip_text.text = t
+		tip_text.text = UiKit.res_icons(t, true)   # 0.19: the resources as icons
 		tip.reset_size()
 	tip.show()
 	var mp := get_viewport().get_mouse_position()
@@ -1373,7 +1423,7 @@ func open_build_menu(p: int, at: Vector2, shift: bool, pt: Vector2) -> void:
 			var ty2: String = type
 			var mm2 = m
 			rows.append({"icon": icon("icons/common/cmd_%s.png" % type), "name": label, "small": ok, "why": why, "cost": GameData.c("ROAD_COST") if type == "road" else GameData.c("WALL_COST"),
-				"do": func(): game.start_link(mm2, p, ty2)})
+				"do": func(): game.do("start_link", [mm2, p, ty2])})
 		if not rows.is_empty():
 			items.append({"sec": "Border with " + game.prov_name(m.prov)})
 			items.append_array(rows)
@@ -1563,9 +1613,12 @@ var research_open_done := {}   # tree -> the Researched list is unfolded
 var research_open_opts := {}   # tree -> its options are unfolded while it researches something
 
 
-## web: v101.js researchSettled: every tree with something on offer has an active research
-func research_settled() -> bool:
+## web: v101.js researchSettled: every tree with something on offer has an active research. except: a tree just
+## picked (its research begins when the order is applied, which in multiplayer is a moment later)
+func research_settled(except := "") -> bool:
 	for tr in Game.TREE_KEYS:
+		if tr == except:
+			continue
 		var st: Dictionary = game.tech[tr]
 		if st.tier and st.cur == null and not st.opts.is_empty():
 			return false
@@ -1573,11 +1626,16 @@ func research_settled() -> bool:
 
 
 func _research_pick(id: String) -> void:
-	var before := str(Game.TREE_KEYS.map(func(t): return game.tech[t].cur))
+	var x = game.TECH_BY_ID.get(id)
+	if x == null:
+		return
+	var tr := str(x.tree)
+	# (0.19: judged before the order is applied, so it closes in multiplayer too, where the answer comes later)
+	var ok: bool = game.tech[tr].opts.has(id) and (not x.get("gold", 0) or game.stock.gold >= x.gold)
 	game.do("pick_tech", [id])
-	research_open_opts.erase(str(game.TECH_BY_ID[id].tree) if game.TECH_BY_ID.has(id) else "")
+	research_open_opts.erase(tr)
 	# web: v101.js: the window closes once every tree with something on offer is researching
-	if research.visible and before != str(Game.TREE_KEYS.map(func(t): return game.tech[t].cur)) and research_settled():
+	if ok and research.visible and research_settled(tr):
 		research.hide()
 	research_key = ""
 
@@ -1592,7 +1650,8 @@ func _ink(text: String, sz: int, col := UiKit.INK) -> Label:
 
 
 func _refresh_research() -> void:
-	research.position.y = topbar.bottom() + 8
+	if not UiKit.is_placed("research"):   # (0.19: unless the player has dragged it somewhere)
+		research.position.y = topbar.bottom() + 8
 	var key := ""
 	for tr in Game.TREE_KEYS:
 		var st: Dictionary = game.tech[tr]
@@ -1607,6 +1666,7 @@ func _refresh_research() -> void:
 	var ttl := _ink("Research", 26)
 	ttl.autowrap_mode = TextServer.AUTOWRAP_OFF
 	head.add_child(ttl)
+	UiKit.draggable(research, ttl, "research")   # 0.19
 	var sub := _ink("Points arrive every payday (10 s). An idle tree saves at most 30 s of points. Magic follows the school you choose.", 15, Color("#6b5a44"))
 	sub.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	sub.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -1712,8 +1772,23 @@ func _tree_column(tr: String) -> Control:
 	col.add_child(now)
 	if st.cur != null:
 		var x: Dictionary = game.TECH_BY_ID[st.cur]
+		# 0.19: the technology's icon beside what is being researched
+		var nrow := HBoxContainer.new()
+		nrow.add_theme_constant_override("separation", 8)
+		now.add_child(nrow)
+		var nic := TextureRect.new()
+		nic.custom_minimum_size = Vector2(44, 44)
+		nic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		nic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		nic.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		nic.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var nsp = _tech_sprite(x)
+		if nsp:
+			nic.texture = nsp.tex
+		nrow.add_child(nic)
 		var nb := VBoxContainer.new()
-		now.add_child(nb)
+		nb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		nrow.add_child(nb)
 		nb.add_child(_ink("Researching %s" % x.name, 16))
 		var bar := ProgressBar.new()
 		bar.max_value = game.tech_cost(x)
@@ -1777,6 +1852,11 @@ func _tree_column(tr: String) -> Control:
 	return pan
 
 
+## A technology's icon (null if it has none).
+func _tech_sprite(x: Dictionary):
+	return Art.race_sprite("icons", Art.player_race, "tech_%s.png" % str(x.id).replace("-", "_").to_lower())
+
+
 func _tech_card(x: Dictionary, col_c: Color) -> Control:
 	# web: tech.js an option card: icon, name, what it does, tier and cost; click to research it
 	var card := PanelContainer.new()
@@ -1807,7 +1887,7 @@ func _tech_card(x: Dictionary, col_c: Color) -> Control:
 	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var sp = Art.race_sprite("icons", Art.player_race, "tech_%s.png" % str(x.id).replace("-", "_").to_lower())
+	var sp = _tech_sprite(x)
 	if sp:
 		icon.texture = sp.tex
 	row.add_child(icon)

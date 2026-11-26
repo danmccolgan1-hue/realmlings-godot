@@ -15,7 +15,8 @@ const SFX_FILES := {
 	"war_declare": 0.9, "war_peace": 0.8, "war_fort_win": 0.8, "war_fort_lose": 0.8,
 	"pr_research": 0.55, "pr_research_magic": 0.6, "pr_trained": 0.55, "pr_survey": 0.5,
 	"mg_life": 0.65, "mg_death": 0.65, "mg_arcane": 0.65, "mg_rift": 0.7, "mg_risen": 0.55, "mg_school": 0.8,
-	"wn_exhaust": 0.85, "wn_unrest": 0.8, "wn_enemy": 0.8, "wn_ally": 0.8}
+	"wn_exhaust": 0.85, "wn_unrest": 0.8, "wn_enemy": 0.8, "wn_ally": 0.8,
+	"wn_meet": 0.6, "ui_confirm": 0.55, "ui_deny": 0.5}   # (0.19: these three are made by synth(), not files)
 # the smallest gap between two plays of the same sound (seconds); web: SFX_GAP
 const SFX_GAP := {"ui_click": 0.05, "ui_error": 0.4, "bat_fall": 0.35, "mg_risen": 0.6, "bld_work": 1.5, "wn_enemy": 30.0,
 	"sel_wayfinder": 0.25, "sel_mason": 0.25, "sel_soldier": 0.25, "sel_mage": 0.25}
@@ -53,6 +54,11 @@ func _ready() -> void:
 		var path := "res://assets/audio/sfx/%s.mp3" % k
 		if ResourceLoader.exists(path):
 			buf[k] = load(path)
+	# 0.19: a fanfare for meeting a nation, a confirming knock for orders that start a building or an upgrade, and
+	# a low buzz for a refused road; made here (no files to import)
+	buf["wn_meet"] = synth([[523.25, 0.0, 0.32], [659.25, 0.16, 0.32], [783.99, 0.32, 0.6], [1046.5, 0.32, 0.6]], 0.42)
+	buf["ui_confirm"] = synth([[392.0, 0.0, 0.09], [587.33, 0.07, 0.16]], 0.5, 4)
+	buf["ui_deny"] = synth([[196.0, 0.0, 0.14], [155.56, 0.12, 0.24]], 0.45, 6)
 	for i in VOICES:
 		var p := AudioStreamPlayer.new()
 		add_child(p)
@@ -66,6 +72,43 @@ func _ready() -> void:
 	# every button gives the paper tick (web: the document click listener)
 	get_tree().node_added.connect(_on_node)
 	_hook(get_tree().root)
+
+
+## A short sound made of notes [frequency, start s, length s]: a plucked tone with a few overtones, falling away.
+## harm: how many overtones (more is brassier).
+static func synth(notes: Array, vol := 0.5, harm := 3) -> AudioStreamWAV:
+	var rate := 22050
+	var end := 0.0
+	for n in notes:
+		end = maxf(end, float(n[1]) + float(n[2]))
+	var count := int((end + 0.05) * rate)
+	var mix := PackedFloat32Array()
+	mix.resize(count)
+	for n in notes:
+		var f: float = n[0]
+		var at := int(float(n[1]) * rate)
+		var n_len := int(float(n[2]) * rate)
+		for i in n_len:
+			var tt := float(i) / rate
+			var env := minf(1.0, tt / 0.008) * exp(-tt * 5.0 / float(n[2]))
+			var v := 0.0
+			for h in harm:
+				v += sin(TAU * f * (h + 1) * tt) / pow(float(h + 1), 1.6)
+			if at + i < count:
+				mix[at + i] += v * env
+	var peak := 0.001
+	for x in mix:
+		peak = maxf(peak, absf(x))
+	var data := PackedByteArray()
+	data.resize(count * 2)
+	for i in count:
+		data.encode_s16(i * 2, int(clampf(mix[i] / peak * vol, -1.0, 1.0) * 32767))
+	var w := AudioStreamWAV.new()
+	w.format = AudioStreamWAV.FORMAT_16_BITS
+	w.mix_rate = rate
+	w.stereo = false
+	w.data = data
+	return w
 
 
 func _hook(n: Node) -> void:
@@ -108,8 +151,8 @@ func sfx(name: String, prov := -1, vol := 1.0) -> void:
 	if name == "ui_error" and t - last_big < 0.8:   # error thunks stay quiet right after a big sound (web: sndQuietFor)
 		return
 	last[name] = t
-	if not (name.begins_with("ui_") or name.begins_with("sel_") or name.begins_with("mv_")):
-		last_big = t
+	if not (name.begins_with("ui_") or name.begins_with("sel_") or name.begins_with("mv_")) or name == "ui_deny":
+		last_big = t   # (ui_deny: a refusal that already sounded, so the error thunk after it stays quiet)
 	var p: AudioStreamPlayer = null
 	for q in players:
 		if not q.playing:

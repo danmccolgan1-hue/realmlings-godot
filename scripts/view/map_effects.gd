@@ -263,7 +263,8 @@ func draw_battle(g: Game, b: Dictionary, t: float) -> void:
 		if sp == null:
 			sp = Art.race_sprite("units", Art.player_race, Art.unit_file(Art.design_art(g, f.k), "d6" if f.dir < 0 else "d2"))
 		if sp == null and str(f.k).begins_with("m-"):
-			sp = Art.get_sprite("units", "common", Art.unit_file("monster-" + str(f.k).substr(2), "d6" if f.dir < 0 else "d2"))
+			sp = Art.get_sprite("units", "common", Art.unit_file("monster-" + str(f.k), "d6" if f.dir < 0 else "d2"))
+		sp = Art.armored(sp, Art.armor_look(g, str(f.k)))   # 0.19: chain and plate look like it
 		if sp:
 			Art.draw(v, sp, Vector2(f.x, f.y), 0.8 if v._is_cav(f.k) else 1.0)
 		if f.swing > 0.55:   # a slash arc in front of the attacker

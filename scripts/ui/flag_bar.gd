@@ -317,8 +317,17 @@ func click(id: String) -> void:
 			return
 		var i: int = (cycle.get(id, -1) + 1) % list.size()
 		cycle[id] = i
-		hud.look_at_prov(list[i].p, true)
-		if list.size() > 1:
+		var it: Dictionary = list[i]
+		hud.look_at_prov(it.p, true)
+		if id == "upg":   # 0.19: each building in turn, selected, not just its province
+			hud.select_province(it.p, str(it.part))
+			if str(it.part) != "settlement" and hud.cam:
+				var e = _extra(it.p, str(it.part))
+				if e != null:
+					var o: Array = g.bslot_of(it.p, e.slot)
+					hud.cam.position += Vector2(o[0], o[1])
+			hud.add_toast("%s%s in %s." % [("%d of %d: " % [i + 1, list.size()]) if list.size() > 1 else "", _upg_what(it).capitalize().substr(0, 1) + _upg_what(it).substr(1), g.prov_name(it.p)])
+		elif list.size() > 1:
 			hud.add_toast("%d of %d: click the flag again for the next one." % [i + 1, list.size()])
 	elif id.begins_with("quake:"):
 		for q in g.quakes:

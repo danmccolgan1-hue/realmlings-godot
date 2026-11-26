@@ -45,6 +45,7 @@ var all_nbr := []
 var yields := []             # province -> {gold, wood, food, bonus, deposit}
 var variant := []            # province -> "" or a terrain variant ("drylands", "meadow", "fae", "bog"), Godot 0.18
 static var VARIANTS := true  # tests that compare against the web game's numbers turn the variants off
+static var RULES19 := true   # 0.19's rule changes (Aithne's kit, faster and wider roads); off in the same tests
 var tree_border := []
 
 # --- the nation ---
@@ -890,7 +891,8 @@ func apply_leader_start0(o := ME) -> void:
 			add_start_extra(cap, "lumber")
 		"scouts":
 			add_start_scouts(2, o)
-			add_start_tech("autoscout", o)
+			if not RULES19:   # (0.19: no Automating Wayfinders in her kit any more)
+				add_start_tech("autoscout", o)
 			add_start_tech("stealth", o)
 			add_start_tech("farsight", o)
 		"ogres":
@@ -1103,6 +1105,9 @@ func add_design(o: Dictionary) -> Dictionary:
 
 func register_design(d: Dictionary) -> void:
 	var st := design_stats(d)
+	# 0.19: how heavy its armor looks on the map (0 leather, 1 chain, 2 plate, and the other races' twins)
+	var A = GameData.c("ARMORS").get(str(d.get("armor", "")))
+	st["look"] = {"chain": 1, "wyvern": 1, "mithril": 1, "plate": 2, "dragon": 2, "ornate": 2}.get(str(A.type), 0) if A is Dictionary else 0
 	DSTATS[d.id] = st
 	var blurb: String = st.blurb
 	unit_defs[d.id] = {"name": d.name, "cost": st.cost, "upkeep": st.upkeep, "blurb": blurb, "design": true}
@@ -2073,6 +2078,7 @@ func order0(u: Dictionary, target: int, quiet := false, pt = null) -> bool:
 		cancel_build(u)
 		toast("Construction cancelled. Resources refunded.")
 	u.pending = null
+	u.erase("roadPlan")
 	if u.survey != null:
 		u.survey = null
 		toast("Survey cancelled.")
@@ -2286,6 +2292,8 @@ func step_unit(u: Dictionary, dt: float) -> void:
 		if u.prov == pb.prov:
 			if pb.type == "outpost":
 				start_build(u)
+			elif pb.type == "road":   # 0.19: the next stretch of a planned road
+				road_next(u)
 			else:
 				begin_extra(u, pb.type, pb.get("slot", -1))
 	if u.build != null:
@@ -2714,7 +2722,7 @@ func sites_in(p: int) -> Array:
 
 
 func pending_in(p: int) -> Array:
-	return units.filter(func(v): return v.pending != null and v.pending.prov == p and v.pending.type != "outpost")
+	return units.filter(func(v): return v.pending != null and v.pending.prov == p and not (v.pending.type in ["outpost", "road"]))
 
 
 # web: game.js countOf()
@@ -2857,7 +2865,20 @@ func used_slots_all(p: int) -> Dictionary:
 
 
 # web: game.js orderBuild(u, p, type, slot)
+## 0.19: the knock that confirms a player's order to build or upgrade (only for orders the player gave)
+func confirm_sfx() -> void:
+	if _from_order and ME == view_seat:
+		sfx("ui_confirm")
+
+
 func order_build(u: Dictionary, p: int, type: String, slot := -1) -> bool:
+	var ok := _order_build(u, p, type, slot)
+	if ok:
+		confirm_sfx()
+	return ok
+
+
+func _order_build(u: Dictionary, p: int, type: String, slot := -1) -> bool:
 	if u.prov != p:
 		if not order(u, p):
 			return false
@@ -2921,6 +2942,9 @@ func begin_extra(u: Dictionary, type: String, want := -1) -> bool:
 
 # web: game.js cancelBuild(u): the resources come back
 func cancel_build(u: Dictionary) -> void:
+	u.erase("roadPlan")   # 0.19: cancelling stops a planned road too
+	if u.get("pending") != null and u.pending.get("type") == "road":
+		u.pending = null
 	if u.build != null and u.build.has("paid"):
 		var st := stock_of(u.owner)
 		for k in u.build.paid:
@@ -2961,6 +2985,8 @@ func finish_build(u: Dictionary) -> void:
 	if not mine and u.build != null:
 		Ai.built(self, u)
 	u.build = null
+	if b.type == "road" and u.get("roadPlan") != null:   # 0.19: on to the next stretch
+		in_seat(u.owner, func(): road_next(u))
 
 
 # web: gpc.js outpostClaimed(p, by): another nation's Wayfinders standing there withdraw
@@ -3088,6 +3114,7 @@ func start_upgrade(p: int) -> bool:
 	for k in FU.cost:
 		stock[k] -= FU.cost[k]
 	upgrades[p] = {"t0": t, "paid": FU.cost.duplicate()}
+	confirm_sfx()
 	toast("Upgrading the outpost to a Fort… (−%s, %d s)" % [cost_text(FU.cost), FU.time])
 	return true
 
@@ -4004,6 +4031,7 @@ func start_xup(p: int, slot: int) -> bool:
 	for k in up.cost:
 		stock[k] -= up.cost[k]
 	xup["%d@%d" % [p, slot]] = {"t0": t, "paid": up.cost.duplicate(), "to": e.get("level", 1) + 1}
+	confirm_sfx()
 	toast("Upgrading to a %s… (−%s, %d s)" % [d.levels[e.get("level", 1)], cost_text(up.cost), up.time])
 	return true
 
@@ -4038,8 +4066,15 @@ func road_tier() -> int:
 	return 3 if has_tech("roads3") else 2 if has_tech("roads2") else 1
 
 
+## 0.19: every kind of road is a quarter faster again than it was (Dirt +50%, then +60%, then +75%)
+const ROAD_EXTRA := 0.25
+
 func road_speed() -> float:
-	return 1.0 + GameData.c("ROAD_BONUS")[road_tier()]
+	return 1.0 + road_bonus()
+
+
+func road_bonus() -> float:
+	return GameData.c("ROAD_BONUS")[road_tier()] + (ROAD_EXTRA if RULES19 else 0.0)
 
 
 func wall_kind() -> String:
@@ -4049,9 +4084,146 @@ func wall_kind() -> String:
 func on_road(u: Dictionary, wp: Dictionary) -> bool:
 	if roads.is_empty():
 		return false
-	if wp.has("enter"):
-		return roads.has(link_key(u.prov, wp.enter))
-	return u.has("lastProv") and roads.has(link_key(u.lastProv, u.prov))
+	if wp.has("enter") and roads.has(link_key(u.prov, wp.enter)):
+		return true
+	if not wp.has("enter") and u.has("lastProv") and roads.has(link_key(u.lastProv, u.prov)):
+		return true
+	return RULES19 and near_road(float(u.x), float(u.y))   # 0.19: anyone walking along a road, not only from end to end
+
+
+## 0.19: how far from a road's middle a unit still walks on it: three times the road's drawn width (20), which
+## stays as it is
+const ROAD_HALF := 30.0
+var _road_lines := {}   # link key -> [a, middle of the border, b] (from the map: not saved)
+
+## A road's line, as it is drawn: from one province's middle, through the middle of their border, to the other's.
+func road_line(k: String) -> Array:
+	if _road_lines.has(k):
+		return _road_lines[k]
+	var ab := k.split("_")
+	var p := int(ab[0])
+	var q := int(ab[1])
+	var a := Vector2(G.provs[p].ic[0], G.provs[p].ic[1])
+	var b := Vector2(G.provs[q].ic[0], G.provs[q].ic[1])
+	var m := (a + b) / 2
+	for e in world.edges:
+		if (e.a == p and e.b == q) or (e.a == q and e.b == p):
+			var va: Array = world.vertices[e.v[0]]
+			var vb: Array = world.vertices[e.v[1]]
+			m = Vector2((va[0] + vb[0]) / 2.0, (va[1] + vb[1]) / 2.0)
+			break
+	_road_lines[k] = [a, m, b]
+	return _road_lines[k]
+
+
+## Is (x, y) on one of the roads (within ROAD_HALF of its line)?
+func near_road(x: float, y: float) -> bool:
+	var pt := Vector2(x, y)
+	for k in roads:
+		var L := road_line(k)
+		if Geometry2D.get_closest_point_to_segment(pt, L[0], L[1]).distance_to(pt) <= ROAD_HALF \
+				or Geometry2D.get_closest_point_to_segment(pt, L[1], L[2]).distance_to(pt) <= ROAD_HALF:
+			return true
+	return false
+
+
+# --- roads from one province to another (0.19): the player picks where a road starts and ends, and the Mason
+# paves every border along the way, one after another ---
+
+## The provinces a road from a to b would follow: a chain of your own provinces, each next to the next across an
+## open border or the gate of your own wall. [] when there is none.
+func road_path(a: int, b: int) -> Array:
+	if a == b or not owned(a) or not owned(b):
+		return []
+	var prev := {a: -1}
+	var q0 := [a]
+	while not q0.is_empty():
+		var p: int = q0.pop_front()
+		if p == b:
+			break
+		for q in all_nbr[p]:
+			if prev.has(q) or not owned(q):
+				continue
+			if not (open_between(p, q) or walled_own(p, q)):
+				continue
+			prev[q] = p
+			q0.append(q)
+	if not prev.has(b):
+		return []
+	var out := [b]
+	while out[0] != a:
+		out.push_front(prev[out[0]])
+	return out
+
+
+## Why a road can't be planned along `path` by Mason m ("" when it can).
+func road_plan_why(m: Dictionary, path: Array) -> String:
+	if not has_tech("roads"):
+		return "Research Dirt Roads first"
+	if m.kind != MASON or m.owner != ME:
+		return "Only your Mason builds roads"
+	if path.size() < 2:
+		return "No way for a road through your own provinces"
+	var todo := 0
+	for i in path.size() - 1:
+		var p: int = path[i]
+		var q: int = path[i + 1]
+		if not owned(p) or not owned(q) or not all_nbr[p].has(q) or not (open_between(p, q) or walled_own(p, q)):
+			return "No way for a road through your own provinces"
+		if not roads.has(link_key(p, q)):
+			todo += 1
+	if todo == 0:
+		return "There is already a road all the way"
+	return ""
+
+
+## The Mason paves a road along `path` (provinces), border after border; each costs what a road costs when he starts it.
+func plan_road(m: Dictionary, path: Array) -> bool:
+	var why := road_plan_why(m, path)
+	if why != "":
+		toast("Can’t build that road: %s." % (why[0].to_lower() + why.substr(1)), true)
+		return false
+	if m.build != null:
+		cancel_build(m)
+	var plan := path.map(func(x): return int(x))
+	m.surveyQueue = []
+	m.roadPlan = plan
+	var n := 0
+	for i in plan.size() - 1:
+		if not roads.has(link_key(plan[i], plan[i + 1])):
+			n += 1
+	toast("%s will pave a road from %s to %s: %d border%s, %s each." % [m.name, prov_name(plan[0]), prov_name(plan[-1]), n, "" if n == 1 else "s", cost_text(GameData.c("ROAD_COST"))])
+	road_next(m)
+	return true
+
+
+## The Mason's next stretch of his road: walk to its start, or start paving it.
+func road_next(m: Dictionary) -> void:
+	var plan = m.get("roadPlan")
+	if plan == null:
+		return
+	while plan.size() >= 2 and roads.has(link_key(plan[0], plan[1])):
+		plan.pop_front()
+	if plan.size() < 2:
+		m.roadPlan = null
+		if m.owner == ME:
+			toast("%s finished the road." % m.name)
+		return
+	var p: int = plan[0]
+	var q: int = plan[1]
+	if not owned(p) or not owned(q):
+		m.roadPlan = null
+		toast("The road can’t go on: %s or %s is no longer yours." % [prov_name(p), prov_name(q)], true)
+		return
+	if m.prov != p:
+		if not order(m, p):
+			m.roadPlan = null
+			return
+		m.roadPlan = plan   # (a new order forgets the plan: it is the plan's own)
+		m.pending = {"prov": p, "type": "road", "to": q}
+		return
+	if not start_link(m, q, "road"):
+		m.roadPlan = null
 
 
 func wall_between(p: int, q: int):
@@ -4633,7 +4805,7 @@ func finish_link(b: Dictionary) -> void:
 	var q: int = b.to
 	if b.type == "road":
 		roads[link_key(p, q)] = true
-		toast("Road finished. Units move %d%% faster along it." % JS.round_js(GameData.c("ROAD_BONUS")[road_tier()] * 100))
+		toast("Road finished. Units move %d%% faster along it." % JS.round_js(road_bonus() * 100))
 		return
 	var o: int = b.get("owner", ME)
 	var home := p if (buildings.has(p) and buildings[p].owner == o) else q if (buildings.has(q) and buildings[q].owner == o) else -1
@@ -7882,13 +8054,18 @@ func step_travelers(dt: float) -> void:
 				B.x += dx / d * sp
 				B.y += dy / d * sp
 				B.dir = -1 if dx < 0 else 1
-		var here := units.any(func(u): return u.owner == ME and u.prov == B.prov and not u.moving)
-		if not here:
+		# 0.19: any human nation may find them, not only the host: the first one to stand in their province is asked
+		var here := -1
+		for u in units:
+			if seats.has(u.owner) and u.prov == B.prov and not u.moving:
+				here = u.owner
+				break
+		if here < 0:
 			B.asked = false
 			continue
 		if not B.asked and trav_asking == null and travelers_ask:
 			B.asked = true
-			ask_travelers(B)
+			in_seat(here, func(): ask_travelers(B))
 
 
 func trav_army_here(B: Dictionary) -> bool:
@@ -10022,6 +10199,8 @@ func meet_nation(o: int) -> void:
 	if met.has(o):
 		return
 	met[o] = true
+	if ME == view_seat:
+		sfx("wn_meet")   # 0.19: a fanfare for a new nation
 	if on_dialog.is_valid() and ME == view_seat:
 		var N: Dictionary = nations[o] if nations.has(o) else {"diff": "human"}
 		var al := allies_of(o)
@@ -10182,6 +10361,57 @@ func ask_why(o: int) -> String:
 		return "Allies already have access"
 	if at_war(ME, o):
 		return "You are at war"
+	if opinion(o, ME) <= 0:
+		return "Their opinion of you is %s (needs to be positive)" % sgn(opinion(o, ME))
+	return ""
+
+
+# --- Request Share Contacts (0.19) ---
+
+## The living nations o has met (a human nation: its own list; a computer nation: whom it has met).
+func contacts_of(o: int) -> Array:
+	var out := []
+	for x0 in nations.keys() + seats.keys():
+		var x := int(x0)
+		if x == o or not alive_nation(x) or out.has(x):
+			continue
+		var k := false
+		if seats.has(o):
+			k = seats[o].met.has(x) or seats[o].met.has(str(x))
+		elif seats.has(x):
+			k = seats[x].met.has(o) or seats[x].met.has(str(o))
+		else:
+			k = ai_met.has(pair_key(o, x))
+		if k:
+			out.append(x)
+	return out
+
+
+## The nations human nation `to` would meet if o shared its contacts with them.
+func contacts_new_for(to: int, o := ME) -> Array:
+	if not seats.has(to):
+		return []
+	var S: Dictionary = seats[to]
+	return contacts_of(o).filter(func(x): return x != to and not S.met.has(x) and not S.met.has(str(x)))
+
+
+## o shares its contacts with human nation `to`: to meets them all (quietly: one message, not a pop-up each).
+## Returns the nations met.
+func share_contacts(o: int, to: int) -> Array:
+	var got := contacts_new_for(to, o)
+	for x in got:
+		seats[to].met[x] = true
+	if not got.is_empty() and to == view_seat:
+		sfx("wn_meet")
+	return got
+
+
+## Why a computer nation won't share its contacts ("" when it will): it must like you and not be at war with you.
+func share_why(o: int) -> String:
+	if at_war(ME, o):
+		return "You are at war"
+	if contacts_new_for(ME, o).is_empty():
+		return "They know no nation you haven't met"
 	if opinion(o, ME) <= 0:
 		return "Their opinion of you is %s (needs to be positive)" % sgn(opinion(o, ME))
 	return ""
@@ -10369,6 +10599,11 @@ func dx_act(act: String, o: int, arg := -1) -> void:
 			if why == "":
 				D.access.append({"from": ME, "to": o})
 				toast("The %s accepts your offer: their armies may now march through your land. You can revoke it at any time." % nm)
+		"share":   # 0.19: Request Share Contacts: a nation that likes you shows you every nation it knows
+			why = share_why(o)
+			if why == "":
+				var got := share_contacts(o, ME)
+				toast("The %s share their contacts: you have met %s." % [nm, ", ".join(got.map(func(x): return the_name(x)))])
 		"ask":
 			why = ask_why(o)
 			if why == "":
@@ -10417,7 +10652,7 @@ func dx_act(act: String, o: int, arg := -1) -> void:
 
 # --- requests from computer nations (web: v105.js dipRequest / answerRequest / stepRequests): 30 s, then declined ---
 const REQ_NAME := {"flirt": "Flirting", "gift": "Gift", "access": "Access request", "alliance": "Alliance offer", "trade": "Trade Network", "crime": "Organized Crime",
-	"h_access": "Access request", "h_ally": "Alliance offer", "h_trade": "Trade Network", "h_crime": "Organized Crime", "barter": "Barter", "h_peace": "Peace offer"}
+	"h_access": "Access request", "h_ally": "Alliance offer", "h_trade": "Trade Network", "h_crime": "Organized Crime", "barter": "Barter", "h_peace": "Peace offer", "h_share": "Contacts request"}
 
 func req_text(r: Dictionary) -> Array:
 	var o: int = r.from
@@ -10430,6 +10665,9 @@ func req_text(r: Dictionary) -> Array:
 			return ["They propose a Trade Network: Community and Trade Routes give both nations 10% more gold.", "Agree", "Decline"]
 		"h_crime":
 			return ["They propose an Organized Crime Agreement: every Thug Den of both nations holds one more Thug.", "Agree", "Decline"]
+		"h_share":   # 0.19
+			var n := contacts_new_for(o).size()
+			return ["They ask you to share your contacts: they would meet the %d nation%s you know that they haven't met." % [n, "" if n == 1 else "s"], "Share", "Refuse"]
 		"h_peace":
 			return ["They offer a white peace: the war ends, no one gains anything, and a truce follows.", "Make peace", "Fight on"]
 		"barter":
@@ -11071,11 +11309,11 @@ func trav_units(B: Dictionary) -> Dictionary:
 ## (set_paused, set_auto_tech, rename_prov, close_school_popup).
 const COMMANDS := ["order", "order_group", "order_build", "cancel_build", "queue_survey", "queue_survey_on", "train",
 	"cancel_training", "purchase_order", "start_upgrade", "cancel_upgrade", "start_xup", "cancel_xup", "start_develop",
-	"rebuild_walls", "pick_tech", "pick_school", "cast_spell", "start_spell2", "end_quake", "start_path", "set_mage_gear",
+	"rebuild_walls", "plan_road", "start_link", "pick_tech", "pick_school", "cast_spell", "start_spell2", "end_quake", "start_path", "set_mage_gear",
 	"save_design", "delete_design", "retrofit_armies", "split_army", "combine_armies", "mage_join", "mage_detach", "dismiss", "send_to_rest",
 	"retreat", "retreat_to", "fly_army", "thugs_enter", "thug_out", "dx_act", "answer_request", "make_peace",
 	"declare_war", "proclaim_enemy", "renounce_enemy", "travelers_choose", "dismiss_quake", "dismiss_news",
-	"answer_demand", "set_crop", "hand_to_ai", "send_message", "issue_proclamation", "offer_barter", "show_request", "set_paused", "set_auto_tech", "rename_prov", "close_school_popup",
+	"answer_demand", "set_crop", "hand_to_ai", "take_from_ai", "send_message", "issue_proclamation", "offer_barter", "show_request", "set_paused", "set_auto_tech", "rename_prov", "close_school_popup",
 	"debug_reveal", "debug_resources", "debug_all_tech", "grant_tech", "rec_toggle"]
 
 ## Multiplayer: hands a command to the network instead of applying it here (it comes back through apply()).
@@ -11238,7 +11476,8 @@ func hand_to_ai(o: int, diff := "difficult") -> void:
 		"stuckSince": null, "warCheck": t + 60, "family": fam, "armorLine": aline, "race": rc, "school": school,
 		"wantSchool": school if school != null else "arcane", "spellT": 0, "dv": 0,
 		"design": {"inf": "d-sw-axe", "cav": "d-sw-ogre"} if rc == "swamp" else {"inf": "d-sword", "cav": "d-rider"}, "armyN": S.army_counter,
-		"income": S.income.duplicate(), "leader": S.leader, "fromHuman": true}
+		"income": S.income.duplicate(), "leader": S.leader, "fromHuman": true, "my_nation": S.my_nation.duplicate(),
+		"auto_tech": S.auto_tech.duplicate(), "designs": S.designs.duplicate(true)}
 	if ME == o:
 		use_seat(HOST)
 	seats.erase(o)
@@ -11257,6 +11496,67 @@ func hand_to_ai(o: int, diff := "difficult") -> void:
 	N.income = Ai.income(self, N)
 	toast("%s is now played by the computer (%s)." % [N.name, GameData.c("DIFF_NAME").get(diff, diff)])
 
+
+
+## Multiplayer hot-join (0.19): a player takes nation o back from the computer (a nation a player had before it was
+## handed over). It gets its own seat again, with the computer's treasury, research, land and armies as they are.
+func take_from_ai(o: int, player_name := "") -> void:
+	if not nations.has(o) or seats.has(o) or o == HOST:
+		return
+	var N: Dictionary = nations[o]
+	var rc := race(o)
+	var keep: int = ME
+	seats[o] = seat_defaults()
+	use_seat(o)
+	var unames := {}   # (the unit table is shared: it keeps the host's race's names, as add_seat does)
+	for k in unit_defs:
+		unames[k] = [unit_defs[k].get("name"), unit_defs[k].get("blurb")]
+	seat_start(rc if rc in ["realm", "swamp", "wood"] else "realm")
+	for k in unames:
+		unit_defs[k].name = unames[k][0]
+		if unames[k][1] != null:
+			unit_defs[k].blurb = unames[k][1]
+	var nat: Dictionary = N.get("my_nation", {})
+	if nat.is_empty():
+		var ci := 0
+		var NC: Array = GameData.c("NATION_COLORS")
+		for i in NC.size():
+			if str(NC[i][0]) == str(player_info(o).get("color", "")):
+				ci = i
+		nat = {"name": str(N.get("name", "Realm")), "color": ci, "emblem": str(N.get("emblem", "crown")), "secondary": str(N.get("secondary", "#faf1dc"))}
+	set_nation(nat)
+	leader = str(N.get("leader", leader))
+	capital = int(N.get("capital", -1))
+	stock = N.get("stock", {}).duplicate()
+	rep = N.get("rep", {}).duplicate()
+	surveyed = N.get("surveyed", {}).duplicate()
+	exhaust = int(N.get("exhaust", 0))
+	army_counter = int(N.get("armyN", 0))
+	fallen = not bool(N.get("alive", true))
+	if N.get("designs") is Array and not N.designs.is_empty():
+		designs = N.designs.duplicate(true)
+	if N.get("auto_tech") is Dictionary:
+		for tr in N.auto_tech:
+			auto_tech[tr] = bool(N.auto_tech[tr])
+	tech = {}
+	var ts: Dictionary = N.get("tech", {})
+	for tr in ["gov", "mil", "mag"]:
+		var st: Dictionary = ts.get(tr, {})
+		tech[tr] = {"cur": st.get("cur"), "prog": st.get("prog", 0), "bank": st.get("bank", 0), "opts": Array(st.get("opts", [])).duplicate(),
+			"done": Array(st.get("done", [])).duplicate(), "tier": int(st.get("tier", 1 if tr == "gov" else 0)), "sticky": Array(st.get("sticky", [])).duplicate()}
+	for id in nations:   # whom it had met
+		if int(id) != o and ai_met.has(pair_key(o, int(id))):
+			met[int(id)] = true
+	for s2 in seats:
+		if s2 != o and (seats[s2].met.has(o) or seats[s2].met.has(str(o))):
+			met[s2] = true
+	compute_income()
+	use_seat(keep)
+	nations.erase(o)
+	if player_name != "":
+		seat_names[o] = player_name
+	in_seat(o, compute_fog)
+	toast("%s is played by %s again." % [player_info(o).name, player_name if player_name != "" else "a player"])
 
 
 # =================================================================================================================
@@ -11404,6 +11704,12 @@ func _answer_player(r: Dictionary, yes: bool, quiet: bool) -> void:
 		return
 	var why := ""
 	match r.kind:
+		"h_share":
+			var got := share_contacts(ME, o)
+			if got.is_empty():
+				why = "They already know every nation you know"
+			else:
+				notify(o, "answer", ME, "The %s shared their contacts: you have met %s." % [player_info(ME).name, ", ".join(got.map(func(x): return the_name(x)))])
 		"h_access":
 			if not access_given(ME, o):
 				dipl_state().access.append({"from": ME, "to": o})
@@ -11481,6 +11787,8 @@ func player_act_why(act: String, o: int) -> String:
 			return "Not between players"
 		"grant":
 			return "" if access_given(ME, o) else "You are at war" if at_war(ME, o) else "Allies already have access" if allied(ME, o) else ""
+		"share":
+			return "You are at war" if at_war(ME, o) else "They know no nation you haven't met" if contacts_new_for(ME, o).is_empty() else _waiting(o, "h_share")
 		"ask":
 			return "They already let you through" if access_given(o, ME) else "You are at war" if at_war(ME, o) else "Allies already have access" if allied(ME, o) else _waiting(o, "h_access")
 		"ally":
@@ -11534,6 +11842,9 @@ func _dx_player(act: String, o: int) -> void:
 		"ask":
 			_ask_player(o, "h_access")
 			toast("You asked the %s for military access." % nm)
+		"share":   # 0.19: they are asked, and choose
+			_ask_player(o, "h_share")
+			toast("You asked the %s to share their contacts." % nm)
 		"ally":
 			if allied(ME, o):
 				for A in allies:

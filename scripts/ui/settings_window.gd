@@ -111,6 +111,9 @@ func _fill() -> void:
 	_row("Quick queue", "When on, right-clicking a province with only Wayfinders and Masons selected opens their survey / build menu without holding Ctrl.", _switch(Settings.view.get("quickQueue", false), func(v):
 		Settings.view.quickQueue = v
 		_changed()))
+	_row("Players box", "Multiplayer: the box listing who is playing, their nation and connection. Off hides it (a message still shows while the game waits for someone).", _switch(Settings.view.get("players", true), func(v):
+		Settings.view.players = v
+		_changed()))
 	_row("Calm map", "Trees stand still on the map (for a quieter screen).", _switch(Settings.calm_map, func(v):
 		Settings.calm_map = v
 		_changed()))
@@ -119,6 +122,15 @@ func _fill() -> void:
 		_changed()
 		if game != null and game.has_method("rec_toggle"):
 			game.do("rec_toggle", [v])))
+	var tok := LineEdit.new()
+	tok.secret = true
+	tok.text = Settings.bug_token
+	tok.placeholder_text = "GitHub token"
+	tok.custom_minimum_size = Vector2(200, 0)
+	tok.text_changed.connect(func(v):
+		Settings.bug_token = v.strip_edges()
+		Settings.save_all())
+	_row("Bug reports", "The bug button (top right in a game) sends your report and a screenshot to GitHub (%s, the bug_reports folder). Paste a GitHub token that may write to that repository (a fine-grained token with Contents: read and write). Without one, reports are saved on this computer instead." % Settings.bug_repo, tok)
 	if game == null:
 		return
 	var seed := UiKit.ink(18)

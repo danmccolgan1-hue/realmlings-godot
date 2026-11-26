@@ -88,7 +88,8 @@ static func build(w: Dictionary, G: Dictionary) -> Dictionary:
 			return "pine%d" % (0 if r.next() < 0.5 else 1)
 		return "tree%d" % int(floor(r.next() * 3))
 	for e in w.edges:
-		if e.open or e.style == "river":
+		# (0.19: a border closed by a wall is drawn as the wall: a saved game came back with ruins under every gate)
+		if e.open or e.style == "river" or e.style == "wall":
 			continue
 		var a: Array = V[e.v[0]]
 		var b: Array = V[e.v[1]]
