@@ -32,9 +32,17 @@ var replay: Replay
 var replay_hud: ReplayHud
 var lock: Lockstep              # a multiplayer game's lockstep (null in a single-player game)
 var mp_panel: MpPanel
+var server: MpServer            # --server: this copy is the dedicated server (no window, no player)
 
 
 func _ready() -> void:
+	if OS.get_cmdline_user_args().has("--server"):   # the dedicated server (docs/SERVER.md): no window, no player
+		Engine.max_fps = 60   # (a window-less copy would otherwise spin as fast as it can)
+		set_process(false)
+		set_process_unhandled_input(false)
+		server = MpServer.new()
+		add_child(server)
+		return
 	Settings.load_all()
 	Settings.apply(get_tree())
 	# Alegreya and Cinzel Decorative, bundled; symbols they lack (✓ ✗ ✕ ▸ ▾ ⚒ ⚔ ✦ ☐ ✔ …) come from DejaVu Sans
@@ -272,63 +280,62 @@ func start_mp_host(net: NetSession, o: Dictionary) -> void:
 
 
 func _mp_gen(o: Dictionary, players: Dictionary) -> void:
-	var ids := players.keys()
-	ids.sort()
-	var g: Game = null
-	var seat_of := {}
-	if o.get("cont", false) and FileAccess.file_exists(MP_SAVE):   # carry on the last multiplayer game
-		g = Game.load_text(FileAccess.get_file_as_string(MP_SAVE))
-	if g != null:
-		var free: Array = g.seat_ids().filter(func(x): return x != Game.HOST)
-		seat_of[1] = Game.HOST
-		g.seat_names[Game.HOST] = str(players[1].name)
-		for pid in ids:   # a returning player takes their own nation back, anyone else a free one
-			if pid == 1:
-				continue
-			var nm := str(players[pid].name)
-			var mine: Array = free.filter(func(x): return str(g.seat_names.get(x, "")) == nm)
-			var take: int = mine[0] if not mine.is_empty() else (free[0] if not free.is_empty() else 0)
-			if take != 0:
-				free.erase(take)
-				seat_of[pid] = take
-				g.seat_names[take] = nm
-		for x in free:   # nobody came back for these: the computer plays them
-			g.hand_to_ai(x)
+	var made: Array
+	if o.get("save", "") != "":   # carry on a saved game, each player with the nation they picked from it
+		var picks := {}
+		for pid in players:
+			picks[pid] = int(players[pid].get("pick", 0))
+		made = MpSetup.load_game(host_save_text(str(o.save)), picks, players)
 	else:
-		var slots := []
-		var humans := {}
-		for pid in ids:
-			if pid == 1:
-				continue
-			var n: Dictionary = players[pid].get("nation", {})
-			humans[slots.size()] = {"race": str(n.get("race", "realm")), "leader": "" if str(n.get("leader", "random")) == "random" else str(n.get("leader", "")),
-				"nation": {"name": str(n.get("nation", players[pid].name)), "color": int(n.get("color", 0)), "emblem": str(n.get("emblem", "crown")), "secondary": str(n.get("secondary", "#faf1dc"))},
-				"pid": pid}
-			slots.append("human")
-		var cs: Array = o.get("slots", [])   # the host's computer nations, slot by slot (players take the first slots)
-		var races := []
-		for i in 7:
-			races.append("random" if i < slots.size() else str(o.get("races", []).get(i) if i < o.get("races", []).size() else "random"))
-		for i in range(slots.size(), 7):
-			slots.append(str(cs[i]) if i < cs.size() else "closed")
-		var hn: Dictionary = players[1].get("nation", {})
-		var leader := "" if str(hn.get("leader", "random")) == "random" else str(hn.get("leader", ""))
-		g = Game.new_world(str(o.seed), leader, slots, str(o.get("start", "center")), {}, o.get("map", {}),
-			{"name": str(hn.get("nation", "My Realm")), "color": int(hn.get("color", 0)), "emblem": str(hn.get("emblem", "crown")), "secondary": str(hn.get("secondary", "#faf1dc"))},
-			str(hn.get("race", "realm")), races, humans)
-		seat_of[1] = Game.HOST
-		g.seat_names[Game.HOST] = str(players[1].name)
-		for i in humans:
-			if humans[i].has("id"):
-				seat_of[humans[i].pid] = humans[i].id
-				g.seat_names[humans[i].id] = str(players[humans[i].pid].name)
-	g.paused = false
-	call_deferred("_mp_host_ready", g, seat_of)
+		made = MpSetup.new_game(o, players, 1)
+	call_deferred("_mp_host_ready", made[0] if not made.is_empty() else null, made[1] if not made.is_empty() else {})
+
+
+## The text of a saved multiplayer game this computer can host: LAST_MP (the last game played) or one in
+## MpSetup.HOST_DIR (saved by the host from the in-game menu).
+const LAST_MP := "@last"
+func host_save_text(name: String) -> String:
+	if name == LAST_MP:
+		return FileAccess.get_file_as_string(MP_SAVE) if FileAccess.file_exists(MP_SAVE) else ""
+	return MpSetup.read_save(MpSetup.HOST_DIR, name)
+
+
+## The saved multiplayer games this computer can host, newest first ([{name, when, desc}], LAST_MP first).
+func host_saves() -> Array:
+	var out := MpSetup.list_saves(MpSetup.HOST_DIR)
+	if FileAccess.file_exists(MP_SAVE):
+		out.push_front({"name": LAST_MP, "when": FileAccess.get_modified_time(MP_SAVE), "desc": "your last multiplayer game"})
+	return out
+
+
+## The in-game menu's Save in a multiplayer game: the host keeps it in MpSetup.HOST_DIR; on a server, the player
+## hosting asks the server to keep it.
+func save_mp() -> void:
+	if lock == null or game == null:
+		return
+	if lock.is_host:
+		var nm := MpSetup.write_save(MpSetup.HOST_DIR, game)
+		hud.add_toast("Saved. Choose it under Load a saved game in the lobby to carry on." if nm != "" else "Couldn't save.", nm == "")
+	elif lock.net != null and lock.net.is_leader():
+		lock.net.send_to(1, {"t": "save_now"})
+		hud.add_toast("Saving the game on the server…")
+
+
+## The player hosting a game on a server ends it for everyone (the server saves it and stops).
+func end_mp_game() -> void:
+	if lock != null and lock.net != null and lock.net.dedicated and lock.net.is_leader():
+		lock.net.send_to(1, {"t": "end_game"})
 
 
 func _mp_host_ready(g: Game, seat_of: Dictionary) -> void:
 	thread.wait_to_finish()
-	lock = Lockstep.new(_mp_pending.net, g, true, Game.HOST)
+	if g == null:
+		_mp_pending.net.leave()
+		menu.reset_start()
+		menu.show_screen("main")
+		status.text = "That saved game can't be read."
+		return
+	lock = Lockstep.new(_mp_pending.net, g, true, int(seat_of.get(1, Game.HOST)))   # (a saved game: the nation the host picked)
 	_mp_wire()
 	lock.begin(seat_of)
 	_on_ready(g, false)
@@ -381,10 +388,38 @@ func _mp_wire() -> void:
 				drop_asking = false
 				if id == "ai" and lock != null:
 					lock.hand_over(o)))
+	if lock.net != null:
+		lock.net.message.connect(_on_mp_message)
 	lock.ended.connect(func(why):
 		to_main_menu()   # (it keeps the game in MP_SAVE)
 		menu.show_screen("main")
-		status.text = "%s. The game is saved: the host can continue it from the Multiplayer page." % why)
+		status.text = "%s. The game is saved: the host can continue it from the Multiplayer page." % why.strip_edges().trim_suffix("."))
+
+
+## Messages from a dedicated server to the player hosting the game: a player dropped out (wait, or hand their
+## nation to the computer?), that is settled, or a note.
+func _on_mp_message(_from: int, m: Dictionary) -> void:
+	if lock == null or lock.net == null or not hud.visible:
+		return
+	match str(m.get("t", "")):
+		"ask_drop":
+			var o := int(m.get("o", 0))
+			var nm := str(m.get("nm", "A player"))
+			var opts := [{"id": "wait", "label": "Wait", "why": null}]
+			if m.get("can_ai", true):
+				opts.append({"id": "ai", "label": "Hand to the computer", "why": null})
+			drop_asking = true
+			hud.dialog.ask("%s has dropped out" % nm, ("The game is paused. Wait for %s to come back (they join again with the same name and take their nation back)%s." % [nm, ", or hand their nation to the computer (Difficult)" if m.get("can_ai", true) else ". The first nation can't be handed to the computer; another player may also take it over by joining"]),
+				opts, func(id):
+					drop_asking = false
+					if lock != null and lock.net != null:
+						lock.net.send_to(1, {"t": "hand_over" if id == "ai" else "wait", "o": o}))
+		"drop_done":
+			if drop_asking and hud.dialog.visible:
+				drop_asking = false
+				hud.dialog.hide()
+		"lnote":
+			hud.add_toast(str(m.get("text", "")))
 
 
 func _end_mp() -> void:

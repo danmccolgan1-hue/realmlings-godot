@@ -1,0 +1,21 @@
+# The Realmlings dedicated server as a system service (docs/SERVER.md).
+# Copy to /etc/systemd/system/realmlings.service, then: sudo systemctl daemon-reload && sudo systemctl start realmlings
+#
+# Restart=on-failure: a crash brings the server back by itself, and the lobby offers the interrupted game again.
+# A game that ends normally stops the server and it stays stopped: start it again for the next game
+# (sudo systemctl start realmlings). For an always-ready lobby instead, change it to Restart=always.
+
+[Unit]
+Description=Realmlings dedicated server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=realmlings
+WorkingDirectory=/home/realmlings/server
+ExecStart=/home/realmlings/server/Realmlings.x86_64 --headless -- --server --port=24565 --saves=/home/realmlings/saves
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

@@ -15,6 +15,8 @@ signal rejoined(id: int, name: String)      # host: a player came back to their 
 signal seat_offer(choices: Array)           # a player joining a game in progress: the nations they may take (0.19)
 signal take_seat(id: int, name: String, nation: int)   # host: a player joining a game in progress chose a nation
 signal lobby_info_changed                   # the host's summary of the game everyone is agreeing to (0.19)
+signal lobby_save_changed                   # the host chose a saved game to carry on (or a new island again)
+signal leader_changed                       # a dedicated server: the player hosting the game changed
 
 const PORT := 24565            # the game's port (UDP); forward this one on the host's router
 const DISCOVER_PORT := 24566   # LAN games announce themselves here (UDP broadcast)
@@ -38,12 +40,24 @@ var upnp_note := ""
 var _thread: Thread
 var locked := false            # the game has started: only `reserved` names (players coming back) may join
 var reserved := {}             # name -> true
+var _closed_ids := {}          # host: peer ids ENet reported as disconnected
 var _gone_ids := {}            # host: peer ids whose connection has closed (nothing more is sent to them)
 var lobby_terms := ""          # host: what lobby_info's game is (its readiness resets when this changes)
 var lobby_info := ""           # the host's summary of the game (island, seed, computer nations); changing it un-readies everyone
 var seat_choices: Callable     # host, game in progress: () -> [{id, nation, player, state}] the nations a newcomer may take
 var picking := {}              # host: peer id -> true while a player joining a game in progress chooses a nation
 var in_progress := false       # a player: the host's game has already started (hot-join)
+## The dedicated server (MpServer): this session runs the game for everyone but plays no nation and is not in
+## `players`. The player hosting the game (`leader`, the first to join) chooses the island, starts it, saves it and
+## decides about players who drop out, through messages to the server. When a player hosts from their own copy,
+## leader is 1: that player.
+var dedicated := false
+var leader := 1
+var password := ""             # the host: the password a player must give to join ("" for none)
+var pw := ""                   # a player: the password they give when joining
+## The saved game the host chose to carry on: {"name", "desc", "seats": MpSetup.save_seats} ({} for a new island).
+## Each player picks one of its nations (players[id].pick).
+var lobby_save := {}
 
 ## ENet's timeouts (0.19): generous, so a few seconds of a busy computer (loading a save, an autosave) or a wobbly
 ## connection don't throw a player out. ENet's own default gives up after as little as 5 s.
@@ -59,8 +73,9 @@ func _init(player_name := "Player", nation_info := {}) -> void:
 	version = str(ProjectSettings.get_setting("application/config/version", ""))
 
 
-## Host a lobby on PORT. With `upnp`, also ask the router to open the port (in the background).
-func host(port := PORT, upnp := true) -> String:
+## Host a lobby on PORT. With `upnp`, also ask the router to open the port (in the background). With `server`, the
+## dedicated server: no player of its own (see `dedicated`).
+func host(port := PORT, upnp := true, server := false) -> String:
 	peer = ENetMultiplayerPeer.new()
 	var err := peer.create_server(port, MAX_PLAYERS - 1)
 	if err != OK:
@@ -69,8 +84,11 @@ func host(port := PORT, upnp := true) -> String:
 	is_host = true
 	my_id = 1
 	joined = true
-	players = {1: {"name": my_name, "nation": nation, "ping": 0, "ready": true}}
-	log_line("Hosting on port %d (version %s)" % [port, version])
+	peer.peer_disconnected.connect(func(id): _closed_ids[id] = true)
+	dedicated = server
+	leader = 0 if server else 1
+	players = {} if server else {1: {"name": my_name, "nation": nation, "ping": 0, "ready": true, "pick": 0}}
+	log_line("%s on port %d (version %s)" % ["Server running" if server else "Hosting", port, version])
 	_udp = PacketPeerUDP.new()
 	_udp.set_broadcast_enabled(true)
 	_udp.set_dest_address("255.255.255.255", DISCOVER_PORT)
@@ -159,9 +177,92 @@ func set_ready(on: bool) -> void:
 ## Is everyone but the host ready?
 func all_ready() -> bool:
 	for id in players:
-		if id != 1 and not players[id].get("ready", false):
+		if id != leader and not players[id].get("ready", false):
 			return false
 	return true
+
+
+## Is this player the one hosting the game (from their own copy, or on a server)?
+func is_leader() -> bool:
+	return joined and my_id != 0 and my_id == leader
+
+
+## The host (or the player hosting on a server): a password for joining ("" for none). Players already in stay.
+func set_password(p: String) -> void:
+	if is_host:
+		password = p.strip_edges()
+		log_line("The password was %s" % ("set" if password != "" else "removed"))
+	elif is_leader():
+		_send(1, {"t": "lpass", "pw": p.strip_edges()})
+
+
+## The host (or the player hosting on a server): the game everyone is agreeing to; see set_lobby_info.
+func lead_info(text: String, terms := "") -> void:
+	if is_host:
+		set_lobby_info(text, terms)
+	elif is_leader() and (text != lobby_info or terms != lobby_terms):
+		lobby_terms = terms
+		_send(1, {"t": "lset", "text": text, "terms": terms})
+
+
+## The host: carry on a saved game (save: {name, desc, seats}), or a new island ({}). Each player then picks a nation
+## from it (the one they played, when their name matches); everyone has to say they are ready again.
+func set_lobby_save(save: Dictionary) -> void:
+	if not is_host:
+		return
+	lobby_save = save.duplicate(true)
+	for id in players:
+		players[id].pick = 0
+	if not save.is_empty():
+		var guess := MpSetup.guess_picks(save.get("seats", []), players)
+		for id in guess:
+			players[id].pick = guess[id]
+	for id in players:
+		if id != leader:
+			players[id].ready = false
+	send_all({"t": "lsave", "save": lobby_save})
+	lobby_save_changed.emit()
+	_broadcast_players()
+
+
+## A player: take nation o of the saved game the host chose (0: none).
+func pick(o: int) -> void:
+	if is_host:
+		_pick(my_id, o)
+	elif joined:
+		_send(1, {"t": "lpick", "o": o})
+
+
+# the host: player id picks nation o of the saved game, if nobody else has it
+func _pick(id: int, o: int) -> void:
+	if not players.has(id) or lobby_save.is_empty() or locked:
+		return
+	var ok: bool = o == 0 or lobby_save.get("seats", []).any(func(s): return int(s.id) == o)
+	for other in players:
+		if other != id and int(players[other].get("pick", 0)) == o and o != 0:
+			ok = false
+	if ok:
+		players[id].pick = o
+		if id != leader:
+			players[id].ready = false
+	_broadcast_players()
+
+
+# a dedicated server: the player hosting the game is the first to have joined who is still here
+func _update_leader() -> void:
+	if not dedicated:
+		return
+	var was := leader
+	if not players.has(leader):
+		var ids := players.keys()
+		ids.sort()
+		leader = ids[0] if not ids.is_empty() else 0
+	if leader != was:
+		if leader != 0:
+			players[leader].ready = true
+			log_line("%s is now hosting the game" % players[leader].name)
+			_relay_chat(0, "%s is now hosting the game." % players[leader].name)
+		leader_changed.emit()
 
 
 ## Host: the game everyone is agreeing to. When it changes, everyone has to say they are ready again.
@@ -223,6 +324,8 @@ func send_chat(text: String) -> void:
 ## This player's name in the lobby (Steam will give its own name, once the game is on Steam).
 func set_name(nm: String) -> void:
 	my_name = nm.strip_edges().left(24) if nm.strip_edges() != "" else "Player"
+	if is_host and dedicated:
+		return
 	if is_host:
 		players[1].name = my_name
 		_broadcast_players()
@@ -232,6 +335,8 @@ func set_name(nm: String) -> void:
 
 func set_nation(n: Dictionary) -> void:
 	nation = n
+	if is_host and dedicated:
+		return
 	if is_host:
 		players[1].nation = n
 		_broadcast_players()
@@ -258,7 +363,7 @@ func poll(dt := 0.016) -> void:
 	if not is_host and st == MultiplayerPeer.CONNECTION_CONNECTED and my_id == 0:
 		my_id = peer.get_unique_id()
 		_patient(1)
-		_send(1, {"t": "hello", "name": my_name, "version": version, "nation": nation})
+		_send(1, {"t": "hello", "name": my_name, "version": version, "nation": nation, "pw": pw})
 	while peer != null and peer.get_available_packet_count() > 0:
 		var from := peer.get_packet_peer()
 		var msg = bytes_to_var(peer.get_packet())
@@ -286,9 +391,13 @@ func _handle(from: int, m: Dictionary) -> void:
 			if str(m.get("version", "")) != version:
 				_refuse(from, nm0, "Different game versions: the host has %s, you have %s. Both of you need the same version." % [version, m.get("version", "?")])
 				return
+			if password != "" and str(m.get("pw", "")) != password:
+				_refuse(from, nm0, "This game needs a password: type it under Password and join again." if str(m.get("pw", "")) == "" else "Wrong password.")
+				return
 			if locked and reserved.has(nm0):   # coming back to their own nation
-				players[from] = {"name": nm0, "nation": m.get("nation", {}), "ping": 0, "ready": true}
+				players[from] = {"name": nm0, "nation": m.get("nation", {}), "ping": 0, "ready": true, "pick": 0}
 				_send(from, {"t": "welcome", "id": from, "locked": true})
+				_update_leader()
 				_broadcast_players()
 				log_line("%s is coming back to their nation" % nm0)
 				rejoined.emit(from, nm0)
@@ -299,8 +408,9 @@ func _handle(from: int, m: Dictionary) -> void:
 					_refuse(from, nm0, "This game has already started and every nation has a player. (Coming back? Join with the same name you played under.)")
 					return
 				nm0 = _unique_name(nm0, from)
-				players[from] = {"name": nm0, "nation": m.get("nation", {}), "ping": 0, "ready": true}
+				players[from] = {"name": nm0, "nation": m.get("nation", {}), "ping": 0, "ready": true, "pick": 0}
 				picking[from] = true
+				_update_leader()
 				_send(from, {"t": "welcome", "id": from, "locked": true, "name": nm0})
 				_send(from, {"t": "pick_seat", "choices": choices})
 				log_line("%s joined the game in progress and is choosing a nation" % nm0)
@@ -309,10 +419,17 @@ func _handle(from: int, m: Dictionary) -> void:
 				_refuse(from, nm0, "The game is full (%d players)" % MAX_PLAYERS)
 				return
 			nm0 = _unique_name(nm0, from)   # 0.19: two players named alike would be mixed up (seats are kept by name)
-			players[from] = {"name": nm0, "nation": m.get("nation", {}), "ping": 0, "ready": false}
-			_send(from, {"t": "welcome", "id": from, "name": nm0})
+			players[from] = {"name": nm0, "nation": m.get("nation", {}), "ping": 0, "ready": false, "pick": 0}
+			_send(from, {"t": "welcome", "id": from, "name": nm0, "server": dedicated})
 			if lobby_info != "":
 				_send(from, {"t": "linfo", "text": lobby_info})
+			if not lobby_save.is_empty():
+				_send(from, {"t": "lsave", "save": lobby_save})
+				var guess := MpSetup.guess_picks(lobby_save.get("seats", []), {from: players[from]})
+				if guess.has(from) and players.keys().any(func(o2): return o2 != from and int(players[o2].get("pick", 0)) == int(guess[from])):
+					guess.erase(from)   # (somebody already picked it)
+				players[from].pick = int(guess.get(from, 0))
+			_update_leader()
 			_broadcast_players()
 			_relay_chat(0, "%s joined." % players[from].name)
 			log_line("%s joined the lobby" % nm0)
@@ -328,6 +445,21 @@ func _handle(from: int, m: Dictionary) -> void:
 			if is_host and players.has(from):
 				players[from].ready = bool(m.get("on", false))
 				_broadcast_players()
+		"lpick":
+			if is_host:
+				_pick(from, int(m.get("o", 0)))
+		"lsave":
+			if not is_host:
+				lobby_save = m.get("save", {})
+				lobby_terms = ""   # (the host's next summary of a new island goes out again)
+				lobby_save_changed.emit()
+		"lset":   # a server: the player hosting the game changed its choices
+			if is_host and dedicated and from == leader and not locked:
+				set_lobby_info(str(m.get("text", "")), str(m.get("terms", "")))
+		"lpass":
+			if is_host and dedicated and from == leader:
+				set_password(str(m.get("pw", "")))
+				_relay_chat(0, "The host %s the password." % ("set" if password != "" else "removed"))
 		"linfo":
 			if not is_host:
 				lobby_info = str(m.get("text", ""))
@@ -336,6 +468,7 @@ func _handle(from: int, m: Dictionary) -> void:
 			joined = true
 			my_id = int(m.get("id", my_id))
 			in_progress = bool(m.get("locked", false))
+			dedicated = bool(m.get("server", dedicated))
 			if m.has("name") and str(m.name) != my_name:   # (the host renamed you: someone already had your name)
 				my_name = str(m.name)
 				status.emit("Connected. Someone already had your name, so you are %s." % my_name)
@@ -350,7 +483,11 @@ func _handle(from: int, m: Dictionary) -> void:
 		"players":
 			players = {}
 			for p in m.get("list", []):
-				players[int(p.id)] = {"name": p.name, "nation": p.nation, "ping": p.ping, "ready": p.get("ready", false)}
+				players[int(p.id)] = {"name": p.name, "nation": p.nation, "ping": p.ping, "ready": p.get("ready", false), "pick": int(p.get("pick", 0))}
+			var ld := int(m.get("leader", 1))
+			if ld != leader:
+				leader = ld
+				leader_changed.emit()
 			players_changed.emit()
 		"nation":
 			if is_host and players.has(from):
@@ -359,7 +496,7 @@ func _handle(from: int, m: Dictionary) -> void:
 				_broadcast_players()
 		"name":
 			if is_host and players.has(from) and not locked:
-				var nm := str(m.get("name", "Player")).strip_edges().left(24)
+				var nm := _unique_name(str(m.get("name", "Player")).strip_edges().left(24), from)
 				players[from].name = nm if nm != "" else "Player"
 				_broadcast_players()
 		"chat":
@@ -403,11 +540,11 @@ func _relay_chat(from: int, text: String) -> void:
 func _broadcast_players() -> void:
 	var list := []
 	for id in players:
-		list.append({"id": id, "name": players[id].name, "nation": players[id].nation, "ping": players[id].ping, "ready": players[id].get("ready", id == 1)})
+		list.append({"id": id, "name": players[id].name, "nation": players[id].nation, "ping": players[id].ping, "ready": players[id].get("ready", id == leader), "pick": int(players[id].get("pick", 0))})
 	players_changed.emit()
 	for id in players:
 		if id != 1:
-			_send(id, {"t": "players", "list": list})
+			_send(id, {"t": "players", "list": list, "leader": leader})
 
 
 func _drop_gone() -> void:
@@ -425,6 +562,7 @@ func _drop_gone() -> void:
 		log_line("%s's connection closed (they left, or nothing came through for %d s)" % [nm, TIMEOUT_MIN_MS / 1000])
 		_broadcast_players()
 		_relay_chat(0, "%s left." % nm)
+		_update_leader()
 		left.emit(id, nm)
 
 
@@ -447,6 +585,8 @@ func announce(text: String) -> void:
 
 
 func _connected(id: int) -> bool:
+	if _closed_ids.has(id):   # (asking ENet about a connection it has already let go of logs an error)
+		return false
 	var p := peer.get_peer(id)
 	return p != null and p.get_state() == ENetPacketPeer.STATE_CONNECTED
 

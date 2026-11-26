@@ -832,6 +832,9 @@ func focus_unit(u: Dictionary) -> void:
 
 # --- the menu (Esc) ---
 
+var menu_btns := {}   # the menu's buttons that depend on the game (save, load, import, end)
+
+
 func _build_menu() -> void:
 	var shade := Control.new()
 	shade.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -842,20 +845,31 @@ func _build_menu() -> void:
 	menu_win.panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER, Control.PRESET_MODE_MINSIZE)
 	var b: VBoxContainer = menu_win.body
 	b.add_child(UiKit.button("Resume", 20, func(): toggle_menu()))
-	b.add_child(UiKit.button("Save game (F5)", 20, func():
-		if main and game.tutorial == null:
-			main.save_to(main.QUICKSAVE)))
-	b.add_child(UiKit.button("Load saved game (F9)", 20, func():
+	menu_btns.save = UiKit.button("Save game (F5)", 20, func():
+		if main and main.lock != null:
+			main.save_mp()
+		elif main and game.tutorial == null:
+			main.save_to(main.QUICKSAVE))
+	b.add_child(menu_btns.save)
+	menu_btns.load = UiKit.button("Load saved game (F9)", 20, func():
 		if main:
 			toggle_menu()
-			main.load_from(main.QUICKSAVE)))
+			main.load_from(main.QUICKSAVE))
+	b.add_child(menu_btns.load)
 	b.add_child(UiKit.button("Export a save file", 20, func():
 		if main and game.tutorial == null:
 			main.export_save()))
-	b.add_child(UiKit.button("Import a save file", 20, func():
+	menu_btns.import = UiKit.button("Import a save file", 20, func():
 		if main:
 			toggle_menu()
-			main.import_save()))
+			main.import_save())
+	b.add_child(menu_btns.import)
+	menu_btns.end = UiKit.button("End the game for everyone", 20, func():
+		if main:
+			dialog.ask("End the game?", "The server saves the game, tells everyone it is over and stops. You can carry it on later: start the server again and choose the save under Load a saved game.",
+				[{"id": "end", "label": "End the game", "why": null}, {"id": "no", "label": "Keep playing", "why": null}],
+				func(id): if id == "end" and main: main.end_mp_game()))
+	b.add_child(menu_btns.end)
 	b.add_child(UiKit.button("Settings", 20, func(): settings.open(game)))
 	b.add_child(UiKit.button("How to Play", 20, func():
 		if main:
@@ -872,6 +886,14 @@ func toggle_menu() -> void:
 	var p: Control = menu_win.panel
 	p.visible = not p.visible
 	if p.visible:
+		# multiplayer: only the host saves (on a server, the server keeps it); nobody loads a single-player game
+		var lk = main.lock if main else null
+		var lead: bool = lk != null and (lk.is_host or (lk.net != null and lk.net.is_leader()))
+		menu_btns.save.visible = lk == null or lead
+		menu_btns.save.text = "Save game (F5)" if lk == null else "Save the game on the server" if not lk.is_host else "Save the multiplayer game"
+		menu_btns.load.visible = lk == null
+		menu_btns.import.visible = lk == null
+		menu_btns.end.visible = lk != null and not lk.is_host and lk.net != null and lk.net.dedicated and lk.net.is_leader()
 		UiKit.center.call_deferred(p)
 		if game:
 			game.do("set_paused", [true])

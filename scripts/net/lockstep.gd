@@ -49,6 +49,7 @@ var started := false           # host: everyone loaded, the clock runs
 var resyncs := 0
 var drop_paused := false       # host: the game was paused because someone dropped out (it goes on when they're all back)
 var send_at := {}              # host: peer id -> [step, nation]: send them the game once that step has run (hot-join)
+var host_pid := 1              # host: the player who may give HOST_ONLY orders (on a dedicated server, the one hosting)
 var _acc := 0.0
 var _clock := 0.0
 
@@ -188,7 +189,7 @@ func _dropped(pid: int) -> void:
 
 ## The host's answer to ask_drop: hand the nation to the computer (or keep waiting: do nothing).
 func hand_over(o: int) -> void:
-	if not is_host or not game.seats.has(o):
+	if not is_host or not game.seats.has(o) or o == Game.HOST:   # (the first nation can only wait for a player)
 		return
 	_queue({"player": Game.HOST, "type": "hand_to_ai", "args": [o]})
 	gone.erase(o)   # (0.19: no longer waited for; a newcomer may still take it back from the computer)
@@ -252,7 +253,7 @@ func _resume_if_all_back() -> void:
 func _seat_choices() -> Array:
 	var out := []
 	for o in game.seat_ids():
-		if o != Game.HOST and gone.has(o) and not game.seats[o].fallen:
+		if gone.has(o) and not game.seats[o].fallen:   # (on a server the first nation's player can be away too)
 			out.append({"id": o, "nation": str(game.player_info(o).name), "player": str(names.get(o, "")), "state": "away", "race": game.race(o)})
 	var coming := send_at.values().map(func(x): return int(x[1]))   # (already being handed to someone)
 	for o in game.nations:
@@ -303,7 +304,7 @@ func _queue(cmd: Dictionary, pid := 0) -> void:
 		if not seat_of.has(pid):
 			return
 		c.player = seat_of[pid]
-		if c.get("type") in HOST_ONLY and pid != 1:
+		if c.get("type") in HOST_ONLY and pid != host_pid:
 			return
 	var at := step + DELAY
 	if not pending.has(at):
@@ -373,6 +374,9 @@ func _on_message(from: int, m: Dictionary) -> void:
 		"resync", "start":
 			if not is_host and game != null:
 				_load(str(m.save), int(m.s), int(m.get("seat", me)))
+		"end":   # the host (or the server) ended the game
+			if not is_host:
+				ended.emit(str(m.get("why", "The game is over")))
 
 
 # a player: the host's save at step s (a resync, or coming back after dropping out)
@@ -398,6 +402,12 @@ func _load(text: String, s: int, seat: int) -> void:
 
 func _on_closed(why: String) -> void:
 	ended.emit(why)
+
+
+## The host: end the game for everyone (they are told why); then stop().
+func end_game(why: String) -> void:
+	if is_host:
+		net.send_all({"t": "end", "why": why})
 
 
 ## Leave the game (this player's choice, or the game ended).

@@ -411,6 +411,9 @@ var mp_rows_sig := ""            # the players list as last drawn, without the p
 var mp_ping_l := {}              # peer id -> its ping label (updated in place)
 var mp_taken_sig := ""           # the colors and leaders others have taken, as last shown on the Nation page
 var mp_info_t := 0.0
+var mp_in_lobby := false         # the lobby (not the Multiplayer menu) is showing
+var mp_saves := []               # the host: the saved games offered under Load a saved game
+var mp_saves_open := false
 
 
 func _build_multi() -> void:
@@ -460,6 +463,17 @@ func _mp_menu() -> void:
 	jr.add_child(jb)
 	addr.text_submitted.connect(func(_t2): jb.pressed.emit())
 	_row("Join by address", jr, mp_box)
+	var pw_edit := LineEdit.new()
+	pw_edit.placeholder_text = "Only if the game has one"
+	pw_edit.secret = true
+	pw_edit.max_length = 40
+	pw_edit.text = str(Settings.menu.get("mp_pw", ""))
+	_style_edit(pw_edit)
+	pw_edit.text_changed.connect(func(t2):
+		Settings.menu.mp_pw = t2
+		Settings.save_all())
+	pw_edit.text_submitted.connect(func(_t2): jb.pressed.emit())
+	_row("Password", pw_edit, mp_box)
 	mp_lan = VBoxContainer.new()
 	_row("On your network", mp_lan, mp_box)
 	var ips: Array = Array(IP.get_local_addresses()).filter(func(x): return x.count(".") == 3 and not x.begins_with("127.") and not x.begins_with("169.254."))
@@ -471,6 +485,7 @@ func _mp_menu() -> void:
 	mp_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	mp_status.custom_minimum_size = Vector2(600, 0)
 	mp_box.add_child(mp_status)
+	mp_in_lobby = false
 	if net == null:
 		net = NetSession.new(name_edit.text, _mp_nation())
 	net.listen_lan()
@@ -486,11 +501,30 @@ func _mp_wire() -> void:
 	net.players_changed.connect(_mp_players)
 	net.lobby_info_changed.connect(func(): if net != null and not net.is_host: _mp_options())
 	net.seat_offer.connect(_mp_pick_seat)
-	net.message.connect(func(_from, m):   # the host started the game: main loads it and takes the connection over
-		if m.get("t") == "start" and net != null and not net.is_host:
-			var nt := net
-			net = null
-			main.start_mp_client(nt, m))
+	net.leader_changed.connect(func(): if mp_in_lobby: _mp_lobby())   # (a server: someone else hosts the game now)
+	net.lobby_save_changed.connect(func():
+		mp_saves_open = false
+		if mp_in_lobby:
+			_mp_lobby())
+	net.message.connect(_mp_message)
+
+
+func _mp_message(_from: int, m: Dictionary) -> void:
+	if net == null:
+		return
+	match str(m.get("t", "")):
+		"start":   # the host started the game: main loads it and takes the connection over
+			if not net.is_host:
+				var nt := net
+				net = null
+				main.start_mp_client(nt, m)
+		"lnote":   # a server's word to the player hosting (why it can't start yet, a save was refused...)
+			if mp_status and is_instance_valid(mp_status):
+				mp_status.text = str(m.get("text", ""))
+		"saves":   # a server's saved games
+			mp_saves = m.get("list", [])
+			if mp_saves_open:
+				_mp_options()
 
 
 func _mp_host(nm: String) -> void:
@@ -512,6 +546,7 @@ func _mp_join(nm: String, address: String) -> void:
 	if net != null:
 		net.leave()
 	net = NetSession.new(nm, _mp_nation())
+	net.pw = str(Settings.menu.get("mp_pw", ""))
 	_mp_wire()
 	var w := net.join(address)
 	if w != "":
@@ -522,8 +557,16 @@ func _mp_join(nm: String, address: String) -> void:
 	mp_status.text = "Connecting to %s..." % address
 
 
+## Is this player hosting the game: from their own copy, or as the player hosting on a dedicated server?
+func _mp_lead() -> bool:
+	return net != null and (net.is_host or net.is_leader())
+
+
 func _mp_lobby() -> void:
 	_mp_clear()
+	mp_in_lobby = true
+	var lead := _mp_lead()
+	var saved: bool = net != null and not net.lobby_save.is_empty()
 	mp_status = _lbl("", 15, INK)
 	mp_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	mp_status.custom_minimum_size = Vector2(600, 44)   # (fixed heights: rows coming and going don't move the page)
@@ -548,16 +591,50 @@ func _mp_lobby() -> void:
 	_row("Players", mp_players, mp_box, true)
 	var pr := HBoxContainer.new()
 	pr.add_theme_constant_override("separation", 8)
-	var yb := _big("Your Nation", Color("#5aa05a"), func(): open_setup(true, "setup"))
-	yb.tooltip_text = "Choose your nation's name, race, leader and flag for this game"
+	var yb := _big("Your Nation", Color("#5aa05a"), func(): open_setup(true, "setup"), "", saved)
+	yb.tooltip_text = "In a saved game you play one of its nations: pick it below" if saved else "Choose your nation's name, race, leader and flag for this game"
 	yb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	pr.add_child(yb)
-	if net != null and net.is_host:
-		var mb := _big("Map Settings", PURPLE, func(): open_setup(true, "setup_map"))
-		mb.tooltip_text = "Choose the island and the computer nations"
+	if lead:
+		var mb := _big("Map Settings", PURPLE, func(): open_setup(true, "setup_map"), "", saved)
+		mb.tooltip_text = "A saved game keeps its own island" if saved else "Choose the island and the computer nations"
 		mb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		pr.add_child(mb)
+		var sb := _big("New island" if saved else "Load a saved game", Color("#b07a2a"), func():
+			if net == null:
+				return
+			if not net.lobby_save.is_empty():
+				_mp_choose_save("")
+				return
+			mp_saves_open = not mp_saves_open
+			if net.is_host:
+				mp_saves = main.host_saves()
+			else:
+				mp_saves = []
+				net.send_to(1, {"t": "lsaves"})
+			_mp_options())
+		sb.tooltip_text = "Raise a new island instead of the saved game" if saved else "Carry on a saved multiplayer game: each player picks one of its nations"
+		sb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		pr.add_child(sb)
 	mp_box.add_child(pr)
+	if lead:   # an optional password for joining
+		var pwr := HBoxContainer.new()
+		pwr.add_theme_constant_override("separation", 8)
+		var pe := LineEdit.new()
+		pe.placeholder_text = "None: anyone with the address can join"
+		pe.max_length = 40
+		pe.text = net.password if net.is_host else str(Settings.menu.get("mp_host_pw", ""))
+		pe.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		_style_edit(pe)
+		pwr.add_child(pe)
+		var setp := func():
+			Settings.menu.mp_host_pw = pe.text.strip_edges()
+			Settings.save_all()
+			net.set_password(pe.text)
+			mp_status.text = ("Password set: players joining from now on need it." if pe.text.strip_edges() != "" else "No password: anyone with the address can join.")
+		pwr.add_child(_tog("Set", false, setp))
+		pe.text_submitted.connect(func(_t2): setp.call())
+		_row("Password", pwr, mp_box)
 	mp_opts_box = VBoxContainer.new()
 	mp_opts_box.add_theme_constant_override("separation", 6)
 	mp_opts_box.custom_minimum_size = Vector2(0, 64)
@@ -568,10 +645,11 @@ func _mp_lobby() -> void:
 		if net:
 			net.leave()
 		net = null
+		mp_in_lobby = false
 		_mp_menu())
 	lb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	br.add_child(lb)
-	if net == null or net.is_host:
+	if net == null or lead:
 		mp_start = _big("Start Game", BLUE, _mp_begin)
 	else:   # 0.19: everyone else says when they are ready; the host can't start until they all are
 		mp_start = _big("Ready", Color("#3e9b4f"), func():
@@ -587,42 +665,88 @@ func _mp_lobby() -> void:
 	_mp_options()
 
 
-## What the host chose: carrying on the last multiplayer game, or a summary of the new island. Everyone else sees
-## the host's summary (0.19), and has to be ready again whenever it changes.
+## What the host chose: a saved game to carry on (everyone picks a nation from it), or a summary of the new island.
+## Everyone else sees the host's summary (0.19), and has to be ready again whenever it changes.
 func _mp_options() -> void:
 	if mp_opts_box == null or not is_instance_valid(mp_opts_box) or net == null:
 		return
 	_clear_now(mp_opts_box)
-	if not net.is_host:
+	var lead := _mp_lead()
+	if not net.lobby_save.is_empty():   # a saved game: pick your nation from it
+		var head := _lbl("Carrying on a saved game: %s. Pick the nation you will play:" % str(net.lobby_save.get("desc", "")), 14, MUTED)
+		head.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		head.custom_minimum_size = Vector2(600, 0)
+		mp_opts_box.add_child(head)
+		var by := {}
+		for id in net.players:
+			if int(net.players[id].get("pick", 0)) != 0:
+				by[int(net.players[id].pick)] = id
+		var mine := int(net.players.get(net.my_id, {}).get("pick", 0))
+		for st in net.lobby_save.get("seats", []):
+			var o := int(st.id)
+			var who := ""
+			if by.has(o):
+				who = "you" if by[o] == net.my_id else str(net.players[by[o]].name)
+			var line := "%s · %s%s%s" % [str(st.nation), Races.NAME.get(str(st.race), ""), ("  (played by %s when saved)" % st.player) if str(st.player) != "" else "",
+				("  · taken by " + who) if who != "" and who != "you" else ""]
+			var tip := "The first nation: someone has to play it" if o == Game.HOST else "If nobody picks it, the computer plays it"
+			mp_opts_box.add_child(_tog(line, o == mine, func():
+				if net:
+					net.pick(0 if o == mine else o), by.has(o) and by[o] != net.my_id, tip))
+		if lead and net.is_host:
+			net.set_lobby_info("Carrying on a saved game: %s. Pick your nation from it." % str(net.lobby_save.get("desc", "")), "save:" + str(net.lobby_save.get("name", "")))
+		return
+	if lead and mp_saves_open:   # the host chooses a saved game
+		mp_opts_box.add_child(_lbl("Saved games%s:" % (" on the server" if not net.is_host else ""), 14, MUTED))
+		if mp_saves.is_empty():
+			mp_opts_box.add_child(_lbl("(none yet: save from the in-game menu)" if net.is_host else "(asking the server…)", 14, MUTED))
+		for sv in mp_saves:
+			var nm := str(sv.name)
+			mp_opts_box.add_child(_tog(("Your last multiplayer game (saved %s)" % MpSetup.when_text(int(sv.when))) if nm == main.LAST_MP else MpSetup.save_label(sv), false, func(): _mp_choose_save(nm)))
+		if not net.is_host and FileAccess.file_exists(main.MP_SAVE):
+			mp_opts_box.add_child(_tog("Send your last multiplayer game from this computer (saved %s)" % MpSetup.when_text(FileAccess.get_modified_time(main.MP_SAVE)), false, func():
+				mp_status.text = "Sending the saved game to the server…"
+				net.send_to(1, {"t": "lupload", "save": FileAccess.get_file_as_string(main.MP_SAVE)}), false,
+				"Carry on a game you played before on this computer (every player keeps the last one)"))
+		return
+	if not lead:
 		var info := _lbl(("The game: " + net.lobby_info) if net.lobby_info != "" else "The host chooses the island and the computer nations, and starts the game once everyone is ready.", 14, MUTED)
 		info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		info.custom_minimum_size = Vector2(600, 0)
 		mp_opts_box.add_child(info)
 		return
-	var M := _mp_map()
-	var cont: bool = M.get("cont", false) and FileAccess.file_exists(main.MP_SAVE)
-	if FileAccess.file_exists(main.MP_SAVE):
-		var when := Time.get_datetime_string_from_unix_time(FileAccess.get_modified_time(main.MP_SAVE)).replace("T", " ").left(16)
-		mp_opts_box.add_child(_tog("Continue the last multiplayer game (saved %s)" % when, cont, func():
-			M.cont = not cont
-			Settings.menu.mp_map = M
-			Settings.save_all()
-			_mp_options(), false, "Players take back their own nations by joining with the same name; nations nobody comes back for are played by the computer"))
-	if cont:
-		net.set_lobby_info(_mp_summary(), _mp_terms())
-		return
 	var l := _lbl(_mp_summary(), 14, MUTED)
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	l.custom_minimum_size = Vector2(600, 0)
 	mp_opts_box.add_child(l)
-	net.set_lobby_info(_mp_summary(), _mp_terms())
+	net.lead_info(_mp_summary(), _mp_terms())
+
+
+## The host chose saved game `name` to carry on ("" for a new island again). On a server, the server reads it.
+func _mp_choose_save(name: String) -> void:
+	mp_saves_open = false
+	if net == null:
+		return
+	if not net.is_host:
+		net.send_to(1, {"t": "lload", "name": name})
+		return
+	if name == "":
+		net.set_lobby_save({})
+		net.lobby_terms = ""
+		return
+	var text: String = main.host_save_text(name)
+	var g := Game.load_text(text) if text != "" and Game.save_why(text) == "" else null
+	if g == null:
+		mp_status.text = "That saved game can't be read."
+		return
+	var sv: Array = main.host_saves().filter(func(x): return x.name == name)
+	var desc := ("your last multiplayer game, saved %s" % MpSetup.when_text(int(sv[0].when))) if name == main.LAST_MP else MpSetup.save_label(sv[0]) if not sv.is_empty() else name
+	net.set_lobby_save({"name": name, "desc": desc, "seats": MpSetup.save_seats(g)})
 
 
 ## The host's game in a line: what everyone agrees to when they say they are ready.
 func _mp_summary() -> String:
 	var M := _mp_map()
-	if M.get("cont", false) and FileAccess.file_exists(main.MP_SAVE):
-		return "Continuing the last multiplayer game (saved %s). Join with the name you played under to take your nation back." % Time.get_datetime_string_from_unix_time(FileAccess.get_modified_time(main.MP_SAVE)).replace("T", " ").left(16)
 	var humans := net.players.size()
 	var ais := []
 	for i in range(humans - 1, 7):
@@ -634,8 +758,6 @@ func _mp_summary() -> String:
 ## What the players agree to when they are ready: the host's island and computer nations (not how many have joined).
 func _mp_terms() -> String:
 	var M := _mp_map()
-	if M.get("cont", false) and FileAccess.file_exists(main.MP_SAVE):
-		return "cont:%d" % FileAccess.get_modified_time(main.MP_SAVE)
 	return str([M.get("seed"), M.get("start"), M.get("map"), M.get("slots"), M.get("races")])
 
 
@@ -672,28 +794,23 @@ func _mp_map() -> Dictionary:
 
 ## Two nations can't fly the same color or share a leader. Returns why not, or "".
 func _mp_clash() -> String:
-	var colors := {}
-	var leaders := {}
-	for id in net.players:
-		var P: Dictionary = net.players[id]
-		var n: Dictionary = P.get("nation", {})
-		var c := int(n.get("color", 0))
-		if colors.has(c):
-			return "%s and %s fly the same color: one of you picks another under Your Nation." % [colors[c], P.name]
-		colors[c] = P.name
-		var ld := str(n.get("leader", "random"))
-		if ld != "random":
-			if leaders.has(ld):
-				return "%s and %s chose the same leader: one of you picks another under Your Nation." % [leaders[ld], P.name]
-			leaders[ld] = P.name
-	return ""
+	return MpSetup.clash(net.players)
 
 
 func _mp_begin() -> void:
-	if net == null or not net.is_host:
+	if net == null or not _mp_lead():
 		return
-	net.set_nation(_mp_nation())
-	var why := _mp_clash()
+	var saved := not net.lobby_save.is_empty()
+	if net.is_host:
+		net.set_nation(_mp_nation())
+	var why := ""
+	if saved:
+		var picks := {}
+		for id in net.players:
+			picks[id] = int(net.players[id].get("pick", 0))
+		why = MpSetup.picks_why(net.lobby_save.get("seats", []), picks, net.players)
+	else:
+		why = _mp_clash()
 	if why != "":
 		mp_status.text = why
 		return
@@ -702,9 +819,13 @@ func _mp_begin() -> void:
 		return
 	var M := _mp_map()
 	var o := {"seed": str(M.get("seed", random_seed())).strip_edges(), "slots": M.slots.duplicate(), "races": M.races.duplicate(),
-		"cont": M.get("cont", false) and FileAccess.file_exists(main.MP_SAVE), "start": M.start, "map": M.map}
+		"start": M.start, "map": M.map, "save": str(net.lobby_save.get("name", "")) if saved else ""}
 	if o.seed == "":
 		o.seed = random_seed()
+	if not net.is_host:   # a dedicated server: it builds the game and sends it to everyone
+		mp_status.text = "Asking the server to start…"
+		net.send_to(1, {"t": "lstart", "o": o})
+		return
 	mp_start.text = "Building the realm…"
 	mp_start.disabled = true
 	var nt := net
@@ -722,23 +843,25 @@ func _mp_players() -> void:
 	if mp_players == null or not is_instance_valid(mp_players):
 		return
 	if mp_start and is_instance_valid(mp_start):
-		if net.is_host:
-			var waiting_for: Array = net.players.keys().filter(func(id): return int(id) != 1 and not net.players[id].get("ready", false)).map(func(id): return str(net.players[id].name))
-			mp_start.disabled = net.players.size() < 2 or not waiting_for.is_empty()
-			mp_start.tooltip_text = "Waiting for at least one more player" if net.players.size() < 2 else ("Waiting for %s to be ready" % ", ".join(waiting_for)) if not waiting_for.is_empty() else "Everyone is ready: start the game for everyone"
+		if _mp_lead():
+			var waiting_for: Array = net.players.keys().filter(func(id): return int(id) != net.leader and not net.players[id].get("ready", false)).map(func(id): return str(net.players[id].name))
+			var few: bool = net.players.size() < 2 and not net.dedicated   # (on a server one player may start alone)
+			mp_start.disabled = few or not waiting_for.is_empty()
+			mp_start.tooltip_text = "Waiting for at least one more player" if few else ("Waiting for %s to be ready" % ", ".join(waiting_for)) if not waiting_for.is_empty() else "Everyone is ready: start the game for everyone"
 		else:
 			var me_ready: bool = net.players.has(net.my_id) and net.players[net.my_id].get("ready", false)
 			mp_start.text = "Ready ✓ (click to cancel)" if me_ready else "Ready"
 			mp_start.disabled = not net.joined
-	if net.is_host and mp_opts_box and is_instance_valid(mp_opts_box) and mp_opts_box.get_meta("n", 0) != net.players.size():
-		mp_opts_box.set_meta("n", net.players.size())
+	var psig := str(net.players.size()) + str(net.players.values().map(func(P): return int(P.get("pick", 0))))
+	if mp_opts_box and is_instance_valid(mp_opts_box) and str(mp_opts_box.get_meta("n", "")) != psig and (_mp_lead() or not net.lobby_save.is_empty()):
+		mp_opts_box.set_meta("n", psig)
 		_mp_options()
 	# 0.19: the rows are drawn again only when who is there, their nation or their readiness changes; pings are
 	# updated in place (they came every 2 s and redrew the whole list, so the lobby flickered)
 	var sig := ""
 	for id in net.players:
 		var P: Dictionary = net.players[id]
-		sig += "%s|%s|%s|%s;" % [id, P.name, str(P.get("nation", {})), P.get("ready", false)]
+		sig += "%s|%s|%s|%s|%s;" % [id, P.name, str(P.get("nation", {})), P.get("ready", false), P.get("pick", 0)]
 	if sig == mp_rows_sig:
 		for id in mp_ping_l:
 			if net.players.has(id) and is_instance_valid(mp_ping_l[id]):
@@ -761,9 +884,13 @@ func _mp_players() -> void:
 		r.custom_minimum_size = Vector2(40, 28)
 		r.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		row.add_child(r)
-		var who := "%s%s · %s · %s" % [P.name, " (host)" if int(id) == 1 else "", str(n.get("nation", "")), Races.NAME.get(str(n.get("race", "realm")), "")]
+		var who := "%s%s · %s · %s" % [P.name, " (host)" if int(id) == net.leader else "", str(n.get("nation", "")), Races.NAME.get(str(n.get("race", "realm")), "")]
+		if not net.lobby_save.is_empty():   # a saved game: the nation they picked from it
+			var pk := int(P.get("pick", 0))
+			var st: Array = net.lobby_save.get("seats", []).filter(func(x): return int(x.id) == pk)
+			who = "%s%s · %s" % [P.name, " (host)" if int(id) == net.leader else "", (str(st[0].nation) + " · " + Races.NAME.get(str(st[0].race), "")) if not st.is_empty() else "no nation picked yet"]
 		row.add_child(_lbl(who, 16, INK))
-		if int(id) != 1:
+		if int(id) != net.leader:
 			var rd: bool = P.get("ready", false)
 			row.add_child(_lbl("Ready" if rd else "Not ready", 14, Color("#3e9b4f") if rd else Color("#a0461e")))
 			var pl := _lbl("%d ms" % int(P.get("ping", 0)), 14, MUTED)
@@ -779,9 +906,9 @@ func _mp_poll(dt: float) -> void:
 	if net == null:
 		return
 	mp_info_t -= dt
-	if net.is_host and mp_info_t <= 0 and mp_players != null and is_instance_valid(mp_players):
+	if _mp_lead() and net.lobby_save.is_empty() and mp_info_t <= 0 and mp_players != null and is_instance_valid(mp_players):
 		mp_info_t = 0.5
-		net.set_lobby_info(_mp_summary(), _mp_terms())   # (the host changed the map settings: everyone is asked again)
+		net.lead_info(_mp_summary(), _mp_terms())   # (the host changed the map settings: everyone is asked again)
 	if mp_note and is_instance_valid(mp_note) and net.is_host and net.upnp_note != "":
 		mp_note.text = net.upnp_note
 	mp_lan_t -= dt
@@ -875,7 +1002,7 @@ func _mp_humans() -> Array:
 		return []
 	var ids := net.players.keys()
 	ids.sort()
-	return ids.filter(func(x): return int(x) != 1).map(func(x): return str(net.players[x].name))
+	return ids.filter(func(x): return int(x) != net.leader).map(func(x): return str(net.players[x].name))
 
 
 ## The map settings the page changes: the New Game ones, or the multiplayer host's own (kept apart).
