@@ -99,6 +99,9 @@ Godot-only content: nothing here exists in the web game, so none of it is in `da
 - Digging: a survey uncovers the province's dig site (`Quests.uncover`, called from the survey's end); **Dig** sits on
   cell 5 of the scouting unit's card (and Digging… stop while it digs); each cycle the digger rolls its relic's
   rarity on its own stream (`<seed>:dig:<province>:<unit>:<n>`), so a loaded or multiplayer game rolls the same.
+  Failsafe (`Quests.dig_chance`, `DIG_FAILSAFE`): after 3 minutes of digging the chance is at least 10%, after 4
+  minutes 20%, after 5 minutes 30%, after 6 minutes 50%, and after 7 minutes it is certain (a rare relic now takes
+  about 2.5 minutes on average, half within 2 min 20 s, never more than 7 min; uncommon about 1.6 min).
   A digging unit counts as busy (auto-survey leaves it alone), shows "digging", bobs and throws clods; moving it
   stops the digging.
 - Fallen Stars (`Quests.step_stars`): at `star_next`, a star falls on a province that isn't Death Mountain, the

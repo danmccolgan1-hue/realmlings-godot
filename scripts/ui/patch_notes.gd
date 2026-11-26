@@ -7,6 +7,7 @@ extends Control
 const PORT_NOTES := [
 	{"v": "Godot 0.19", "date": "November 23, 2026", "items": [
 		["Quests and relics", "Every full map hides the relics of six quests: rebuild a lost library, honor a forgotten war, answer a Mage's request, reclaim legendary battlegear, recover a Spell Book or a Lost Armament. Surveys uncover dig sites; Wayfinders dig; Reliquaries keep what they find; the Quest Log (L) keeps the story. Fallen Stars fall from 30 minutes in."],
+		["Digging failsafe", "A Wayfinder that keeps digging gets better odds: at least 10% a cycle after 3 minutes, 20% after 4, 30% after 5, 50% after 6, and the relic is certain after 7 minutes."],
 		["Rewards", "Research every cycle for good, three Tier V armors, Jagkara's Cutlass, the Freak Man's Axe, the Maul of Greed, the Shield of Sham, the Triune Staff, Wall of Flame and Time Warp. Primal beasts roam when their hides are wanted."],
 		["Multiplayer quests", "Dungeons, the Captured Royal Lady, captured envoys, generals, nobles, merchants and apprentices, ransom wars, Jailbreak, trading relics and prisoners, and Raid Reliquary and Free Prisoners at 50% warscore."],
 		["Mason and armor", "The Mason's card shows the buildings that need no research; Advanced Buildings (U) opens the rest. Every armor costs 10% less."],

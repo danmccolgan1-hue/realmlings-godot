@@ -260,6 +260,20 @@ func _dig(errs: Array) -> void:
 				hit += 1
 		if absf(hit / 4000.0 - rar[1]) > 0.02:
 			errs.append("dig odds: %s came up %.3f of the time, want %.2f" % [rar[0], hit / 4000.0, rar[1]])
+	# the failsafe: odds rise after 3, 4, 5, 6 minutes of digging; certain after 7 (42 cycles)
+	for want in [[0, 0.05], [17, 0.05], [18, 0.10], [24, 0.20], [30, 0.30], [36, 0.50], [42, 1.0], [60, 1.0]]:
+		if not is_equal_approx(Quests.dig_chance("brune", want[0]), want[1]):
+			errs.append("dig failsafe: after %d cycles the rare chance is %.2f, want %.2f" % [want[0], Quests.dig_chance("brune", want[0]), want[1]])
+	if not is_equal_approx(Quests.dig_chance("callum", 18), 0.20):
+		errs.append("dig failsafe: it lowered a common relic's 20%")
+	var longest := 0
+	for k in 3000:
+		var n := 0
+		while not Quests.dig_roll("fs%d" % k, 4, k, n + 1, Quests.dig_chance("brune", n)):
+			n += 1
+		longest = maxi(longest, n + 1)
+	if longest > 43:
+		errs.append("dig failsafe: a rare dig took %d cycles (should be certain by the 43rd)" % longest)
 	var g := Game.new_world(SEED, "cormac", SLOTS, "center")
 	var u := _scout(g)
 	var p: int = u.prov

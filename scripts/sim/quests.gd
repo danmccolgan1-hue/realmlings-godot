@@ -465,6 +465,16 @@ static func dig_roll(seed: String, p: int, id: int, n: int, chance: float) -> bo
 	return Mulberry32.from_string("%s:dig:%d:%d:%d" % [seed, p, id, n]).next() < chance
 
 
+## The failsafe: after `done` cycles of digging (18 = 3 minutes), a relic's chance is at least DIG_FAILSAFE's value
+## for that time: 10% after 3 minutes, 20% after 4, 30% after 5, 50% after 6 and certain after 7.
+static func dig_chance(id: String, done: int) -> float:
+	var ch := chance_of(id)
+	for step in c("DIG_FAILSAFE"):
+		if done >= int(step[0]):
+			ch = maxf(ch, float(step[1]))
+	return ch
+
+
 static func chance_of(id: String) -> float:
 	var it = item(id)
 	var rar := str(it.rarity) if it != null else "rare"
@@ -482,8 +492,9 @@ static func dig_payday(g) -> void:
 		if d == null or u.prov != p or u.moving:
 			u["dig"] = null
 			continue
-		dg.n = int(dg.n) + 1
-		if dig_roll(str(g.world.seed), p, int(u.id), int(dg.n), chance_of(str(d.item))):
+		var done := int(dg.n)   # cycles already dug before this roll
+		dg.n = done + 1
+		if dig_roll(str(g.world.seed), p, int(u.id), int(dg.n), dig_chance(str(d.item), done)):
 			dug_up(g, u, p)
 
 
@@ -1257,7 +1268,7 @@ static func ai_payday(g) -> void:
 
 ## How to Play's quest lines (Godot only), after the web game's guide.
 const HOWTO := [
-	"[b]Quests and relics[/b] (full maps): each map hides the relics of six quests. A Wayfinder's survey uncovers a province's dig site (a red X, seen by anyone with vision); stand on it and press [b]Dig[/b]: every 10 s there is a chance to unearth the relic (common 20%, uncommon 10%, rare 5%).",
+	"[b]Quests and relics[/b] (full maps): each map hides the relics of six quests. A Wayfinder's survey uncovers a province's dig site (a red X, seen by anyone with vision); stand on it and press [b]Dig[/b]: every 10 s there is a chance to unearth the relic (common 20%, uncommon 10%, rare 5%). The longer a Wayfinder keeps digging, the better its odds: at least 10% after 3 minutes, 20% after 4, 30% after 5, 50% after 6, and after 7 minutes the relic is certain.",
 	"[b]Reliquary[/b]: 100 gold and 100 wood, 9 slots, one per province. Relics go straight into a Reliquary with room, wherever they are found; with none, the Wayfinder carries one, and the rest wait in a chest. A relic in a Reliquary starts its quest; the [b]Quest Log[/b] (L, under Diplomacy) shows every text and what is left to find.",
 	"[b]Fallen Stars[/b]: the first falls 30 minutes in, then one every 15 to 25 minutes, marked by a silver X for anyone who has explored the province. Battlegear, Spell Books and Lost Armaments need them.",
 	"[b]Rewards[/b]: research every 10 s for good, Tier V armor, new weapons, the Shield of Sham, the Triune Staff, and the spells Wall of Flame and Time Warp. The first nation to finish a quest wins it; everyone else who had it fails.",

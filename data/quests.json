@@ -5,6 +5,8 @@
   "uncommon": 0.1,
   "rare": 0.05
  },
+ "DIG_FAILSAFE_NOTE": "Each digger's chance rises with time spent digging: from the given cycle on (18 cycles = 3 minutes), the chance is at least the given value.",
+ "DIG_FAILSAFE": [[18, 0.1], [24, 0.2], [30, 0.3], [36, 0.5], [42, 1.0]],
  "CARRY": 1,
  "RELIQUARY_SLOTS": 9,
  "STAR_FIRST": [
