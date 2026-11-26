@@ -31,6 +31,7 @@ func run() -> Array:
 	_dungeon(errs)
 	_ransom(errs)
 	_jailbreak(errs)
+	_trade(errs)
 	Game.QUESTS = was
 	return errs
 
@@ -760,3 +761,37 @@ func _jailbreak(errs: Array) -> void:
 	var g2 := Game.load_text(g.save_text())
 	if g2 == null or not g2.DSTATS.has(Dungeons.CONVICT):
 		errs.append("jail: the Convicts' soldier is gone after loading")
+
+
+## Session 12: Trade between players carries relics and prisoners (and still resources), and starts their quests.
+func _trade(errs: Array) -> void:
+	var g := _mp()
+	var x: int = Game.HOST
+	var y: int = g.seat_ids().filter(func(o): return o != Game.HOST)[0]
+	g.met[y] = true
+	g.seats[y].met[x] = true
+	g.quest_pick = ["callum"]
+	_reliq(g, x)
+	_reliq(g, y)
+	g.extras[g.seats[y].capital].append({"type": "dungeon", "slot": 43, "born": 0.0})
+	Quests.deposit(g, x, "coin")
+	Quests.deposit(g, y, "callum")
+	var pr := Dungeons.make(g, "convict", 0)
+	Dungeons.jail(g, y, pr)
+	g.extras[g.capital].append({"type": "dungeon", "slot": 44, "born": 0.0})
+	g.stock.gold = 500
+	if not g.offer_barter(y, {"gold": 100}, {}, {"gi": ["coin"], "wi": ["callum"], "wp": [pr.id]}):
+		errs.append("trade: the offer wasn't sent")
+		return
+	var reqs: Array = g.in_seat(y, func(): return g.dipl_state().reqs)
+	if reqs.is_empty():
+		errs.append("trade: no request reached them")
+		return
+	var rq: Dictionary = reqs[-1]
+	g.in_seat(y, func(): g.answer_request(rq, true))
+	if Quests.count(g, x, "callum") != 1 or Quests.count(g, y, "coin") != 1 or Dungeons.holder(g, pr.id) != x:
+		errs.append("trade: relics %s / %s, prisoner with %d" % [Quests.items_of(g, x), Quests.items_of(g, y), Dungeons.holder(g, pr.id)])
+	if g.quest_log.get("callum", {}).get("state") != "active":
+		errs.append("trade: a traded Lawbook didn't start its quest")
+	if g.offer_barter(y, {}, {}, {"wi": ["brune"]}):
+		errs.append("trade: asked for a relic they don't keep")

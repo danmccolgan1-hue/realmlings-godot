@@ -10815,7 +10815,8 @@ func req_text(r: Dictionary) -> Array:
 		"h_peace":
 			return ["They offer a white peace: the war ends, no one gains anything, and a truce follows.", "Make peace", "Fight on"]
 		"barter":
-			return ["They offer %s for %s." % [res_text(r.data.give), res_text(r.data.want)], "Accept", "Decline"]
+			var bx: Dictionary = r.data.get("x", {})
+			return ["They offer %s for %s." % [Quests.trade_text(self, r.data.give, bx, true), Quests.trade_text(self, r.data.want, bx, false)], "Accept", "Decline"]
 		"flirt":
 			return ["%s is flirting with you." % (leader_of(o).full if leader_of(o) != null else "Their leader"), "Flirt back", "Ignore"]
 		"gift":
@@ -11798,10 +11799,13 @@ func issue_proclamation(text: String) -> bool:
 	return true
 
 
-func barter_why(o: int, give: Dictionary, want: Dictionary) -> String:
+func barter_why(o: int, give: Dictionary, want: Dictionary, extra: Dictionary = {}) -> String:
 	if not seats.has(o) or o == ME or not met.has(o):
 		return "Only with a player you have met"
-	var any := false
+	var xw := Quests.trade_why(self, ME, o, extra)   # (quests: the relics and prisoners are there to trade)
+	if xw != "":
+		return xw
+	var any := Quests.trade_any(extra)
 	for d in [give, want]:
 		for k in d:
 			if not k in RES or int(d[k]) < 0:
@@ -11817,18 +11821,20 @@ func barter_why(o: int, give: Dictionary, want: Dictionary) -> String:
 
 
 ## Barter: any amounts of gold, wood and food for any amounts in return. The other player has 30 s to accept.
-func offer_barter(o: int, give: Dictionary, want: Dictionary) -> bool:
+## extra (quests, Godot only): relics and prisoners in the trade: {gi, wi: relic ids given / asked; gp, wp: prisoner ids}
+func offer_barter(o: int, give: Dictionary, want: Dictionary, extra: Dictionary = {}) -> bool:
 	var g2 := {}
 	var w2 := {}
 	for k in RES:
 		g2[k] = maxi(0, int(give.get(k, 0)))
 		w2[k] = maxi(0, int(want.get(k, 0)))
-	var why := barter_why(o, g2, w2)
+	var x2 := Quests.trade_clean(extra)
+	var why := barter_why(o, g2, w2, x2)
 	if why != "":
 		toast(why, true)
 		return false
-	_ask_player(o, "barter", {"give": g2, "want": w2})
-	toast("Your offer is on its way to the %s: %s for %s." % [player_info(o).name, res_text(g2), res_text(w2)])
+	_ask_player(o, "barter", {"give": g2, "want": w2, "x": x2})
+	toast("Your offer is on its way to the %s: %s for %s." % [player_info(o).name, Quests.trade_text(self, g2, x2, true), Quests.trade_text(self, w2, x2, false)])
 	return true
 
 
@@ -11883,14 +11889,18 @@ func _answer_player(r: Dictionary, yes: bool, quiet: bool) -> void:
 			var give: Dictionary = r.data.give
 			var want: Dictionary = r.data.want
 			var S: Dictionary = seats[o].stock
+			var bx: Dictionary = r.data.get("x", {})
 			if not _pays(want):
 				why = "You don’t have %s any more" % res_text(want)
 			elif RES.any(func(k): return S.get(k, 0) < give.get(k, 0)):
 				why = "They don’t have %s any more" % res_text(give)
+			elif Quests.trade_why(self, o, ME, bx) != "":
+				why = Quests.trade_why(self, o, ME, bx)
 			else:
 				for k in RES:
 					S[k] = S.get(k, 0) - give.get(k, 0) + want.get(k, 0)
 					stock[k] = stock.get(k, 0) + give.get(k, 0) - want.get(k, 0)
+				Quests.trade_do(self, o, ME, bx)
 				in_seat(o, compute_income)
 	if why != "":
 		toast("It can’t be done: %s." % (why[0].to_lower() + why.substr(1)), true)

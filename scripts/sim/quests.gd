@@ -1130,3 +1130,75 @@ static func warp_train_mul(g, key: String) -> float:
 		return 1.0
 	var tw: Dictionary = g.seats[g.ME].time_warp
 	return 0.5 if key == "%s:%d" % [str(e.type), int(tw.p)] else 1.0
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# Trade (session 12): Diplomacy's barter between players also carries relics and prisoners. extra: {gi: relics the
+# offering nation gives, wi: relics it asks for, gp / wp: prisoner ids given / asked}.
+
+static func trade_clean(x: Dictionary) -> Dictionary:
+	var out := {}
+	for k in ["gi", "wi"]:
+		out[k] = Array(x.get(k, [])).map(func(v): return str(v))
+	for k in ["gp", "wp"]:
+		out[k] = Array(x.get(k, [])).map(func(v): return int(v))
+	return out
+
+
+static func trade_any(x: Dictionary) -> bool:
+	return ["gi", "wi", "gp", "wp"].any(func(k): return not Array(x.get(k, [])).is_empty())
+
+
+## Whether `from` (offering) and `to` still have what the trade names ("" when they do).
+static func trade_why(g, from: int, to: int, x: Dictionary) -> String:
+	for side in [["gi", from, "You"], ["wi", to, "They"]]:
+		var need := {}
+		for id in x.get(side[0], []):
+			need[id] = int(need.get(id, 0)) + 1
+		for id in need:
+			if count(g, side[1], id) < need[id]:
+				return "%s don't keep %s" % [side[2], item_name(id)]
+	for side in [["gp", from, "You"], ["wp", to, "They"]]:
+		for pid in x.get(side[0], []):
+			if Dungeons.holder(g, int(pid)) != side[1]:
+				return "%s don't hold that prisoner" % side[2]
+	return ""
+
+
+## Carry out the relics and prisoners of an accepted trade.
+static func trade_do(g, from: int, to: int, x: Dictionary) -> void:
+	for side in [["gi", from, to], ["wi", to, from]]:
+		for id in x.get(side[0], []):
+			if take(g, side[1], id, 1) == 1:
+				give(g, side[2], id, null, g.capital_of(side[2]))
+	for side in [["gp", from, to], ["wp", to, from]]:
+		for pid in x.get(side[0], []):
+			var pr = Dungeons.release(g, side[1], int(pid))
+			if pr != null:
+				Dungeons.jail(g, side[2], pr)
+	for o in [from, to]:
+		check(g, o)
+		Dungeons.check_jail(g)
+
+
+## What one side of a trade holds, in words: "100 gold, Lord Callum's Lawbook and a Convict".
+static func trade_text(g, res: Dictionary, x: Dictionary, giving: bool) -> String:
+	var parts := []
+	var rt: String = g.res_text(res)
+	if rt != "" and rt != "nothing":
+		parts.append(rt)
+	for id in x.get("gi" if giving else "wi", []):
+		parts.append(item_name(id))
+	for pid in x.get("gp" if giving else "wp", []):
+		for pr in g.ransoms.map(func(r): return r.pr) + _all_prisoners(g):
+			if int(pr.id) == int(pid):
+				parts.append("the prisoner " + str(pr.name))
+				break
+	return ", ".join(parts) if not parts.is_empty() else "nothing"
+
+
+static func _all_prisoners(g) -> Array:
+	var out := []
+	for o in g.seat_ids():
+		out.append_array(Dungeons.prisoners_of(g, o))
+	return out
