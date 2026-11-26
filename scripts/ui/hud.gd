@@ -29,6 +29,7 @@ var card: CommandCard
 var sel_line: Label          # what is selected, bottom left next to the minimap (web: #sel)
 var card_cmds := []          # per cell: {id, label, why} or null
 var toasts: VBoxContainer
+var banners: VBoxContainer   # 0.19.1: notices about a province (a dig site found, a star fallen): click to look there
 var toast_list := []         # [{label, until}]
 var GRID_KEYS: Array
 var actions: VBoxContainer   # train and upgrade buttons of the selected province
@@ -154,6 +155,14 @@ func _ready() -> void:
 	toasts.offset_bottom = -90
 	toasts.offset_top = -90
 	toasts.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	banners = VBoxContainer.new()
+	banners.add_theme_constant_override("separation", 6)
+	banners.custom_minimum_size = Vector2(520, 0)
+	banners.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	add_child(banners)
+	banners.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP, Control.PRESET_MODE_MINSIZE)
+	banners.offset_top = 118   # (under the top bar, the research strip and the flags)
+	banners.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	roster = Roster.new()
 	add_child(roster)
 	roster.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT, Control.PRESET_MODE_MINSIZE, 12)   # under the map buttons (web: #roster)
@@ -201,6 +210,7 @@ func set_game(g: Game) -> void:
 		dialog_queue.clear()
 	game = g
 	g.on_toast = add_toast
+	g.on_notice = add_banner
 	g.on_dialog = func(title: String, text: String, choices: Array, f: Callable):
 		var pics := []
 		if g.dialog_nation != 0:   # meeting a nation: its flag and its leader
@@ -296,6 +306,47 @@ func _sync_unit() -> void:
 	if map:
 		map.selected_unit = unit
 		map.selection = selection
+
+
+## A banner under the top bar about province p (it also goes to the messages box). Clicking it looks at p; it goes
+## by itself after 12 seconds, and only the newest 3 stay.
+func add_banner(msg: String, p: int) -> void:
+	add_toast(msg)
+	if banners == null:
+		return
+	var b := Button.new()
+	b.text = msg + "\n▸ Show me"
+	b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	b.custom_minimum_size = Vector2(520, 0)
+	b.add_theme_font_size_override("font_size", 16)
+	b.add_theme_color_override("font_color", UiKit.INK)
+	b.add_theme_color_override("font_hover_color", UiKit.INK)
+	b.add_theme_color_override("font_pressed_color", UiKit.INK)
+	var st := TopBar.paper(4, 2)
+	st.bg_color = Color("#fff2c9")
+	st.content_margin_left = 14
+	st.content_margin_right = 14
+	st.content_margin_top = 8
+	st.content_margin_bottom = 8
+	st.border_color = Color("#c98a12")
+	b.add_theme_stylebox_override("normal", st)
+	var hv := st.duplicate()
+	hv.bg_color = Color("#ffe59a")
+	b.add_theme_stylebox_override("hover", hv)
+	b.add_theme_stylebox_override("pressed", hv)
+	b.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	b.tooltip_text = "Look at %s" % game.prov_name(p) if game != null else ""
+	b.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	b.pressed.connect(func():
+		if game != null and p >= 0:
+			look_at_prov(p)
+		b.queue_free())
+	banners.add_child(b)
+	get_tree().create_timer(12.0).timeout.connect(func(): if is_instance_valid(b): b.queue_free())
+	while banners.get_child_count() > 3:
+		var old := banners.get_child(0)
+		banners.remove_child(old)
+		old.queue_free()
 
 
 func add_toast(msg: String, warn := false) -> void:

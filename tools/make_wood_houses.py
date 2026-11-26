@@ -1,150 +1,69 @@
-"""The Woodlings' houses (0.18): little cottages grown into tree stumps, with a door, a lit window and a roof of leaves
-or a mushroom cap, so they read as houses among the trees (the web game's Woodling house was a tree with a door,
-which looked like any other tree on the map). Six looks; each also in the eight nation colors on its roof, like the
-other races' houses. Writes assets/art/houses/wood/house_v<k>[_r<hex>].png and their manifest entries.
+"""The Woodlings' houses (0.19.1): the web game's isometric tree houses (woodbld.js treeHouse, as content.js
+houseSprite draws them), with their leafy crowns in the owner's colors so they stand out from the forest's trees:
+two of every building's three homes wear the nation's main color (crown and door), the third its accent color
+(the crown; a plain wood door). Six looks; each plain, in the 8 nation colors, and in the 48 accent colors.
+
+Runs the web code itself in Node (tools/record_wood_houses.js records every canvas call) and draws the calls with
+tools/canvas_replay.py. Writes assets/art/houses/wood/house_v<k>.png, house_v<k>_r<hex>.png (main color) and
+house_v<k>_a<hex>.png (accent), and their manifest.
 Run from the repository root: python3 tools/make_wood_houses.py
 """
+import glob
 import json
-import math
-from PIL import Image, ImageDraw
+import os
+import re
+import subprocess
+import sys
 
-OL = (29, 26, 34, 255)
-K = 6                    # drawn 6x larger, then shrunk, for smooth edges
-W, H = 66, 78            # the image (3 pixels to a map unit, like the other houses)
-AX, AY = 33, 66          # where it stands on the map
-ROOFS = ["1f9fa5", "2f6fe0", "2f9e55", "4b4f5c", "8a4fd0", "c23f8f", "d23b3b", "e08a1e"]
-LEAF = (86, 160, 72, 255)
-CAP = (196, 72, 58, 255)
-BARK = (122, 84, 52, 255)
-BARK_D = (92, 62, 38, 255)
-WOOD = (165, 120, 74, 255)
-GLOW = (255, 214, 102, 255)
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from canvas_replay import replay  # noqa: E402
+from PIL import Image  # noqa: E402
 
-
-def P(x, y):
-    return (x * K, y * K)
-
-
-def hexc(h):
-    return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4)) + (255,)
-
-
-def shade(c, f):
-    return tuple(max(0, min(255, int(v * f))) for v in c[:3]) + (255,)
-
-
-def stump(d, cx, base, w, h):
-    """the stump that is the house's walls, with bark lines"""
-    x0, x1 = cx - w / 2, cx + w / 2
-    d.rounded_rectangle([P(x0, base - h), P(x1, base)], radius=w * K * 0.18, fill=BARK, outline=OL, width=int(K * 1.4))
-    for k in range(3):
-        bx = x0 + w * (0.22 + 0.28 * k)
-        d.line([P(bx, base - h + 3), P(bx + 0.8, base - 2)], fill=BARK_D, width=int(K * 0.9))
-    # roots
-    for sg in (-1, 1):
-        d.polygon([P(cx + sg * w / 2 - sg * 2, base - 3), P(cx + sg * (w / 2 + 4), base + 1), P(cx + sg * w / 2 - sg * 5, base)], fill=BARK, outline=OL)
-
-
-def door(d, cx, base, w=8, h=11):
-    d.rounded_rectangle([P(cx - w / 2 - 1, base - h - 1), P(cx + w / 2 + 1, base)], radius=w * K / 2, fill=WOOD, outline=OL, width=int(K * 1.1))
-    d.rounded_rectangle([P(cx - w / 2 + 1, base - h + 1), P(cx + w / 2 - 1, base)], radius=w * K / 2 - K, fill=shade(WOOD, 0.6))
-    d.ellipse([P(cx + w / 2 - 2.6, base - h / 2 - 0.6), P(cx + w / 2 - 1.4, base - h / 2 + 0.6)], fill=GLOW)
-
-
-def window(d, x, y, r=2.6):
-    d.ellipse([P(x - r - 0.8, y - r - 0.8), P(x + r + 0.8, y + r + 0.8)], fill=WOOD, outline=OL, width=int(K * 0.9))
-    d.ellipse([P(x - r, y - r), P(x + r, y + r)], fill=GLOW)
-    d.line([P(x - r, y), P(x + r, y)], fill=OL, width=int(K * 0.6))
-    d.line([P(x, y - r), P(x, y + r)], fill=OL, width=int(K * 0.6))
-
-
-def leaf_roof(d, cx, top, base, w, col):
-    """a cone of overlapping leaves"""
-    d.polygon([P(cx, top), P(cx + w / 2, base), P(cx - w / 2, base)], fill=col, outline=OL, width=int(K * 1.4))
-    for row in range(3):
-        y = top + (base - top) * (0.35 + 0.25 * row)
-        half = w / 2 * (0.35 + 0.25 * row)
-        n = 2 + row
-        for k in range(n):
-            x = cx - half + (2 * half) * (k + 0.5) / n
-            d.arc([P(x - 3, y - 2.5), P(x + 3, y + 2.5)], 10, 170, fill=shade(col, 0.68), width=int(K * 0.9))
-
-
-def cap_roof(d, cx, base, w, h, col, dots=True):
-    """a mushroom cap"""
-    d.chord([P(cx - w / 2, base - h), P(cx + w / 2, base + h)], 180, 360, fill=col, outline=OL, width=int(K * 1.4))
-    d.line([P(cx - w / 2, base), P(cx + w / 2, base)], fill=OL, width=int(K * 1.4))
-    if dots:
-        for (dx, dy, r) in ((-0.25, 0.55, 2.2), (0.12, 0.75, 1.8), (0.3, 0.42, 1.6), (-0.05, 0.3, 1.4)):
-            x, y = cx + dx * w, base - dy * h
-            d.ellipse([P(x - r, y - r), P(x + r, y + r)], fill=(250, 241, 220, 255), outline=OL, width=int(K * 0.5))
-
-
-def chimney(d, x, base, h):
-    d.rectangle([P(x - 2, base - h), P(x + 2, base)], fill=(140, 140, 150, 255), outline=OL, width=int(K * 1.0))
-
-
-def lantern(d, x, y):
-    d.line([P(x, y - 6), P(x, y)], fill=OL, width=int(K * 0.8))
-    d.rounded_rectangle([P(x - 2, y), P(x + 2, y + 4)], radius=K, fill=GLOW, outline=OL, width=int(K * 0.7))
-
-
-def house(v, roof):
-    im = Image.new("RGBA", (W * K, H * K), (0, 0, 0, 0))
-    d = ImageDraw.Draw(im)
-    cx, base = AX, AY
-    col = hexc(roof) if roof else None
-    if v == 0:   # stump with a mushroom cap
-        stump(d, cx, base, 26, 22)
-        door(d, cx - 3, base)
-        window(d, cx + 7, base - 14)
-        cap_roof(d, cx, base - 20, 40, 18, col or CAP)
-    elif v == 1:   # stump with a leaf cone
-        stump(d, cx, base, 24, 24)
-        door(d, cx + 2, base)
-        window(d, cx - 6, base - 15)
-        leaf_roof(d, cx, base - 52, base - 20, 38, col or LEAF)
-    elif v == 2:   # a two-storey stump: leaf cone with a small cap window
-        stump(d, cx, base, 28, 30)
-        door(d, cx - 4, base)
-        window(d, cx + 7, base - 12)
-        window(d, cx - 4, base - 23, 2.2)
-        leaf_roof(d, cx, base - 60, base - 27, 40, col or LEAF)
-    elif v == 3:   # mushroom cap with a stone chimney
-        chimney(d, cx + 10, base - 30, 16)
-        stump(d, cx, base, 24, 20)
-        door(d, cx, base)
-        cap_roof(d, cx, base - 18, 36, 16, col or (214, 160, 92, 255), dots=False)
-        window(d, cx - 8, base - 9, 2.0)
-    elif v == 4:   # a wide stump, leaf roof, a lantern by the door
-        stump(d, cx, base, 32, 20)
-        door(d, cx - 6, base)
-        window(d, cx + 8, base - 12)
-        leaf_roof(d, cx, base - 46, base - 18, 44, col or LEAF)
-        lantern(d, cx + 1, base - 14)
-    else:   # a tall thin stump with a small cap and vines
-        stump(d, cx, base, 20, 30)
-        door(d, cx, base, 7, 10)
-        window(d, cx, base - 20, 2.2)
-        cap_roof(d, cx, base - 28, 32, 15, col or CAP)
-        for k in range(4):   # vines
-            y = base - 24 + k * 5
-            d.arc([P(cx - 11, y - 2), P(cx - 5, y + 2)], 0, 180, fill=(60, 130, 60, 255), width=int(K * 1.0))
-    return im.resize((W, H), Image.LANCZOS)
+OUT = 'assets/art/houses/wood'
+WEB = 'reference/web-v106'
+LOOKS = 6
+SS = 8                    # drawn 8x larger, then shrunk, for smooth edges
+PX = 1.2                  # image pixels per sprite unit: HOUSE_K 0.4 x 3 pixels to a map unit, like the other houses
+AX, AY = 50 * PX, 70 * PX  # the sprite's origin (content.js houseSprite: translate(50, 70))
 
 
 def main():
-    path = "assets/art/houses/wood/"
-    man = json.load(open(path + "manifest.json"))
-    for v in range(6):
-        for roof in [None] + ROOFS:
-            name = "house_v%d%s.png" % (v, "" if roof is None else "_r" + roof)
-            house(v, roof).save(path + name)
-            man["images"][name] = {"w": W, "h": H, "ax": AX, "ay": AY, "scale": 3, "variant": v, "roof": roof}
-    man["note"] = man["note"] + " Woodling houses: tools/make_wood_houses.py (0.18)." if "make_wood_houses" not in man["note"] else man["note"]
-    json.dump(man, open(path + "manifest.json", "w"), indent=2)
-    print("wrote 54 Woodling houses")
+    mains = [c[0].lower() for c in json.load(open('data/web/features.json'))['NATION_COLORS']]
+    rows = re.search(r'const EMBLEM_COLORS := \[(.*?)\n\]', open('scripts/sim/races.gd').read(), re.S).group(1)
+    accents = sorted(set(c.lower() for c in re.findall(r'"(#[0-9a-fA-F]{6})"', rows)))
+    jobs, names = [], []
+    for v in range(LOOKS):
+        jobs.append([v, None, None])
+        names.append((f'house_v{v}.png', {'variant': v, 'roof': None}))
+        for c in mains:
+            jobs.append([v, c, None])
+            names.append((f'house_v{v}_r{c[1:]}.png', {'variant': v, 'roof': c}))
+        for c in accents:
+            jobs.append([v, None, c])
+            names.append((f'house_v{v}_a{c[1:]}.png', {'variant': v, 'accent': c}))
+    rec = '/tmp/wood_houses_cmds.json'
+    subprocess.run(['node', 'tools/record_wood_houses.js', WEB, rec, json.dumps(jobs)], check=True)
+    cmds = json.load(open(rec))
+    for f in glob.glob(os.path.join(OUT, 'house_v*.png')):   # (the 0.18 cottages and their .import files)
+        os.remove(f)
+        if os.path.exists(f + '.import'):
+            os.remove(f + '.import')
+    images = {}
+    n = int(100 * PX)
+    for (name, meta), cl in zip(names, cmds):
+        big = replay(cl, n * SS, n * SS, (PX / 4 * SS, 0, 0, PX / 4 * SS, 0, 0))
+        im = big.convert('RGBa').resize((n, n), Image.LANCZOS).convert('RGBA')
+        x0, y0, x1, y1 = im.getbbox()
+        x0, y0, x1, y1 = max(0, x0 - 1), max(0, y0 - 1), min(n, x1 + 1), min(n, y1 + 1)
+        im = im.crop((x0, y0, x1, y1))
+        im.save(os.path.join(OUT, name))
+        images[name] = {'w': im.width, 'h': im.height, 'ax': round(AX - x0), 'ay': round(AY - y0), 'scale': 3, **meta}
+    mf = os.path.join(OUT, 'manifest.json')
+    note = json.load(open(mf)).get('note', '') if os.path.exists(mf) else ''
+    with open(mf, 'w') as f:
+        json.dump({'note': note or 'ax, ay: the anchor pixel. scale: image pixels per world unit.', 'images': dict(sorted(images.items()))}, f, indent=1)
+    print(len(images), 'Woodling houses')
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

@@ -349,7 +349,11 @@ func step(g: Game, shown: bool) -> void:
 			cv.dir = -1 if d.x < 0 else 1
 
 
+## A house popping up a moment after it is born (web: content.js drawHouse). Not yet born: not drawn (the formula
+## grows without bound for a negative age, which drew an outpost's hamlet huge for its first second).
 static func _pop(a: float) -> float:
+	if a < 0.0:
+		return 0.0
 	return maxf(0.01, 1 - exp(-a * 7) * cos(a * 15)) if a < 1.2 else 1.0
 
 
@@ -364,15 +368,21 @@ func draw_houses(g: Game, vr := Rect2(-1e9, -1e9, 2e9, 2e9)) -> void:
 				continue
 			var b = g.buildings.get(p)
 			var rc: String = g.race(b.owner) if b != null else "realm"
-			# two houses in three wear their owner's color on the roof (web: content.js drawHouse)
+			# two houses in three wear their owner's color on the roof (web: content.js drawHouse); a Woodling home's
+			# third wears the nation's accent color on its leaves instead (0.19.1: so the tree houses stand out from trees)
 			var roof := ""
 			if b != null and int(h.n) % 3 != 2:
 				roof = "_r" + str(g.player_info(b.owner).color).trim_prefix("#").to_lower()
+			elif b != null and rc == "wood":
+				roof = "_a" + g.secondary_of(b.owner).to_html(false).to_lower()
 			var sp = Art.race_sprite("houses", rc, "house_v%d%s.png" % [h.v, roof])
+			if sp == null and roof.begins_with("_a"):   # (an accent color outside the palette: the main color)
+				sp = Art.race_sprite("houses", rc, "house_v%d_r%s.png" % [h.v, str(g.player_info(b.owner).color).trim_prefix("#").to_lower()])
 			if sp == null:
 				sp = Art.race_sprite("houses", rc, "house_v%d.png" % h.v)
-			if sp != null:
-				Art.draw(v, sp, Vector2(c[0] + h.x, c[1] + h.y), _pop(g.t - h.born))
+			var k := _pop(g.t - h.born)
+			if sp != null and k > 0.0:
+				Art.draw(v, sp, Vector2(c[0] + h.x, c[1] + h.y), k)
 
 
 func draw_civs(g: Game, t: float, vr := Rect2(-1e9, -1e9, 2e9, 2e9)) -> void:

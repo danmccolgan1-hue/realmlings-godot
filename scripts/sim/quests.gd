@@ -306,6 +306,12 @@ static func tell(g, o: int, msg: String, warn := false) -> void:
 		g.in_seat(o, func(): g.toast(msg, warn))
 
 
+## A message to nation o with a banner: clicking it looks at province p (the view's, if o is the player's own).
+static func notice(g, o: int, msg: String, p: int) -> void:
+	if g.seats.has(o):
+		g.in_seat(o, func(): g.notice(msg, p))
+
+
 static func _where_text(where: String, u: Dictionary) -> String:
 	if where == "reliquary":
 		return "It goes into your Reliquary."
@@ -416,7 +422,7 @@ static func uncover(g, u: Dictionary) -> void:
 	if d == null or d.get("shown", false):
 		return
 	d["shown"] = true
-	tell(g, u.owner, "%s found signs of something buried in %s: a dig site! Select a %s there and press Dig." % [u.name, g.prov_name(p), _scout_word(g, u.owner)])
+	notice(g, u.owner, "%s found a dig site in %s! Select a %s there and press Dig." % [u.name, g.prov_name(p), _scout_word(g, u.owner)], p)
 
 
 static func _scout_word(g, o: int) -> String:
@@ -548,8 +554,10 @@ static func step_stars(g) -> void:
 	g.star_fx.append({"prov": p, "t0": g.t})
 	for o in g.seat_ids():
 		var seen: bool = g.seats[o].explored.has(p) or g.reveal_all
-		tell(g, o, ("A star has fallen in %s! A silver X marks where it landed: send a %s to dig it up." % [g.prov_name(p), _scout_word(g, o)]) if seen
-			else "A star streaks across the sky and falls somewhere beyond your maps.")
+		if seen:
+			notice(g, o, "A star has fallen in %s! A silver X marks where it landed: send a %s to dig it up." % [g.prov_name(p), _scout_word(g, o)], p)
+		else:
+			tell(g, o, "A star streaks across the sky and falls somewhere beyond your maps.")
 		if seen:
 			g.in_seat(o, func(): g.sfx("wn_ally", p))
 
@@ -1225,45 +1233,89 @@ static func ai_payday(g) -> void:
 	if g.nations.is_empty():
 		return
 	var R: Dictionary = c("BUILD_DEFS").reliquary
-	for u in g.units:
-		if u.get("_gone", false) or not is_scout(g, u) or not g.nations.has(u.owner) or not g.nations[u.owner].get("alive", true):
-			continue
-		var o: int = u.owner
+	for o in g.nations:
 		var N: Dictionary = g.nations[o]
-		# a relic and nowhere to put it: a Reliquary at the capital
-		if not bag_of(u).is_empty() and reliquaries(g, o).is_empty():
-			var cap: int = g.capital_of(o)
-			if cap >= 0 and g.extras_in(cap).size() < g.plot_cap(cap) and R.cost.keys().all(func(k): return int(N.stock.get(k, 0)) >= int(R.cost[k])):
-				for k in R.cost:
-					N.stock[k] = int(N.stock[k]) - int(R.cost[k])
-				var used := {}
-				for e in g.extras_in(cap):
-					used[int(e.slot)] = true
-				var slot := 0
-				while used.has(slot):
-					slot += 1
-				if not g.extras.has(cap):
-					g.extras[cap] = []
-				g.extras[cap].append({"type": RELIQUARY, "slot": slot, "born": g.t})
-		if u.get("dig") != null or u.moving or u.get("survey") != null:
+		if not N.get("alive", true) or not reliquaries(g, int(o)).is_empty():
 			continue
-		var d = g.digs.get(u.prov)
-		if d != null and d.get("only") == null and (d.get("shown", false) or d.get("star", false)):
-			u["dig"] = {"prov": u.prov, "n": 0, "t0": g.t}
+		# a Reliquary at the capital as soon as the nation knows of a relic in its land, or is carrying one
+		var wants: bool = g.digs.keys().any(func(p): return g.nation_of(p) == int(o) and _ai_can_dig(g.digs[p]))
+		if not wants:
+			wants = g.units.any(func(u): return u.owner == int(o) and not bag_of(u).is_empty())
+		var cap: int = g.capital_of(int(o))
+		if not wants or cap < 0 or g.extras_in(cap).size() >= g.plot_cap(cap):
 			continue
-		# the nearest uncovered site in its own land
-		var best := -1
-		var hops: Array = []
-		for p in g.digs:
-			var dp: Dictionary = g.digs[p]
-			if dp.get("only") != null or not (dp.get("shown", false) or dp.get("star", false)) or g.nation_of(p) != o:
-				continue
-			if hops.is_empty():
-				hops = g.hops_list(u.prov)
-			if hops[p] != INF and (best < 0 or hops[p] < hops[best] or (hops[p] == hops[best] and p < best)):
-				best = p
-		if best >= 0 and best != u.prov:
-			g.order(u, best, true)
+		if not R.cost.keys().all(func(k): return int(N.stock.get(k, 0)) >= int(R.cost[k])):
+			continue
+		for k in R.cost:
+			N.stock[k] = int(N.stock[k]) - int(R.cost[k])
+		var used := {}
+		for e in g.extras_in(cap):
+			used[int(e.slot)] = true
+		var slot := 0
+		while used.has(slot):
+			slot += 1
+		if not g.extras.has(cap):
+			g.extras[cap] = []
+		g.extras[cap].append({"type": RELIQUARY, "slot": slot, "born": g.t})
+		for u in g.units:   # (what its scouts were carrying goes in at once)
+			if u.owner == int(o):
+				for id in bag_of(u).duplicate():
+					if deposit(g, int(o), id):
+						bag(u).erase(id)
+
+
+static func _ai_can_dig(d: Dictionary) -> bool:
+	return d.get("only") == null and (d.get("shown", false) or d.get("star", false))
+
+
+## A computer nation's scout and the dig sites in its own land (from ai.gd wayfinders): standing on one, it digs;
+## otherwise it walks to the nearest one no other scout of the nation has taken. True when it has its orders.
+static func ai_dig_step(g, N: Dictionary, u: Dictionary, wfs: Array) -> bool:
+	var d = g.digs.get(u.prov)
+	if d != null and _ai_can_dig(d) and g.nation_of(u.prov) == int(N.id):
+		u["dig"] = {"prov": u.prov, "n": 0, "t0": g.t}
+		u.erase("aiTarget")
+		u.erase("aiDig")
+		return true
+	var taken := {}
+	for v in wfs:
+		if not is_same(v, u) and v.get("aiDig") != null:
+			taken[int(v.aiDig)] = true
+	var best := -1
+	var hops: Array = []
+	for p in g.digs:
+		if taken.has(int(p)) or not _ai_can_dig(g.digs[p]) or g.nation_of(p) != int(N.id):
+			continue
+		if hops.is_empty():
+			hops = g.hops_list(u.prov)
+		if hops[p] != INF and (best < 0 or hops[p] < hops[best] or (hops[p] == hops[best] and p < best)):
+			best = p
+	if best < 0:
+		u.erase("aiDig")
+		return false
+	u["aiDig"] = best
+	u.erase("aiTarget")
+	g.order(u, best, true)
+	return true
+
+
+## Whether a computer nation still has to look over province p of its own for a buried relic (it owns it, but no
+## scout of its own has surveyed it since: its capital, land it took).
+static func ai_needs_survey(g, N: Dictionary, p: int) -> bool:
+	return g.quests_on and g.nation_of(p) == int(N.id) and not N.get("qsurv", {}).has(str(p))
+
+
+## Its nearest own province still to be looked over, that no other scout has taken (reach: hops from u), or -1.
+static func ai_own_survey_target(g, N: Dictionary, u: Dictionary, reach: Dictionary, taken: Dictionary) -> int:
+	var best := -1
+	var bs := INF
+	for p in reach:
+		if taken.has(p) or not ai_needs_survey(g, N, int(p)):
+			continue
+		if float(reach[p]) < bs:
+			bs = float(reach[p])
+			best = int(p)
+	return best
 
 
 ## How to Play's quest lines (Godot only), after the web game's guide.

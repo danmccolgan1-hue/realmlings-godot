@@ -55,7 +55,7 @@ func draw_survey(g: Game, site: Dictionary, t: float) -> void:
 	if not site.has("loop"):
 		return
 	var f := minf(1.0, (t - site.t0) / site.dur)
-	var done: float = Game.route_at(site, f)[2] - site.lead
+	var done: float = f * float(site.total) - float(site.lead)   # (how far along the loop the Wayfinder has come)
 	var z := _z()
 	if done > 0:
 		var pts := PackedVector2Array([Vector2(site.loop[0][0], site.loop[0][1])])

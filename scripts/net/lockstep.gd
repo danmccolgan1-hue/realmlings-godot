@@ -391,6 +391,7 @@ func _load(text: String, s: int, seat: int) -> void:
 		ended.emit("The host's game could not be loaded.")
 		return
 	g.on_toast = game.on_toast
+	g.on_notice = game.on_notice
 	g.on_sfx = game.on_sfx
 	g.on_dialog = game.on_dialog
 	g.on_game_over = game.on_game_over

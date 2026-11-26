@@ -1990,6 +1990,10 @@ static func workers_step(g: Game, N: Dictionary, now: float) -> void:
 				continue
 			if now - u.aiSurvey.t0 >= Game.SURVEY_TIME:
 				N.surveyed[u.prov] = true
+				if g.quests_on:   # (Godot quests: a survey uncovers the province's dig site, as a player's does)
+					N["qsurv"] = N.get("qsurv", {})
+					N.qsurv[str(u.prov)] = true
+					Quests.uncover(g, u)
 				u.aiSurvey = null
 				u.erase("aiTarget")
 			continue
@@ -2102,10 +2106,12 @@ static func wayfinders(g: Game, N: Dictionary, P: Dictionary) -> void:
 		if v.get("bandit", false) and g.troop_count(v) > 0:
 			bandit_at[v.prov] = true
 	for u in wfs:
-		if u.moving or u.get("aiSurvey") != null or u.get("exiting", false):
+		if u.moving or u.get("aiSurvey") != null or u.get("exiting", false) or u.get("dig") != null:
 			continue
-		if u.has("aiTarget") and u.aiTarget == u.prov and not N.surveyed.has(u.prov):
+		if u.has("aiTarget") and u.aiTarget == u.prov and (not N.surveyed.has(u.prov) or Quests.ai_needs_survey(g, N, u.prov)):
 			u.aiSurvey = {"prov": u.prov, "t0": g.t}
+			continue
+		if g.quests_on and Quests.ai_dig_step(g, N, u, wfs):   # (Godot quests: dig the sites in its own land first)
 			continue
 		var taken := {}
 		for v in wfs:
@@ -2121,6 +2127,8 @@ static func wayfinders(g: Game, N: Dictionary, P: Dictionary) -> void:
 			if sc < bs:
 				bs = sc
 				best = p
+		if best < 0 and g.quests_on:   # (Godot quests: nothing new to survey: look over its own land for buried relics)
+			best = Quests.ai_own_survey_target(g, N, u, d, taken)
 		if best < 0:
 			u.erase("aiTarget")
 			var cap := g.capital_of(N.id)

@@ -5,6 +5,13 @@ extends Control
 ## web: v106.js renderPatchNotes
 
 const PORT_NOTES := [
+	{"v": "Godot 0.19.1", "date": "November 26, 2026", "items": [
+		["Multiplayer stays in step", "Players on Windows and a server on Linux now calculate everything exactly alike (the game has its own maths), and a lost band of travelers no longer splits a player's game from the server's. Both caused lag spikes, a stuttering clock and lost selections."],
+		["Woodling homes", "The tree houses are back: isometric hollow trees with doors. Two of a building's three homes wear the nation's color on their leaves, the third its accent color, so they stand out from the forest."],
+		["Dig site banners", "A banner tells you when your scouts find a dig site or a star falls where you've been: click it to look there."],
+		["Computer nations and relics", "Computer nations build a Reliquary as soon as they know of a relic in their land, look over their own provinces for dig sites, and dig them."],
+		["Fixes", "A new outpost's hamlet no longer pops up huge before it shrinks; town houses redraw when a building changes; the Wayfinder's surveyed trail shows again."],
+	]},
 	{"v": "Godot 0.19", "date": "November 23, 2026", "items": [
 		["Quests and relics", "Every full map hides the relics of six quests: rebuild a lost library, honor a forgotten war, answer a Mage's request, reclaim legendary battlegear, recover a Spell Book or a Lost Armament. Surveys uncover dig sites; Wayfinders dig; Reliquaries keep what they find; the Quest Log (L) keeps the story. Fallen Stars fall from 30 minutes in."],
 		["Dedicated server", "Run the game on a rented server (docs/SERVER.md): the first player to join hosts, chooses the island, starts, saves and decides about drop-outs; the server keeps going when players leave, saves every minute, offers an interrupted game again after a restart, and stops when the game ends."],

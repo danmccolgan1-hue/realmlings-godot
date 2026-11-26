@@ -362,6 +362,8 @@ var labels: MapLabels
 
 ## A spring that pops a new unit into place: 0 → overshoot → 1 in about a second. web: drawUnitBody / drawArmy
 static func _pop(age: float) -> float:
+	if age < 0.0:   # (not yet born: the spring would grow without bound)
+		return 0.01
 	return maxf(0.01, 1 - exp(-age * 7) * cos(age * 15))
 
 

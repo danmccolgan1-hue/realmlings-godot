@@ -829,13 +829,21 @@ func _ai(errs: Array) -> void:
 	g.digs[u.prov] = {"item": "callum", "shown": true, "star": false}
 	g.nations[o].stock.gold = 500
 	g.nations[o].stock.wood = 500
-	var n := 0
-	while (g.digs.has(u.prov) or Quests.reliquaries(g, o).is_empty() or not Quests.bag_of(u).is_empty()) and n < 400:
-		u.moving = false
-		Quests.payday(g)
-		n += 1
+	# (0.19.1: the game itself runs: the computer's scouts decide to dig in its own turn, the Reliquary comes on a payday)
+	g.paused = false
+	var t0 := g.t
+	while (g.digs.has(u.prov) or Quests.reliquaries(g, o).is_empty() or not Quests.bag_of(u).is_empty()) and g.t - t0 < 900.0:
+		g.step_fixed()
 	if Quests.count(g, o, "callum") != 1 or g.nations[o].get("quest_log") != null:
-		errs.append("ai: after %d cycles: relics %s, Reliquaries %d" % [n, Quests.items_of(g, o), Quests.reliquaries(g, o).size()])
+		errs.append("ai: after %d s: relics %s, Reliquaries %d" % [int(g.t - t0), Quests.items_of(g, o), Quests.reliquaries(g, o).size()])
+	# a site in its own land it hasn't surveyed yet: it looks its land over, finds it, and digs it up
+	var cap: int = g.capital_of(o)
+	g.digs[cap] = {"item": "lionheart", "shown": false, "star": false}
+	t0 = g.t
+	while g.digs.has(cap) and g.t - t0 < 1500.0:
+		g.step_fixed()
+	if g.digs.has(cap) or Quests.count(g, o, "lionheart") != 1:
+		errs.append("ai: the buried relic at its own capital wasn't found and dug (%s)" % [g.digs.get(cap)])
 
 
 ## A long game with quests on and every system running: 31 minutes of a full map, no errors, a Fallen Star by then,

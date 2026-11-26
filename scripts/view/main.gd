@@ -637,6 +637,9 @@ func _maybe_screenshot() -> void:
 		return
 	map.selected_prov = game.capital
 	hud.select_province(game.capital, "settlement" if OS.get_cmdline_user_args().has("--capital") else "")
+	if OS.get_cmdline_user_args().has("--houses"):   # pictures: three buildings at the capital, and their homes
+		game.extras[game.capital] = game.extras_in(game.capital) + [{"type": "farm", "slot": 1, "born": game.t - 9}, {"type": "lumber", "slot": 3, "born": game.t - 9}, {"type": "granary", "slot": 5, "born": game.t - 9}]
+		game.my_nation.secondary = "#f4d35e"
 	if OS.get_cmdline_user_args().has("--farm"):   # pictures: a Farm selected, its crop on the card
 		game.extras[game.capital] = game.extras_in(game.capital) + [{"type": "farm", "slot": 3}]
 		game.compute_income()
@@ -894,6 +897,11 @@ func _quest_shot(what: String) -> void:
 	for i in 6:   # (the new-quest pop-ups: closed for the picture)
 		if hud.dialog.visible:
 			hud.dialog.pick("close")
+	if what == "digfound" and w != null:   # (0.19.1) a survey uncovers a dig site: the banner
+		var q2: int = nb[2 % nb.size()]
+		game.digs[q2] = {"item": "callum", "shown": false, "star": false}
+		w.prov = q2
+		Quests.uncover(game, w)
 	if what == "log":
 		hud.quests.open()
 	elif what == "reliq":

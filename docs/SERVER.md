@@ -94,7 +94,7 @@ ssh root@203.0.113.10 "systemctl status realmlings --no-pager"
 ssh root@203.0.113.10 "journalctl -u realmlings -f"      # its messages as they come; Ctrl+C to stop watching
 ```
 
-The first line should read `Realmlings server 0.19.0: listening on UDP port 24565`. Joins, departures, starts and
+The first line should read `Realmlings server 0.19.1: listening on UDP port 24565`. Joins, departures, starts and
 saves appear below it. A longer log is on the Droplet at
 `/home/realmlings/.local/share/godot/app_userdata/Realmlings/mp_log.txt`.
 

@@ -2003,6 +2003,15 @@ func toast(msg: String, warn := false) -> void:
 		on_toast.call(msg, warn)
 
 
+## A message worth a banner (Godot 0.19.1): it also goes to the messages box, and clicking the banner looks at
+## province p. Only for the player whose seat is in use, like toast(); the rules never read it.
+func notice(msg: String, p: int) -> void:
+	if on_notice.is_valid() and ME == view_seat:
+		on_notice.call(msg, p)
+	else:
+		toast(msg)
+
+
 func exploring(u: Dictionary) -> bool:
 	return u.kind == WAYFINDER and u.owner == ME and u.scouting != null
 
@@ -6138,6 +6147,7 @@ func _to_save() -> Dictionary:
 		d.units.append(c)
 	d.mana_prev = mana_prev.keys()   # unit ids
 	d.rng = [rng.seed, rng.state]
+	d.trav_asking = travelers.find(trav_asking) if trav_asking != null else -1   # (the band waiting for an answer)
 	d.dipl = _sorted(dipl)   # (seats swap parts of it in and out: saved in one order, so copies compare alike)
 	d.seat_dipl = _sorted(seat_dipl)
 	if seats.size() > 1:   # multiplayer: the other human nations' own fields (the host's are the ones above)
@@ -6229,6 +6239,8 @@ static func from_save(d: Dictionary, map: Dictionary = {}) -> Game:
 		Dungeons.ensure_convict(g)
 	g.rng.seed = d.rng[0]
 	g.rng.state = d.rng[1]
+	var ta := int(d.get("trav_asking", -1))   # (0.19.1: a band still waiting for its answer, as it was)
+	g.trav_asking = g.travelers[ta] if ta >= 0 and ta < g.travelers.size() else null
 	return g
 
 
@@ -8227,8 +8239,12 @@ func ask_travelers(B: Dictionary) -> void:
 			{"id": "leave", "label": "Leave them be\nThey ask again next time", "why": null}]
 		text = "%d weary travelers have lost their way in the woods. Show them the path home, and they will gladly share what they know in return." % B.n
 	sfx("wn_ally")
-	if on_dialog.is_valid():
-		if ME == view_seat:
+	# a player is asked, and every copy waits for the answer (an order). 0.19.1: in multiplayer that holds for every
+	# copy, whether or not it can show the question: the server has no window, and taking "leave" there by itself
+	# split its game from its players' (they fell out of step every few seconds from the first lost band on). Only
+	# a game with no player to ask at all (tests, pictures) sends them away.
+	if on_dialog.is_valid() or on_command.is_valid():
+		if on_dialog.is_valid() and ME == view_seat:
 			on_dialog.call("A lost band of travelers at %s" % prov_name(B.prov), text, choices, func(id): do("travelers_choose", [id]))
 	else:
 		travelers_choose("leave")
@@ -9080,6 +9096,7 @@ var met_at: float:
 	set(v): cur["met_at"] = v
 var ai_met_at := -9.0
 var on_game_over: Callable  # the view's "your realm has fallen"
+var on_notice: Callable     # the view's banner for a message about a province (notice())
 
 func W(k: String):
 	return GameData.c("WAR")[k]
