@@ -69,6 +69,11 @@ func draw_under(g: Game, t: float) -> void:
 			items.append({"y": c[1] + o[1], "f": draw_ruins_art.bind(c[0] + o[0], c[1] + o[1], t, f.get("done", false))})
 		else:
 			items.append({"y": c[1] + o[1], "f": draw_treasure_art.bind(c[0] + o[0], c[1] + o[1], t)})
+	if game.quests_on:   # relics left on the ground: a chest with a gold lock (Godot only)
+		for p in game.chests:
+			if Quests.chest_seen(game, p) and _on_screen(p):
+				var c: Array = game.G.provs[p].ic
+				items.append({"y": c[1] + 44, "f": draw_chest_art.bind(c[0] - 48, c[1] + 44, t)})
 	for B in game.travelers:
 		if game.visible.has(B.prov) and _on_screen(B.prov):
 			items.append({"y": B.y, "f": draw_travelers.bind(B, t, B.tx != null)})
@@ -449,6 +454,27 @@ func draw_treasure_art(x: float, y: float, t: float) -> void:
 		if s < 0.5:
 			continue
 		pen.begin().move(sx - s, sy).line(sx + s, sy).move(sx, sy - s).line(sx, sy + s).stroke(1.6, Color.WHITE)
+	pen.pop()
+
+
+# --- quests: a chest of relics on the ground (Godot only) ---
+
+func draw_chest_art(x: float, y: float, t: float) -> void:
+	pen.push().at(x, y)
+	pen.begin().ellipse(0, 3, 30, 8).fill(Color(0, 0, 0, 0.25))
+	# the box and its rounded lid, banded in iron
+	pen.begin().move(-20, 0).line(-20, -20).line(20, -20).line(20, 0).close().fink(Color("#8a5a34"), 2.4)
+	pen.begin().move(-20, -20).line(-20, -26).quad(0, -40, 20, -26).line(20, -20).close().fink(Color("#6d4426"), 2.4)
+	for bx in [-13, 13]:
+		pen.begin().move(bx - 2.5, 0).line(bx - 2.5, -20).line(bx - 2.5, -30.5 + absf(bx) * 0.2).line(bx + 2.5, -31 + absf(bx) * 0.2).line(bx + 2.5, -20).line(bx + 2.5, 0).close().fink(Color("#5a5f6b"), 1.4)
+	# the gold lock, glinting now and then
+	pen.begin().rect(-5, -24, 10, 10).fink(Color("#f4c44f"), 1.8)
+	pen.begin().ellipse(0, -27, 3.5, 3.5, PI, TAU).stroke(1.8, Color("#1d1a22"))
+	pen.begin().ellipse(0, -20, 1.4, 1.8).fill(Color("#1d1a22"))
+	var ph := fposmod(t * 0.7, 1.0)
+	if ph < 0.25:
+		var s := sin(ph / 0.25 * PI) * 5
+		pen.begin().move(5 - s, -24).line(5 + s, -24).move(5, -24 - s).line(5, -24 + s).stroke(1.6, Color.WHITE)
 	pen.pop()
 
 

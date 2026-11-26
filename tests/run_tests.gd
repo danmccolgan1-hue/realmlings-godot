@@ -2,12 +2,13 @@ extends SceneTree
 ## Headless test runner: godot --headless --path . --script res://tests/run_tests.gd
 ## Each test file in TESTS has a run() -> Array[String] returning failure messages (empty = pass).
 
-const TESTS := ["res://tests/test_world_gen.gd", "res://tests/test_economy.gd", "res://tests/test_play.gd", "res://tests/test_save.gd", "res://tests/test_tutorial.gd", "res://tests/test_decor.gd", "res://tests/test_setup.gd", "res://tests/test_war.gd", "res://tests/test_ai.gd", "res://tests/test_siege.gd", "res://tests/test_dipl.gd", "res://tests/test_ui.gd", "res://tests/test_replay.gd", "res://tests/test_build.gd", "res://tests/test_races.gd", "res://tests/test_determinism.gd", "res://tests/test_net.gd", "res://tests/test_seats.gd", "res://tests/test_lockstep.gd", "res://tests/test_mp_dipl.gd", "res://tests/test_playtest17.gd", "res://tests/test_terrain18.gd"]
+const TESTS := ["res://tests/test_world_gen.gd", "res://tests/test_economy.gd", "res://tests/test_play.gd", "res://tests/test_save.gd", "res://tests/test_tutorial.gd", "res://tests/test_decor.gd", "res://tests/test_setup.gd", "res://tests/test_war.gd", "res://tests/test_ai.gd", "res://tests/test_siege.gd", "res://tests/test_dipl.gd", "res://tests/test_ui.gd", "res://tests/test_replay.gd", "res://tests/test_build.gd", "res://tests/test_races.gd", "res://tests/test_determinism.gd", "res://tests/test_net.gd", "res://tests/test_seats.gd", "res://tests/test_lockstep.gd", "res://tests/test_mp_dipl.gd", "res://tests/test_playtest17.gd", "res://tests/test_terrain18.gd", "res://tests/test_quests.gd"]
 
 func _initialize() -> void:
 	var failures := 0
 	Game.VARIANTS = false   # (the web game has no terrain variants: tests that compare against it see plain terrain)
 	Game.RULES19 = false    # (nor 0.19's changes to Aithne's kit and to roads)
+	Game.QUESTS = false     # (nor quests: tests/test_quests.gd turns them on for itself)
 	# a script that doesn't compile fails the run (its tests could otherwise pass vacuously)
 	for dir in ["res://scripts/core/", "res://scripts/gen/", "res://scripts/sim/", "res://scripts/view/", "res://scripts/ui/"]:
 		for f in DirAccess.get_files_at(dir):

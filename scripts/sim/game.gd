@@ -167,6 +167,16 @@ var military := {}           # unit kinds that are soldiers (web: game.js MILITA
 var finds := {}              # province -> {id: "ruins" | "treasure", done}
 var treasure_rolled := {}
 var sp_found := {}
+# quests, relics and dig sites (Godot only; docs/QUESTS_PLAN.md, scripts/sim/quests.gd)
+static var QUESTS := true    # tests that compare against the web game turn quests off
+var quests_on := false       # this game has quests (full maps only)
+var quest_pick := []         # the quests chosen for this map
+var digs := {}               # province -> {item, shown, star}: a relic buried there
+var chests := {}             # province -> [item ids]: relics left on the ground
+var star_next := -1.0        # when the next Fallen Star falls
+var quest_log: Dictionary:   # this human nation's quests: id -> {state, t0, ...} (the quest engine, session 4)
+	get: return cur["quest_log"]
+	set(v): cur["quest_log"] = v
 
 # --- fog (web: S.wf, S.known, S.explored, S.visible) ---
 var wf: Dictionary:  # provinces a Wayfinder has entered
@@ -225,7 +235,7 @@ var rng := RandomNumberGenerator.new()   # stands in for the web's Math.random (
 # --- seats (multiplayer step 1): each human nation's own fields ---
 ## The fields each human nation has its own copy of. The properties above read and write the current seat's
 ## record (`cur`); use_seat() switches it. A single-player game has one seat, HOST.
-const SEAT_FIELDS := ["leader", "capital", "stock", "income", "income_parts", "army_counter", "tech", "rep", "surveyed", "designs", "exhaust", "exhaust_ok", "harvest", "upgrades", "xup", "cd", "harvest_by", "trap", "school_popup", "reveals", "eyes", "haunts", "mana_pool", "mana_prev", "mana_prev_t", "mage_gear", "auto_tech", "queues", "rally", "wf", "known", "explored", "visible", "my_nation", "train_orders", "met", "fallen", "ally_ask", "met_at", "dx_step_t", "gift_vault", "demand", "ally_offer", "BUILD_DEFS", "TECH_BY_ID", "TECHS", "TECH_TREES", "UNIT_BASE", "BUILD_ORDER", "CMD"]
+const SEAT_FIELDS := ["leader", "capital", "stock", "income", "income_parts", "army_counter", "tech", "rep", "surveyed", "designs", "exhaust", "exhaust_ok", "harvest", "upgrades", "xup", "cd", "harvest_by", "trap", "school_popup", "reveals", "eyes", "haunts", "mana_pool", "mana_prev", "mana_prev_t", "mage_gear", "auto_tech", "queues", "rally", "wf", "known", "explored", "visible", "my_nation", "train_orders", "met", "fallen", "ally_ask", "met_at", "dx_step_t", "gift_vault", "demand", "ally_offer", "quest_log", "BUILD_DEFS", "TECH_BY_ID", "TECHS", "TECH_TREES", "UNIT_BASE", "BUILD_ORDER", "CMD"]
 
 ## A new seat's record: every seat field at its starting value.
 static func seat_defaults() -> Dictionary:
@@ -280,6 +290,7 @@ static func seat_defaults() -> Dictionary:
 		"met_at": -9.0,
 		"gift_vault": 0,
 		"dx_step_t": -1.0,
+		"quest_log": {},
 	}
 
 
@@ -398,6 +409,7 @@ func add_seat(o: int, cap: int, rc: String, nation: Dictionary = {}) -> void:
 	for k in unit_defs:
 		names[k] = [unit_defs[k].get("name"), unit_defs[k].get("blurb")]
 	seat_start(rc if rc in ["realm", "swamp", "wood"] else "realm")
+	Quests.add_tables(self)   # (a player joining a game under way gets the Reliquary too)
 	for k in names:
 		unit_defs[k].name = names[k][0]
 		if names[k][1] != null:
@@ -1776,6 +1788,8 @@ func payday(_t: float) -> void:
 	each_seat(func():
 		tech_payday()
 		regen_mana())
+	if quests_on:
+		Quests.payday(self)
 	if on_payday.is_valid():
 		on_payday.call(_t)
 
@@ -1849,6 +1863,8 @@ func update(real_t: float) -> void:
 		step_gpc(t, dt)
 		step_patrols(t, dt)
 		step_travelers(dt)
+		if quests_on:
+			Quests.step(self)
 		use_seat(HOST)
 	each_seat(clamp_stock)
 	each_seat(func(): step_upgrades(t))
@@ -3151,6 +3167,7 @@ func dismantle_fort(p: int) -> void:
 		toast("Can’t dismantle the fort: %s." % str(why).to_lower(), true)
 		return
 	var lost := extras_in(p).size()
+	Quests.extras_lost(self, p, extras_in(p))
 	extras.erase(p)
 	for k in xup.keys():
 		if int(k.split("@")[0]) == p:
@@ -4544,6 +4561,7 @@ func end_quake(c: Dictionary, why := "") -> void:
 func quake_strike(c: Dictionary) -> void:
 	var p: int = c.prov
 	var lost := extras_in(p).size()
+	Quests.extras_lost(self, p, extras_in(p))
 	extras.erase(p)
 	for k in xup.keys():
 		if int(str(k).split("@")[0]) == p:
@@ -5108,6 +5126,7 @@ func dismiss(list: Array) -> void:
 		if u.build != null:
 			cancel_build(u)
 		u._gone = true
+		Quests.unit_lost(self, u)
 	units = units.filter(func(v): return not list.any(func(u): return is_same(u, v)))
 	compute_income()
 
@@ -5120,6 +5139,7 @@ func destroy_extra(p: int, slot: int) -> void:
 			e = x
 	if e == null or not owned(p):
 		return
+	Quests.extras_lost(self, p, [e])
 	extras[p] = extras_in(p).filter(func(x): return not is_same(x, e))
 	xup.erase("%d@%d" % [p, slot])
 	compute_income()
@@ -5981,16 +6001,18 @@ func _magic_timers(now: float) -> void:
 # ---------------------------------------------------------------------------------------------------------------
 # saving and loading (web: save.js keeps the seed and regenerates the map; this is the Godot format)
 
-## 1: Godot 0.1–0.4. 2: Godot 0.5 (the build that wrote it, recordings, debug switches). Older saves load: fields
-## they don't have keep a new game's defaults (see migrate_save). A save from a newer build is refused.
-const SAVE_VERSION := 2
+## 1: Godot 0.1–0.4. 2: Godot 0.5 (the build that wrote it, recordings, debug switches). 3: quests, relics, dig
+## sites, chests and Reliquaries. Older saves load: fields they don't have keep a new game's defaults (see
+## migrate_save). A save from a newer build is refused.
+const SAVE_VERSION := 3
 ## Everything a game is, besides the map (which comes back from the seed) and the callbacks.
 const SAVE_FIELDS := ["battles", "bandit_count", "monster_count", "leader", "capital", "stock", "income", "income_parts", "buildings", "extras", "occ", "units", "next_id",
 	"army_counter", "tech", "rep", "surveyed", "unit_defs", "designs", "exhaust", "exhaust_ok", "harvest", "devel", "upgrades",
 	"xup", "auto_tech", "roads", "walls", "wall_hp", "artifacts", "gift_vault", "quakes", "quake_seq", "wall_max", "wall_crack", "broken_walls", "rewall_jobs", "gate_own", "fort_walled", "gpc_slow_t", "dev_t", "cd", "paths",
 	"harvest_by", "trap", "reveals", "eyes", "haunts", "mana_pool", "mana_prev_t", "mage_gear", "finds", "treasure_rolled",
 	"sp_found", "slot_races", "spyres", "ftraps", "sacreds", "wrocks", "gelems", "setpieces", "travelers", "train_orders", "train_order_seq", "design_seq", "prov_rename", "nations", "players", "my_nation", "race_of", "wars", "truces", "allies", "war_seq", "met", "occ", "occ_prog", "dipl", "war_log", "war_ever", "war_lock", "ai_met", "fallen", "ally_check", "bandit_next", "bandit_waves", "ally_ask", "crop_scan_at", "ai_scout_t", "wf", "known", "explored", "visible", "queues", "rally", "military", "UNIT_SPEED", "open_nbr", "all_nbr",
-	"yields", "look_seed", "tree_border", "debug_cap", "debug_tech", "reveal_all", "rec", "t", "next_tick", "paused", "last", "started", "seat_names", "paused_by", "seat_dipl", "mp_cd", "variant"]
+	"yields", "look_seed", "tree_border", "debug_cap", "debug_tech", "reveal_all", "rec", "t", "next_tick", "paused", "last", "started", "seat_names", "paused_by", "seat_dipl", "mp_cd", "variant",
+	"quests_on", "quest_pick", "digs", "chests", "star_next", "quest_log"]
 
 
 ## The whole game as a plain Dictionary (see SaveCodec for the text form).
@@ -6120,6 +6142,7 @@ func _load_seat(mana_ids: Array) -> void:
 	var keep_designs: Array = designs
 	var keep_tech: Dictionary = tech
 	Races.apply(self, race())   # the race's names on this game's tables (web: save.js → applyRace)
+	Quests.add_tables(self)     # (the Reliquary, when this game has quests)
 	if leader in Ai.FORGE_LEADERS:
 		for k in BUILD_DEFS.forge.cost:
 			BUILD_DEFS.forge.cost[k] = int(JS.round_js(GameData.c("BUILD_DEFS").forge.cost[k] * 0.75))
@@ -6151,6 +6174,7 @@ static func migrate_save(d: Dictionary) -> bool:
 		push_error("Can't read save version %s (this build reads 1 to %d)" % [d.get("version"), SAVE_VERSION])
 		return false
 	# 1 -> 2: new fields only (debug_cap, debug_tech, reveal_all, rec and the Batch A/B fields); their defaults hold
+	# 2 -> 3: new fields only (quests_on false: an older game has no quests, relics or Reliquaries)
 	d.version = SAVE_VERSION
 	return true
 
@@ -7475,6 +7499,7 @@ func step_scouts(now: float) -> void:
 			u._gone = true
 			if visible.has(u.prov):
 				fx.append({"kind": "fall", "prov": u.prov, "owner": u.owner, "unit": u.kind, "t0": now, "r": 0.5})
+			Quests.unit_lost(self, u)   # (what he carried drops where he fell)
 			units = units.filter(func(v): return not is_same(v, u))
 			if u.build != null:
 				cancel_build(u)
@@ -8535,6 +8560,8 @@ static func new_world(seed: String, leader_id := "", slots := [], start := "cent
 			skip[u.prov] = true
 	g.place_travelers(skip)
 	g.spawn_bosses()
+	if QUESTS:
+		Quests.setup(g)
 	g.assign_leader(leader_id)
 	for o in g.seat_ids():
 		if o != HOST:
@@ -9785,7 +9812,9 @@ func transfer_prov(p: int, to: int) -> void:
 	var list := extras_in(p)
 	var cap := plot_cap(p)
 	if list.size() > cap:
-		list = JS.stable_sort(list.duplicate(), func(x, y): return x.slot - y.slot).slice(0, cap)
+		var kept := JS.stable_sort(list.duplicate(), func(x, y): return x.slot - y.slot).slice(0, cap)
+		Quests.extras_lost(self, p, list.filter(func(x): return not kept.any(func(k): return is_same(k, x))))
+		list = kept
 		extras[p] = list
 
 
@@ -9938,6 +9967,9 @@ func kill_nation(o: int, by: int) -> void:
 	if not nations.has(o) or not nations[o].alive:
 		return
 	nations[o].alive = false
+	for v in units:
+		if v.owner == o:
+			Quests.unit_lost(self, v)
 	units = units.filter(func(v): return v.owner != o)
 	for w in wars_of(o):
 		end_war(w)
@@ -9946,6 +9978,7 @@ func kill_nation(o: int, by: int) -> void:
 		if by:
 			transfer_prov(p, by)
 		else:
+			Quests.extras_lost(self, p, extras_in(p))
 			buildings.erase(p)
 			extras.erase(p)
 	if knows(o):
@@ -9954,6 +9987,9 @@ func kill_nation(o: int, by: int) -> void:
 
 func game_over(winner: int) -> void:
 	fallen = true
+	for v in units:
+		if v.owner == ME:
+			Quests.unit_lost(self, v)
 	units = units.filter(func(v): return v.owner != ME)
 	for w in wars_of(ME):
 		end_war(w)
@@ -11493,6 +11529,8 @@ func hand_to_ai(o: int, diff := "difficult") -> void:
 		if nations.has(int(id)) and int(id) != o:
 			ai_met[pair_key(o, int(id))] = true
 	ai_redesign(N)
+	for x in N.get("designs", []):   # (as loading a save does: a saved and loaded copy stays the same game)
+		register_design(x)
 	N.income = Ai.income(self, N)
 	toast("%s is now played by the computer (%s)." % [N.name, GameData.c("DIFF_NAME").get(diff, diff)])
 

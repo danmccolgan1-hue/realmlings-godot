@@ -22,6 +22,7 @@ var sel_rename: Button        # ✎ beside the selection line
 var pick: PickMenu           # the build-on-a-plot and crop menus
 var crop_arm := {}           # web: v104.js cropAllArm, {p, slot, t}: "Apply to all" waits 8 s for its confirm
 var unit = null              # the command card's unit: the first selected unit of the card's tab (web: primary())
+var mason_adv := false       # the Mason's card shows its second page, Advanced Buildings
 var selection := []          # every selected unit (web: S.selected); several by box or Shift-click
 var cmd_tab := ""            # with several kinds selected, the kind whose commands the card shows (web: cmdTab)
 var card: CommandCard
@@ -245,6 +246,7 @@ func select_unit(u) -> void:
 ## Select these units (web: S.selected = …): the card shows the first kind's commands, with a tab per kind.
 func set_selection(list: Array) -> void:
 	selection = list.filter(func(v): return v != null)
+	mason_adv = false   # (a Mason's card opens on its first page)
 	if game != null and game.tutorial != null and selection.any(func(v): return v.kind == game.WAYFINDER):
 		game.tutorial.selected.wayfinder = true
 	if not selection.is_empty():
@@ -317,7 +319,7 @@ func commands_of(u) -> Array:
 	out.resize(16)
 	if u == null:
 		return out
-	var list: Array = game.CMD.get(u.kind, [])
+	var list: Array = game.CMD.get(u.kind + Races.ADV if u.kind == Game.MASON and mason_adv else u.kind, [])
 	if u.kind == "mage:A" or game.military.has(u.kind):
 		list = []
 	if u.kind == game.MAGE and u.owner == Game.LOCAL:   # web: magic.js CMD[MAGE] 'join' (cell 12)
@@ -403,6 +405,14 @@ func commands_of(u) -> Array:
 			var picking: bool = aim != null and aim.spell == "road" and is_same(aim.unit, u)
 			cmd = {"id": id, "label": "Road\n25g 75w", "why": why, "name": "Build a road" + (" (picking…)" if picking else ""), "cost": GameData.c("ROAD_COST"),
 				"desc": "Click the province where the road starts, then the one where it ends: both your own, joined by your own land. The Mason paves every border along the way (%d s and %s each). Units move %d%% faster on roads. Esc, right-click or Cancel stops it before it begins." % [int(Game.ROAD_TIME), Game.cost_text(GameData.c("ROAD_COST")), roundi(game.road_bonus() * 100)]}
+		elif id == "advanced":
+			var advl: Array = game.CMD.get(Game.MASON + Races.ADV, []).filter(func(x): return str(x.id).begins_with("build:") and game.BUILD_DEFS.has(str(x.id).substr(6)))
+			var names: Array = advl.map(func(x): return str(game.BUILD_DEFS[str(x.id).substr(6)].name))
+			var ready: int = advl.filter(func(x): return game.build_check(u.prov, str(x.id).substr(6)) == null).size()
+			cmd = {"id": id, "label": "Advanced\nbuildings", "why": null, "name": "Advanced Buildings",
+				"desc": "The buildings research unlocks: %s.%s" % [", ".join(names), (" %d can be built here now." % ready) if ready else ""], "ok": "Click to open"}
+		elif id == "basic":
+			cmd = {"id": id, "label": "Back", "why": null, "name": "Back to Buildings", "desc": "The outpost and the buildings that need no research.", "ok": "Click to go back"}
 		elif id == "thugin":
 			cmd = {"id": id, "label": "Enter den", "why": null if game.extras.keys().any(func(p): return game.den_room_in(p) != null) else "No Thug Den with room",
 				"name": "Enter a Thug Den", "desc": "The Thug goes into the Thug Den here, or walks to the nearest one with room. Inside, he makes 1 gold every 10 s."}
@@ -442,7 +452,22 @@ func commands_of(u) -> Array:
 			cmd = {"id": id, "label": "Combine", "why": null if n >= 2 else "No other army here", "name": "Combine Armies", "desc": "Merge the armies standing in this province into one."}
 		if cmd != null:
 			out[int(c.cell)] = cmd
+	# quests: what a scouting unit carries, in the bottom row's slots (Godot only)
+	if game.quests_on and u.kind == game.WAYFINDER and u.owner == Game.LOCAL:
+		var b: Array = Quests.bag_of(u)
+		for i in Quests.carry():
+			var cell: int = 12 + i
+			if cell <= 14 and out[cell] == null:
+				out[cell] = _relic_cell(str(b[i]) if i < b.size() else "", "Carries a relic when no Reliquary has room; it goes into one as soon as one has.")
 	return out
+
+
+## A relic slot on the command card: a Reliquary's or what a scouting unit carries. id "" is an empty slot.
+func _relic_cell(id: String, empty_desc: String) -> Dictionary:
+	if id == "":
+		return {"id": "slot", "slot": true, "label": "", "why": null, "name": "Empty slot", "desc": empty_desc, "ok": "Empty"}
+	return {"id": "slot", "slot": true, "label": Quests.item_name(id), "why": null, "name": Quests.item_name(id),
+		"desc": "A relic from the old world.", "icon_path": "icons/common/item_%s.png" % id, "ok": "Kept safe"}
 
 
 ## A command's tooltip, like the web game's hover box: name, what it does, cost, and why it can't be used now
@@ -513,6 +538,8 @@ func press(i: int) -> void:
 		var on: bool = tab_units().any(func(w): return w.get("auto", true) != false)
 		for w in tab_units():
 			w.auto = not on
+	elif id == "advanced" or id == "basic":
+		mason_adv = id == "advanced"
 	elif id == "cancelbuild":
 		if aim != null and aim.spell == "road" and is_same(aim.unit, unit):
 			aim = null
@@ -1275,6 +1302,11 @@ func part_commands() -> Array:
 			out[5] = _crop_cmd(e, "cropok")
 	if game.BUILD_DEFS[e.type].has("levels"):   # a Forge: its next upgrade
 		out[0] = _xup_cmd(e)
+	if e.type == Quests.RELIQUARY:   # its slots, the top-left 3×3 of the card
+		var its: Array = Quests.items_in(e)
+		var cells := [0, 1, 2, 4, 5, 6, 8, 9, 10]
+		for i in cells.size():
+			out[cells[i]] = _relic_cell(str(its[i]) if i < its.size() else "", "An empty slot: the next relic your nation finds goes here.")
 	var nm2: String = game.BUILD_DEFS[e.type].name
 	out[15] = {"id": "destroy", "label": "Tear down", "why": null, "name": "Tear down the " + nm2,
 		"desc": "Tear down this %s to free its plot. No refund; its upkeep stops. Click twice to confirm." % nm2}
