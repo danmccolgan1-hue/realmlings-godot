@@ -260,6 +260,86 @@
    "id": "wd-elem",
    "dir": "d6",
    "th": 1.5707963267948966
+  },
+  "monster_m_knuckledragger_d2.png": {
+   "w": 170,
+   "h": 200,
+   "ax": 85,
+   "ay": 190,
+   "scale": 4,
+   "id": "m-knuckledragger",
+   "dir": "d2",
+   "th": -1.5707963267948966
+  },
+  "monster_m_knuckledragger_d6.png": {
+   "w": 170,
+   "h": 200,
+   "ax": 85,
+   "ay": 190,
+   "scale": 4,
+   "id": "m-knuckledragger",
+   "dir": "d6",
+   "th": 1.5707963267948966
+  },
+  "monster_m_ursacub_d2.png": {
+   "w": 170,
+   "h": 200,
+   "ax": 85,
+   "ay": 190,
+   "scale": 4,
+   "id": "m-ursacub",
+   "dir": "d2",
+   "th": -1.5707963267948966
+  },
+  "monster_m_ursacub_d6.png": {
+   "w": 170,
+   "h": 200,
+   "ax": 85,
+   "ay": 190,
+   "scale": 4,
+   "id": "m-ursacub",
+   "dir": "d6",
+   "th": 1.5707963267948966
+  },
+  "monster_m_dunestalker_d2.png": {
+   "w": 170,
+   "h": 200,
+   "ax": 85,
+   "ay": 190,
+   "scale": 4,
+   "id": "m-dunestalker",
+   "dir": "d2",
+   "th": -1.5707963267948966
+  },
+  "monster_m_dunestalker_d6.png": {
+   "w": 170,
+   "h": 200,
+   "ax": 85,
+   "ay": 190,
+   "scale": 4,
+   "id": "m-dunestalker",
+   "dir": "d6",
+   "th": 1.5707963267948966
+  },
+  "monster_m_bogwalker_d2.png": {
+   "w": 170,
+   "h": 200,
+   "ax": 85,
+   "ay": 190,
+   "scale": 4,
+   "id": "m-bogwalker",
+   "dir": "d2",
+   "th": -1.5707963267948966
+  },
+  "monster_m_bogwalker_d6.png": {
+   "w": 170,
+   "h": 200,
+   "ax": 85,
+   "ay": 190,
+   "scale": 4,
+   "id": "m-bogwalker",
+   "dir": "d6",
+   "th": 1.5707963267948966
   }
  }
 }

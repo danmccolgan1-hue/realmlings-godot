@@ -6899,6 +6899,8 @@ func apply_damage0(b: Dictionary, armies: Array, dmg: float, now: float, pierce 
 				a.troops.erase(k)
 			if a.get("monster") != null:
 				monster_loot(a, k, b)
+				if a.get("primal", false) and quests_on:   # (quests: its hide, for the victors)
+					Quests.beast_fell(self, a, b)
 			if a.has("fallen"):
 				a.fallen[k] = a.fallen.get(k, 0) + 1
 			b.lost[owner] = b.lost.get(owner, 0) + 1

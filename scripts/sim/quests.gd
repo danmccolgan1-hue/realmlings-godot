@@ -112,6 +112,7 @@ static func setup(g) -> void:
 	g.quests_on = true
 	g.quest_pick = pick(str(g.world.seed))
 	place_digs(g, g.quest_pick)
+	spawn_beasts(g)
 	var sf: Array = c("STAR_FIRST")
 	var r := Mulberry32.from_string(str(g.world.seed) + ":stars")
 	g.star_next = float(sf[0]) + floor(r.next() * (float(sf[1]) - float(sf[0]) + 1.0))
@@ -715,6 +716,7 @@ const SIEGE_MUL := 1.25   # Siegebreaker Runeplate: walls fall in 80% of the tim
 
 
 static func install_gear() -> void:
+	install_beasts()
 	var A: Dictionary = GameData.c("ARMORS")
 	if A.has("leather5"):
 		return
@@ -771,3 +773,100 @@ static func steal_buffs(g, b: Dictionary) -> void:
 					var nm: String = "Hardened Skin" if buff == "skin" else "Cursed Weapons"
 					tell(g, w.owner, "%s's Bone Regalia drinks in the enemy's %s!" % [w.name, nm])
 					tell(g, f.owner, "%s's Bone Regalia stole your %s's %s!" % [w.name, f.name, nm], true)
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# Primal beasts (session 6): with Hides of Mythical Beasts on the map, primal creatures roam their own provinces
+# (Meadows, Fae Forests, Drylands, Bogs; plain grassland, forest, desert or swamp when there are none). Each is one
+# creature, patrols like a monster, and drops its hide when slain: into the victor's Reliquary, else a chest there.
+# Their troop kinds and monster entries are added to the game's tables once (Godot-only keys, like the armors).
+
+const BEASTS := {
+	"knuckledragger": {"troop": "m-knuckledragger", "name": "Plains Knuckledragger", "variant": "meadow", "terrain": "grassland",
+		"drop": "pscraps", "atk": 20, "hp": 300, "speed": 0.6, "names": ["Knuckledragger", "Meadow Brute", "Grass Ape"],
+		"blurb": "A gorilla-like primal beast of the meadows. Drops Primal Scraps."},
+	"ursacub": {"troop": "m-ursacub", "name": "Cub of Ursa", "variant": "fae", "terrain": "forest",
+		"drop": "pscraps", "atk": 20, "hp": 300, "speed": 0.6, "names": ["Cub of Ursa", "Star Cub", "Moonpaw"],
+		"blurb": "A small celestial bear from the Fae Forests. Drops Primal Scraps."},
+	"dunestalker": {"troop": "m-dunestalker", "name": "Dunestalker", "variant": "drylands", "terrain": "desert",
+		"drop": "phide", "atk": 25, "hp": 420, "speed": 0.75, "names": ["Dunestalker", "Long Wolf", "Sand Prowler"],
+		"blurb": "A long, slender wolf of the Drylands. Drops a Primal Hide."},
+	"bogwalker": {"troop": "m-bogwalker", "name": "Bogwalker", "variant": "bog", "terrain": "swamp",
+		"drop": "phide", "atk": 25, "hp": 480, "speed": 0.5, "names": ["Bogwalker"],
+		"blurb": "A moss-covered mushroom that walks on two legs, deep in the Bogs. Drops a Primal Hide."},
+}
+
+
+static func install_beasts() -> void:
+	var M: Dictionary = GameData.c("MONSTERS")
+	if M.has("knuckledragger"):
+		return
+	var DS: Dictionary = GameData.c("DSTATS")
+	var UD: Dictionary = GameData.c("UNIT_DEFS")
+	var US: Dictionary = GameData.c("UNIT_SPEED")
+	for k in BEASTS:
+		var B: Dictionary = BEASTS[k]
+		M[k] = {"troop": B.troop, "sizes": [1], "terrain": B.terrain, "loot": {}, "cry": B.name + "!", "found": "a " + B.name, "names": B.names}
+		DS[B.troop] = {"cav": false, "rough": true, "fam": "blunt", "armor": 0, "shieldArmor": 0, "red": 0.0, "parry": 0, "atk": B.atk,
+			"hp": B.hp, "speed": B.speed, "cost": {}, "upkeep": {}, "blurb": ""}
+		UD[B.troop] = {"name": B.name, "cost": {}, "upkeep": {}, "blurb": B.blurb}
+		US[B.troop] = B.speed
+
+
+## The beasts of Hides of Mythical Beasts, placed when the map is made (stream <seed>:beasts): away from capitals,
+## settlements, other raiders and the unique provinces.
+static func spawn_beasts(g) -> void:
+	var q = quest("beastleather")
+	if q == null or not g.quest_pick.has("beastleather"):
+		return
+	var r := Mulberry32.from_string(str(g.world.seed) + ":beasts")
+	var ban: Dictionary = g.uq_skip()
+	for p in g.buildings:
+		ban[p] = true
+		if g.buildings[p].stage == 2:
+			for n in g.all_nbr[p]:
+				ban[n] = true
+	for u in g.units:
+		ban[u.prov] = true
+	var kinds: Array = q.beasts.keys()
+	kinds.sort()
+	for k in kinds:
+		var B: Dictionary = BEASTS[k]
+		var pool := []
+		for i in g.world.provinces.size():
+			if not ban.has(i) and i < g.variant.size() and g.variant[i] == B.variant:
+				pool.append(i)
+		if pool.size() < int(q.beasts[k]):   # (no such terrain on this map: its plain kind)
+			for i in g.world.provinces.size():
+				if not ban.has(i) and not pool.has(i) and g.world.provinces[i].terrain == B.terrain:
+					pool.append(i)
+		r.shuffle(pool)
+		for n in mini(int(q.beasts[k]), pool.size()):
+			var p: int = pool[n]
+			var a: Dictionary = g.spawn_monster(p, k, 1)
+			a["primal"] = true
+			ban[p] = true
+
+
+## A primal beast has fallen in battle b: its hide goes to the nation that slew it (the first human nation among the
+## victors, else the first computer one).
+static func beast_fell(g, a: Dictionary, b: Dictionary) -> void:
+	var B = BEASTS.get(str(a.get("monster", "")))
+	if B == null:
+		return
+	var winner := 0
+	var ks: Array = b.get("start", {}).keys().map(func(x): return int(x))
+	ks.sort()
+	for o in ks:
+		if g.seats.has(o):
+			winner = o
+			break
+	if not winner:
+		for o in ks:
+			if g.is_nation(o):
+				winner = o
+				break
+	if not winner:
+		return
+	var where := give(g, winner, str(B.drop), null, int(b.prov))
+	tell(g, winner, "The %s falls: %s! %s" % [B.name, item_name(str(B.drop)), "It goes into your Reliquary." if where == "reliquary" else "No Reliquary has room: it lies in a chest where the beast fell."])

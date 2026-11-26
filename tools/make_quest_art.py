@@ -415,12 +415,74 @@ GEAR_FAMILY = {"leather": "beastleather", "stag": "beastleather", "spirit": "bea
                "plate": "siegebreaker", "dragon": "siegebreaker", "ornate": "siegebreaker"}
 
 
+# --- primal beasts (session 6): monster_<troop>_d2/_d6.png in units/common, facing right / left ---
+
+def beast(kind):
+    cv = Canvas(170, 200)
+    if kind == "knuckledragger":  # a gorilla-like brute: hunched, long arms on the ground
+        cv.ell(85, 188, 52, 10, (0, 0, 0, 60), None)
+        cv.poly([(40, 186), (48, 150), (62, 150), (60, 186)], hexc("#4a4650"))
+        cv.poly([(110, 186), (104, 150), (118, 150), (126, 186)], hexc("#4a4650"))
+        cv.ell(85, 118, 50, 44, hexc("#5a5560"))
+        cv.ell(96, 126, 24, 22, hexc("#8a8290"), None)
+        cv.poly([(130, 100), (152, 150), (150, 186), (136, 186), (132, 150), (118, 118)], hexc("#4a4650"))
+        cv.ell(124, 74, 24, 22, hexc("#5a5560"))
+        cv.ell(132, 82, 13, 10, hexc("#8a8290"))
+        cv.ell(128, 70, 3, 3, OL, None)
+    elif kind == "ursacub":  # a small celestial bear: night-blue fur with stars
+        cv.ell(85, 190, 46, 9, (0, 0, 0, 60), None)
+        for x in (52, 74, 100, 120):
+            cv.poly([(x - 8, 188), (x - 8, 160), (x + 8, 160), (x + 8, 188)], hexc("#2f4a8a"))
+        cv.ell(86, 140, 50, 32, hexc("#3f5fae"))
+        cv.ell(132, 118, 24, 22, hexc("#3f5fae"))
+        cv.ell(122, 96, 7, 7, hexc("#3f5fae"))
+        cv.ell(144, 98, 7, 7, hexc("#3f5fae"))
+        cv.ell(146, 124, 8, 6, hexc("#c9d6ff"))
+        cv.ell(136, 114, 3, 3, OL, None)
+        for (x, y) in ((70, 130), (92, 146), (106, 128), (60, 150)):
+            cv.ell(x, y, 3, 3, hexc("#fff3a6"), None)
+    elif kind == "dunestalker":  # a wolf with a longer, slender body, sand-colored
+        cv.ell(85, 190, 62, 8, (0, 0, 0, 60), None)
+        for x in (34, 50, 118, 132):
+            cv.poly([(x - 5, 188), (x - 4, 150), (x + 4, 150), (x + 5, 188)], hexc("#b08850"))
+        cv.poly([(20, 140), (30, 128), (140, 126), (148, 140), (136, 156), (30, 156)], hexc("#d9b070"))
+        cv.poly([(20, 140), (2, 122), (6, 120), (28, 132)], hexc("#d9b070"))
+        cv.poly([(136, 130), (150, 104), (166, 112), (160, 124), (150, 138)], hexc("#d9b070"))
+        cv.poly([(148, 106), (150, 92), (156, 104)], hexc("#b08850"))
+        cv.ell(155, 112, 2.5, 2.5, OL, None)
+    else:  # bogwalker: a mossy mushroom on two legs
+        cv.ell(85, 190, 40, 8, (0, 0, 0, 60), None)
+        cv.poly([(66, 188), (70, 140), (80, 140), (78, 188)], hexc("#c9b38a"))
+        cv.poly([(92, 188), (90, 140), (100, 140), (104, 188)], hexc("#c9b38a"))
+        cv.poly([(62, 146), (66, 96), (104, 96), (108, 146)], hexc("#e3d6b4"))
+        cv.d.pieslice([(26) * SS, (30) * SS, (144) * SS, (130) * SS], 180, 360, fill=hexc("#6d7a3a"), outline=OL, width=int(2.4 * SS))
+        for (x, y, r) in ((60, 66, 9), (90, 52, 11), (116, 70, 8), (80, 76, 6)):
+            cv.ell(x, y, r, r * 0.7, hexc("#8ccf6a"), None)
+        cv.ell(76, 116, 3, 4, OL, None)
+        cv.ell(94, 116, 3, 4, OL, None)
+    return cv
+
+
+def beasts():
+    d = os.path.join(ART, "units", "common")
+    man_path = os.path.join(d, "manifest.json")
+    man = json.load(open(man_path, encoding="utf-8"))
+    for kind in ("knuckledragger", "ursacub", "dunestalker", "bogwalker"):
+        im = beast(kind).im.resize((170, 200), Image.LANCZOS)
+        for dr, img, th in (("d2", im, -1.5707963267948966), ("d6", im.transpose(Image.FLIP_LEFT_RIGHT), 1.5707963267948966)):
+            name = "monster_m_%s_%s.png" % (kind, dr)
+            img.save(os.path.join(d, name))
+            man["images"][name] = {"w": 170, "h": 200, "ax": 85, "ay": 190, "scale": 4, "id": "m-" + kind, "dir": dr, "th": th}
+    json.dump(man, open(man_path, "w", encoding="utf-8"), indent=1, ensure_ascii=False)
+
+
 def gear_icons():
     for fam, g in GEAR_FAMILY.items():
         icon(GEAR_LOOK[g]).save(os.path.join(ART, "icons", "common", "gear_armor_%s5.png" % fam))
 
 
 if __name__ == "__main__":
+    beasts()
     gear_icons()
     buildings()
     items()

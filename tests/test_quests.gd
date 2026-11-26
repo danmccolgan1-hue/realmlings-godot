@@ -25,6 +25,7 @@ func run() -> Array:
 	_race(errs)
 	_armament(errs)
 	_gear(errs)
+	_beasts(errs)
 	Game.QUESTS = was
 	return errs
 
@@ -483,3 +484,35 @@ func _gear(errs: Array) -> void:
 	var br := {"kind": "army", "owner": Game.HOST, "troops": {sb.id: 10}}
 	if not Quests.wears(g, br, "armor:siegebreaker") or Quests.wears(g, foe, "armor:siegebreaker"):
 		errs.append("gear: Siegebreaker wearers not found")
+
+
+## Session 6: with Hides of Mythical Beasts on the map, 3 + 3 + 2 + 1 primal beasts on their terrain, of the
+## right strength; a slain beast's hide goes to the victor's Reliquary, else a chest where it fell.
+func _beasts(errs: Array) -> void:
+	var g := Game.new_world(SEED, "cormac", SLOTS, "center")
+	g.quest_pick = ["beastleather"]
+	Quests.spawn_beasts(g)
+	var want := {"knuckledragger": [3, 2000], "ursacub": [3, 2000], "dunestalker": [2, 3500], "bogwalker": [1, 4000]}
+	for k in want:
+		var list: Array = g.units.filter(func(u): return u.get("monster") == k)
+		if list.size() != want[k][0]:
+			errs.append("beasts: %d %s, want %d" % [list.size(), k, want[k][0]])
+			continue
+		var B: Dictionary = Quests.BEASTS[k]
+		for a in list:
+			var t: String = g.world.provinces[a.prov].terrain
+			var v: String = g.variant[a.prov] if a.prov < g.variant.size() else ""
+			if v != B.variant and t != B.terrain:
+				errs.append("beasts: a %s on %s / %s" % [k, t, v])
+			var pw := int(round(g.raw_strength([a]) * 10))
+			if pw != want[k][1]:
+				errs.append("beasts: a %s has power %d, want %d" % [k, pw, want[k][1]])
+	var a: Dictionary = g.units.filter(func(u): return u.get("monster") == "dunestalker")[0]
+	var b := {"prov": a.prov, "start": {Game.HOST: 10, Game.RAIDERS: 1}}
+	Quests.beast_fell(g, a, b)
+	if g.chests.get(a.prov, []) != ["phide"]:
+		errs.append("beasts: no Reliquary, but the hide isn't in a chest (%s)" % [g.chests])
+	_reliq(g, Game.HOST)
+	Quests.beast_fell(g, a, b)
+	if Quests.count(g, Game.HOST, "phide") != 1:
+		errs.append("beasts: the hide didn't go to the Reliquary")
