@@ -169,7 +169,7 @@ static func build_mesh(px: PackedFloat64Array, py: PackedFloat64Array) -> Dictio
 		var l: Array = pt_tris[i]
 		var keys := PackedFloat64Array()
 		for t in l:
-			keys.append(atan2(tris.y[t] - y, tris.x[t] - x))
+			keys.append(DMath.atan2(tris.y[t] - y, tris.x[t] - x))
 		# stable insertion sort by angle (same order as the web's stable sort)
 		for p in range(1, l.size()):
 			var kv := keys[p]
@@ -661,12 +661,12 @@ class _Attempt:
 	func n_ang(th: float) -> float:
 		var s := 0.0
 		for h in harm:
-			s += h[1] * sin(h[0] * th + h[2])
+			s += h[1] * DMath.sin(h[0] * th + h[2])
 		return s
 
 	func coast_r(th: float) -> float:
-		var c := cos(th)
-		var s := sin(th)
+		var c := DMath.cos(th)
+		var s := DMath.sin(th)
 		return k_scale * (1.0 / sqrt((c / A) * (c / A) + (s / B) * (s / B))) * (1.0 + wob * n_ang(th))
 
 	func in_hole(x: float, y: float) -> bool:
@@ -674,8 +674,8 @@ class _Attempt:
 			return false
 		var dx: float = x - C[0]
 		var dy: float = y - C[1]
-		var th := atan2(dy, dx)
-		return JS.hypot(dx, dy) < coast_r(th) * hole.q * (1.0 + 0.08 * sin(3.0 * th + hole.ph))
+		var th := DMath.atan2(dy, dx)
+		return JS.hypot(dx, dy) < coast_r(th) * hole.q * (1.0 + 0.08 * DMath.sin(3.0 * th + hole.ph))
 
 	func shape_ok(th: float) -> bool:
 		if bite != null and not (RealmGen.ang_diff(th, bite.th) > 1.35):
@@ -686,16 +686,16 @@ class _Attempt:
 		return true
 
 	func at(th: float, f: float) -> Array:
-		return [C[0] + cos(th) * coast_r(th) * f, C[1] + sin(th) * coast_r(th) * f]
+		return [C[0] + DMath.cos(th) * coast_r(th) * f, C[1] + DMath.sin(th) * coast_r(th) * f]
 
 	func field(x: float, y: float) -> float:
 		var dx: float = x - C[0]
 		var dy: float = y - C[1]
-		var th := atan2(dy, dx)
-		var f := 1.0 - JS.hypot(dx, dy) / coast_r(th) + 0.04 * (sin(x / 273.0 + ph1) + sin(y / 238.0 + ph2))
+		var th := DMath.atan2(dy, dx)
+		var f := 1.0 - JS.hypot(dx, dy) / coast_r(th) + 0.04 * (DMath.sin(x / 273.0 + ph1) + DMath.sin(y / 238.0 + ph2))
 		for l in lobes:
-			var lx: float = C[0] + cos(l.th) * mean_r * l.d
-			var ly: float = C[1] + sin(l.th) * mean_r * l.d
+			var lx: float = C[0] + DMath.cos(l.th) * mean_r * l.d
+			var ly: float = C[1] + DMath.sin(l.th) * mean_r * l.d
 			f = maxf(f, 1.0 - JS.hypot(x - lx, y - ly) / (mean_r * l.r))
 		if bite != null:
 			f = minf(f, 1.4 * (JS.hypot(x - bite_c[0], y - bite_c[1]) / (mean_r * bite.r) - 1.0))
@@ -786,7 +786,7 @@ class _Attempt:
 	func axis_coords(i: int, th: float) -> Array:
 		var dx: float = px[i] - C[0]
 		var dy: float = py[i] - C[1]
-		return [dx * cos(th) + dy * sin(th), -dx * sin(th) + dy * cos(th)]
+		return [dx * DMath.cos(th) + dy * DMath.sin(th), -dx * DMath.sin(th) + dy * DMath.cos(th)]
 
 	func fail(reason: String) -> Dictionary:
 		return {"ok": false, "reason": reason}
@@ -951,7 +951,7 @@ class _Attempt:
 			k_scale = 0.86
 		mean_r = sqrt(A * B) * k_scale
 		if bite != null:
-			bite_c = [C[0] + cos(bite.th) * mean_r * bite.off, C[1] + sin(bite.th) * mean_r * bite.off]
+			bite_c = [C[0] + DMath.cos(bite.th) * mean_r * bite.off, C[1] + DMath.sin(bite.th) * mean_r * bite.off]
 		# pick angles
 		var pens := []
 		var coves := []
@@ -976,7 +976,7 @@ class _Attempt:
 			return fail("feature angles")
 		for th in pens:
 			var bend := (rng.next() - 0.5) * 2.0 * 246.0
-			var pp := [-sin(th), cos(th)]
+			var pp := [-DMath.sin(th), DMath.cos(th)]
 			var tip := at(th, 1.42)
 			pen_lines.append({"th": th, "line": [at(th, 0.55), at(th, 1.02), [tip[0] + pp[0] * bend, tip[1] + pp[1] * bend]], "hw": S * 0.95})
 		for th in coves:
@@ -1125,7 +1125,7 @@ class _Attempt:
 					if land[w]:
 						continue
 					touches = true
-					var s := (px[w] - px[i]) * -sin(p.th) + (py[w] - py[i]) * cos(p.th)
+					var s := (px[w] - px[i]) * -DMath.sin(p.th) + (py[w] - py[i]) * DMath.cos(p.th)
 					if s > 21.0:
 						L = true
 					if s < -21.0:
@@ -1152,7 +1152,7 @@ class _Attempt:
 				for w in border[i].keys():
 					if not land[w]:
 						continue
-					var s := (px[w] - px[i]) * -sin(c.th) + (py[w] - py[i]) * cos(c.th)
+					var s := (px[w] - px[i]) * -DMath.sin(c.th) + (py[w] - py[i]) * DMath.cos(c.th)
 					if s > 21.0:
 						l = true
 					if s < -21.0:
@@ -1515,7 +1515,7 @@ static func assign_terrain(n: int, nbr: Array, tch: Array, rng: Mulberry32, o: D
 		var counts := []
 		for k in 3:
 			var rv := rng.next()
-			counts.append(lo + int(floor((pow(rv, f_bias) if k == 0 else rv) * (hi - lo + 1))))
+			counts.append(lo + int(floor((DMath.pow(rv, f_bias) if k == 0 else rv) * (hi - lo + 1))))
 		var grass: int = n - counts[0] - counts[1] - counts[2]
 		if grass < lo or grass > hi:
 			continue
@@ -1835,7 +1835,7 @@ class _Solver:
 				next_label += 1
 				comp += 1
 			var delta := (local + 4 * (comp - 1)) - before
-			if delta > 0 and rng.next() >= exp(-delta / T):
+			if delta > 0 and rng.next() >= DMath.exp(-delta / T):
 				bar[id] ^= 1
 				cnt[a] -= d
 				cnt[b] -= d

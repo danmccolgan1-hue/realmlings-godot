@@ -163,7 +163,7 @@ func sync(g: Game) -> void:
 			for e in g.extras[p]:
 				var key := "%d@%d" % [p, e.slot]
 				live[key] = true
-				if houses.has(key) and houses[key].get(0, {}).get("type", "") == e.type:
+				if houses.has(key) and not houses[key].is_empty() and str(houses[key][0].get("type", "")) == e.type:
 					continue
 				var r := Mulberry32.from_string(seed + ":housecount:" + key)
 				var hs := _place(g, p, e.slot, 2 + (1 if r.next() < 0.5 else 0), _taken(p, key))

@@ -1988,7 +1988,7 @@ var _fx_n := 0
 ## A number between 0 and 1 for an effect's look only (never the rules' random numbers).
 func fx_rand() -> float:
 	_fx_n += 1
-	return fposmod(sin(float(_fx_n) * 12.9898 + t * 78.233) * 43758.5453, 1.0)
+	return fposmod(DMath.sin(float(_fx_n) * 12.9898 + t * 78.233) * 43758.5453, 1.0)
 
 
 ## A sound effect for the view to play: its name (web: SFX_FILES), the province it comes from (quieter far from the
@@ -2264,7 +2264,7 @@ func speed_mod(u: Dictionary) -> float:
 
 
 static func facing(dx: float, dy: float) -> float:
-	return JS.round_js(atan2(dx, dy) / (PI / 4)) * (PI / 4)
+	return JS.round_js(DMath.atan2(dx, dy) / (PI / 4)) * (PI / 4)
 
 
 ## One unit's share of a frame. web: the body of `for (const u of S.units)` in game.js update()
@@ -2501,7 +2501,7 @@ static func formation(n: int, gap := 30.0) -> Array:
 		var k := 0
 		while k < 6 * ring and out.size() < n:
 			var a := float(k) / (6 * ring) * TAU + ring * 0.5
-			out.append([cos(a) * gap * ring, sin(a) * gap * ring * 0.8])
+			out.append([DMath.cos(a) * gap * ring, DMath.sin(a) * gap * ring * 0.8])
 			k += 1
 		ring += 1
 	return out
@@ -3009,7 +3009,7 @@ func start_build(u: Dictionary) -> bool:
 	u.build = {"prov": u.prov, "type": "outpost", "t0": t, "dur": build_time("outpost"), "paid": cost.duplicate()}
 	sfx("bld_work", u.prov)
 	var c: Array = G.provs[u.prov].ic
-	u.th = atan2(c[0] - u.x, c[1] - u.y)
+	u.th = DMath.atan2(c[0] - u.x, c[1] - u.y)
 	toast("Building an outpost… (−%s)" % cost_text(cost))
 	return true
 
@@ -3032,7 +3032,7 @@ func begin_extra(u: Dictionary, type: String, want := -1) -> bool:
 	var o := bslot_of(p, slot)
 	u.build = {"prov": p, "type": type, "slot": slot, "ox": o[0], "oy": o[1], "t0": t, "dur": build_time(type), "paid": cost.duplicate()}
 	sfx("bld_work", p)
-	u.th = atan2(o[0] + G.provs[p].ic[0] - u.x, o[1] + G.provs[p].ic[1] - u.y)
+	u.th = DMath.atan2(o[0] + G.provs[p].ic[0] - u.x, o[1] + G.provs[p].ic[1] - u.y)
 	toast("Building a %s… (−%s)" % [d.name, cost_text(cost)])
 	return true
 
@@ -3138,7 +3138,7 @@ func bslot_of(p: int, slot: int) -> Array:
 		for k in BS.size():
 			var bx: float = BS[k][0]
 			var by: float = BS[k][1]
-			var a0 := atan2(by, bx)
+			var a0 := DMath.atan2(by, bx)
 			var r0 := JS.hypot(bx, by)
 			var pick = null
 			var tries := 0
@@ -3146,8 +3146,8 @@ func bslot_of(p: int, slot: int) -> Array:
 				tries += 1
 				var a := a0 + (r.next() - 0.5) * 0.8
 				var rad := maxf(112.0, r0 * (0.95 + r.next() * 0.55))
-				var x := cos(a) * rad
-				var y := sin(a) * rad * 0.92
+				var x := DMath.cos(a) * rad
+				var y := DMath.sin(a) * rad * 0.92
 				if not Geo.in_poly(c[0] + x, c[1] + y, P.inner) or Geo.dist_to_edges(c[0] + x, c[1] + y, P.inner) < 46:
 					continue
 				var clash := false
@@ -3762,7 +3762,7 @@ func bank_cap(tree: String) -> float:
 func tech_cost(x: Dictionary) -> int:
 	var rep_mult := 1.0
 	if x.get("rep", false) and not GameData.c("FLAT_REPS").has(x.id):
-		rep_mult = pow(GameData.c("REP_STEP"), rep_lv(x.id))
+		rep_mult = DMath.pow(GameData.c("REP_STEP"), rep_lv(x.id))
 	var tree_mult: float = GameData.c("GOV_COST_MULT") if x.tree == "gov" else GameData.c("MIL_COST_MULT") if x.tree == "mil" else 1.0
 	var n := provs_of().size()
 	var cost_mult := 1 + 0.05 * mini(10, maxi(0, n - 10)) + 0.15 * maxi(0, n - 20)
@@ -3903,7 +3903,7 @@ func draw_options(tree: String) -> void:
 	var keyed := []
 	for x in avail_techs(tree):
 		var w := 1.5 if x.id == "forge" and has_barracks else 1.0
-		keyed.append([pow(rng.randf(), 1.0 / w), x])
+		keyed.append([DMath.pow(rng.randf(), 1.0 / w), x])
 	keyed.sort_custom(func(a, b): return a[0] > b[0])
 	var shuffled := keyed.map(func(o): return o[1])
 	var top := shuffled.filter(func(x): return x.tier == T and not x.get("rep", false))
@@ -4569,7 +4569,7 @@ func spell2_time(k: String, o: int) -> float:
 	if o != ME and seats.has(o):   # another human nation: the same, with its own fields
 		return in_seat(o, func(): return spell2_time(k, o))
 	var mult: float = STAVE_CAST.get(mage_gear.weapon, 1.0) if o == ME else 1.0
-	return maxf(1.0, (QUAKE_TIME if k == "quake" else SHOCK_TIME) * pow(0.95, rep_of(o, "rep-quakecast" if k == "quake" else "rep-shockcast")) * mult - (skull_cut(o) if k == "shock" else 0.0))
+	return maxf(1.0, (QUAKE_TIME if k == "quake" else SHOCK_TIME) * DMath.pow(0.95, rep_of(o, "rep-quakecast" if k == "quake" else "rep-shockcast")) * mult - (skull_cut(o) if k == "shock" else 0.0))
 
 
 func cast_len(T: float) -> String:
@@ -5921,7 +5921,7 @@ func _finish_q(c: Dictionary, k: String, cs: Dictionary, now: float) -> void:
 			for v in units:
 				if v.kind == "army" and v.prov == c.prov and hostile(v.owner, ME):
 					ign.append(v.id)
-			ftraps.append({"prov": c.prov, "owner": ME, "lv": L, "mult": pow(1.1, rep_lv("rep-ftrap")), "t0": now, "ignore": ign})
+			ftraps.append({"prov": c.prov, "owner": ME, "lv": L, "mult": DMath.pow(1.1, rep_lv("rep-ftrap")), "t0": now, "ignore": ign})
 			toast("%s set in %s. The next enemy army to enter is engulfed: %d damage to its front line, armor or not." % [TECH_BY_ID[line_tech("ftrap")].name, prov_name(c.prov), FIRE_DMG[L]])
 		"sacred":
 			var p: int = cs.get("to", c.prov)
@@ -6066,7 +6066,7 @@ func _spring_trap(now: float) -> void:
 	if trap != null:
 		for v in units:
 			if v.kind == "army" and hostile(v.owner, ME) and v.prov == trap.prov and troop_count(v) > 0:
-				var n: int = int(JS.round_js(STASIS[maxi(1, lvl("stasis"))] * pow(1.1, rep_lv("rep-stasis"))))
+				var n: int = int(JS.round_js(STASIS[maxi(1, lvl("stasis"))] * DMath.pow(1.1, rep_lv("rep-stasis"))))
 				v.stasisUntil = now + n
 				v.path = []
 				v.moving = false
@@ -7085,7 +7085,7 @@ func on_battle_join(a: Dictionary, now: float) -> void:
 		for k in a.troops:
 			if a.troops[k] > 0:
 				hp += a.troops[k] * hp_of(a, k)
-		var rh := JS.round_js(hp * ROCK_PCT * pow(1.1, rep_lv("rep-rock")))
+		var rh := JS.round_js(hp * ROCK_PCT * DMath.pow(1.1, rep_lv("rep-rock")))
 		if rh > 0:
 			a.rock = {"hp": rh, "max": rh, "t0": now}
 			spend_mana(a, AUTO_MANA)
@@ -8585,8 +8585,8 @@ func step_flights() -> void:
 		var f := minf(1.0, (t - F.t0) / FLY_TIME)
 		a.x = F.x0 + (F.x1 - F.x0) * f
 		a.y = F.y0 + (F.y1 - F.y0) * f
-		a.th = atan2(F.y1 - F.y0, F.x1 - F.x0)
-		a.flyH = sin(f * PI) * 140
+		a.th = DMath.atan2(F.y1 - F.y0, F.x1 - F.x0)
+		a.flyH = DMath.sin(f * PI) * 140
 		if f >= 1:
 			a.flyT = null
 			a.flyH = 0.0

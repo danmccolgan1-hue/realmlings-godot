@@ -51,6 +51,9 @@ var drop_paused := false       # host: the game was paused because someone dropp
 var send_at := {}              # host: peer id -> [step, nation]: send them the game once that step has run (hot-join)
 var host_pid := 1              # host: the player who may give HOST_ONLY orders (on a dedicated server, the one hosting)
 var _acc := 0.0
+## (finding a desync: every fingerprint step's whole save, step -> text; set DEBUG_SAVES before the game starts)
+static var DEBUG_SAVES := false
+var debug_saves := {}
 var _clock := 0.0
 
 
@@ -319,6 +322,8 @@ func _run(cmds: Array) -> void:
 	step += 1
 	if step % SUM_EVERY == 0:
 		var h := game.checksum()
+		if DEBUG_SAVES:
+			debug_saves[step] = game.save_text()
 		if is_host:
 			sums[step] = h
 			sums.erase(step - SUM_EVERY * 6)

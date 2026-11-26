@@ -88,7 +88,7 @@ func _setup_saves() -> Array:
 # --- Settings → Debug in a multiplayer game ----------------------------------------------------------------------
 func _debug_rules() -> Array:
 	var errs := []
-	var g := Game.new_world("fern", "cormac", ["human", "moderate"], "center", {}, {}, {"name": "Hosts"}, "realm", [], {0: {"nation": {"name": "Bog"}, "race": "swamp"}})
+	var g := Game.new_world("fern", "cormac", ["human", "moderate"], "center", {}, {}, {"name": "Hosts"}, "realm", [], {0: {"nation": {"name": "Bog"}, "race": "swamp", "leader": "glurg"}})
 	var ids := g.seat_ids()
 	var a: int = ids[0]
 	var b: int = ids[1]

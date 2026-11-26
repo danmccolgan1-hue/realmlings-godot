@@ -615,7 +615,7 @@ static func tier(g: Game, N: Dictionary, tree: String) -> int:
 static func tech_cost(g: Game, N: Dictionary, x: Dictionary) -> int:
 	var rm := 1.0
 	if x.get("rep", false) and not GameData.c("FLAT_REPS").has(x.id):
-		rm = pow(GameData.c("REP_STEP"), rep(N, x.id))
+		rm = DMath.pow(GameData.c("REP_STEP"), rep(N, x.id))
 	var tm: float = GameData.c("GOV_COST_MULT") if x.tree == "gov" else GameData.c("MIL_COST_MULT") if x.tree == "mil" else 1.0
 	var n := prov_count(g, N)
 	var cm := 1 + 0.05 * mini(10, maxi(0, n - 10)) + 0.15 * maxi(0, n - 20)
@@ -694,7 +694,7 @@ static func draw_options(g: Game, N: Dictionary, tree: String) -> void:
 	var keyed := []
 	for x in avail:
 		var w := 1.5 if x.id == "forge" and has_building(g, N, "barracks") else 1.0
-		keyed.append({"x": x, "k": pow(g.js_rand.call(), 1.0 / w)})
+		keyed.append({"x": x, "k": DMath.pow(g.js_rand.call(), 1.0 / w)})
 	keyed = JS.stable_sort(keyed, func(a, b): return b.k - a.k)
 	var sh: Array = keyed.map(func(o): return o.x)
 	var top := sh.filter(func(x): return x.tier == T and not x.get("rep", false))
@@ -2034,7 +2034,7 @@ static func workers_step(g: Game, N: Dictionary, now: float) -> void:
 			var o := g.bslot_of(j.prov, slot)
 			u.build = {"prov": j.prov, "type": j.type, "slot": slot, "ox": o[0], "oy": o[1], "t0": now, "dur": g.build_time(j.type), "paid": cost.duplicate()}
 			var ic: Array = g.G.provs[j.prov].ic
-			u.th = atan2(o[0] + ic[0] - u.x, o[1] + ic[1] - u.y)
+			u.th = DMath.atan2(o[0] + ic[0] - u.x, o[1] + ic[1] - u.y)
 		u.aiJob = null
 		u.aiWait = 0
 
