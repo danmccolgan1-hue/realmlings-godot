@@ -19,6 +19,8 @@ func run() -> Array:
 	_save(g, errs)
 	_off(errs)
 	_mason_pages(g, errs)
+	_dig(errs)
+	_stars(errs)
 	Game.QUESTS = was
 	return errs
 
@@ -233,3 +235,88 @@ func _mason_pages(g: Game, errs: Array) -> void:
 			cells[int(c.cell)] = true
 	if not g.CMD[Game.MASON].any(func(c): return c.id == "build:reliquary"):
 		errs.append("mason: the Reliquary isn't on the first page")
+
+
+## Session 3: a survey uncovers a dig site; the scout digs until the relic comes up; the odds follow its rarity.
+func _dig(errs: Array) -> void:
+	# the rolls: about 20% / 10% / 5% a cycle
+	for rar in [["callum", 0.20], ["lionheart", 0.10], ["brune", 0.05]]:
+		var hit := 0
+		for n in 4000:
+			if Quests.dig_roll("ember", 7, 3, n, Quests.chance_of(rar[0])):
+				hit += 1
+		if absf(hit / 4000.0 - rar[1]) > 0.02:
+			errs.append("dig odds: %s came up %.3f of the time, want %.2f" % [rar[0], hit / 4000.0, rar[1]])
+	var g := Game.new_world(SEED, "cormac", SLOTS, "center")
+	var u := _scout(g)
+	var p: int = u.prov
+	g.digs[p] = {"item": "callum", "shown": false, "star": false}
+	if Quests.dig_why(g, u) == "":
+		errs.append("dig: could dig before the site was uncovered")
+	Quests.uncover(g, u)
+	if not g.digs[p].shown or Quests.dig_why(g, u) != "":
+		errs.append("dig: a survey didn't uncover the site (%s)" % Quests.dig_why(g, u))
+	if not g.start_dig(u) or g.unit_status(u) != "digging" or not g.busy(u):
+		errs.append("dig: didn't start")
+	var cycles := 0
+	while g.digs.has(p) and cycles < 300:
+		Quests.payday(g)
+		cycles += 1
+	if g.digs.has(p) or u.get("dig") != null:
+		errs.append("dig: nothing after %d cycles" % cycles)
+	elif Quests.bag_of(u) != ["callum"]:
+		errs.append("dig: the relic went to %s (no Reliquary: the scout should carry it)" % [Quests.bag_of(u)])
+	# a second site: moving off stops the digging
+	g.digs[p] = {"item": "brune", "shown": true, "star": false}
+	g.start_dig(u)
+	u.moving = true
+	Quests.step(g)
+	if u.get("dig") != null:
+		errs.append("dig: walking away didn't stop it")
+	u.moving = false
+	# the same seed digs the same way (each roll has its own stream)
+	var a := []
+	for k in 2:
+		var g2 := Game.new_world(SEED, "cormac", SLOTS, "center")
+		var u2 := _scout(g2)
+		g2.digs[u2.prov] = {"item": "brune", "shown": true, "star": false}
+		g2.start_dig(u2)
+		var c2 := 0
+		while g2.digs.has(u2.prov) and c2 < 500:
+			Quests.payday(g2)
+			c2 += 1
+		a.append(c2)
+	if a[0] != a[1]:
+		errs.append("dig: the same game took %d and %d cycles" % a)
+
+
+## Session 3: Fallen Stars fall when their time comes, never on the unique provinces, then 15–25 minutes later.
+func _stars(errs: Array) -> void:
+	var g := Game.new_world(SEED, "cormac", SLOTS, "center")
+	var U = g.uq()
+	for i in 6:
+		var due: float = g.star_next
+		var n0 := g.digs.size()
+		g.t = due - 1.0
+		Quests.step(g)
+		if g.digs.size() != n0:
+			errs.append("stars: one fell early")
+		g.t = due
+		Quests.step(g)
+		var fresh := g.digs.keys().filter(func(q): return g.digs[q].get("star", false) and not g.digs[q].has("_seen"))
+		if fresh.size() != 1:
+			errs.append("stars: %d new stars at %.0f s" % [fresh.size(), due])
+			return
+		var p: int = fresh[0]
+		g.digs[p]["_seen"] = true
+		if U != null and (p in [U.death, U.oasis, U.heart] or g.uq_guards().has(p)):
+			errs.append("stars: one fell on a unique province (%d)" % p)
+		if not g.digs[p].shown:
+			errs.append("stars: a star isn't marked")
+		var gap: float = g.star_next - due
+		if gap < 900 or gap > 1500:
+			errs.append("stars: the next falls %.0f s later" % gap)
+		if g.star_fx.is_empty():
+			errs.append("stars: no shooting star for the view")
+	if g.stars_fallen != 6:
+		errs.append("stars: %d fallen, want 6" % g.stars_fallen)

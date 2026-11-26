@@ -385,6 +385,14 @@ def card_icons():
     cv.d.arc([18 * SS, 20 * SS, 70 * SS, 70 * SS], 200, 70, fill=hexc("#e8c547"), width=6 * SS)
     cv.poly([(8, 40), (30, 22), (32, 52)], hexc("#e8c547"))
     cv.save(os.path.join(ART, "icons", "common", "cmd_basic.png"))
+    cv = Canvas(84, 84)  # Dig: a spade in a mound of earth, a red X beside it
+    cv.ell(42, 66, 32, 12, hexc("#8a5a34"))
+    for s_ in (-1, 1):
+        cv.poly([(14, 56 + 6 * s_), (17, 53 + 6 * s_), (34, 62 - 6 * s_), (31, 65 - 6 * s_)], hexc("#d23b3b"), OL, 1.6)
+    cv.poly([(50, 6), (58, 8), (50, 44), (44, 42)], hexc("#a0703c"))
+    cv.poly([(40, 40), (56, 44), (54, 66), (44, 70), (36, 62)], hexc("#c9ced6"))
+    cv.poly([(46, 4), (60, 7), (58, 12), (46, 9)], hexc("#7a4a26"), OL, 1.6)
+    cv.save(os.path.join(ART, "icons", "common", "cmd_dig.png"))
 
 
 if __name__ == "__main__":

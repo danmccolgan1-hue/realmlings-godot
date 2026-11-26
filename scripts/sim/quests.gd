@@ -10,6 +10,7 @@ extends RefCounted
 
 const PATH := "res://data/quests.json"
 const RELIQUARY := "reliquary"
+const STAR_FX_TIME := 3.0   # how long a falling star shows (the view's shooting star)
 
 static var _data := {}
 
@@ -308,8 +309,16 @@ static func _where_text(where: String, u: Dictionary) -> String:
 	return "No Reliquary has room and %s can carry no more: it stays here in a chest." % u.name
 
 
-## Every frame (not while paused): scouting units open the chests in the provinces they stand in.
+## Every frame (not while paused): Fallen Stars, diggers who walked off, and scouting units opening the chests in
+## the provinces they stand in.
 static func step(g) -> void:
+	step_stars(g)
+	if not g.star_fx.is_empty():
+		g.star_fx = g.star_fx.filter(func(f): return g.t - f.t0 < STAR_FX_TIME)
+	for u in g.units:
+		var dg = u.get("dig")
+		if dg != null and (u.moving or u.prov != int(dg.prov) or not g.digs.has(int(dg.prov))):
+			u["dig"] = null
 	if g.chests.is_empty():
 		return
 	for u in g.units:
@@ -337,8 +346,9 @@ static func step(g) -> void:
 			g.in_seat(u.owner, func(): g.sfx("wn_ally", p))
 
 
-## Every payday: what scouting units carry moves into a Reliquary as soon as one has room.
+## Every payday: diggers roll; what scouting units carry moves into a Reliquary as soon as one has room.
 static func payday(g) -> void:
+	dig_payday(g)
 	for u in g.units:
 		var b = u.get("bag")
 		if not (b is Array) or b.is_empty() or u.get("_gone", false):
@@ -368,3 +378,141 @@ static func dig_seen(g, p: int) -> bool:
 ## Whether the current seat sees the chest in province p (where it has vision).
 static func chest_seen(g, p: int) -> bool:
 	return g.chests.has(p) and not g.chests[p].is_empty() and (g.visible.has(p) or g.reveal_all)
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# digging (session 3): a survey uncovers a dig site; a scouting unit standing on one digs; every cycle it rolls the
+# relic's rarity (common 20%, uncommon 10%, rare 5%) until the relic comes up
+
+## A survey of province p by unit u: a hidden dig site there is uncovered (anyone with vision sees it from now on).
+static func uncover(g, u: Dictionary) -> void:
+	var p: int = u.prov
+	var d = g.digs.get(p)
+	if d == null or d.get("shown", false):
+		return
+	d["shown"] = true
+	tell(g, u.owner, "%s found signs of something buried in %s: a dig site! Select a %s there and press Dig." % [u.name, g.prov_name(p), _scout_word(g, u.owner)])
+
+
+static func _scout_word(g, o: int) -> String:
+	return Races.words("Wayfinder", g.race(o))
+
+
+## Why unit u can't dig where it stands ("" when it can).
+static func dig_why(g, u: Dictionary) -> String:
+	if not is_scout(g, u):
+		return "Only scouting units dig"
+	var d = g.digs.get(u.prov)
+	if d == null or not (d.get("shown", false) or d.get("star", false)):
+		return "No dig site here"
+	if not d.get("star", false) and not g.in_seat(u.owner, func(): return g.visible.has(u.prov)) and g.seats.has(u.owner):
+		return "No dig site here"
+	if u.get("dig") != null:
+		return "Already digging"
+	if u.moving or u.survey != null:
+		return "Stand still first"
+	if u.get("build") != null:
+		return "Busy"
+	return ""
+
+
+## Start digging (an order: Game.start_dig).
+static func start_dig(g, u: Dictionary) -> bool:
+	var why := dig_why(g, u)
+	if why != "":
+		tell(g, u.owner, why + ".", true)
+		return false
+	u["dig"] = {"prov": u.prov, "n": 0, "t0": g.t}
+	u.surveyQueue = []
+	u.pendingSurvey = -1
+	u.autoWalk = null
+	tell(g, u.owner, "%s starts digging in %s." % [u.name, g.prov_name(u.prov)])
+	return true
+
+
+static func stop_dig(_g, u: Dictionary) -> void:
+	u["dig"] = null
+
+
+## Whether a roll of `chance` comes up for the n-th cycle of unit `id` digging in province p (its own stream, so
+## every copy of a game agrees and a loaded game goes on the same).
+static func dig_roll(seed: String, p: int, id: int, n: int, chance: float) -> bool:
+	return Mulberry32.from_string("%s:dig:%d:%d:%d" % [seed, p, id, n]).next() < chance
+
+
+static func chance_of(id: String) -> float:
+	var it = item(id)
+	var rar := str(it.rarity) if it != null else "rare"
+	return float(c("RARITY_CHANCE").get(rar, 0.05))
+
+
+## Every cycle: each digging unit rolls; the first to succeed in a province uncovers its relic.
+static func dig_payday(g) -> void:
+	for u in g.units.duplicate():
+		var dg = u.get("dig")
+		if dg == null or u.get("_gone", false):
+			continue
+		var p: int = dg.prov
+		var d = g.digs.get(p)
+		if d == null or u.prov != p or u.moving:
+			u["dig"] = null
+			continue
+		dg.n = int(dg.n) + 1
+		if dig_roll(str(g.world.seed), p, int(u.id), int(dg.n), chance_of(str(d.item))):
+			dug_up(g, u, p)
+
+
+static func dug_up(g, u: Dictionary, p: int) -> void:
+	var id := str(g.digs[p].item)
+	g.digs.erase(p)
+	for v in g.units:
+		if v.get("dig") != null and int(v.dig.prov) == p:
+			v["dig"] = null
+	var where := give(g, u.owner, id, u, p)
+	tell(g, u.owner, "%s dug up %s in %s! %s" % [u.name, item_name(id), g.prov_name(p), _where_text(where, u)])
+	if g.seats.has(u.owner):
+		g.in_seat(u.owner, func(): g.sfx("wn_ally", p))
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# Fallen Stars (session 3): the first falls 45–55 minutes in, then one every 15–25 minutes, on any province but
+# the unique ones and their bosses'. Anyone who has explored the province sees its silver X.
+
+## Where a star may fall: not Death Mountain, the Oasis, the Heart of the Forest or their boss provinces, nor where
+## something is already buried.
+static func star_ok(g, p: int) -> bool:
+	if g.digs.has(p):
+		return false
+	var U = g.uq()
+	if U != null:
+		for k in ["death", "oasis", "heart"]:
+			if int(U.get(k, -1)) == p:
+				return false
+		if g.uq_guards().has(p):
+			return false
+	return true
+
+
+static func step_stars(g) -> void:
+	if g.star_next < 0 or g.t < g.star_next:
+		return
+	var n: int = g.stars_fallen
+	var r := Mulberry32.from_string("%s:star:%d" % [str(g.world.seed), n])
+	var pool := []
+	for i in g.world.provinces.size():
+		if star_ok(g, i):
+			pool.append(i)
+	g.stars_fallen = n + 1
+	var sn: Array = c("STAR_NEXT")
+	g.star_next = g.star_next + float(sn[0]) + floor(r.next() * (float(sn[1]) - float(sn[0]) + 1.0))
+	if pool.is_empty():
+		return
+	var p: int = pool[int(floor(r.next() * pool.size()))]
+	g.digs[p] = {"item": "star", "shown": true, "star": true}
+	g.star_fx.append({"prov": p, "t0": g.t})
+	for o in g.seat_ids():
+		var seen: bool = g.seats[o].explored.has(p) or g.reveal_all
+		tell(g, o, ("A star has fallen in %s! A silver X marks where it landed: send a %s to dig it up." % [g.prov_name(p), _scout_word(g, o)]) if seen
+			else "A star streaks across the sky and falls somewhere beyond your maps.")
+		if seen:
+			g.in_seat(o, func(): g.sfx("wn_ally", p))

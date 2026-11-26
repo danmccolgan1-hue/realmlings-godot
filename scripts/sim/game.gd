@@ -174,6 +174,8 @@ var quest_pick := []         # the quests chosen for this map
 var digs := {}               # province -> {item, shown, star}: a relic buried there
 var chests := {}             # province -> [item ids]: relics left on the ground
 var star_next := -1.0        # when the next Fallen Star falls
+var stars_fallen := 0        # how many have fallen (each draws from its own stream)
+var star_fx := []            # the view's shooting stars: {prov, t0} (not saved)
 var quest_log: Dictionary:   # this human nation's quests: id -> {state, t0, ...} (the quest engine, session 4)
 	get: return cur["quest_log"]
 	set(v): cur["quest_log"] = v
@@ -1956,7 +1958,7 @@ func exploring(u: Dictionary) -> bool:
 
 # web: game.js busy()
 func busy(u: Dictionary) -> bool:
-	return u.moving or u.survey != null or u.build != null or u.pending != null or u.pendingSurvey >= 0 or not u.surveyQueue.is_empty()
+	return u.moving or u.survey != null or u.build != null or u.pending != null or u.pendingSurvey >= 0 or not u.surveyQueue.is_empty() or u.get("dig") != null
 
 
 # web: game.js canEnter() — on the Practice island there are no other nations, bandits or bosses to keep out of
@@ -2054,6 +2056,15 @@ var path_avoid = null
 
 
 # web: game.js order(u, target, quiet, pt) + v101.js (computer armies at war steer clear of armies that would crush them)
+## Quests: a scouting unit digs where it stands, or stops (orders; the rules are in Quests).
+func start_dig(u: Dictionary) -> bool:
+	return Quests.start_dig(self, u)
+
+
+func stop_dig(u: Dictionary) -> void:
+	Quests.stop_dig(self, u)
+
+
 func order(u: Dictionary, target: int, quiet := false, pt = null) -> bool:
 	if u.kind == "army" and nations.has(u.owner) and not enemies_of(u.owner).is_empty():
 		path_avoid = Ai.danger_for(self, nations[u.owner], raw_strength([u]))
@@ -2297,6 +2308,8 @@ func step_unit(u: Dictionary, dt: float) -> void:
 				if setpieces.has(u.prov):
 					setpiece_found(u.prov, u)
 				survey_finds(u)
+				if quests_on:
+					Quests.uncover(self, u)
 				u.survey = null
 				if u.surveyQueue.is_empty() or not (u.surveyQueue[0] is int):
 					order(u, u.prov, true)
@@ -6012,7 +6025,7 @@ const SAVE_FIELDS := ["battles", "bandit_count", "monster_count", "leader", "cap
 	"harvest_by", "trap", "reveals", "eyes", "haunts", "mana_pool", "mana_prev_t", "mage_gear", "finds", "treasure_rolled",
 	"sp_found", "slot_races", "spyres", "ftraps", "sacreds", "wrocks", "gelems", "setpieces", "travelers", "train_orders", "train_order_seq", "design_seq", "prov_rename", "nations", "players", "my_nation", "race_of", "wars", "truces", "allies", "war_seq", "met", "occ", "occ_prog", "dipl", "war_log", "war_ever", "war_lock", "ai_met", "fallen", "ally_check", "bandit_next", "bandit_waves", "ally_ask", "crop_scan_at", "ai_scout_t", "wf", "known", "explored", "visible", "queues", "rally", "military", "UNIT_SPEED", "open_nbr", "all_nbr",
 	"yields", "look_seed", "tree_border", "debug_cap", "debug_tech", "reveal_all", "rec", "t", "next_tick", "paused", "last", "started", "seat_names", "paused_by", "seat_dipl", "mp_cd", "variant",
-	"quests_on", "quest_pick", "digs", "chests", "star_next", "quest_log"]
+	"quests_on", "quest_pick", "digs", "chests", "star_next", "stars_fallen", "quest_log"]
 
 
 ## The whole game as a plain Dictionary (see SaveCodec for the text form).
@@ -10976,6 +10989,8 @@ func unit_status(u: Dictionary) -> String:
 		return "surveying"
 	if u.get("build") != null:
 		return "building"
+	if u.get("dig") != null:
+		return "digging"
 	if u.get("pending") != null:
 		return "going to build"
 	if not u.get("surveyQueue", []).is_empty():
@@ -11350,7 +11365,7 @@ const COMMANDS := ["order", "order_group", "order_build", "cancel_build", "queue
 	"retreat", "retreat_to", "fly_army", "thugs_enter", "thug_out", "dx_act", "answer_request", "make_peace",
 	"declare_war", "proclaim_enemy", "renounce_enemy", "travelers_choose", "dismiss_quake", "dismiss_news",
 	"answer_demand", "set_crop", "hand_to_ai", "take_from_ai", "send_message", "issue_proclamation", "offer_barter", "show_request", "set_paused", "set_auto_tech", "rename_prov", "close_school_popup",
-	"debug_reveal", "debug_resources", "debug_all_tech", "grant_tech", "rec_toggle"]
+	"debug_reveal", "debug_resources", "debug_all_tech", "grant_tech", "rec_toggle", "start_dig", "stop_dig"]
 
 ## Multiplayer: hands a command to the network instead of applying it here (it comes back through apply()).
 var on_command: Callable
@@ -11383,7 +11398,7 @@ func apply(cmd: Dictionary):
 	var r = null
 	if args.has(null) and type in ["order", "order_build", "cancel_build", "queue_survey", "cast_spell", "start_spell2",
 			"end_quake", "start_path", "split_army", "dismiss", "send_to_rest", "retreat", "retreat_to", "fly_army",
-			"answer_request", "make_peace", "thug_out"] and args.size() > 0 and args[0] == null:
+			"answer_request", "make_peace", "thug_out", "start_dig", "stop_dig"] and args.size() > 0 and args[0] == null:
 		r = null   # (what it was about is gone: a unit died, a war ended, a request ran out)
 	else:
 		_from_order = true

@@ -490,7 +490,7 @@ func _draw_game() -> void:
 		if _is_sel(u):
 			_sel_ring(Vector2(u.x, u.y + 1), rrx + 1 * UK_K, rry + 0.5 * UK_K, t2)
 		# workers hop as they walk, and bob as they build or survey
-		var working: bool = u.build != null or u.survey != null
+		var working: bool = u.build != null or u.survey != null or u.get("dig") != null
 		var walking2: bool = u.moving or u.survey != null
 		var ttu: float = t2 * 2.4 if walking2 else t2 * 3.0 if working else t2
 		if u.get("monster") == null:
@@ -549,7 +549,12 @@ func _draw_game() -> void:
 			draw_arc(bp, 8, 0, TAU, 20, OL, 2.2, true)
 			draw_polyline(tail, OL, 2.2, true)
 			draw_string(font if font else ThemeDB.fallback_font, bp + Vector2(-3.5, 4.5), "?", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, OL)
-		if working and sin(t2 * 8) > 0.6:   # sparks from the work (web: drawUnitBody)
+		if u.get("dig") != null:   # quests: clods of earth fly from the hole (Godot only)
+			for k in 3:
+				var ph := fposmod(t2 * 1.6 + k / 3.0, 1.0)
+				var dx := (10 + k * 5) * UK_K * (1 if k % 2 == 0 else -1)
+				draw_circle(Vector2(u.x + dx * ph, u.y - 4 * UK_K - sin(ph * PI) * 22 * UK_K), 2.6 * UK_K, Color("#7a5232", 1 - ph * 0.6))
+		elif working and sin(t2 * 8) > 0.6:   # sparks from the work (web: drawUnitBody)
 			for k in 3:
 				draw_circle(Vector2(u.x + (12 + k * 3) * UK_K, u.y - (18 + k * 4) * UK_K), 1.8 * UK_K, Color("#fff3a6"))
 		if u.get("sieging") != null:   # battering a wall

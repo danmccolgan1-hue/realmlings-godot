@@ -452,7 +452,15 @@ func commands_of(u) -> Array:
 			cmd = {"id": id, "label": "Combine", "why": null if n >= 2 else "No other army here", "name": "Combine Armies", "desc": "Merge the armies standing in this province into one."}
 		if cmd != null:
 			out[int(c.cell)] = cmd
-	# quests: what a scouting unit carries, in the bottom row's slots (Godot only)
+	# quests: Dig (cell 5), and what a scouting unit carries in the bottom row's slot (Godot only)
+	if game.quests_on and u.kind == game.WAYFINDER and u.owner == Game.LOCAL and out[5] == null:
+		if u.get("dig") != null:
+			out[5] = {"id": "stopdig", "label": "Digging…\nstop", "why": null, "name": "Digging", "icon_path": "icons/common/cmd_dig.png", "glow": true,
+				"desc": "%s is digging. Every 10 s there is a chance to unearth what lies here; rarer relics take longer." % u.name, "ok": "Click to stop digging"}
+		else:
+			var dw := Quests.dig_why(game, u)
+			out[5] = {"id": "dig", "label": "Dig", "why": null if dw == "" else dw, "name": "Dig", "icon_path": "icons/common/cmd_dig.png",
+				"desc": "Dig at the dig site where %s stands (a red X; a silver X for a Fallen Star). He keeps digging until the relic is found or he is moved." % u.name, "ok": "Click to dig"}
 	if game.quests_on and u.kind == game.WAYFINDER and u.owner == Game.LOCAL:
 		var b: Array = Quests.bag_of(u)
 		for i in Quests.carry():
@@ -540,6 +548,10 @@ func press(i: int) -> void:
 			w.auto = not on
 	elif id == "advanced" or id == "basic":
 		mason_adv = id == "advanced"
+	elif id == "dig":
+		game.do("start_dig", [unit])
+	elif id == "stopdig":
+		game.do("stop_dig", [unit])
 	elif id == "cancelbuild":
 		if aim != null and aim.spell == "road" and is_same(aim.unit, unit):
 			aim = null

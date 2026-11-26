@@ -69,6 +69,11 @@ func draw_under(g: Game, t: float) -> void:
 			items.append({"y": c[1] + o[1], "f": draw_ruins_art.bind(c[0] + o[0], c[1] + o[1], t, f.get("done", false))})
 		else:
 			items.append({"y": c[1] + o[1], "f": draw_treasure_art.bind(c[0] + o[0], c[1] + o[1], t)})
+	if game.quests_on:   # dig sites: a red X (uncovered by a survey), a silver X (a Fallen Star) (Godot only)
+		for p in game.digs:
+			if Quests.dig_seen(game, p) and _on_screen(p):
+				var c: Array = game.G.provs[p].ic
+				items.append({"y": c[1] + 20, "f": draw_dig_x.bind(c[0] + 44, c[1] + 20, t, game.digs[p].get("star", false))})
 	if game.quests_on:   # relics left on the ground: a chest with a gold lock (Godot only)
 		for p in game.chests:
 			if Quests.chest_seen(game, p) and _on_screen(p):
@@ -457,7 +462,20 @@ func draw_treasure_art(x: float, y: float, t: float) -> void:
 	pen.pop()
 
 
-# --- quests: a chest of relics on the ground (Godot only) ---
+# --- quests: a dig site's X, and a chest of relics on the ground (Godot only) ---
+
+func draw_dig_x(x: float, y: float, t: float, star: bool) -> void:
+	pen.push().at(x, y)
+	pen.begin().ellipse(0, 2, 26, 8).fill(Color(0.35, 0.22, 0.1, 0.35))   # turned earth
+	var col := Color("#d8dde6") if star else Color("#d23b3b")
+	for s in [-1, 1]:
+		pen.begin().move(-16, -8 * s - 1).line(-11, -11 * s - 1).line(16, 8 * s - 1).line(11, 11 * s - 1).close().fink(col, 2.2)
+	if star:   # it glints
+		var ph := fposmod(t * 0.9, 1.0)
+		var k := sin(ph * PI) * 7
+		pen.begin().move(-k, -14).line(k, -14).move(0, -14 - k).line(0, -14 + k).stroke(1.8, Color.WHITE)
+	pen.pop()
+
 
 func draw_chest_art(x: float, y: float, t: float) -> void:
 	pen.push().at(x, y)
