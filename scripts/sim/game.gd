@@ -179,6 +179,12 @@ var star_fx := []            # the view's shooting stars: {prov, t0} (not saved)
 var flame_walls := {}        # edge index -> {owner, until, road}: a Wall of Flame burning there
 var detained := []           # prisoners with no Dungeon cell: [{owner, prisoner, cycles}] (Dungeons)
 var prisoner_seq := 0
+var ransoms := []            # the ransom events: [{id, kind, x, y, pr, stage, amount, until, war, asked}] (Dungeons)
+var ransom_seq := 0
+var quest_events := {}       # once-a-game events done ("lady", "jailbreak"), the envoy's cooldown ("envoy_next")
+var research_pen: Array:     # this human nation's research cut for a while: [{tree, n, left (cycles)}]
+	get: return cur["research_pen"]
+	set(v): cur["research_pen"] = v
 var time_warp:               # this human nation's Time Warp: {p, slot} of the building it speeds up, or null
 	get: return cur["time_warp"]
 	set(v): cur["time_warp"] = v
@@ -249,7 +255,7 @@ var rng := RandomNumberGenerator.new()   # stands in for the web's Math.random (
 # --- seats (multiplayer step 1): each human nation's own fields ---
 ## The fields each human nation has its own copy of. The properties above read and write the current seat's
 ## record (`cur`); use_seat() switches it. A single-player game has one seat, HOST.
-const SEAT_FIELDS := ["leader", "capital", "stock", "income", "income_parts", "army_counter", "tech", "rep", "surveyed", "designs", "exhaust", "exhaust_ok", "harvest", "upgrades", "xup", "cd", "harvest_by", "trap", "school_popup", "reveals", "eyes", "haunts", "mana_pool", "mana_prev", "mana_prev_t", "mage_gear", "auto_tech", "queues", "rally", "wf", "known", "explored", "visible", "my_nation", "train_orders", "met", "fallen", "ally_ask", "met_at", "dx_step_t", "gift_vault", "demand", "ally_offer", "quest_log", "quest_rate", "quest_unlocks", "time_warp", "BUILD_DEFS", "TECH_BY_ID", "TECHS", "TECH_TREES", "UNIT_BASE", "BUILD_ORDER", "CMD"]
+const SEAT_FIELDS := ["leader", "capital", "stock", "income", "income_parts", "army_counter", "tech", "rep", "surveyed", "designs", "exhaust", "exhaust_ok", "harvest", "upgrades", "xup", "cd", "harvest_by", "trap", "school_popup", "reveals", "eyes", "haunts", "mana_pool", "mana_prev", "mana_prev_t", "mage_gear", "auto_tech", "queues", "rally", "wf", "known", "explored", "visible", "my_nation", "train_orders", "met", "fallen", "ally_ask", "met_at", "dx_step_t", "gift_vault", "demand", "ally_offer", "quest_log", "quest_rate", "quest_unlocks", "time_warp", "research_pen", "BUILD_DEFS", "TECH_BY_ID", "TECHS", "TECH_TREES", "UNIT_BASE", "BUILD_ORDER", "CMD"]
 
 ## A new seat's record: every seat field at its starting value.
 static func seat_defaults() -> Dictionary:
@@ -308,6 +314,7 @@ static func seat_defaults() -> Dictionary:
 		"quest_rate": {},
 		"quest_unlocks": [],
 		"time_warp": null,
+		"research_pen": [],
 	}
 
 
@@ -2101,6 +2108,10 @@ var path_avoid = null
 
 # web: game.js order(u, target, quiet, pt) + v101.js (computer armies at war steer clear of armies that would crush them)
 ## Quests: the Spell Books' spells (orders; the rules are in Quests).
+func answer_ransom(id: int, choice: String) -> void:
+	Dungeons.answer(self, id, choice)
+
+
 func cast_flamewall(c: Dictionary, q: int) -> bool:
 	return Quests.cast_flamewall(self, c, q)
 
@@ -3728,7 +3739,11 @@ func tech_rate(tree: String) -> int:
 	for p in buildings:
 		if buildings[p].owner == ME:
 			n += prov_research(p)[tree]
-	return n + int(quest_rate.get(tree, 0)) + (Quests.warp_research(self, tree) if quests_on else 0)   # (quests: research won for good, Time Warp)
+	n += int(quest_rate.get(tree, 0)) + (Quests.warp_research(self, tree) if quests_on else 0)   # (quests: research won for good, Time Warp)
+	for pen in research_pen:   # (quests: a murdered envoy's research cut, never below 0)
+		if pen.tree == tree:
+			n -= int(pen.n)
+	return maxi(0, n)
 
 
 func bank_cap(tree: String) -> float:
@@ -6082,7 +6097,7 @@ const SAVE_FIELDS := ["battles", "bandit_count", "monster_count", "leader", "cap
 	"harvest_by", "trap", "reveals", "eyes", "haunts", "mana_pool", "mana_prev_t", "mage_gear", "finds", "treasure_rolled",
 	"sp_found", "slot_races", "spyres", "ftraps", "sacreds", "wrocks", "gelems", "setpieces", "travelers", "train_orders", "train_order_seq", "design_seq", "prov_rename", "nations", "players", "my_nation", "race_of", "wars", "truces", "allies", "war_seq", "met", "occ", "occ_prog", "dipl", "war_log", "war_ever", "war_lock", "ai_met", "fallen", "ally_check", "bandit_next", "bandit_waves", "ally_ask", "crop_scan_at", "ai_scout_t", "wf", "known", "explored", "visible", "queues", "rally", "military", "UNIT_SPEED", "open_nbr", "all_nbr",
 	"yields", "look_seed", "tree_border", "debug_cap", "debug_tech", "reveal_all", "rec", "t", "next_tick", "paused", "last", "started", "seat_names", "paused_by", "seat_dipl", "mp_cd", "variant",
-	"quests_on", "quest_pick", "digs", "chests", "star_next", "stars_fallen", "quest_log", "quest_rate", "quest_unlocks", "flame_walls", "time_warp", "detained", "prisoner_seq"]
+	"quests_on", "quest_pick", "digs", "chests", "star_next", "stars_fallen", "quest_log", "quest_rate", "quest_unlocks", "flame_walls", "time_warp", "detained", "prisoner_seq", "ransoms", "ransom_seq", "quest_events", "research_pen"]
 
 
 ## The whole game as a plain Dictionary (see SaveCodec for the text form).
@@ -9810,6 +9825,10 @@ func connected_pick(winner: int, loser: int, n := -1) -> Array:
 func peace_check(w, kind: String, provs := []) -> String:
 	if w == null or not wars.has(w):
 		return "Not at war"
+	if quests_on and (Dungeons.PEACE.has(kind) or w.get("ransom") != null):   # (quests: the ransom war; raids, freed prisoners)
+		var qw := Dungeons.peace_why(self, w, ME, kind)
+		if qw != "" or Dungeons.PEACE.has(kind):
+			return qw
 	var s := warscore(w, ME)
 	var foe := foe_of(w, ME)
 	match kind:
@@ -9974,6 +9993,11 @@ func end_war0(w: Dictionary) -> void:
 func make_peace(w, winner: int, terms: Dictionary) -> void:
 	if w == null or not wars.has(w):
 		return
+	if quests_on and Dungeons.PEACE.has(str(terms.get("kind", ""))):   # (quests: the ransom war's endings, raids, freed prisoners)
+		if Dungeons.peace_why(self, w, winner, str(terms.kind)) != "":
+			return
+		Dungeons.special_peace(self, w, winner, terms)
+		terms = {"kind": "white", "agreed": true}
 	# multiplayer: a white peace between two players is offered, and the other player chooses (step 11)
 	if _from_order and terms.get("kind") == "white" and seats.has(foe_of(w, ME)) and not terms.get("agreed", false):
 		_ask_player(foe_of(w, ME), "h_peace", {"war": w.id})
@@ -11428,7 +11452,7 @@ const COMMANDS := ["order", "order_group", "order_build", "cancel_build", "queue
 	"retreat", "retreat_to", "fly_army", "thugs_enter", "thug_out", "dx_act", "answer_request", "make_peace",
 	"declare_war", "proclaim_enemy", "renounce_enemy", "travelers_choose", "dismiss_quake", "dismiss_news",
 	"answer_demand", "set_crop", "hand_to_ai", "take_from_ai", "send_message", "issue_proclamation", "offer_barter", "show_request", "set_paused", "set_auto_tech", "rename_prov", "close_school_popup",
-	"debug_reveal", "debug_resources", "debug_all_tech", "grant_tech", "rec_toggle", "start_dig", "stop_dig", "cast_flamewall", "cast_timewarp"]
+	"debug_reveal", "debug_resources", "debug_all_tech", "grant_tech", "rec_toggle", "start_dig", "stop_dig", "cast_flamewall", "cast_timewarp", "answer_ransom"]
 
 ## Multiplayer: hands a command to the network instead of applying it here (it comes back through apply()).
 var on_command: Callable

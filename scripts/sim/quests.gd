@@ -318,6 +318,8 @@ static func _where_text(where: String, u: Dictionary) -> String:
 ## the provinces they stand in.
 static func step(g) -> void:
 	step_stars(g)
+	if not g.ransoms.is_empty():
+		Dungeons.step(g)
 	if not g.flame_walls.is_empty():
 		step_flames(g)
 	if not g.star_fx.is_empty():
@@ -358,6 +360,14 @@ static func payday(g) -> void:
 	dig_payday(g)
 	if not g.detained.is_empty():
 		Dungeons.payday(g)
+	Dungeons.events_payday(g)
+	for o in g.seat_ids():   # (research cut for a while: an envoy left to die)
+		var keep := []
+		for pen in g.seats[o]["research_pen"]:
+			pen.left = int(pen.left) - 1
+			if pen.left > 0:
+				keep.append(pen)
+		g.seats[o]["research_pen"] = keep
 	for o in g.seat_ids():   # (a Mage Tower built since: the quests waiting on one start)
 		check(g, o)
 	for u in g.units:

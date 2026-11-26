@@ -29,6 +29,7 @@ func run() -> Array:
 	_arms(errs)
 	_spells(errs)
 	_dungeon(errs)
+	_ransom(errs)
 	Game.QUESTS = was
 	return errs
 
@@ -651,3 +652,75 @@ func _dungeon(errs: Array) -> void:
 	g.destroy_extra(g.capital, 41)
 	if g.detained.size() != 3:
 		errs.append("dungeon: a torn-down Dungeon's prisoners aren't Detained (%d)" % g.detained.size())
+
+
+## Session 10: the ransom events: X ransoms, Y pays; X ransoms, Y lets 40 s pass (war), and the ransom war's endings;
+## an ignored envoy; Raid Reliquary and Free Prisoners at 50% warscore.
+func _ransom(errs: Array) -> void:
+	var g := _mp()
+	var x: int = Game.HOST
+	var y: int = g.seat_ids().filter(func(o): return o != Game.HOST)[0]
+	var said := []
+	g.on_dialog = func(title, _t, _c, _f): said.append(title)
+	g.extras[g.capital].append({"type": "dungeon", "slot": 41, "born": 0.0})
+	# a lady, ransomed for 250 and paid
+	var r: Dictionary = Dungeons.start(g, "lady", x, y)
+	g.in_seat(x, func(): g.answer_ransom(r.id, "r250"))
+	if r.stage != "y" or Dungeons.prisoners_of(g, x).size() != 1:
+		errs.append("ransom: X's ransom didn't reach Y (%s)" % r.stage)
+	g.seats[y].stock.gold = 1000
+	var xg: int = g.seats[x].stock.gold
+	g.in_seat(y, func(): g.answer_ransom(r.id, "pay"))
+	if r.stage != "done" or g.seats[y].stock.gold != 750 or g.seats[x].stock.gold != xg + 250 or not Dungeons.prisoners_of(g, x).is_empty():
+		errs.append("ransom: paying didn't settle it (%s, gold %d / %d)" % [r.stage, g.seats[y].stock.gold, g.seats[x].stock.gold])
+	# an envoy: Y doesn't answer within 40 s: a ransom war, where only the ransom endings make peace
+	var r2: Dictionary = Dungeons.start(g, "envoy", x, y)
+	g.in_seat(x, func(): g.answer_ransom(r2.id, "r100"))
+	g.t += 41.0
+	Dungeons.step(g)
+	var w = g.war_between(x, y)
+	if r2.stage != "war" or w == null or w.get("ransom") != r2.id:
+		errs.append("ransom: no war after 40 s without an answer (%s)" % r2.stage)
+		return
+	if g.in_seat(y, func(): return g.peace_check(w, "white")) == "":
+		errs.append("ransom: a white peace in a ransom war")
+	if g.in_seat(y, func(): return g.peace_check(w, "freeprisoner")) == "":
+		errs.append("ransom: freed at 0 warscore")
+	g.add_score(w, y, 60.0)
+	if g.in_seat(y, func(): return g.peace_check(w, "freeprisoner")) != "":
+		errs.append("ransom: Y can't free the prisoner at +60: %s" % g.in_seat(y, func(): return g.peace_check(w, "freeprisoner")))
+	var yg: int = g.seats[y].stock.gold
+	g.in_seat(y, func(): g.make_peace(w, y, {"kind": "freeprisoner"}))
+	if g.war_between(x, y) != null or r2.stage != "done" or g.seats[y].stock.gold != yg + 1000 or not Dungeons.prisoners_of(g, x).is_empty():
+		errs.append("ransom: freeing the prisoner didn't end it (%s, gold %d)" % [r2.stage, g.seats[y].stock.gold - yg])
+	# an ignored general: X gains 200 Military research once, Y loses 20 a cycle for 10 cycles
+	g.quest_events.erase("envoy_next")
+	var r3: Dictionary = Dungeons.start(g, "general", x, y)
+	g.in_seat(x, func(): g.answer_ransom(r3.id, "r50"))
+	var bank0: float = g.seats[x].tech.mil.bank + g.seats[x].tech.mil.prog
+	g.in_seat(y, func(): g.answer_ransom(r3.id, "ignore"))
+	if g.seats[y].research_pen.size() != 1 or int(g.seats[y].research_pen[0].n) != 20:
+		errs.append("ransom: no research cut for ignoring the general")
+	for i in 10:
+		Quests.payday(g)
+	if not g.seats[y].research_pen.is_empty():
+		errs.append("ransom: the research cut outlasted 10 cycles")
+	# Raid Reliquary and Free Prisoners in an ordinary war
+	_reliq(g, y)
+	for id in ["callum", "coin", "signet"]:
+		Quests.deposit(g, y, id)
+	Dungeons.jail(g, y, Dungeons.make(g, "convict", 0))
+	g.extras[g.seats[y].capital].append({"type": "dungeon", "slot": 42, "born": 0.0})
+	Dungeons.payday(g)
+	var w2 = g.new_war(x, y, null)
+	g.add_score(w2, x, 60.0)
+	var n0: int = Quests.items_of(g, y).size()
+	g.make_peace(w2, x, {"kind": "raid"})
+	var taken: int = n0 - Quests.items_of(g, y).size()
+	if taken < 1 or taken > 3 or g.war_between(x, y) != null:
+		errs.append("ransom: Raid Reliquary took %d relics" % taken)
+	var w3 = g.new_war(x, y, null)
+	g.add_score(w3, x, 60.0)
+	g.make_peace(w3, x, {"kind": "freeall"})
+	if not Dungeons.prisoners_of(g, y).is_empty() or Dungeons.prisoners_of(g, x).filter(func(p): return p.kind == "convict").size() != 1:
+		errs.append("ransom: Free Prisoners didn't move the convict")

@@ -643,6 +643,9 @@ func _war_block(o: int, w: Dictionary) -> VBoxContainer:
 	else:
 		opts.append(["Take provinces", "provs", []])
 	opts.append(["Surrender", "surrender", []])
+	if game.quests_on:   # (quests: the ransom war's endings, Raid Reliquary, Free Prisoners)
+		for qo in Dungeons.peace_options(game, w, Game.LOCAL):
+			opts.append([qo[0], qo[1], []])
 	for op in opts:
 		var why := game.peace_check(w, op[1], op[2])
 		var b := _plain_btn(op[0], func(): _peace(w, op[1], op[2]))
@@ -714,7 +717,7 @@ func _terms_tip(kind: String, provs: Array) -> String:
 			return "You take: " + ", ".join(provs.map(func(p): return game.prov_name(p)))
 		"surrender":
 			return "You give in: they take what their warscore allows."
-	return ""
+	return Dungeons.peace_tip(kind)
 
 
 func _peace(w: Dictionary, kind: String, provs: Array) -> void:
