@@ -190,6 +190,7 @@ func _start(o: Dictionary) -> void:
 			tell.call("That saved game can't be read.")
 			return
 	var g: Game = made[0]
+	g.debug_ok = net.debug_ok   # (the lobby's Allows Debug)
 	lock = Lockstep.new(net, g, true, Game.HOST)
 	lock.host_pid = net.leader
 	lock.ask_drop.connect(func(o2, nm): asks[o2] = nm)

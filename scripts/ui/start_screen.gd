@@ -411,6 +411,7 @@ var mp_rows_sig := ""            # the players list as last drawn, without the p
 var mp_ping_l := {}              # peer id -> its ping label (updated in place)
 var mp_taken_sig := ""           # the colors and leaders others have taken, as last shown on the Nation page
 var mp_info_t := 0.0
+var mp_debug_shown := false      # Allows Debug as the lobby last drew it
 var mp_in_lobby := false         # the lobby (not the Multiplayer menu) is showing
 var mp_saves := []               # the host: the saved games offered under Load a saved game
 var mp_saves_open := false
@@ -499,7 +500,12 @@ func _mp_wire() -> void:
 		_mp_menu()
 		mp_status.text = why)
 	net.players_changed.connect(_mp_players)
-	net.lobby_info_changed.connect(func(): if net != null and not net.is_host: _mp_options())
+	net.lobby_info_changed.connect(func():
+		if net != null and not net.is_host:
+			if mp_in_lobby and mp_debug_shown != net.debug_ok:
+				_mp_lobby()
+			else:
+				_mp_options())
 	net.seat_offer.connect(_mp_pick_seat)
 	net.leader_changed.connect(func(): if mp_in_lobby: _mp_lobby())   # (a server: someone else hosts the game now)
 	net.lobby_save_changed.connect(func():
@@ -537,6 +543,7 @@ func _mp_host(nm: String) -> void:
 		mp_status.text = w
 		net = null
 		return
+	net.debug_ok = bool(Settings.menu.get("mp_debug", false))
 	_mp_lobby()
 	mp_status.text = "Hosting on port %d. Friends on your network see this game in their list; over the internet they join your address." % NetSession.PORT
 	mp_note.text = "Asking your router to open the port..."
@@ -565,6 +572,7 @@ func _mp_lead() -> bool:
 func _mp_lobby() -> void:
 	_mp_clear()
 	mp_in_lobby = true
+	mp_debug_shown = net != null and net.debug_ok
 	var lead := _mp_lead()
 	var saved: bool = net != null and not net.lobby_save.is_empty()
 	mp_status = _lbl("", 15, INK)
@@ -635,6 +643,14 @@ func _mp_lobby() -> void:
 		pwr.add_child(_tog("Set", false, setp))
 		pe.text_submitted.connect(func(_t2): setp.call())
 		_row("Password", pwr, mp_box)
+	if net != null:   # Allows Debug: the host switches it; everyone sees it
+		mp_box.add_child(_tog("Allows Debug", net.debug_ok, func():
+			if net and _mp_lead():
+				Settings.menu.mp_debug = not net.debug_ok
+				Settings.save_all()
+				net.set_debug(not net.debug_ok)
+				_mp_lobby(), not lead,
+			"Every player may use Settings → Debug in the game: reveal the map and +2000 resources (for every player), and every technology (for themselves, in the Magic school they choose)" if lead else "The host decides whether Settings → Debug may be used in this game"))
 	mp_opts_box = VBoxContainer.new()
 	mp_opts_box.add_theme_constant_override("separation", 6)
 	mp_opts_box.custom_minimum_size = Vector2(0, 64)
@@ -819,7 +835,7 @@ func _mp_begin() -> void:
 		return
 	var M := _mp_map()
 	var o := {"seed": str(M.get("seed", random_seed())).strip_edges(), "slots": M.slots.duplicate(), "races": M.races.duplicate(),
-		"start": M.start, "map": M.map, "save": str(net.lobby_save.get("name", "")) if saved else ""}
+		"start": M.start, "map": M.map, "save": str(net.lobby_save.get("name", "")) if saved else "", "debug": net.debug_ok}
 	if o.seed == "":
 		o.seed = random_seed()
 	if not net.is_host:   # a dedicated server: it builds the game and sends it to everyone

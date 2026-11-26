@@ -20,6 +20,7 @@ func run() -> Array:
 	var errs := []
 	_wipe()
 	errs.append_array(_setup_saves())
+	errs.append_array(_debug_rules())
 	errs.append_array(_server_game())
 	errs.append_array(_resume())
 	_wipe()
@@ -84,6 +85,64 @@ func _setup_saves() -> Array:
 	return errs
 
 
+# --- Settings → Debug in a multiplayer game ----------------------------------------------------------------------
+func _debug_rules() -> Array:
+	var errs := []
+	var g := Game.new_world("fern", "cormac", ["human", "moderate"], "center", {}, {}, {"name": "Hosts"}, "realm", [], {0: {"nation": {"name": "Bog"}, "race": "swamp"}})
+	var ids := g.seat_ids()
+	var a: int = ids[0]
+	var b: int = ids[1]
+	# not allowed: nobody's debug order does anything, the host's neither
+	g.debug_ok = false
+	var gold: int = g.in_seat(b, func(): return int(g.stock.gold))
+	g.apply({"player": a, "type": "debug_resources", "args": []})
+	if g.in_seat(b, func(): return int(g.stock.gold)) != gold or g.debug_cap != 0:
+		errs.append("debug: it worked in a game whose lobby didn't allow it")
+	g.debug_ok = true
+	# +2000: every player; reveal: every player's fog
+	var ga: int = g.in_seat(a, func(): return int(g.stock.gold))
+	g.apply({"player": b, "type": "debug_resources", "args": []})
+	if g.in_seat(a, func(): return int(g.stock.gold)) != ga + 2000 or g.in_seat(b, func(): return int(g.stock.gold)) != gold + 2000:
+		errs.append("debug: +2000 didn't go to every player")
+	g.apply({"player": b, "type": "debug_reveal", "args": [true]})
+	for o in ids:
+		if g.in_seat(o, func(): return g.visible.size()) < g.G.provs.size():
+			errs.append("debug: the map wasn't revealed to nation %d" % o)
+	# every technology: only the player who asked, in the school they chose
+	var sw_schools: Array = g.in_seat(b, func(): return g.debug_schools())
+	if not sw_schools.has("pyro") or sw_schools.has("life"):
+		errs.append("debug: the Swampling's schools are wrong: %s" % [sw_schools])
+	var a_gov: int = g.in_seat(a, func(): return g.tech.gov.done.size())
+	g.apply({"player": b, "type": "debug_all_tech", "args": ["pyro"]})
+	if g.in_seat(b, func(): return g.current_school()) != "pyro":
+		errs.append("debug: the chosen school wasn't taken (%s)" % g.in_seat(b, func(): return g.current_school()))
+	if g.in_seat(a, func(): return g.tech.gov.done.size()) != a_gov or g.in_seat(a, func(): return g.current_school()) != null:
+		errs.append("debug: every technology reached a player who didn't ask")
+	g.apply({"player": a, "type": "debug_all_tech", "args": ["pyro"]})   # (not a Realmling school: the first open one)
+	if not g.in_seat(a, func(): return g.current_school()) in ["life", "death", "arcane"]:
+		errs.append("debug: a school the race can't take was given")
+	if g.in_seat(a, func(): return g.debug_schools()).size() != 1:
+		errs.append("debug: a player with a school could choose another")
+	# the lobby's switch: only the host's counts, and it reaches the players
+	var h := NetSession.new("Host", {})
+	h.host(PORT + 6, false)
+	var al := NetSession.new("Al", {})
+	al.join("127.0.0.1:%d" % (PORT + 6))
+	var t0 := Time.get_ticks_msec()
+	while Time.get_ticks_msec() - t0 < 4000 and h.players.size() < 2:
+		h.poll(0.01); al.poll(0.01); OS.delay_msec(2)
+	al.set_debug(true)
+	h.set_debug(true)
+	t0 = Time.get_ticks_msec()
+	while Time.get_ticks_msec() - t0 < 2000 and not al.debug_ok:
+		h.poll(0.01); al.poll(0.01); OS.delay_msec(2)
+	if not al.debug_ok:
+		errs.append("debug: the host's Allows Debug didn't reach the players")
+	al.leave()
+	h.leave()
+	return errs
+
+
 # --- a game on the server ----------------------------------------------------------------------------------------
 func _server_game() -> Array:
 	var errs := []
@@ -143,6 +202,8 @@ func _server_game() -> Array:
 		errs.append("server: the host removed themself")
 	# only the host chooses: Bo's choices are ignored
 	bo.send_to(1, {"t": "lset", "text": "Bo's island", "terms": "x"})
+	bo.send_to(1, {"t": "ldebug", "on": true})
+	ann.set_debug(true)
 	ann.lead_info("Island: Classic, seed pine.", "pine")
 	_run(func(): return bo.lobby_info == "Island: Classic, seed pine.", 3.0)
 	if bo.lobby_info != "Island: Classic, seed pine.":
@@ -161,6 +222,8 @@ func _server_game() -> Array:
 	if srv.lock == null or not srv.lock.started:
 		return errs + ["server: the game never started for everyone"]
 	var hl: Lockstep = srv.lock
+	if not hl.game.debug_ok or not L[bo].game.debug_ok:
+		errs.append("server: the host's Allows Debug didn't reach the game")
 	if L[ann].me != Game.HOST or L[bo].me == Game.HOST or L[bo].me == L[cy].me:
 		errs.append("server: the nations went to the wrong players (host %d, Bo %d, Cy %d)" % [L[ann].me, L[bo].me, L[cy].me])
 	# orders from every player, in step

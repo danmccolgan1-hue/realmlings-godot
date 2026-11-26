@@ -28,8 +28,8 @@ const LAG_MAX := 80           # the host waits for a player more than 4 s of ste
 const DROP_AFTER := 15.0      # seconds without a word: the player has dropped out (0.19: was 5, which a busy computer or a
                               # wobbly connection could reach without anything being wrong)
 const MAX_CATCHUP := 40       # steps a player runs in one frame to catch up
-## Orders only the host may give.
-const HOST_ONLY := ["hand_to_ai", "take_from_ai", "debug_reveal", "debug_resources", "debug_all_tech", "grant_tech", "rec_toggle"]
+## Orders only the host may give. (Settings → Debug is for every player when the lobby allowed it: Game.debug_ok.)
+const HOST_ONLY := ["hand_to_ai", "take_from_ai", "grant_tech", "rec_toggle"]
 
 var net: NetSession
 var game: Game

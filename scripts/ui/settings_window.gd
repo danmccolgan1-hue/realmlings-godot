@@ -139,6 +139,17 @@ func _fill() -> void:
 	var dbg := UiKit.ink(22)
 	dbg.text = "Debug"
 	body.add_child(dbg)
+	var mp: bool = game.seats.size() > 1
+	if not game.debug_ok:   # a multiplayer game whose lobby didn't allow it
+		var off := UiKit.ink(16)
+		off.text = "Turned off in this game: the host didn't allow debug in the lobby."
+		body.add_child(off)
+		return
+	if mp:
+		var note := UiKit.ink(16)
+		note.text = "Allowed by the host. Revealing the map and +2000 resources apply to every player."
+		note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		body.add_child(note)
 	var reveal := CheckBox.new()
 	reveal.text = "Reveal the map"
 	reveal.add_theme_color_override("font_color", UiKit.INK)
@@ -146,10 +157,23 @@ func _fill() -> void:
 	reveal.tooltip_text = "Lift the fog over the whole map (untick to put it back)"
 	reveal.toggled.connect(func(v): game.do("debug_reveal", [v]))
 	body.add_child(reveal)
-	body.add_child(_debug_btn("+2000 resources", "Adds 2000 gold, wood and food (and 2000 storage of each so it fits); press again for more", func(): game.do("debug_resources", [])))
-	var techs := _debug_btn("Every technology", "Every technology of your race in all three trees (Magic: your school, or Life Magic if you haven't chosen)", func(): game.do("debug_all_tech", []))
-	techs.disabled = game.debug_tech
-	body.add_child(techs)
+	body.add_child(_debug_btn("+2000 resources", "Adds 2000 gold, wood and food (and 2000 storage of each so it fits)%s; press again for more" % (" to every player" if mp else ""), func(): game.do("debug_resources", [])))
+	var schools: Array = game.debug_schools()
+	if schools.size() == 1:   # (your school is chosen, or only one is open to you)
+		var techs := _debug_btn("Every technology", "Every technology of your race in all three trees (Magic: %s)" % GameData.c("SCHOOLS")[schools[0]].name, func(): game.do("debug_all_tech", [schools[0]]))
+		techs.disabled = game.debug_tech and not mp and game.current_school() != null
+		body.add_child(techs)
+	else:   # choose the Magic school first
+		var lab := UiKit.ink(16)
+		lab.text = "Every technology of your race in all three trees, with the Magic school:"
+		lab.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		body.add_child(lab)
+		var row := HFlowContainer.new()
+		row.add_theme_constant_override("h_separation", 6)
+		for k in schools:
+			var sk: String = k
+			row.add_child(_debug_btn(str(GameData.c("SCHOOLS")[sk].name), "Every technology, following the School of %s" % GameData.c("SCHOOLS")[sk].name, func(): game.do("debug_all_tech", [sk])))
+		body.add_child(row)
 
 
 func _debug_btn(text: String, tip: String, f: Callable) -> Button:

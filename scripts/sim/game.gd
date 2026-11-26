@@ -3398,6 +3398,10 @@ var rec_map := {}            # ...and the map in its last frame
 var rec_t := -9.0
 var debug_cap := 0           # web: S.debugCap, the Settings debug button's extra storage
 var debug_tech := false      # web: S.debugTech
+## Whether Settings → Debug may be used in this game: always in single player; in multiplayer, the lobby's Allows
+## Debug (then any player may use it, and the map and resources go to every player).
+var debug_ok := true
+const DEBUG_CMDS := ["debug_reveal", "debug_resources", "debug_all_tech"]
 
 
 func fog_state(i: int) -> String:
@@ -6100,7 +6104,7 @@ const SAVE_FIELDS := ["battles", "bandit_count", "monster_count", "leader", "cap
 	"xup", "auto_tech", "roads", "walls", "wall_hp", "artifacts", "gift_vault", "quakes", "quake_seq", "wall_max", "wall_crack", "broken_walls", "rewall_jobs", "gate_own", "fort_walled", "gpc_slow_t", "dev_t", "cd", "paths",
 	"harvest_by", "trap", "reveals", "eyes", "haunts", "mana_pool", "mana_prev_t", "mage_gear", "finds", "treasure_rolled",
 	"sp_found", "slot_races", "spyres", "ftraps", "sacreds", "wrocks", "gelems", "setpieces", "travelers", "train_orders", "train_order_seq", "design_seq", "prov_rename", "nations", "players", "my_nation", "race_of", "wars", "truces", "allies", "war_seq", "met", "occ", "occ_prog", "dipl", "war_log", "war_ever", "war_lock", "ai_met", "fallen", "ally_check", "bandit_next", "bandit_waves", "ally_ask", "crop_scan_at", "ai_scout_t", "wf", "known", "explored", "visible", "queues", "rally", "military", "UNIT_SPEED", "open_nbr", "all_nbr",
-	"yields", "look_seed", "tree_border", "debug_cap", "debug_tech", "reveal_all", "rec", "t", "next_tick", "paused", "last", "started", "seat_names", "paused_by", "seat_dipl", "mp_cd", "variant",
+	"yields", "look_seed", "tree_border", "debug_cap", "debug_tech", "debug_ok", "reveal_all", "rec", "t", "next_tick", "paused", "last", "started", "seat_names", "paused_by", "seat_dipl", "mp_cd", "variant",
 	"quests_on", "quest_pick", "digs", "chests", "star_next", "stars_fallen", "quest_log", "quest_rate", "quest_unlocks", "flame_walls", "time_warp", "detained", "prisoner_seq", "ransoms", "ransom_seq", "quest_events", "research_pen"]
 
 
@@ -11178,23 +11182,45 @@ func dismiss_news(id: int) -> void:
 # --- Settings → Debug (web: swamp.js #dbgReveal, #dbgRes, #dbgTech) ---
 
 func debug_reveal(on: bool) -> void:
-	reveal_all = on
-	compute_fog()
-	toast("Debug: the whole map is revealed." if on else "Debug: the fog is back.")
+	reveal_all = on   # (every player's fog: in multiplayer the whole map is shown to everyone)
+	each_seat(func():
+		compute_fog()
+		toast("Debug: the whole map is revealed." if on else "Debug: the fog is back."))
 
 
+## +2000 gold, wood and food, and 2000 more storage of each, for every player (in single player, just you).
 func debug_resources() -> void:
 	debug_cap += 2000
-	for k in RES:
-		stock[k] += 2000
-	compute_income()
-	toast("Debug: +2000 gold, wood and food (storage raised by 2000 each to hold it).")
+	each_seat(func():
+		for k in RES:
+			stock[k] += 2000
+		compute_income()
+		toast("Debug: +2000 gold, wood and food (storage raised by 2000 each to hold it)%s." % (" for every player" if seats.size() > 1 else "")))
 
 
-func debug_all_tech() -> void:
+## The Magic schools this player may take for Every technology: the one they follow, or any their race (and a
+## school-bound leader) allows.
+func debug_schools() -> Array:
+	var sc = current_school()
+	if sc != null:
+		return [sc]
+	var L = leader_of(ME)
+	var out := []
+	for k in GameData.c("SCHOOLS"):
+		if L != null and L.get("school") != null and L.school != k:
+			continue
+		if TECH_BY_ID.has("school-" + k) and tech_for(TECH_BY_ID["school-" + k]):
+			out.append(k)
+	return out
+
+
+## Every technology of the player's race in all three trees; Magic: the school they follow, or `school` (one of
+## debug_schools) if they haven't chosen yet.
+func debug_all_tech(school := "") -> void:
 	var sc = current_school()
 	if sc == null:
-		sc = "death" if is_sw() else "life"   # the first of SCHOOLS the race can take
+		var ok := debug_schools()
+		sc = school if ok.has(school) else ("death" if is_sw() else "life") if ok.is_empty() else ok[0]
 		tech.mag.done.append("school-" + sc)
 	var n := 0
 	for x in TECHS:
@@ -11488,6 +11514,8 @@ func apply(cmd: Dictionary):
 	var o := int(cmd.get("player", 0))
 	if not type in COMMANDS or not seats.has(o):
 		push_warning("Ignored an order: %s from %d" % [type, o])
+		return null
+	if type in DEBUG_CMDS and not debug_ok:   # (a multiplayer game whose lobby didn't allow debug)
 		return null
 	use_seat(o)
 	var args: Array = unpack_args(cmd.get("args", []))

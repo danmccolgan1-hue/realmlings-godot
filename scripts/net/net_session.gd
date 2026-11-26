@@ -58,6 +58,7 @@ var pw := ""                   # a player: the password they give when joining
 ## The saved game the host chose to carry on: {"name", "desc", "seats": MpSetup.save_seats} ({} for a new island).
 ## Each player picks one of its nations (players[id].pick).
 var lobby_save := {}
+var debug_ok := false          # the lobby's Allows Debug: Settings → Debug may be used in the game (by everyone)
 var kicked := {}               # the host: names (lower case) removed from this lobby, who may not join again
 
 ## ENet's timeouts (0.19): generous, so a few seconds of a busy computer (loading a save, an autosave) or a wobbly
@@ -224,6 +225,23 @@ func set_lobby_save(save: Dictionary) -> void:
 	send_all({"t": "lsave", "save": lobby_save})
 	lobby_save_changed.emit()
 	_broadcast_players()
+
+
+## The host (or the player hosting on a server): allow Settings → Debug in the game, or not. Everyone has to say they
+## are ready again.
+func set_debug(on: bool) -> void:
+	if is_host:
+		if on == debug_ok:
+			return
+		debug_ok = on
+		for id in players:
+			if id != leader:
+				players[id].ready = false
+		send_all({"t": "ldebug", "on": on})
+		lobby_info_changed.emit()
+		_broadcast_players()
+	elif is_leader():
+		_send(1, {"t": "ldebug", "on": on})
 
 
 ## The host (or the player hosting on a server): remove player id from the lobby. They are told, and may not join
@@ -451,6 +469,8 @@ func _handle(from: int, m: Dictionary) -> void:
 			_send(from, {"t": "welcome", "id": from, "name": nm0, "server": dedicated})
 			if lobby_info != "":
 				_send(from, {"t": "linfo", "text": lobby_info})
+			if debug_ok:
+				_send(from, {"t": "ldebug", "on": true})
 			if not lobby_save.is_empty():
 				_send(from, {"t": "lsave", "save": lobby_save})
 				var guess := MpSetup.guess_picks(lobby_save.get("seats", []), {from: players[from]})
@@ -484,6 +504,12 @@ func _handle(from: int, m: Dictionary) -> void:
 		"lset":   # a server: the player hosting the game changed its choices
 			if is_host and dedicated and from == leader and not locked:
 				set_lobby_info(str(m.get("text", "")), str(m.get("terms", "")))
+		"ldebug":
+			if is_host and dedicated and from == leader and not locked:
+				set_debug(bool(m.get("on", false)))
+			elif not is_host:
+				debug_ok = bool(m.get("on", false))
+				lobby_info_changed.emit()
 		"lkick":   # a server: the player hosting removes someone from the lobby
 			if is_host and dedicated and from == leader:
 				_kick(int(m.get("id", 0)))

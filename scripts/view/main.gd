@@ -288,6 +288,8 @@ func _mp_gen(o: Dictionary, players: Dictionary) -> void:
 		made = MpSetup.load_game(host_save_text(str(o.save)), picks, players)
 	else:
 		made = MpSetup.new_game(o, players, 1)
+	if not made.is_empty():
+		made[0].debug_ok = bool(o.get("debug", false))   # (the lobby's Allows Debug)
 	call_deferred("_mp_host_ready", made[0] if not made.is_empty() else null, made[1] if not made.is_empty() else {})
 
 
@@ -472,6 +474,7 @@ func load_from(path: String) -> void:
 		return
 	g.paused = true
 	g.last = 0.0
+	g.debug_ok = true   # (a multiplayer save carried on alone: debug is yours to use)
 	map.selected_unit = null
 	hud.select_unit(null)
 	hud.select_province(-1)
