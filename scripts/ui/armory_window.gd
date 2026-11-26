@@ -34,6 +34,7 @@ var order_key := ""
 ## designs only, so a design shows the starting soldier of its weapon family (see Art.design_art).
 class Preview extends Control:
 	var kind := "d-sword"
+	var look := 0   # the armor it wears (Art.armored)
 	var game
 
 	func _process(_dt: float) -> void:
@@ -50,7 +51,7 @@ class Preview extends Control:
 		pts.append(pts[0])
 		draw_polyline(pts, UiKit.INK, 3.0, true)
 		var dir := int(Time.get_ticks_msec() / 1000.0 * 0.6 / (PI / 4)) % 8
-		var sp = Art.race_sprite("units", game.race(), Art.unit_file(Art.design_art(game, kind), "d%d" % dir))
+		var sp = Art.armored(Art.race_sprite("units", game.race(), Art.unit_file(Art.design_art(game, kind), "d%d" % dir)), look)
 		if sp == null:
 			return
 		var tex: Texture2D = sp.tex
@@ -83,6 +84,7 @@ func setup(g: Game, h) -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	win = UiKit.window("Armory", 1060, func(): close())
 	add_child(win.panel)
+	UiKit.draggable(win.panel, win.title, "armory")   # 0.19
 	var head: HBoxContainer = win.title.get_parent()
 	win.title.size_flags_horizontal = 0
 	sub = UiKit.ink(15)
@@ -119,7 +121,7 @@ func _place() -> void:
 	win.panel.custom_minimum_size.x = 1060 if mode == 0 else 0
 	win.panel.reset_size()
 	UiKit.center(win.panel)
-	if mode == 1 and hud != null and hud.paused_label != null:
+	if mode == 1 and hud != null and hud.paused_label != null and not UiKit.is_placed("armory"):
 		win.panel.position.y = hud.paused_label.position.y + hud.paused_label.size.y + 8
 
 
@@ -300,6 +302,9 @@ func _top(ed: VBoxContainer, st: Dictionary, kind_text: String, named: bool) -> 
 	var pv := Preview.new()
 	pv.game = game
 	pv.kind = game.MAGE if draft.type == "mage" else _draft_art()
+	if draft.type != "mage":   # 0.19: the preview wears the chosen armor
+		var A = GameData.c("ARMORS").get(str(draft.get("armor", "")))
+		pv.look = {"chain": 1, "wyvern": 1, "mithril": 1, "plate": 2, "dragon": 2, "ornate": 2}.get(str(A.type), 0) if A is Dictionary else 0
 	pv.custom_minimum_size = Vector2(176, 176)
 	frame.add_child(pv)
 	var sm := VBoxContainer.new()
@@ -430,11 +435,20 @@ func _design_editor(ed: VBoxContainer) -> void:
 			var F: Dictionary = GameData.c("FAMILY")[f]
 			if not _mine(F.get("race")):
 				continue
-			grid.add_child(_gear_row(F.name, F.note, F.order.map(func(w): return _eq("weapon", w, GameData.c("WEAPONS")[w], draft.weapon == w, game.gear_why("weapon", w)))))
+			var fw: Array = F.order.map(func(w): return _eq("weapon", w, GameData.c("WEAPONS")[w], draft.weapon == w, game.gear_why("weapon", w)))
+			for w in _quest_weapons(f):   # (the Lost Armaments, once their quest is done)
+				fw.append(_eq("weapon", w, GameData.c("WEAPONS")[w], draft.weapon == w, game.gear_why("weapon", w)))
+			grid.add_child(_gear_row(F.name, F.note, fw))
+		if rc != "realm" and _unlocked(GameData.c("SHIELD_DEFS").sham):   # (the Shield of Sham: a row of its own)
+			var why2 = "Two-handed weapon" if W.twoH else ("Not with two weapons" if draft.get("off") != null else ("Not with a two-handed grip" if draft.get("two", false) else null))
+			grid.add_child(_gear_row("Shield", "The Shield of Sham: the first blow against a front line all carrying it comes to nothing",
+				[_eq_none(draft.get("shield") == null or W.twoH), _eq("shield", "sham", GameData.c("SHIELD_DEFS").sham, draft.get("shield") == "sham" and not W.twoH, why2)]))
 		if rc == "realm":
 			var sh := [_eq_none(draft.get("shield") == null or W.twoH)]
 			var SD: Dictionary = GameData.c("SHIELD_DEFS")
 			for k in SD:
+				if not _unlocked(SD[k]):
+					continue
 				sh.append(_eq("shield", k, SD[k], draft.get("shield") == k and not W.twoH, "Two-handed weapon" if W.twoH else game.gear_why("shield", k)))
 			grid.add_child(_gear_row("Shield", W.name + " needs both hands" if W.twoH else "One-handed weapons only", sh))
 		elif rc == "swamp":   # web: swamp.js offhandRow (Dual Wielding)
@@ -453,9 +467,12 @@ func _design_editor(ed: VBoxContainer) -> void:
 			if not _mine(AT[t].get("race")) or (rc == "wood" and (t == "ornate") != (draft.type == "cav")):
 				continue
 			var row := []
-			for lv in [1, 2, 3, 4]:
+			for lv in [1, 2, 3, 4, 5]:
 				var k := "%s%d" % [t, lv]
-				row.append(_eq("armor", k, GameData.c("ARMORS")[k], draft.armor == k, game.gear_why("armor", k)))
+				var A = GameData.c("ARMORS").get(k)
+				if A == null or (A.get("quest") != null and not Quests.gear_unlocked(game, Game.LOCAL, A)):
+					continue   # (a quest's armor, Tier V: not shown at all until its quest is done)
+				row.append(_eq("armor", k, A, draft.armor == k, game.gear_why("armor", k)))
 			grid.add_child(_gear_row(AT[t].name, AT[t].note, row))
 	else:
 		var HS: Dictionary = MT
@@ -488,6 +505,8 @@ func _mage_editor(ed: VBoxContainer) -> void:
 	for ln in [["stave", "Staves", "Two-handed, the stronger attack"], ["wand", "Wands", "One-handed: leaves room for a skull" if rc == "swamp" else "One-handed: leaves room for a shield"]]:
 		var row := []
 		for k in MW:
+			if not _unlocked(MW[k]):
+				continue
 			if MW[k].line == ln[0] and _mine(MW[k].get("race")) and (MW[k].get("tech") == null or not game.TECH_BY_ID.has(MW[k].tech) or game.tech_for(game.TECH_BY_ID[MW[k].tech])):
 				row.append(_eq("weapon", k, MW[k], draft.weapon == k, game.mage_gear_why("weapon", k)))
 		grid.add_child(_gear_row(ln[1], ln[2], row))
@@ -501,6 +520,8 @@ func _mage_editor(ed: VBoxContainer) -> void:
 		var sh := [_eq_none(draft.get("shield") == null or W.twoH)]
 		var SD: Dictionary = GameData.c("SHIELD_DEFS")
 		for k in SD:
+			if not _unlocked(SD[k]):
+				continue
 			sh.append(_eq("shield", k, SD[k], draft.get("shield") == k and not W.twoH, "Two-handed stave" if W.twoH else game.mage_gear_why("shield", k)))
 		grid.add_child(_gear_row("Shield", "Staves need both hands" if W.twoH else "Wands only", sh))
 
@@ -597,6 +618,22 @@ func _eq_flag(kind: String, label: String, on: bool, why, val := true) -> Button
 	return b
 
 
+## Quests (Godot only): quest gear shows only once its quest is done.
+func _unlocked(item: Dictionary) -> bool:
+	return Quests.gear_unlocked(game, Game.LOCAL, item)
+
+
+## The unlocked Lost Armaments weapons shown at the end of family f's row.
+func _quest_weapons(f: String) -> Array:
+	var out := []
+	var WS: Dictionary = GameData.c("WEAPONS")
+	for w in Quests.ARMS:
+		var x = WS.get(w)
+		if x != null and x.get("rows") != null and x.rows.has(f) and _unlocked(x):
+			out.append(w)
+	return out
+
+
 func _eq_frame(on: bool, tip: String) -> Button:
 	var b := Button.new()
 	b.custom_minimum_size = Vector2(82, 66)
@@ -631,12 +668,19 @@ func _pick(kind: String, k: String) -> void:
 			draft.shield = null
 	elif kind == "shield":
 		draft.shield = null if k == "" else k
+		if k == "sham":   # (the Shield of Sham: no second weapon, no two-handed grip)
+			draft.off = null
+			draft.two = false
 	elif kind == "skull":
 		draft.skull = null if k == "" else k
 	elif kind == "off":
 		draft.off = null if k == "" else k
+		if draft.off != null and draft.get("shield") == "sham":   # (the Shield of Sham: not with two weapons)
+			draft.shield = null
 	elif kind == "two":
 		draft.two = k == "1"
+		if draft.two and draft.get("shield") == "sham":   # (nor with a two-handed grip)
+			draft.shield = null
 	else:
 		draft[kind] = k
 	_rebuild()

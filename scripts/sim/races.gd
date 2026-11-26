@@ -29,6 +29,9 @@ const EMBLEM_NAMES := {"crown": "Crown", "shield": "Shield", "swords": "Crossed 
 	"claw": "Claw", "tooth": "Tooth", "skull": "Skull", "axes": "Crossed axes", "pyramid": "Upside-down pyramid",
 	"triskelion": "Triskelion", "trinity": "Trinity knot", "spiral": "Celtic spiral", "tree": "Great tree", "celtic": "Celtic knot",
 	"shamrock": "Shamrock", "dara": "Dara knot", "shieldknot": "Shield knot"}
+## The Mason card's second page (Advanced Buildings): its key in CMD, and the cell its button sits on (both pages).
+const ADV := ":adv"
+const ADV_CELL := 12
 const HOME_ARMOR := {"realm": "leather1", "swamp": "stag1", "wood": "spirit1"}
 const SUPPLY_STORE := {"gold": 500, "wood": 500, "food": 500}                     # web: swamp.js (the Supply Cache)
 const BANK_STORE := {"gold": 1000}
@@ -171,16 +174,29 @@ static func apply(g, race: String) -> void:
 		g.UNIT_BASE.cav.name = "Champions"
 		road = false
 	g.BUILD_ORDER = order
-	# web: swamp.js / wood.js CMD[MASON]: the buildings in order, no roads for Swamplings or Woodlings
+	# web: swamp.js / wood.js CMD[MASON]: the buildings in order, no roads for Swamplings or Woodlings.
+	# Godot 0.19: the Mason's card has two pages. The first: the outpost and the buildings that need no research,
+	# with Advanced Buildings on cell 12; the second (CMD["mason:A:adv"]): the buildings research unlocks, with Back
+	# on the same cell. Both keep Cancel build and Dismiss.
 	g.CMD = GameData.c("CMD").duplicate(true)
+	var basic := order.filter(func(k): return g.BUILD_DEFS.has(k) and g.BUILD_DEFS[k].get("tech") == null)
+	var adv := order.filter(func(k): return g.BUILD_DEFS.has(k) and g.BUILD_DEFS[k].get("tech") != null)
 	var cm := [{"id": "build:outpost", "cell": 0, "key": "Q"}]
-	for i in order.size():
-		cm.append({"id": "build:" + order[i], "cell": i + 1, "key": ""})
+	for i in mini(basic.size(), ADV_CELL - 1):
+		cm.append({"id": "build:" + basic[i], "cell": i + 1, "key": ""})
+	cm.append({"id": "advanced", "cell": ADV_CELL, "key": ""})
 	if road:
 		cm.append({"id": "road", "cell": 13, "key": ""})
 	cm.append({"id": "cancelbuild", "cell": 14, "key": ""})
 	cm.append({"id": "dismiss", "cell": 15, "key": ""})
 	g.CMD[g.MASON] = cm
+	var ca := []
+	for i in mini(adv.size(), ADV_CELL):
+		ca.append({"id": "build:" + adv[i], "cell": i, "key": ""})
+	ca.append({"id": "basic", "cell": ADV_CELL, "key": ""})
+	ca.append({"id": "cancelbuild", "cell": 14, "key": ""})
+	ca.append({"id": "dismiss", "cell": 15, "key": ""})
+	g.CMD[g.MASON + ADV] = ca
 	# the player's starting designs: the race's own (the Armory shows only these)
 	g.designs = g.designs.filter(func(d): return not d.get("builtin", false))
 	var keep: Array = g.designs

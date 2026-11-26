@@ -5,7 +5,9 @@ extends RefCounted
 
 const SECONDS := 240.0
 const CHECK_EVERY := 10.0
-const HUMANS := {0: {"nation": {"name": "Bog Kings", "emblem": "skull", "color": 3}, "race": "swamp"},
+# (the Swampling's leader is pinned: a random one could be Zaarg, who starts at his Wayfinder limit and can't train
+# the one this test orders)
+const HUMANS := {0: {"nation": {"name": "Bog Kings", "emblem": "skull", "color": 3}, "race": "swamp", "leader": "glurg"},
 	2: {"nation": {"name": "Leafholt", "emblem": "spiral", "color": 5}, "race": "wood"}}
 
 

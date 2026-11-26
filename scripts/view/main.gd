@@ -257,6 +257,7 @@ func _on_ready(g: Game, from_thread := true) -> void:
 
 const MP_SAVE := "user://mp_autosave.json"   # the last multiplayer game, kept by every player
 var _mp_pending := {}
+var drop_asking := false   # the host is being asked whether to wait for a player who dropped out
 
 
 ## The host starts the game from the lobby. o: the lobby's choices {seed, map, start, ais, diff, cont};
@@ -367,10 +368,17 @@ func _mp_wire() -> void:
 		game = g
 		map.set_game(g)
 		hud.set_game(g))
+	lock.resumed.connect(func():   # (0.19: everyone is back: the host's question goes away and the game goes on)
+		if drop_asking and hud.dialog.visible:
+			drop_asking = false
+			hud.dialog.hide()
+			hud.add_toast("Everyone is back: the game goes on."))
 	lock.ask_drop.connect(func(o, nm):
+		drop_asking = true
 		hud.dialog.ask("%s has dropped out" % nm, "The game is paused. Wait for %s to come back (they join again with the same name and take their nation back), or hand their nation to the computer (Difficult)." % nm,
 			[{"id": "wait", "label": "Wait", "why": null}, {"id": "ai", "label": "Hand to the computer", "why": null}],
 			func(id):
+				drop_asking = false
 				if id == "ai" and lock != null:
 					lock.hand_over(o)))
 	lock.ended.connect(func(why):
@@ -749,6 +757,9 @@ func _maybe_screenshot() -> void:
 		hud.school.open()
 	if OS.get_cmdline_user_args().has("--country"):
 		hud.country.open()
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--quests=") and game.quests_on:   # pictures (Godot only): log | reliq | mason | masonadv | scout
+			_quest_shot(a.substr(9))
 	var b := map.bounds()
 	go_home()   # the game opens on your capital, as the web game's home button frames it
 	for a in OS.get_cmdline_user_args():
@@ -819,6 +830,74 @@ func _maybe_screenshot() -> void:
 	await RenderingServer.frame_post_draw
 	get_viewport().get_texture().get_image().save_png(shot)
 	get_tree().quit()
+
+
+## Pictures of the quests (--world=… --quests=log|reliq|mason|masonadv|scout): a Reliquary at the capital with relics
+## in it, a dig site and a Fallen Star next door, a chest, two quests, and the window or card asked for.
+func _quest_shot(what: String) -> void:
+	var cap: int = game.capital
+	var e := {"type": "reliquary", "slot": 3, "born": -10.0}
+	game.extras[cap] = game.extras_in(cap).filter(func(x): return x.slot != 3) + [e]
+	game.quest_pick = ["callum", "cutlass"]
+	for id in ["callum", "callum", "jmap", "coin", "star"]:
+		Quests.deposit(game, Game.LOCAL, id)
+	var nb: Array = game.open_nbr[cap].map(func(n): return n.q)
+	for q in nb:
+		game.explored[q] = true
+		game.visible[q] = true
+	game.digs[nb[0]] = {"item": "brune", "shown": true, "star": false}
+	game.digs[nb[1 % nb.size()]] = {"item": "star", "shown": true, "star": true}
+	game.chests[cap] = ["signet"]
+	var w = null
+	for u in game.units:
+		if u.owner == Game.LOCAL and u.kind == game.WAYFINDER:
+			w = u
+	hud.dialog_queue.clear()
+	for i in 6:   # (the new-quest pop-ups: closed for the picture)
+		if hud.dialog.visible:
+			hud.dialog.pick("close")
+	if what == "log":
+		hud.quests.open()
+	elif what == "reliq":
+		map.selected_unit = null
+		hud.select_unit(null)
+		hud.select_province(cap, "reliquary@3")
+		map.selected_prov = cap
+		map.selected_part = "reliquary@3"
+	elif what == "scout" and w != null:
+		game.digs[w.prov] = {"item": "darksoc", "shown": true, "star": false}
+		w.bag = ["fbones"]
+		game.start_dig(w)
+		map.selected_unit = w
+		hud.select_unit(w)
+	elif what == "armory":   # every quest's gear unlocked
+		game.quest_unlocks.append_array(["armor:beastleather", "armor:bone_regalia", "armor:siegebreaker", "weapon:cutlass", "weapon:freakaxe", "weapon:greedmaul", "shield:sham", "staff:triune"])
+		hud.armory.open()
+	elif what == "spells":   # a Mage with both spells, a Wall of Flame burning, a warped building
+		game.quest_unlocks.append_array(["spell:flamewall", "spell:timewarp"])
+		var c: Dictionary = game.new_army(cap, {game.MAGE: 1})
+		c.mana = 300.0
+		game.cast_flamewall(c, nb[0])
+		game.cd.clear()
+		var bar = null
+		for ex in game.extras_in(cap):
+			if Quests.WARP_TYPES.has(str(ex.type)):
+				bar = ex
+		if bar != null:
+			game.cast_timewarp(c, int(bar.slot))
+		game.cd.clear()
+		c.mana = 300.0
+		hud.dialog_queue.clear()
+		if hud.dialog.visible:
+			hud.dialog.pick("close")
+		map.selected_unit = c
+		hud.select_unit(c)
+	elif what.begins_with("mason"):
+		for u in game.units:
+			if u.owner == Game.LOCAL and u.kind == Game.MASON:
+				map.selected_unit = u
+				hud.select_unit(u)
+		hud.mason_adv = what == "masonadv"
 
 
 ## A picture of the start screen with the Patch Notes open (--patch), for checking the view.
@@ -898,7 +977,7 @@ func _camera(dt: float) -> void:
 		if absf(z - zoom_to) < 0.0005:
 			zoom_to = 0.0
 	var pan := Vector2(Input.get_axis("ui_left", "ui_right"), Input.get_axis("ui_up", "ui_down"))
-	if get_viewport().gui_get_focus_owner() is LineEdit:
+	if get_viewport().gui_get_focus_owner() is LineEdit or get_viewport().gui_get_focus_owner() is TextEdit:
 		pan = Vector2.ZERO
 	# the mouse at the edge of the screen scrolls the map (only while the game's window has the focus)
 	if game != null and DisplayServer.window_is_focused() and not dragging:
@@ -963,6 +1042,8 @@ func _unhandled_input(ev: InputEvent) -> void:
 				hud.school.hide()
 			elif hud.country.visible:
 				hud.country.hide()
+			elif hud.quests.visible:
+				hud.quests.hide()
 			elif hud.armory.visible:
 				hud.armory.close()
 			elif hud.diplomacy.win.panel.visible:
@@ -975,6 +1056,10 @@ func _unhandled_input(ev: InputEvent) -> void:
 			return
 		if ev.keycode == KEY_Y and not ev.ctrl_pressed:
 			hud.diplomacy.toggle()
+			get_viewport().set_input_as_handled()
+			return
+		if ev.keycode == KEY_L and not ev.ctrl_pressed and game.quests_on:   # the Quest Log
+			hud.quests.toggle()
 			get_viewport().set_input_as_handled()
 			return
 		if ev.keycode == KEY_G and not ev.ctrl_pressed:
@@ -1075,6 +1160,9 @@ func _finish_box(at: Vector2, shift: bool) -> void:
 # web: game.js clickAt (a left click): the spell or Slippers aim, a unit (Shift adds or removes it), a building, the province
 func _left_click(shift: bool) -> void:
 	var at := get_global_mouse_position()
+	if hud.aim != null and hud.aim.spell == "road":   # 0.19: picking a road's start and end
+		hud.road_click(map.province_at(at))
+		return
 	if hud.aim != null:
 		var tp := map.province_at(at)
 		if tp >= 0:
@@ -1082,6 +1170,8 @@ func _left_click(shift: bool) -> void:
 				game.do("fly_army", [hud.aim.unit, tp])
 			elif hud.aim.spell == "shock":
 				game.do("start_spell2", [hud.aim.unit, "shock", tp])
+			elif hud.aim.spell == "flamewall":   # (quests: the Wall of Flame)
+				game.do("cast_flamewall", [hud.aim.unit, tp])
 			else:
 				game.do("cast_spell", [hud.aim.unit, hud.aim.spell, tp])
 		hud.aim = null

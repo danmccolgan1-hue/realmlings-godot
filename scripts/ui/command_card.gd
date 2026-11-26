@@ -113,7 +113,7 @@ func _notification(what: int) -> void:
 ## note of their own beside the card.
 const TIP_DELAY := 1.0
 var _tip: PanelContainer
-var _tip_label: Label
+var _tip_label: RichTextLabel   # (0.19: BBCode, so costs show the resources' icons)
 var _tip_rest := 0.0
 var _tip_at := Vector2(-1, -1)
 var _tip_for := ""
@@ -146,16 +146,20 @@ func _process(dt: float) -> void:
 		_tip.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		_tip.top_level = true
 		_tip.z_index = 100
-		_tip_label = Label.new()
+		_tip_label = RichTextLabel.new()
+		_tip_label.bbcode_enabled = true
+		_tip_label.fit_content = true
+		_tip_label.scroll_active = false
 		_tip_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		_tip_label.custom_minimum_size = Vector2(320, 0)
-		_tip_label.add_theme_color_override("font_color", INK)
-		_tip_label.add_theme_font_size_override("font_size", 15)
+		_tip_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_tip_label.add_theme_color_override("default_color", INK)
+		_tip_label.add_theme_font_size_override("normal_font_size", 15)
 		_tip.add_child(_tip_label)
 		add_child(_tip)
 	if text != _tip_for:
 		_tip_for = text
-		_tip_label.text = text
+		_tip_label.text = UiKit.res_icons(text)
 		_tip.reset_size()
 	_tip.show()
 	var g := get_global_mouse_position()
@@ -217,6 +221,9 @@ func _draw() -> void:
 			_dashed_rect(r, Color(INK, 0.18))
 			continue
 		any = true
+		if c.get("slot", false):   # a relic slot (a Reliquary, a scout's bag): dark gray outline, no hotkey
+			_draw_slot(r, c, i == hover)
+			continue
 		var off: bool = c.get("why") != null and not c.get("q", false)
 		var pressed := i == down and i == hover
 		var rr := r if not pressed else Rect2(r.position + Vector2(0, 2.5), r.size)
@@ -263,6 +270,30 @@ func _draw() -> void:
 			draw_style_box(_sb(Color("#ff9a3c"), 0, 3), Rect2(cr.position + Vector2(1.5, 1.5), Vector2((cr.size.x - 3) * clampf(c.cd, 0, 1), cr.size.y - 3)))
 	if not any and empty_text != "":
 		draw_string(font, Vector2(PAD, TAB_H + size.y / 2 - 10), empty_text, HORIZONTAL_ALIGNMENT_CENTER, size.x - PAD * 2, 12, MUTED)
+
+
+const SLOT_EDGE := Color("#4a4a52")
+
+func _draw_slot(r: Rect2, c: Dictionary, hot: bool) -> void:
+	var tex = c.get("icon")
+	var full: bool = tex != null or str(c.get("label", "")) != ""
+	draw_style_box(_sb(Color("#fff7d9") if hot and full else Color("#e9e4d6") if full else Color("#d8d4ca"), 3.0, 8, SLOT_EDGE), r)
+	if tex != null:
+		draw_texture_rect(tex, Rect2(r.position + Vector2(6, 6), r.size - Vector2(12, 12)), false)
+	elif full:   # (no picture yet: the relic's name)
+		var font := get_theme_default_font()
+		var words: PackedStringArray = str(c.label).split(" ")
+		var line := ""
+		var lines := []
+		for w in words:
+			if (line + " " + w).strip_edges().length() > 9 and line != "":
+				lines.append(line)
+				line = w
+			else:
+				line = (line + " " + w).strip_edges()
+		lines.append(line)
+		for li in mini(lines.size(), 3):
+			draw_string(font, r.position + Vector2(2, 18 + li * 13), lines[li], HORIZONTAL_ALIGNMENT_CENTER, CELL - 4, 10, INK)
 
 
 func _dashed_rect(r: Rect2, col: Color) -> void:

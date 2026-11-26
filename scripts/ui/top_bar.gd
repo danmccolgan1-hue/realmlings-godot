@@ -30,6 +30,7 @@ var play_g: Glyph
 var nation_l: Label
 var nation_sw: TextureRect
 var dip_btn: Button
+var quest_btn: Button   # the Quest Log, under Diplomacy (games with quests only)
 var war_g: Glyph
 var key := ""
 
@@ -190,6 +191,7 @@ func _ready() -> void:
 	right.add_child(paper_button("", "plus", "Zoom in", func(): hud.main.zoom_by(1.25)))
 	right.add_child(paper_button("", "minus", "Zoom out", func(): hud.main.zoom_by(0.8)))
 	right.add_child(paper_button("", "home", "Back to your capital [Home]", func(): hud.main.go_home()))
+	right.add_child(paper_button("", "bug", "Report a bug: what happened, with a screenshot", func(): hud.bug.toggle()))
 	# top left: the menu, your nation, Armory and Diplomacy
 	var left := VBoxContainer.new()
 	left.add_theme_constant_override("separation", 8)
@@ -231,7 +233,10 @@ func _ready() -> void:
 	war_g.set_anchors_and_offsets_preset(Control.PRESET_RIGHT_WIDE, Control.PRESET_MODE_KEEP_SIZE, 8)
 	war_g.offset_left = war_g.offset_right - 24
 	left.add_child(dip_btn)
-	for b in [arm, dip_btn]:
+	quest_btn = paper_button("", "", "Quest Log (L): your quests, their texts and the relics you still need", func(): hud.quests.toggle(), 54.0)
+	_icon_on(quest_btn, "icons/common/ui_quests.png")
+	left.add_child(quest_btn)
+	for b in [arm, dip_btn, quest_btn]:
 		b.custom_minimum_size = Vector2(140, 54)
 		b.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 
@@ -258,6 +263,7 @@ func setup(g: Game) -> void:
 	var L = g.leader_of(Game.LOCAL)
 	nation_l.get_parent().get_parent().tooltip_text = "%s%s" % [P.name, (", led by %s" % L.full) if L != null else ""]
 	dip_btn.visible = not g.nations.is_empty()
+	quest_btn.visible = g.quests_on
 
 
 func _process(_dt: float) -> void:
@@ -286,7 +292,10 @@ func _process(_dt: float) -> void:
 		var st: Dictionary = g.tech[tr]
 		var gl: Glyph = tree_g[tr]
 		gl.active = st.cur != null
-		gl.set_value(float(st.prog) / maxf(1.0, float(g.TECH_BY_ID[st.cur].cost)) if st.cur != null else 0.0)
+		# (0.19: against the real cost, which doubles for Government and Military and grows with your land; it used
+		# the bare cost, so the circles overflowed and stopped drawing)
+		var gx = g.TECH_BY_ID.get(st.cur) if st.cur != null else null
+		gl.set_value(clampf(float(st.prog) / maxf(1.0, float(g.tech_cost(gx))), 0.0, 1.0) if gx != null else 0.0)
 		gl.queue_redraw()
 	var k := "%s|%s|%s|%d|%d|%d|%d|%d|%d|%d" % [g.stock, g.income, [g.storage_cap("gold"), g.storage_cap("wood"), g.storage_cap("food")],
 		g.mana_regen(Game.LOCAL), g.fort_count(), g.fort_limit(), g.provs_of(Game.LOCAL).size(), g.prov_limit(), g.exhaust, g.wars_of(Game.LOCAL).size()]

@@ -97,6 +97,7 @@ func _load_opts() -> Dictionary:
 	for k in ["nation", "leader", "race", "races", "start", "practice", "map", "slots"]:
 		if m.has(k) and typeof(m[k]) == typeof(d[k]):
 			d[k] = m[k]
+	d.practice = false   # 0.19: every island is a full island (the Practice island choice is gone)
 	if d.races.size() != 7:
 		d.races = ["random", "random", "random", "random", "random", "random", "random"]
 	if d.slots.size() != 7:
@@ -280,9 +281,9 @@ func _build_main() -> void:
 	v.add_child(_big("Tutorial", PURPLE, func(): show_screen("tut")))
 	v.add_child(_big("Multiplayer", PURPLE, func(): show_screen("multi")))
 	v.add_child(_big("Patch Notes", PURPLE, func(): main.patch_notes.open()))
-	v.add_child(_big("Exit", Color("#8a5a44"), func():
+	v.add_child(_big("Quit", Color("#8a5a44"), func():
 		Settings.save_all()
-		get_tree().quit(), "Close the game"))
+		get_tree().quit()))
 	var links := HFlowContainer.new()
 	links.alignment = FlowContainer.ALIGNMENT_CENTER
 	links.add_theme_constant_override("h_separation", 18)
@@ -405,7 +406,11 @@ var mp_players: VBoxContainer
 var mp_lan_sig := ""
 var mp_lan_t := 0.0
 var mp_opts_box: VBoxContainer   # the host's choices for the game (island, computer nations)
-var mp_start: Button
+var mp_start: Button             # the host: Start Game; anyone else: Ready (0.19)
+var mp_rows_sig := ""            # the players list as last drawn, without the pings (0.19: no redraw for a ping)
+var mp_ping_l := {}              # peer id -> its ping label (updated in place)
+var mp_taken_sig := ""           # the colors and leaders others have taken, as last shown on the Nation page
+var mp_info_t := 0.0
 
 
 func _build_multi() -> void:
@@ -479,6 +484,8 @@ func _mp_wire() -> void:
 		_mp_menu()
 		mp_status.text = why)
 	net.players_changed.connect(_mp_players)
+	net.lobby_info_changed.connect(func(): if net != null and not net.is_host: _mp_options())
+	net.seat_offer.connect(_mp_pick_seat)
 	net.message.connect(func(_from, m):   # the host started the game: main loads it and takes the connection over
 		if m.get("t") == "start" and net != null and not net.is_host:
 			var nt := net
@@ -564,21 +571,33 @@ func _mp_lobby() -> void:
 		_mp_menu())
 	lb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	br.add_child(lb)
-	mp_start = _big("Start Game", BLUE, _mp_begin)
+	if net == null or net.is_host:
+		mp_start = _big("Start Game", BLUE, _mp_begin)
+	else:   # 0.19: everyone else says when they are ready; the host can't start until they all are
+		mp_start = _big("Ready", Color("#3e9b4f"), func():
+			if net and net.players.has(net.my_id):
+				net.set_ready(not net.players[net.my_id].get("ready", false)))
+		mp_start.tooltip_text = "Tell the host you are happy with your nation and the game, and ready to start"
 	mp_start.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	br.add_child(mp_start)
 	mp_box.add_child(br)
+	mp_box.add_child(_link("Connection trouble?", func(): _mp_help(), "What to check when a player can't join or keeps being thrown out"))
+	mp_rows_sig = ""
 	_mp_players()
 	_mp_options()
 
 
-## What the host chose: carrying on the last multiplayer game, or a summary of the new island.
+## What the host chose: carrying on the last multiplayer game, or a summary of the new island. Everyone else sees
+## the host's summary (0.19), and has to be ready again whenever it changes.
 func _mp_options() -> void:
 	if mp_opts_box == null or not is_instance_valid(mp_opts_box) or net == null:
 		return
 	_clear_now(mp_opts_box)
 	if not net.is_host:
-		mp_opts_box.add_child(_lbl("The host chooses the island and the computer nations, and starts the game.", 14, MUTED))
+		var info := _lbl(("The game: " + net.lobby_info) if net.lobby_info != "" else "The host chooses the island and the computer nations, and starts the game once everyone is ready.", 14, MUTED)
+		info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		info.custom_minimum_size = Vector2(600, 0)
+		mp_opts_box.add_child(info)
 		return
 	var M := _mp_map()
 	var cont: bool = M.get("cont", false) and FileAccess.file_exists(main.MP_SAVE)
@@ -590,16 +609,56 @@ func _mp_options() -> void:
 			Settings.save_all()
 			_mp_options(), false, "Players take back their own nations by joining with the same name; nations nobody comes back for are played by the computer"))
 	if cont:
+		net.set_lobby_info(_mp_summary(), _mp_terms())
 		return
-	var humans := net.players.size()
-	var ais := 0
-	for i in range(humans - 1, 7):
-		if i < M.slots.size() and str(M.slots[i]) != "closed":
-			ais += 1
-	var l := _lbl("Island: %s, seed %s, start %s. %d players and %d computer nation%s." % [str(M.map.get("shape", "classic")).capitalize(), str(M.seed), str(M.start), humans, ais, "" if ais == 1 else "s"], 14, MUTED)
+	var l := _lbl(_mp_summary(), 14, MUTED)
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	l.custom_minimum_size = Vector2(600, 0)
 	mp_opts_box.add_child(l)
+	net.set_lobby_info(_mp_summary(), _mp_terms())
+
+
+## The host's game in a line: what everyone agrees to when they say they are ready.
+func _mp_summary() -> String:
+	var M := _mp_map()
+	if M.get("cont", false) and FileAccess.file_exists(main.MP_SAVE):
+		return "Continuing the last multiplayer game (saved %s). Join with the name you played under to take your nation back." % Time.get_datetime_string_from_unix_time(FileAccess.get_modified_time(main.MP_SAVE)).replace("T", " ").left(16)
+	var humans := net.players.size()
+	var ais := []
+	for i in range(humans - 1, 7):
+		if i < M.slots.size() and str(M.slots[i]) != "closed":
+			ais.append(str(M.slots[i]))
+	return "Island: %s, seed %s, start %s. %d players and %d computer nation%s%s." % [str(M.map.get("shape", "classic")).capitalize(), str(M.seed), str(M.start), humans, ais.size(), "" if ais.size() == 1 else "s", (" (" + ", ".join(ais) + ")") if not ais.is_empty() else ""]
+
+
+## What the players agree to when they are ready: the host's island and computer nations (not how many have joined).
+func _mp_terms() -> String:
+	var M := _mp_map()
+	if M.get("cont", false) and FileAccess.file_exists(main.MP_SAVE):
+		return "cont:%d" % FileAccess.get_modified_time(main.MP_SAVE)
+	return str([M.get("seed"), M.get("start"), M.get("map"), M.get("slots"), M.get("races")])
+
+
+## A player joining a game in progress (0.19 hot-join): the nations they may take.
+func _mp_pick_seat(choices: Array) -> void:
+	if mp_opts_box == null or not is_instance_valid(mp_opts_box):
+		return
+	_clear_now(mp_opts_box)
+	mp_status.text = "This game is already under way. Choose the nation you will play:"
+	for c in choices:
+		var o := int(c.get("id", 0))
+		var who := str(c.get("player", ""))
+		var state := "its player is away" if str(c.get("state", "")) == "away" else "played by the computer"
+		mp_opts_box.add_child(_tog("%s · %s%s" % [str(c.get("nation", "?")), Races.NAME.get(str(c.get("race", "realm")), ""), ("  (%s's, %s)" % [who, state]) if who != "" else "  (%s)" % state], false, func():
+			if net:
+				_clear_now(mp_opts_box)
+				mp_status.text = "Taking up %s… the host is sending the game." % str(c.get("nation", "the nation"))
+				net.choose_seat(o)))
+
+
+## What to check when someone can't join or keeps being thrown out (0.19).
+func _mp_help() -> void:
+	mp_note.text = ("Can't join or keep being dropped? 1) Everyone needs the same version (%s). 2) Use different names: the game keeps each nation by its player's name. 3) The host's router and firewall must let UDP port %d through (Windows asks the first time the game hosts: allow Private and Public networks), or use a virtual LAN such as Tailscale or ZeroTier. 4) Wi-Fi that drops out for long stretches will drop the player: a cable helps. 5) Every join, refusal, drop-out and resync is written to %s on each computer: compare the host's and the player's after it happens.") % [net.version if net else "", NetSession.PORT, NetSession.log_path()]
 
 
 ## The multiplayer host's map settings (whichever page is open).
@@ -638,6 +697,9 @@ func _mp_begin() -> void:
 	if why != "":
 		mp_status.text = why
 		return
+	if not net.all_ready():
+		mp_status.text = "Not everyone is ready yet."
+		return
 	var M := _mp_map()
 	var o := {"seed": str(M.get("seed", random_seed())).strip_edges(), "slots": M.slots.duplicate(), "races": M.races.duplicate(),
 		"cont": M.get("cont", false) and FileAccess.file_exists(main.MP_SAVE), "start": M.start, "map": M.map}
@@ -651,35 +713,62 @@ func _mp_begin() -> void:
 
 
 func _mp_players() -> void:
-	if mp_mode and net != null and screens.setup.is_inside_tree():   # (someone took a color or leader: gray it out now)
+	if net == null:
+		return
+	var tk := str(_mp_taken())
+	if mp_mode and screens.setup.is_inside_tree() and tk != mp_taken_sig:   # (someone took a color or leader: gray it out now)
 		_refresh_setup()
-	if mp_players == null or not is_instance_valid(mp_players) or net == null:
+	mp_taken_sig = tk
+	if mp_players == null or not is_instance_valid(mp_players):
 		return
 	if mp_start and is_instance_valid(mp_start):
-		mp_start.disabled = not net.is_host or net.players.size() < 2
-		mp_start.tooltip_text = "Only the host starts the game" if not net.is_host else "Waiting for at least one more player" if net.players.size() < 2 else "Start the game for everyone"
+		if net.is_host:
+			var waiting_for: Array = net.players.keys().filter(func(id): return int(id) != 1 and not net.players[id].get("ready", false)).map(func(id): return str(net.players[id].name))
+			mp_start.disabled = net.players.size() < 2 or not waiting_for.is_empty()
+			mp_start.tooltip_text = "Waiting for at least one more player" if net.players.size() < 2 else ("Waiting for %s to be ready" % ", ".join(waiting_for)) if not waiting_for.is_empty() else "Everyone is ready: start the game for everyone"
+		else:
+			var me_ready: bool = net.players.has(net.my_id) and net.players[net.my_id].get("ready", false)
+			mp_start.text = "Ready ✓ (click to cancel)" if me_ready else "Ready"
+			mp_start.disabled = not net.joined
 	if net.is_host and mp_opts_box and is_instance_valid(mp_opts_box) and mp_opts_box.get_meta("n", 0) != net.players.size():
 		mp_opts_box.set_meta("n", net.players.size())
 		_mp_options()
+	# 0.19: the rows are drawn again only when who is there, their nation or their readiness changes; pings are
+	# updated in place (they came every 2 s and redrew the whole list, so the lobby flickered)
+	var sig := ""
+	for id in net.players:
+		var P: Dictionary = net.players[id]
+		sig += "%s|%s|%s|%s;" % [id, P.name, str(P.get("nation", {})), P.get("ready", false)]
+	if sig == mp_rows_sig:
+		for id in mp_ping_l:
+			if net.players.has(id) and is_instance_valid(mp_ping_l[id]):
+				mp_ping_l[id].text = "%d ms" % int(net.players[id].get("ping", 0))
+		return
+	mp_rows_sig = sig
+	mp_ping_l = {}
 	_clear_now(mp_players)
 	for id in net.players:
 		var P: Dictionary = net.players[id]
 		var n: Dictionary = P.get("nation", {})
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 8)
+		row.custom_minimum_size = Vector2(0, 30)
 		var NC: Array = GameData.c("NATION_COLORS")
 		var tex = Art.flag_texture(str(NC[int(n.get("color", 0)) % NC.size()][0]), str(n.get("emblem", "crown")), str(n.get("secondary", "#faf1dc")))
-		if tex:
-			var r := TextureRect.new()
-			r.texture = tex
-			r.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-			r.custom_minimum_size = Vector2(40, 28)
-			r.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-			row.add_child(r)
+		var r := TextureRect.new()
+		r.texture = tex if tex is Texture2D else null
+		r.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		r.custom_minimum_size = Vector2(40, 28)
+		r.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		row.add_child(r)
 		var who := "%s%s · %s · %s" % [P.name, " (host)" if int(id) == 1 else "", str(n.get("nation", "")), Races.NAME.get(str(n.get("race", "realm")), "")]
 		row.add_child(_lbl(who, 16, INK))
 		if int(id) != 1:
-			row.add_child(_lbl("%d ms" % int(P.get("ping", 0)), 14, MUTED))
+			var rd: bool = P.get("ready", false)
+			row.add_child(_lbl("Ready" if rd else "Not ready", 14, Color("#3e9b4f") if rd else Color("#a0461e")))
+			var pl := _lbl("%d ms" % int(P.get("ping", 0)), 14, MUTED)
+			row.add_child(pl)
+			mp_ping_l[id] = pl
 		mp_players.add_child(row)
 
 
@@ -687,6 +776,12 @@ func _mp_poll(dt: float) -> void:
 	if net == null:
 		return
 	net.poll(dt)
+	if net == null:
+		return
+	mp_info_t -= dt
+	if net.is_host and mp_info_t <= 0 and mp_players != null and is_instance_valid(mp_players):
+		mp_info_t = 0.5
+		net.set_lobby_info(_mp_summary(), _mp_terms())   # (the host changed the map settings: everyone is asked again)
 	if mp_note and is_instance_valid(mp_note) and net.is_host and net.upnp_note != "":
 		mp_note.text = net.upnp_note
 	mp_lan_t -= dt
@@ -993,13 +1088,7 @@ func _refresh_setup() -> void:
 func _refresh_map() -> void:
 	_clear_now(map_box)
 	var M: Dictionary = _map_opts()
-	var practice: bool = M.practice and not mp_mode
-	if not mp_mode:   # (a multiplayer game is always on a full island)
-		var mp := HBoxContainer.new()
-		mp.add_theme_constant_override("separation", 8)
-		mp.add_child(_tog("Full island", not practice, _pick_map.bind("practice", false), false, "Computer nations, wars and diplomacy"))
-		mp.add_child(_tog("Practice island", practice, _pick_map.bind("practice", true), false, "10 provinces, just you: explore, settle and try things out"))
-		_row("Map", mp, map_box)
+	var practice := false   # 0.19: every island is a full island; the Full/Practice choice is gone
 	var sp := HBoxContainer.new()
 	sp.add_theme_constant_override("separation", 8)
 	for s in [["center", "Center"], ["edge", "Edge"], ["random", "Random"]]:
@@ -1224,7 +1313,7 @@ static func leader_start_text(L: Dictionary) -> String:
 		"shield": return "Starts with a Barracks and 6 Footmen carrying Round Shields (researched)."
 		"forge": return "Starts with a Forge (technology researched)."
 		"lumber": return "Mountain or ruin borders of the capital turn into tree borders (up to 2), and it starts with 2 Lumber Mills."
-		"scouts": return "Starts with 2 Wayfinders and Far-Seeing Wayfinders researched (and the Automating Wayfinders and Wayfinder Stealth it needs)."
+		"scouts": return "Starts with 2 Wayfinders, Wayfinder Stealth and Far-Seeing Wayfinders (Automating Wayfinders is left for you to research)."
 		"farms": return "Starts with 2 Farms in the capital."
 	return ""
 

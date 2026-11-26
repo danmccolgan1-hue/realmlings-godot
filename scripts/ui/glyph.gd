@@ -56,6 +56,24 @@ func _draw() -> void:
 			_shape([[3, 21], [3, 9], [6, 9], [6, 11], [9, 11], [9, 6], [15, 6], [15, 11], [18, 11], [18, 9], [21, 9], [21, 21]], Color("#cfc8ba"))
 			_shape([[10, 21], [10, 16], [14, 16], [14, 21]], Color("#6b4a2a"), 1.5)
 			_shape([[12, 6], [12, 2.5], [16, 4], [12, 5.5]], Color("#c7362b"), 1.2)
+		"bug":   # 0.19: the bug report button
+			for k in 3:   # legs
+				var ly := 10.0 + k * 3.5
+				draw_line(Vector2(6.5, ly), Vector2(3, ly - 1.5 + k * 1.5), INK, 1.5, true)
+				draw_line(Vector2(17.5, ly), Vector2(21, ly - 1.5 + k * 1.5), INK, 1.5, true)
+			draw_line(Vector2(10, 6), Vector2(7.5, 2.5), INK, 1.4, true)   # feelers
+			draw_line(Vector2(14, 6), Vector2(16.5, 2.5), INK, 1.4, true)
+			var body := PackedVector2Array()
+			for k in 25:
+				var a := TAU * k / 24.0
+				body.append(Vector2(12 + cos(a) * 6.2, 13.5 + sin(a) * 7.5))
+			draw_colored_polygon(body, Color("#c7362b"))
+			body.append(body[0])
+			draw_polyline(body, INK, 1.7, true)
+			draw_circle(Vector2(12, 6.8), 3.2, INK)
+			draw_line(Vector2(12, 7.5), Vector2(12, 21), INK, 1.3, true)
+			for d in [[9.5, 11.5], [14.5, 14], [9.6, 17]]:
+				draw_circle(Vector2(d[0], d[1]), 1.2, INK)
 		"prov":   # web: v96.js PROV_SVG
 			_shape([[7, 3.5], [16.5, 2.8], [21.3, 10.2], [18.2, 19.4], [8.8, 21.2], [2.8, 13.6]], Color("#9bd95f"), 1.8)
 		"mana":   # web: v98.js MANA_STAR_SVG, a 7-pointed star
@@ -115,11 +133,14 @@ func _draw() -> void:
 		"tree_gov", "tree_mil", "tree_mag":   # a research tree: empty when idle, its color filling as research goes
 			var r := 12 - 1.5 * s
 			draw_circle(c, r, Color("#f4ead2"))
-			if active and value > 0.001:
+			var fv := clampf(value, 0.0, 1.0)
+			if active and fv >= 0.995:
+				draw_circle(c, r, TREE_COL[kind])
+			elif active and fv > 0.001:
 				var pts := PackedVector2Array([c])
-				var n := maxi(3, int(40 * value))
+				var n := maxi(3, int(40 * fv))
 				for k in n + 1:
-					var a := -PI / 2 + TAU * value * k / n
+					var a := -PI / 2 + TAU * fv * k / n
 					pts.append(c + Vector2(cos(a), sin(a)) * r)
 				draw_colored_polygon(pts, TREE_COL[kind])
 			draw_arc(c, r, 0, TAU, 40, TREE_COL[kind] if active else INK, 1.6 * s, true)

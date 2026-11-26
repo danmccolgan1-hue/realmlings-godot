@@ -1,0 +1,1099 @@
+{
+ "note": "Godot-only content (not in the web game): written by hand, not exported. Texts use the Realmlings' words; Races.words gives each race its own.",
+ "RARITY_CHANCE": {
+  "common": 0.2,
+  "uncommon": 0.1,
+  "rare": 0.05
+ },
+ "DIG_FAILSAFE_NOTE": "Each digger's chance rises with time spent digging: from the given cycle on (18 cycles = 3 minutes), the chance is at least the given value.",
+ "DIG_FAILSAFE": [[18, 0.1], [24, 0.2], [30, 0.3], [36, 0.5], [42, 1.0]],
+ "CARRY": 1,
+ "RELIQUARY_SLOTS": 9,
+ "STAR_FIRST": [
+  1800,
+  1800
+ ],
+ "STAR_NEXT": [
+  900,
+  1500
+ ],
+ "PICK": [
+  [
+   "library",
+   1
+  ],
+  [
+   "war",
+   1
+  ],
+  [
+   "herb",
+   1
+  ],
+  [
+   "gear",
+   1
+  ],
+  [
+   "spell|arms",
+   2
+  ]
+ ],
+ "BUILD_DEFS": {
+  "reliquary": {
+   "name": "Reliquary",
+   "variant": 0,
+   "cost": {
+    "gold": 100,
+    "wood": 100
+   },
+   "upkeep": {},
+   "note": "9 item slots",
+   "blurb": "Keeps the relics your Wayfinders find: 9 slots. Found items go straight into a Reliquary with room, wherever they are found. One per province; build more for more room."
+  },
+  "dungeon": {
+   "name": "Dungeon",
+   "variant": 0,
+   "cost": {
+    "gold": 100,
+    "wood": 100
+   },
+   "upkeep": {},
+   "note": "3 prisoner cells",
+   "mp": true,
+   "blurb": "Holds 3 prisoners taken in the Dungeon quests. One per province; build more for more cells. Multiplayer only."
+  }
+ },
+ "BUILD_NAMES": {
+  "swamp": {
+   "reliquary": "Reliquary",
+   "dungeon": "Dungeon"
+  },
+  "wood": {
+   "reliquary": "Reliquary",
+   "dungeon": "Dungeon"
+  }
+ },
+ "QUESTS": {
+  "callum": {
+   "group": "library",
+   "title": "Rebuilding the Library: Lord Callum's Lawbook",
+   "trigger": {
+    "items": [
+     "callum"
+    ],
+    "tower": false
+   },
+   "text": "An ancient leader known only as Lord Callum famously wrote a book detailing the subtleties of Law and Order. Remnants of different copies of the book still exist in the world. If you find enough pieces we can recreate his work and use it to advance our government.",
+   "goals": [
+    {
+     "item": "callum",
+     "n": 3,
+     "label": "Find copies of Lord Callum's Lawbook"
+    }
+   ],
+   "done_text": "With the collected and complete Lawbook by Lord Callum our advisors have revised and reorganized our system to allow for more productivity with less oversight!",
+   "reward": {
+    "rate": {
+     "gov": 6
+    }
+   },
+   "reward_text": "+6 Government Research"
+  },
+  "lionheart": {
+   "group": "library",
+   "title": "Rebuilding the Library: General Lionheart's Records",
+   "trigger": {
+    "items": [
+     "lionheart"
+    ],
+    "tower": false
+   },
+   "text": "A fearsome general who once abandoned his besieged home capital and led his remaining people into the sanctuary of remote mountains left a detailed record of every decision that led to his people's eventual extinction. Learning from his faults will help us avoid making his mistakes.",
+   "goals": [
+    {
+     "item": "lionheart",
+     "n": 4,
+     "label": "Find copies of General Lionheart's Records"
+    }
+   ],
+   "done_text": "General Lionheart was not a fool. He fought well against a vastly superior opponent. Knowing his tactics will aid us in organizing our own people. Rest easy, General.",
+   "reward": {
+    "rate": {
+     "gov": 8
+    }
+   },
+   "reward_text": "+8 Government Research"
+  },
+  "brune": {
+   "group": "library",
+   "title": "Rebuilding the Library: Minister Brune's Guide to Effective Government",
+   "trigger": {
+    "items": [
+     "brune"
+    ],
+    "tower": false
+   },
+   "text": "Brune was not only a legendary warrior but a wise advisor to his king. After years of war and many campaigns to the frozen north he returned to his homeland and wrote about not the fighting, but what to do when the fighting ends. His advice is invaluable. We must acquire his lost writings.",
+   "goals": [
+    {
+     "item": "brune",
+     "n": 5,
+     "label": "Find copies of Minister Brune's Guides"
+    }
+   ],
+   "done_text": "Brune would have been a great king, but he was a better advisor. With his preserved words we will take his advice and build our nation stronger than ever.",
+   "reward": {
+    "rate": {
+     "gov": 10
+    }
+   },
+   "reward_text": "+10 Government Research"
+  },
+  "darksoc": {
+   "group": "war",
+   "title": "A Forgotten War: Emblems of the Dark Society",
+   "trigger": {
+    "items": [
+     "darksoc"
+    ],
+    "tower": false
+   },
+   "text": "One of the first known military cults that held control over these lands was the Dark Society. We know little about them, only that their warriors were mythical. Acquiring these Emblems will give our military insights a boost.",
+   "goals": [
+    {
+     "item": "darksoc",
+     "n": 3,
+     "label": "Find Emblems of the Dark Society"
+    }
+   ],
+   "done_text": "The Dark Society was the pinnacle of its day, but its day is over. Now we shall rule.",
+   "reward": {
+    "rate": {
+     "mil": 6
+    }
+   },
+   "reward_text": "+6 Military Research"
+  },
+  "signet": {
+   "group": "war",
+   "title": "A Forgotten War: Signets of the Lost Soldiers",
+   "trigger": {
+    "items": [
+     "signet"
+    ],
+    "tower": false
+   },
+   "text": "The signets of these soldiers indicate that this band of unnamed brethren once stood united, but for some unknown reason scattered to the wind. These soldiers are found all throughout the land with their signets identifying them. Let us collect these signets and advance our knowledge of military brotherhood.",
+   "goals": [
+    {
+     "item": "signet",
+     "n": 4,
+     "label": "Find Signets of the Lost Soldiers"
+    }
+   ],
+   "done_text": "The lost and forgotten once held the tightest bonds. Why they abandoned each other but kept their keepsake signets still remains a mystery.",
+   "reward": {
+    "rate": {
+     "mil": 8
+    }
+   },
+   "reward_text": "+8 Military Research"
+  },
+  "coin": {
+   "group": "war",
+   "title": "A Forgotten War: Coins of the Fallen Masters",
+   "trigger": {
+    "items": [
+     "coin"
+    ],
+    "tower": false
+   },
+   "text": "These mysterious Masters fell only three generations ago. We know they were not only master warriors but tax collectors for their King as well. Maybe the warrior class should be more inclusive? Collect more Coins of the Fallen Masters.",
+   "goals": [
+    {
+     "item": "coin",
+     "n": 5,
+     "label": "Find Coins of the Fallen Masters"
+    }
+   ],
+   "done_text": "Their high honor and status did not make them impervious to the ravages of time and entropy. We can only take their lessons and hold out hope that time isn't so cruel with our legacy.",
+   "reward": {
+    "rate": {
+     "mil": 10
+    }
+   },
+   "reward_text": "+10 Military Research"
+  },
+  "quarterroyal": {
+   "group": "herb",
+   "title": "A Mage's Request: More Quarterroyal!",
+   "trigger": {
+    "items": [
+     "quarterroyal"
+    ],
+    "tower": true
+   },
+   "text": "Our Mages demand more Quarterroyal for study! This will help them improve their research.",
+   "goals": [
+    {
+     "item": "quarterroyal",
+     "n": 3,
+     "label": "Find Quarterroyal"
+    }
+   ],
+   "done_text": "Success! Our Mages are pleased!",
+   "reward": {
+    "rate": {
+     "mag": 6
+    }
+   },
+   "reward_text": "+6 Magic Research"
+  },
+  "peacock": {
+   "group": "herb",
+   "title": "A Mage's Request: More Peacock's Eye!",
+   "trigger": {
+    "items": [
+     "peacock"
+    ],
+    "tower": true
+   },
+   "text": "Our Mages demand more Peacock's Eye for study! This will help them improve their research.",
+   "goals": [
+    {
+     "item": "peacock",
+     "n": 4,
+     "label": "Find Peacock's Eye"
+    }
+   ],
+   "done_text": "Success! Our Mages are pleased!",
+   "reward": {
+    "rate": {
+     "mag": 8
+    }
+   },
+   "reward_text": "+8 Magic Research"
+  },
+  "lizardroot": {
+   "group": "herb",
+   "title": "A Mage's Request: More White Lizardroot!",
+   "trigger": {
+    "items": [
+     "lizardroot"
+    ],
+    "tower": true
+   },
+   "text": "Our Mages demand more White Lizardroot for study! This will help them improve their research.",
+   "goals": [
+    {
+     "item": "lizardroot",
+     "n": 4,
+     "label": "Find White Lizardroot"
+    }
+   ],
+   "done_text": "Success! Our Mages are pleased!",
+   "reward": {
+    "rate": {
+     "mag": 10
+    }
+   },
+   "reward_text": "+10 Magic Research"
+  },
+  "freakarmor": {
+   "group": "gear",
+   "title": "Reclaiming Battlegear: The Freak Man's Skeleton",
+   "trigger": {
+    "items": [
+     "fbones",
+     "fribs",
+     "fskull"
+    ],
+    "tower": false
+   },
+   "text": "The Legend of the Freak Man is not a tale worth repeating. He was less a warrior and more a butcher. Wearing only the enchanted bones from his fallen foes he would ambush his enemies and somehow steal their power. His atrocities are told only in the quietest of whispers. If we recover his bones, maybe we too could have that power.",
+   "goals": [
+    {
+     "item": "fbones",
+     "n": 4,
+     "label": "Find Freaky Bones"
+    },
+    {
+     "item": "fribs",
+     "n": 1,
+     "label": "Find a Freaky Ribcage"
+    },
+    {
+     "item": "fskull",
+     "n": 1,
+     "label": "Find a Freaky Skull"
+    },
+    {
+     "item": "star",
+     "n": 1,
+     "label": "Find a Fallen Star"
+    }
+   ],
+   "done_text": "Our Forgemasters have collaborated with our Mages and have made the Freak Man's Armor available for mass production. Our armies will fear none.",
+   "reward": {
+    "unlock": "armor:bone_regalia"
+   },
+   "reward_text": "Freak Man's Bone Regalia unlocked"
+  },
+  "runearmor": {
+   "group": "gear",
+   "title": "Reclaiming Battlegear: An Ancient Armor",
+   "trigger": {
+    "items": [
+     "rshard",
+     "rgaunt",
+     "rhelm",
+     "rplate"
+    ],
+    "tower": false
+   },
+   "text": "This Runed Metal is not just another relic, but it is a piece of the Ancient Siegebreaker Armor! This is a rare find! If we complete the set we could outfit our own warriors with this magic armor. No tower could stand against the might of such battlegear.",
+   "goals": [
+    {
+     "item": "rshard",
+     "n": 4,
+     "label": "Find Runed Armor Shards"
+    },
+    {
+     "item": "rgaunt",
+     "n": 1,
+     "label": "Find the Runed Gauntlets"
+    },
+    {
+     "item": "rplate",
+     "n": 1,
+     "label": "Find the Runed Breastplate"
+    },
+    {
+     "item": "rhelm",
+     "n": 1,
+     "label": "Find a Runed Helm"
+    },
+    {
+     "item": "star",
+     "n": 1,
+     "label": "Find a Fallen Star"
+    }
+   ],
+   "done_text": "Our Forgemasters have collaborated with our Mages and have made the Siegebreaker Runeplate available for mass production. Our armies will conquer all.",
+   "reward": {
+    "unlock": "armor:siegebreaker"
+   },
+   "reward_text": "Siegebreaker Runeplate unlocked"
+  },
+  "beastleather": {
+   "group": "gear",
+   "title": "Reclaiming Battlegear: Hides of Mythical Beasts",
+   "trigger": {
+    "items": [
+     "pscraps",
+     "phide"
+    ],
+    "tower": false
+   },
+   "text": "Seven generations ago the Huntress Yenny would exclusively kill primal creatures that did not belong in our realm. It seems they have once again taken up residence here. If you reclaim enough of these creatures' hides, our Mages can easily recreate her legendary Leather Armor.",
+   "goals": [
+    {
+     "item": "pscraps",
+     "n": 4,
+     "label": "Find Primal Scraps"
+    },
+    {
+     "item": "phide",
+     "n": 2,
+     "label": "Find Primal Hide"
+    },
+    {
+     "item": "star",
+     "n": 1,
+     "label": "Find a Fallen Star"
+    }
+   ],
+   "done_text": "Our Mages have recreated the ancient huntress' leather and it is now available for mass production. Our armies will march swiftly to our enemies' weak spots.",
+   "reward": {
+    "unlock": "armor:beastleather"
+   },
+   "reward_text": "Yenny's Beastleather unlocked",
+   "beasts": {
+    "knuckledragger": 3,
+    "ursacub": 3,
+    "dunestalker": 2,
+    "bogwalker": 1
+   }
+  },
+  "flamebook": {
+   "group": "spell",
+   "title": "The Spell Book of Flame",
+   "trigger": {
+    "items": [
+     "fpage",
+     "fbind"
+    ],
+    "tower": true
+   },
+   "text": "Our Mages tell us of a spell that could turn the tide against our enemies! Our Mages will gain the ability to summon walls of fire! All they ask of us is to bring them the remaining Pages of Flame and a Binding of Flame.",
+   "goals": [
+    {
+     "item": "fpage",
+     "n": 3,
+     "label": "Find Pages of Flame"
+    },
+    {
+     "item": "fbind",
+     "n": 1,
+     "label": "Find a Binding of Flame"
+    },
+    {
+     "item": "star",
+     "n": 1,
+     "label": "Find a Fallen Star"
+    }
+   ],
+   "done_text": "Success! Our Mages are now ready for battle!",
+   "reward": {
+    "unlock": "spell:flamewall"
+   },
+   "reward_text": "Spell: Wall of Flame unlocked"
+  },
+  "timebook": {
+   "group": "spell",
+   "title": "The Spell Book of Time",
+   "trigger": {
+    "items": [
+     "tpage",
+     "tbind"
+    ],
+    "tower": true
+   },
+   "text": "Our Mages tell us of a spell that could advance our civilization's productivity! Our Mages will gain the ability to alter time itself in a limited capacity! All they ask of us is to bring them the remaining Pages of Time and a Binding of Time.",
+   "goals": [
+    {
+     "item": "tpage",
+     "n": 3,
+     "label": "Find Pages of Time"
+    },
+    {
+     "item": "tbind",
+     "n": 1,
+     "label": "Find a Binding of Time"
+    },
+    {
+     "item": "star",
+     "n": 1,
+     "label": "Find a Fallen Star"
+    }
+   ],
+   "done_text": "Success! Our Mages are now ready to enhance our nation!",
+   "reward": {
+    "unlock": "spell:timewarp"
+   },
+   "reward_text": "Spell: Time Warp unlocked"
+  },
+  "triune": {
+   "group": "arms",
+   "title": "Lost Armaments: The Triune Staff",
+   "trigger": {
+    "items": [
+     "thilt",
+     "tshaft",
+     "torb"
+    ],
+    "tower": true
+   },
+   "text": "Our Mages tell us of a Legendary Magical Staff that gifts our nation with deep wells of magic! Our Mages will have deeper wells of magic than they could ever otherwise reach! Return the pieces of the staff and our Mages can duplicate it with enough Fallen Stars.",
+   "goals": [
+    {
+     "item": "thilt",
+     "n": 1,
+     "label": "Find the Triune Hilt"
+    },
+    {
+     "item": "tshaft",
+     "n": 1,
+     "label": "Find the Triune Shaft"
+    },
+    {
+     "item": "torb",
+     "n": 1,
+     "label": "Find the Triune Orb"
+    },
+    {
+     "item": "star",
+     "n": 3,
+     "label": "Find Fallen Stars"
+    }
+   ],
+   "done_text": "Magnificent! Our Mages are now more powerful than ever!",
+   "reward": {
+    "unlock": "staff:triune"
+   },
+   "reward_text": "Weapon: Triune Staff unlocked"
+  },
+  "cutlass": {
+   "group": "arms",
+   "title": "Lost Armaments: Jagkara's Cutlass",
+   "trigger": {
+    "items": [
+     "jmap"
+    ],
+    "tower": false
+   },
+   "text": "Ahh! The lost treasure of Jagkara! If we find the rest of the pieces of the map we can find its final resting place.",
+   "goals": [
+    {
+     "item": "jmap",
+     "n": 4,
+     "label": "Find Jagged Map Pieces"
+    }
+   ],
+   "part2": {
+    "site": "cutlass",
+    "text": "The Lost Cutlass of Jagkara! Now we just need to get it to our Forgemasters for production!",
+    "goals": [
+     {
+      "item": "cutlass",
+      "n": 1,
+      "label": "Recover Jagkara's Cutlass"
+     },
+     {
+      "item": "star",
+      "n": 1,
+      "label": "Recover a Fallen Star"
+     }
+    ]
+   },
+   "done_text": "Jagkara was known as arrogant and bullheaded, but he was also an unmatched genius. We will use his genius to strengthen our armies!",
+   "reward": {
+    "unlock": "weapon:cutlass"
+   },
+   "reward_text": "Weapon: Jagkara's Cutlass unlocked"
+  },
+  "freakaxe": {
+   "group": "arms",
+   "title": "Lost Armaments: The Freak Man's Axe",
+   "trigger": {
+    "items": [
+     "rmap"
+    ],
+    "tower": false
+   },
+   "text": "Ahh! The lost treasure of the Freak Man! If we find the rest of the pieces of the map we can find its final resting place.",
+   "goals": [
+    {
+     "item": "rmap",
+     "n": 4,
+     "label": "Find Ripped Map Pieces"
+    }
+   ],
+   "part2": {
+    "site": "freakaxe",
+    "text": "The Freak Man! X marks the spot! Now we just need to get the axe to our Forgemasters for production!",
+    "goals": [
+     {
+      "item": "freakaxe",
+      "n": 1,
+      "label": "Recover The Freak Man's Axe"
+     },
+     {
+      "item": "star",
+      "n": 1,
+      "label": "Recover a Fallen Star"
+     }
+    ]
+   },
+   "done_text": "The Freak Man was clearly tormented by some sort of demons that drove him to be such an intimidating foe. It is whispered that his armies were the ones that destroyed General Lionheart's home. We will use his demons to strengthen our armies!",
+   "reward": {
+    "unlock": "weapon:freakaxe"
+   },
+   "reward_text": "Weapon: The Freak Man's Axe unlocked"
+  },
+  "greedmaul": {
+   "group": "arms",
+   "title": "Lost Armaments: The Maul of Greed",
+   "trigger": {
+    "items": [
+     "tmap"
+    ],
+    "tower": false
+   },
+   "text": "Ahh! The lost treasure of the Maul of Greed! If we find the rest of the pieces of the map we can find its final resting place.",
+   "goals": [
+    {
+     "item": "tmap",
+     "n": 4,
+     "label": "Find Torn Map Pieces"
+    }
+   ],
+   "part2": {
+    "site": "greedmaul",
+    "text": "We have the Maul of Greed! We must get the maul to our Forgemasters for production.",
+    "goals": [
+     {
+      "item": "greedmaul",
+      "n": 1,
+      "label": "Recover The Maul of Greed"
+     },
+     {
+      "item": "star",
+      "n": 1,
+      "label": "Recover a Fallen Star"
+     }
+    ]
+   },
+   "done_text": "Greed in this context was a raider, his desire for loot surpassed all his comrades and his name was forgotten in place of his overwhelming desires. This Maul was his most prized possession. Hopefully we won't succumb to its curse.",
+   "reward": {
+    "unlock": "weapon:greedmaul"
+   },
+   "reward_text": "Weapon: The Maul of Greed unlocked"
+  },
+  "sham": {
+   "group": "arms",
+   "title": "Lost Armaments: The Shield of Sham",
+   "trigger": {
+    "items": [
+     "fmap"
+    ],
+    "tower": false
+   },
+   "text": "Ahh! The lost treasure of the Shield of Sham! If we find the rest of the pieces of the map we can find its final resting place.",
+   "goals": [
+    {
+     "item": "fmap",
+     "n": 4,
+     "label": "Find Frayed Map Pieces"
+    }
+   ],
+   "part2": {
+    "site": "sham",
+    "text": "We have the Shield of Sham! We must get the shield to our Forgemasters for production.",
+    "goals": [
+     {
+      "item": "sham",
+      "n": 1,
+      "label": "Recover The Shield of Sham"
+     },
+     {
+      "item": "star",
+      "n": 1,
+      "label": "Recover a Fallen Star"
+     }
+    ]
+   },
+   "done_text": "The Shield of Sham to the outsider looks like some random sticks wrapped around a wooden plank, but it's the binding magic within that makes it such a useful armament!",
+   "reward": {
+    "unlock": "shield:sham"
+   },
+   "reward_text": "Shield: The Shield of Sham unlocked"
+  },
+  "jailbreak": {
+   "group": "dungeon",
+   "title": "Jailbreak!",
+   "trigger": {
+    "items": [],
+    "tower": false
+   },
+   "text": "Our nation's hardened criminals have escaped from our dungeon. We must have justice! They cannot be allowed to escape! Track them down!",
+   "goals": [
+    {
+     "item": "_convict",
+     "n": 8,
+     "label": "Recover Criminals"
+    }
+   ],
+   "done_text": "Our nation is one that affirms justice. We hold the worst of the worst in our dungeons.",
+   "reward": {},
+   "reward_text": "Execute them: +300 Government and +300 Military research. Pardon them: 8 Convicts join your army."
+  }
+ },
+ "ITEMS": {
+  "callum": {
+   "name": "Lord Callum's Lawbook",
+   "plural": "copies of Lord Callum's Lawbook",
+   "rarity": "common",
+   "sites": 5,
+   "quest": "callum",
+   "look": {
+    "shape": "book",
+    "c": "#3f72d9"
+   }
+  },
+  "lionheart": {
+   "name": "General Lionheart's Records",
+   "plural": "General Lionheart's Records",
+   "rarity": "uncommon",
+   "sites": 7,
+   "quest": "lionheart",
+   "look": {
+    "shape": "book",
+    "c": "#c8473d"
+   }
+  },
+  "brune": {
+   "name": "Minister Brune's Guide",
+   "plural": "Minister Brune's Guides",
+   "rarity": "rare",
+   "sites": 9,
+   "quest": "brune",
+   "look": {
+    "shape": "book",
+    "c": "#b8bec8"
+   }
+  },
+  "darksoc": {
+   "name": "Emblem of the Dark Society",
+   "plural": "Emblems of the Dark Society",
+   "rarity": "common",
+   "sites": 5,
+   "quest": "darksoc",
+   "look": {
+    "shape": "ring",
+    "c": "#3f72d9",
+    "gem": "#d23b3b"
+   }
+  },
+  "signet": {
+   "name": "Signet of a Lost Soldier",
+   "plural": "Signets of the Lost Soldiers",
+   "rarity": "uncommon",
+   "sites": 7,
+   "quest": "signet",
+   "look": {
+    "shape": "ring",
+    "c": "#2a2a30",
+    "gem": "#4a8fe0"
+   }
+  },
+  "coin": {
+   "name": "Coin of a Fallen Master",
+   "plural": "Coins of the Fallen Masters",
+   "rarity": "rare",
+   "sites": 9,
+   "quest": "coin",
+   "look": {
+    "shape": "ring",
+    "c": "#c8473d",
+    "gem": "#1d1a22"
+   }
+  },
+  "quarterroyal": {
+   "name": "Quarterroyal",
+   "plural": "Quarterroyal",
+   "rarity": "common",
+   "sites": 5,
+   "quest": "quarterroyal",
+   "look": {
+    "shape": "herb",
+    "c": "#c9ced6",
+    "w": "#4b9b4f"
+   }
+  },
+  "peacock": {
+   "name": "Peacock's Eye",
+   "plural": "Peacock's Eye",
+   "rarity": "uncommon",
+   "sites": 7,
+   "quest": "peacock",
+   "look": {
+    "shape": "herb",
+    "c": "rainbow",
+    "w": "#4b9b4f"
+   }
+  },
+  "lizardroot": {
+   "name": "White Lizardroot",
+   "plural": "White Lizardroot",
+   "rarity": "rare",
+   "sites": 9,
+   "quest": "lizardroot",
+   "look": {
+    "shape": "herb",
+    "c": "#ffffff",
+    "w": "#c8473d"
+   }
+  },
+  "fbones": {
+   "name": "Freaky Bones",
+   "plural": "Freaky Bones",
+   "rarity": "uncommon",
+   "sites": 7,
+   "quest": "freakarmor",
+   "look": {
+    "shape": "bones",
+    "c": "#7dff6a"
+   }
+  },
+  "fribs": {
+   "name": "Freaky Ribcage",
+   "plural": "Freaky Ribcage",
+   "rarity": "rare",
+   "sites": 1,
+   "quest": "freakarmor",
+   "look": {
+    "shape": "ribcage",
+    "c": "#7dff6a"
+   }
+  },
+  "fskull": {
+   "name": "Freaky Skull",
+   "plural": "Freaky Skull",
+   "rarity": "rare",
+   "sites": 1,
+   "quest": "freakarmor",
+   "look": {
+    "shape": "skull",
+    "c": "#7dff6a"
+   }
+  },
+  "rshard": {
+   "name": "Runed Armor Shard",
+   "plural": "Runed Armor Shards",
+   "rarity": "uncommon",
+   "sites": 7,
+   "quest": "runearmor",
+   "look": {
+    "shape": "ingot",
+    "c": "#2a2a30",
+    "glow": "#ff8a2a"
+   }
+  },
+  "rgaunt": {
+   "name": "Runed Gauntlets",
+   "plural": "Runed Gauntlets",
+   "rarity": "rare",
+   "sites": 1,
+   "quest": "runearmor",
+   "look": {
+    "shape": "gauntlet",
+    "c": "#2a2a30",
+    "glow": "#ff8a2a"
+   }
+  },
+  "rhelm": {
+   "name": "Runed Helm",
+   "plural": "Runed Helm",
+   "rarity": "rare",
+   "sites": 1,
+   "quest": "runearmor",
+   "look": {
+    "shape": "helm",
+    "c": "#2a2a30",
+    "glow": "#ff8a2a"
+   }
+  },
+  "rplate": {
+   "name": "Runed Breastplate",
+   "plural": "Runed Breastplate",
+   "rarity": "rare",
+   "sites": 1,
+   "quest": "runearmor",
+   "look": {
+    "shape": "breastplate",
+    "c": "#2a2a30",
+    "glow": "#ff8a2a"
+   }
+  },
+  "pscraps": {
+   "name": "Primal Scraps",
+   "plural": "Primal Scraps",
+   "rarity": "drop",
+   "sites": 0,
+   "quest": "beastleather",
+   "look": {
+    "shape": "scraps",
+    "c": "#a0703c"
+   }
+  },
+  "phide": {
+   "name": "Primal Hide",
+   "plural": "Primal Hide",
+   "rarity": "drop",
+   "sites": 0,
+   "quest": "beastleather",
+   "look": {
+    "shape": "hide",
+    "c": "#7a4a26"
+   }
+  },
+  "fpage": {
+   "name": "Page of Flame",
+   "plural": "Pages of Flame",
+   "rarity": "uncommon",
+   "sites": 5,
+   "quest": "flamebook",
+   "look": {
+    "shape": "scroll",
+    "c": "#3a2a20"
+   }
+  },
+  "fbind": {
+   "name": "Binding of Flame",
+   "plural": "Binding of Flame",
+   "rarity": "rare",
+   "sites": 1,
+   "quest": "flamebook",
+   "look": {
+    "shape": "belt",
+    "c": "#3a2a20"
+   }
+  },
+  "tpage": {
+   "name": "Page of Time",
+   "plural": "Pages of Time",
+   "rarity": "uncommon",
+   "sites": 5,
+   "quest": "timebook",
+   "look": {
+    "shape": "scroll",
+    "c": "#4aa8ff"
+   }
+  },
+  "tbind": {
+   "name": "Binding of Time",
+   "plural": "Binding of Time",
+   "rarity": "rare",
+   "sites": 1,
+   "quest": "timebook",
+   "look": {
+    "shape": "belt",
+    "c": "#4aa8ff"
+   }
+  },
+  "thilt": {
+   "name": "Triune Hilt",
+   "plural": "Triune Hilt",
+   "rarity": "rare",
+   "sites": 1,
+   "quest": "triune",
+   "look": {
+    "shape": "hilt",
+    "c": "#f4c44f"
+   }
+  },
+  "tshaft": {
+   "name": "Triune Shaft",
+   "plural": "Triune Shaft",
+   "rarity": "rare",
+   "sites": 1,
+   "quest": "triune",
+   "look": {
+    "shape": "shaft",
+    "c": "#a0703c"
+   }
+  },
+  "torb": {
+   "name": "Triune Orb",
+   "plural": "Triune Orb",
+   "rarity": "rare",
+   "sites": 1,
+   "quest": "triune",
+   "look": {
+    "shape": "orb",
+    "c": "#a8e6ff"
+   }
+  },
+  "jmap": {
+   "name": "Jagged Map Piece",
+   "plural": "Jagged Map Piece",
+   "rarity": "uncommon",
+   "sites": 7,
+   "quest": "cutlass",
+   "look": {
+    "shape": "map",
+    "c": "#e8cf95"
+   }
+  },
+  "cutlass": {
+   "name": "Jagkara's Cutlass",
+   "plural": "Jagkara's Cutlass",
+   "rarity": "rare",
+   "sites": 0,
+   "quest": "cutlass",
+   "look": {
+    "shape": "cutlass",
+    "c": "#c9ced6"
+   }
+  },
+  "rmap": {
+   "name": "Ripped Map Piece",
+   "plural": "Ripped Map Piece",
+   "rarity": "uncommon",
+   "sites": 7,
+   "quest": "freakaxe",
+   "look": {
+    "shape": "map",
+    "c": "#d9c08a"
+   }
+  },
+  "freakaxe": {
+   "name": "The Freak Man's Axe",
+   "plural": "The Freak Man's Axe",
+   "rarity": "rare",
+   "sites": 0,
+   "quest": "freakaxe",
+   "look": {
+    "shape": "axe",
+    "c": "#c9ced6"
+   }
+  },
+  "tmap": {
+   "name": "Torn Map Piece",
+   "plural": "Torn Map Piece",
+   "rarity": "uncommon",
+   "sites": 7,
+   "quest": "greedmaul",
+   "look": {
+    "shape": "map",
+    "c": "#c8b080"
+   }
+  },
+  "greedmaul": {
+   "name": "The Maul of Greed",
+   "plural": "The Maul of Greed",
+   "rarity": "rare",
+   "sites": 0,
+   "quest": "greedmaul",
+   "look": {
+    "shape": "maul",
+    "c": "#8a5a34"
+   }
+  },
+  "fmap": {
+   "name": "Frayed Map Piece",
+   "plural": "Frayed Map Piece",
+   "rarity": "uncommon",
+   "sites": 7,
+   "quest": "sham",
+   "look": {
+    "shape": "map",
+    "c": "#b8a070"
+   }
+  },
+  "sham": {
+   "name": "The Shield of Sham",
+   "plural": "The Shield of Sham",
+   "rarity": "rare",
+   "sites": 0,
+   "quest": "sham",
+   "look": {
+    "shape": "shield",
+    "c": "#a0703c"
+   }
+  },
+  "star": {
+   "name": "Fallen Star",
+   "plural": "Fallen Stars",
+   "rarity": "rare",
+   "sites": 0,
+   "quest": "",
+   "look": {
+    "shape": "star",
+    "c": "#e6eaf0"
+   }
+  }
+ }
+}

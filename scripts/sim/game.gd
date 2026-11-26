@@ -45,6 +45,7 @@ var all_nbr := []
 var yields := []             # province -> {gold, wood, food, bonus, deposit}
 var variant := []            # province -> "" or a terrain variant ("drylands", "meadow", "fae", "bog"), Godot 0.18
 static var VARIANTS := true  # tests that compare against the web game's numbers turn the variants off
+static var RULES19 := true   # 0.19's rule changes (Aithne's kit, faster and wider roads); off in the same tests
 var tree_border := []
 
 # --- the nation ---
@@ -166,6 +167,36 @@ var military := {}           # unit kinds that are soldiers (web: game.js MILITA
 var finds := {}              # province -> {id: "ruins" | "treasure", done}
 var treasure_rolled := {}
 var sp_found := {}
+# quests, relics and dig sites (Godot only; docs/QUESTS_PLAN.md, scripts/sim/quests.gd)
+static var QUESTS := true    # tests that compare against the web game turn quests off
+var quests_on := false       # this game has quests (full maps only)
+var quest_pick := []         # the quests chosen for this map
+var digs := {}               # province -> {item, shown, star}: a relic buried there
+var chests := {}             # province -> [item ids]: relics left on the ground
+var star_next := -1.0        # when the next Fallen Star falls
+var stars_fallen := 0        # how many have fallen (each draws from its own stream)
+var star_fx := []            # the view's shooting stars: {prov, t0} (not saved)
+var flame_walls := {}        # edge index -> {owner, until, road}: a Wall of Flame burning there
+var detained := []           # prisoners with no Dungeon cell: [{owner, prisoner, cycles}] (Dungeons)
+var prisoner_seq := 0
+var ransoms := []            # the ransom events: [{id, kind, x, y, pr, stage, amount, until, war, asked}] (Dungeons)
+var ransom_seq := 0
+var quest_events := {}       # once-a-game events done ("lady", "jailbreak"), the envoy's cooldown ("envoy_next")
+var research_pen: Array:     # this human nation's research cut for a while: [{tree, n, left (cycles)}]
+	get: return cur["research_pen"]
+	set(v): cur["research_pen"] = v
+var time_warp:               # this human nation's Time Warp: {p, slot} of the building it speeds up, or null
+	get: return cur["time_warp"]
+	set(v): cur["time_warp"] = v
+var quest_log: Dictionary:   # this human nation's quests: id -> {state: active|done|failed, t0, part, t1, by}
+	get: return cur["quest_log"]
+	set(v): cur["quest_log"] = v
+var quest_rate: Dictionary:  # research points every cycle won from quests, for good: tree -> points
+	get: return cur["quest_rate"]
+	set(v): cur["quest_rate"] = v
+var quest_unlocks: Array:    # what quests have unlocked: "armor:bone_regalia", "spell:flamewall", ...
+	get: return cur["quest_unlocks"]
+	set(v): cur["quest_unlocks"] = v
 
 # --- fog (web: S.wf, S.known, S.explored, S.visible) ---
 var wf: Dictionary:  # provinces a Wayfinder has entered
@@ -224,7 +255,7 @@ var rng := RandomNumberGenerator.new()   # stands in for the web's Math.random (
 # --- seats (multiplayer step 1): each human nation's own fields ---
 ## The fields each human nation has its own copy of. The properties above read and write the current seat's
 ## record (`cur`); use_seat() switches it. A single-player game has one seat, HOST.
-const SEAT_FIELDS := ["leader", "capital", "stock", "income", "income_parts", "army_counter", "tech", "rep", "surveyed", "designs", "exhaust", "exhaust_ok", "harvest", "upgrades", "xup", "cd", "harvest_by", "trap", "school_popup", "reveals", "eyes", "haunts", "mana_pool", "mana_prev", "mana_prev_t", "mage_gear", "auto_tech", "queues", "rally", "wf", "known", "explored", "visible", "my_nation", "train_orders", "met", "fallen", "ally_ask", "met_at", "dx_step_t", "gift_vault", "demand", "ally_offer", "BUILD_DEFS", "TECH_BY_ID", "TECHS", "TECH_TREES", "UNIT_BASE", "BUILD_ORDER", "CMD"]
+const SEAT_FIELDS := ["leader", "capital", "stock", "income", "income_parts", "army_counter", "tech", "rep", "surveyed", "designs", "exhaust", "exhaust_ok", "harvest", "upgrades", "xup", "cd", "harvest_by", "trap", "school_popup", "reveals", "eyes", "haunts", "mana_pool", "mana_prev", "mana_prev_t", "mage_gear", "auto_tech", "queues", "rally", "wf", "known", "explored", "visible", "my_nation", "train_orders", "met", "fallen", "ally_ask", "met_at", "dx_step_t", "gift_vault", "demand", "ally_offer", "quest_log", "quest_rate", "quest_unlocks", "time_warp", "research_pen", "BUILD_DEFS", "TECH_BY_ID", "TECHS", "TECH_TREES", "UNIT_BASE", "BUILD_ORDER", "CMD"]
 
 ## A new seat's record: every seat field at its starting value.
 static func seat_defaults() -> Dictionary:
@@ -279,6 +310,11 @@ static func seat_defaults() -> Dictionary:
 		"met_at": -9.0,
 		"gift_vault": 0,
 		"dx_step_t": -1.0,
+		"quest_log": {},
+		"quest_rate": {},
+		"quest_unlocks": [],
+		"time_warp": null,
+		"research_pen": [],
 	}
 
 
@@ -351,6 +387,7 @@ func controller(o) -> String:
 
 func _init() -> void:
 	BUILD_DEFS = GameData.c("BUILD_DEFS")
+	Quests.install_gear()   # (the quest armors, Tier V: Godot only)
 	CAPITAL_BONUS = GameData.c("CAPITAL_BONUS")
 	TICK = GameData.c("TICK")
 	for x in TECHS:
@@ -397,6 +434,7 @@ func add_seat(o: int, cap: int, rc: String, nation: Dictionary = {}) -> void:
 	for k in unit_defs:
 		names[k] = [unit_defs[k].get("name"), unit_defs[k].get("blurb")]
 	seat_start(rc if rc in ["realm", "swamp", "wood"] else "realm")
+	Quests.add_tables(self)   # (a player joining a game under way gets the Reliquary too)
 	for k in names:
 		unit_defs[k].name = names[k][0]
 		if names[k][1] != null:
@@ -890,7 +928,8 @@ func apply_leader_start0(o := ME) -> void:
 			add_start_extra(cap, "lumber")
 		"scouts":
 			add_start_scouts(2, o)
-			add_start_tech("autoscout", o)
+			if not RULES19:   # (0.19: no Automating Wayfinders in her kit any more)
+				add_start_tech("autoscout", o)
 			add_start_tech("stealth", o)
 			add_start_tech("farsight", o)
 		"ogres":
@@ -1033,9 +1072,9 @@ func design_stats(d: Dictionary) -> Dictionary:
 		var W: Dictionary = WS[d.weapon] if WS.has(d.weapon) and WS[d.weapon].get("champ", false) else WS.champsword
 		var A: Dictionary = AS[d.armor] if AS.has(d.armor) and AS[d.armor].type == "ornate" else AS.ornate1
 		var armor: float = A.armor + CHAMP.armor
-		var cost := _add_cost(_add_cost(CHAMP.cost, W.cost), A.cost)
+		var cost := _add_cost(_add_cost(CHAMP.cost, W.cost), armor_cost(A))
 		var st := {"cav": true, "champ": true, "ogre": false, "race": "wood", "rough": true, "plate": true, "fam": W.fam, "atk": W.atk,
-			"hp": CHAMP.hp + W.get("hp", 0) + GameData.c("ARMOR_HP")[int(A.level)], "armor": armor, "shieldArmor": 0, "red": armor / (armor + ak),
+			"hp": CHAMP.hp + W.get("hp", 0) + armor_hp(A), "armor": armor, "shieldArmor": 0, "red": armor / (armor + ak),
 			"parry": 0.1 if W.fam == "thrust" or W.fam == "sword" else 0.0, "crit": 0.1 if W.fam == "axe" else 0.0,
 			"speed": float(JS.to_fixed(CHAMP.speed * A.speed * W.get("spd", 1.0), 2)), "cost": cost, "upkeep": CHAMP.upkeep.duplicate(), "two": d.get("two", false)}
 		st.blurb = "%s, %s armor. %s.%s" % [W.name, A.name, FAM[W.fam].note, " Two-handed swings: heavy blows every other round (125% damage over time)." if d.get("two", false) else ""]
@@ -1044,27 +1083,45 @@ func design_stats(d: Dictionary) -> Dictionary:
 	var B: Dictionary = UNIT_BASE[d.type] if UNIT_BASE else GameData.c("UNIT_BASE")[d.type]
 	var W: Dictionary = WS[d.weapon]
 	var A: Dictionary = AS[d.armor]
-	var Sh = GameData.c("SHIELD_DEFS")[d.shield] if rc == "realm" and d.get("shield") != null and not W.twoH else null
+	var Sh = GameData.c("SHIELD_DEFS")[d.shield] if (rc == "realm" or d.get("shield") == "sham") and d.get("shield") != null and not W.twoH else null   # (the Shield of Sham: every race)
 	var H = (GameData.c("OGRES") if sw else GameData.c("HORSES"))[d.get("horse") if d.get("horse") != null else "riding"] if d.type == "cav" else null
-	var Off = WS[d.off] if sw and d.get("off") != null and not W.twoH and WS.has(d.off) and not WS[d.off].twoH else null
+	var Off = WS[d.off] if sw and d.get("off") != null and not W.twoH and WS.has(d.off) and not WS[d.off].twoH and d.get("shield") != "sham" else null
 	var armor: float = A.armor * (OGRE_ARMOR if sw and d.type == "cav" else 1.0) + (Sh.armor if Sh else 0) + (H.armor if H else 0)
 	var cost := {}
-	for c in [B.cost, W.cost, A.cost, Sh.cost if Sh else {}, H.cost if H else {}, Off.cost if Off else {}]:
+	for c in [B.cost, W.cost, armor_cost(A), Sh.cost if Sh else {}, H.cost if H else {}, Off.cost if Off else {}]:
 		cost = _add_cost(cost, c)
 	cost.erase("food")
 	var speed: float = float(JS.to_fixed((H.speed if H else B.speed) * A.speed * (Sh.speed if Sh else 1), 2))
 	var lv: int = int(A.level)
 	var st := {"cav": d.type == "cav", "ogre": sw and d.type == "cav", "race": rc, "rough": H != null and H.get("rough", false),
 		"plate": A.type in GameData.c("PLATE_TYPES"), "fam": W.fam, "atk": float(JS.to_fixed(W.atk + (Off.atk * 0.5 if Off else 0.0) + (H.get("atk", 0) if H else 0), 1)),
-		"hp": B.hp + (H.get("hp", 0) if H else 0) + GameData.c("ARMOR_HP")[lv], "armor": armor, "shieldArmor": Sh.armor if Sh else 0,
+		"hp": B.hp + (H.get("hp", 0) if H else 0) + armor_hp(A), "armor": armor, "shieldArmor": Sh.armor if Sh else 0,
 		"red": armor / (armor + ak), "parry": 0.1 if W.fam == "sword" or W.fam == "thrust" else 0.0, "crit": 0.1 if W.fam == "axe" else 0.0,
 		"speed": speed, "cost": cost, "upkeep": {"food": maxf(0, B.upkeep.food + (H.get("upFood", 0) if H else 0))}}
 	st.blurb = "%s%s%s, %s armor%s. %s.%s" % [W.name, (" and " + Off.name + " (off hand, half damage)") if Off else "", (" and " + Sh.name) if Sh else "",
 		A.name, (", " + H.name) if H else "", FAM[W.fam].note, (" No " + ("Ogre" if sw else "cavalry") + " penalty in forest or swamp.") if H and H.get("rough", false) else ""]
-	if rc == "wood" and d.get("two", false):
+	if Sh != null and d.get("shield") == "sham":
+		st.sham = true
+	if rc == "wood" and d.get("two", false) and d.get("shield") != "sham":
 		st.two = true
 		st.blurb += " Two-handed grip: heavy blows every other round (125% damage over time)."
 	return st
+
+
+## An armor's health: its tier's (ARMOR_HP), or its own (the quest armors, Tier V).
+static func armor_hp(A: Dictionary) -> int:
+	return int(A.hp) if A.has("hp") else int(GameData.c("ARMOR_HP")[int(A.level)])
+
+
+## An armor's price: 0.19 makes every armor 10% cheaper (RULES19; the web-game tests keep the old prices).
+static func armor_cost(A: Dictionary) -> Dictionary:
+	var c: Dictionary = A.get("cost", {})
+	if not RULES19:
+		return c
+	var out := {}
+	for k in c:
+		out[k] = int(JS.round_js(float(c[k]) * 0.9))
+	return out
 
 
 static func _add_cost(a: Dictionary, b: Dictionary) -> Dictionary:
@@ -1103,6 +1160,11 @@ func add_design(o: Dictionary) -> Dictionary:
 
 func register_design(d: Dictionary) -> void:
 	var st := design_stats(d)
+	# 0.19: how heavy its armor looks on the map (0 leather, 1 chain, 2 plate, and the other races' twins)
+	var A = GameData.c("ARMORS").get(str(d.get("armor", "")))
+	st["look"] = {"chain": 1, "wyvern": 1, "mithril": 1, "plate": 2, "dragon": 2, "ornate": 2}.get(str(A.type), 0) if A is Dictionary else 0
+	if A is Dictionary and A.get("quest") != null:   # (quests: which Battlegear its soldiers wear)
+		st["quest_armor"] = str(A.quest)
 	DSTATS[d.id] = st
 	var blurb: String = st.blurb
 	unit_defs[d.id] = {"name": d.name, "cost": st.cost, "upkeep": st.upkeep, "blurb": blurb, "design": true}
@@ -1167,6 +1229,8 @@ func register_mage() -> void:
 ## Why a Mage weapon or shield can't be chosen yet (a technology to research), or null.
 func mage_gear_why(kind: String, k: String):
 	var item: Dictionary = GameData.c("MAGE_WEAPONS")[k] if kind == "weapon" else GameData.c("SKULLS")[k] if kind == "skull" else GameData.c("SHIELD_DEFS")[k]
+	if not Quests.gear_unlocked(self, ME, item):
+		return "Locked: finish its quest"
 	var tch = item.get("tech")
 	return null if tch == null or has_tech(tch) else "Research " + TECH_BY_ID[tch].name
 
@@ -1197,6 +1261,8 @@ func gear_why(kind: String, key: String):
 		return "Unknown"
 	if item.get("tech") != null and not has_tech(item.tech):
 		return "Research " + (TECH_BY_ID[item.tech].name if TECH_BY_ID.has(item.tech) else str(item.tech))
+	if not Quests.gear_unlocked(self, ME, item):
+		return "Locked: finish its quest"
 	return null
 
 
@@ -1695,6 +1761,10 @@ func compute_income() -> void:
 	var tb := tech_bonus()
 	for k in RES:
 		gross[k] += tb[k]
+	if quests_on:   # (quests: Time Warp's building works twice)
+		var wb := Quests.warp_income(self)
+		for k in RES:
+			gross[k] += wb[k]
 	if harvest_by != null:   # v104: Harvest by crop, food from every crop and gold from Cash crops
 		var pct := harvest_pct()
 		var st := gives_of("farm")
@@ -1771,6 +1841,8 @@ func payday(_t: float) -> void:
 	each_seat(func():
 		tech_payday()
 		regen_mana())
+	if quests_on:
+		Quests.payday(self)
 	if on_payday.is_valid():
 		on_payday.call(_t)
 
@@ -1844,6 +1916,8 @@ func update(real_t: float) -> void:
 		step_gpc(t, dt)
 		step_patrols(t, dt)
 		step_travelers(dt)
+		if quests_on:
+			Quests.step(self)
 		use_seat(HOST)
 	each_seat(clamp_stock)
 	each_seat(func(): step_upgrades(t))
@@ -1935,7 +2009,7 @@ func exploring(u: Dictionary) -> bool:
 
 # web: game.js busy()
 func busy(u: Dictionary) -> bool:
-	return u.moving or u.survey != null or u.build != null or u.pending != null or u.pendingSurvey >= 0 or not u.surveyQueue.is_empty()
+	return u.moving or u.survey != null or u.build != null or u.pending != null or u.pendingSurvey >= 0 or not u.surveyQueue.is_empty() or u.get("dig") != null
 
 
 # web: game.js canEnter() — on the Practice island there are no other nations, bandits or bosses to keep out of
@@ -2033,6 +2107,32 @@ var path_avoid = null
 
 
 # web: game.js order(u, target, quiet, pt) + v101.js (computer armies at war steer clear of armies that would crush them)
+## Quests: the Spell Books' spells (orders; the rules are in Quests).
+func answer_jailbreak(choice: String) -> void:
+	Dungeons.answer_jail(self, choice)
+
+
+func answer_ransom(id: int, choice: String) -> void:
+	Dungeons.answer(self, id, choice)
+
+
+func cast_flamewall(c: Dictionary, q: int) -> bool:
+	return Quests.cast_flamewall(self, c, q)
+
+
+func cast_timewarp(c: Dictionary, slot: int) -> bool:
+	return Quests.cast_timewarp(self, c, slot)
+
+
+## Quests: a scouting unit digs where it stands, or stops (orders; the rules are in Quests).
+func start_dig(u: Dictionary) -> bool:
+	return Quests.start_dig(self, u)
+
+
+func stop_dig(u: Dictionary) -> void:
+	Quests.stop_dig(self, u)
+
+
 func order(u: Dictionary, target: int, quiet := false, pt = null) -> bool:
 	if u.kind == "army" and nations.has(u.owner) and not enemies_of(u.owner).is_empty():
 		path_avoid = Ai.danger_for(self, nations[u.owner], raw_strength([u]))
@@ -2073,6 +2173,7 @@ func order0(u: Dictionary, target: int, quiet := false, pt = null) -> bool:
 		cancel_build(u)
 		toast("Construction cancelled. Resources refunded.")
 	u.pending = null
+	u.erase("roadPlan")
 	if u.survey != null:
 		u.survey = null
 		toast("Survey cancelled.")
@@ -2275,6 +2376,8 @@ func step_unit(u: Dictionary, dt: float) -> void:
 				if setpieces.has(u.prov):
 					setpiece_found(u.prov, u)
 				survey_finds(u)
+				if quests_on:
+					Quests.uncover(self, u)
 				u.survey = null
 				if u.surveyQueue.is_empty() or not (u.surveyQueue[0] is int):
 					order(u, u.prov, true)
@@ -2286,6 +2389,8 @@ func step_unit(u: Dictionary, dt: float) -> void:
 		if u.prov == pb.prov:
 			if pb.type == "outpost":
 				start_build(u)
+			elif pb.type == "road":   # 0.19: the next stretch of a planned road
+				road_next(u)
 			else:
 				begin_extra(u, pb.type, pb.get("slot", -1))
 	if u.build != null:
@@ -2714,7 +2819,7 @@ func sites_in(p: int) -> Array:
 
 
 func pending_in(p: int) -> Array:
-	return units.filter(func(v): return v.pending != null and v.pending.prov == p and v.pending.type != "outpost")
+	return units.filter(func(v): return v.pending != null and v.pending.prov == p and not (v.pending.type in ["outpost", "road"]))
 
 
 # web: game.js countOf()
@@ -2857,7 +2962,20 @@ func used_slots_all(p: int) -> Dictionary:
 
 
 # web: game.js orderBuild(u, p, type, slot)
+## 0.19: the knock that confirms a player's order to build or upgrade (only for orders the player gave)
+func confirm_sfx() -> void:
+	if _from_order and ME == view_seat:
+		sfx("ui_confirm")
+
+
 func order_build(u: Dictionary, p: int, type: String, slot := -1) -> bool:
+	var ok := _order_build(u, p, type, slot)
+	if ok:
+		confirm_sfx()
+	return ok
+
+
+func _order_build(u: Dictionary, p: int, type: String, slot := -1) -> bool:
 	if u.prov != p:
 		if not order(u, p):
 			return false
@@ -2921,6 +3039,9 @@ func begin_extra(u: Dictionary, type: String, want := -1) -> bool:
 
 # web: game.js cancelBuild(u): the resources come back
 func cancel_build(u: Dictionary) -> void:
+	u.erase("roadPlan")   # 0.19: cancelling stops a planned road too
+	if u.get("pending") != null and u.pending.get("type") == "road":
+		u.pending = null
 	if u.build != null and u.build.has("paid"):
 		var st := stock_of(u.owner)
 		for k in u.build.paid:
@@ -2961,6 +3082,8 @@ func finish_build(u: Dictionary) -> void:
 	if not mine and u.build != null:
 		Ai.built(self, u)
 	u.build = null
+	if b.type == "road" and u.get("roadPlan") != null:   # 0.19: on to the next stretch
+		in_seat(u.owner, func(): road_next(u))
 
 
 # web: gpc.js outpostClaimed(p, by): another nation's Wayfinders standing there withdraw
@@ -3088,6 +3211,7 @@ func start_upgrade(p: int) -> bool:
 	for k in FU.cost:
 		stock[k] -= FU.cost[k]
 	upgrades[p] = {"t0": t, "paid": FU.cost.duplicate()}
+	confirm_sfx()
 	toast("Upgrading the outpost to a Fort… (−%s, %d s)" % [cost_text(FU.cost), FU.time])
 	return true
 
@@ -3124,6 +3248,7 @@ func dismantle_fort(p: int) -> void:
 		toast("Can’t dismantle the fort: %s." % str(why).to_lower(), true)
 		return
 	var lost := extras_in(p).size()
+	Quests.extras_lost(self, p, extras_in(p))
 	extras.erase(p)
 	for k in xup.keys():
 		if int(k.split("@")[0]) == p:
@@ -3445,7 +3570,7 @@ func step_training(now: float) -> void:
 		var q: Dictionary = Q[0]
 		if q.t0 == null:
 			q.t0 = now
-		if now - q.t0 < train_time(q.kind, q):
+		if now - q.t0 < train_time(q.kind, q) * (Quests.warp_train_mul(self, key) if quests_on else 1.0):
 			continue
 		Q.pop_front()
 		if q.get("retro", false):
@@ -3618,7 +3743,11 @@ func tech_rate(tree: String) -> int:
 	for p in buildings:
 		if buildings[p].owner == ME:
 			n += prov_research(p)[tree]
-	return n
+	n += int(quest_rate.get(tree, 0)) + (Quests.warp_research(self, tree) if quests_on else 0)   # (quests: research won for good, Time Warp)
+	for pen in research_pen:   # (quests: a murdered envoy's research cut, never below 0)
+		if pen.tree == tree:
+			n -= int(pen.n)
+	return maxi(0, n)
 
 
 func bank_cap(tree: String) -> float:
@@ -4004,6 +4133,7 @@ func start_xup(p: int, slot: int) -> bool:
 	for k in up.cost:
 		stock[k] -= up.cost[k]
 	xup["%d@%d" % [p, slot]] = {"t0": t, "paid": up.cost.duplicate(), "to": e.get("level", 1) + 1}
+	confirm_sfx()
 	toast("Upgrading to a %s… (−%s, %d s)" % [d.levels[e.get("level", 1)], cost_text(up.cost), up.time])
 	return true
 
@@ -4038,8 +4168,15 @@ func road_tier() -> int:
 	return 3 if has_tech("roads3") else 2 if has_tech("roads2") else 1
 
 
+## 0.19: every kind of road is a quarter faster again than it was (Dirt +50%, then +60%, then +75%)
+const ROAD_EXTRA := 0.25
+
 func road_speed() -> float:
-	return 1.0 + GameData.c("ROAD_BONUS")[road_tier()]
+	return 1.0 + road_bonus()
+
+
+func road_bonus() -> float:
+	return GameData.c("ROAD_BONUS")[road_tier()] + (ROAD_EXTRA if RULES19 else 0.0)
 
 
 func wall_kind() -> String:
@@ -4049,9 +4186,146 @@ func wall_kind() -> String:
 func on_road(u: Dictionary, wp: Dictionary) -> bool:
 	if roads.is_empty():
 		return false
-	if wp.has("enter"):
-		return roads.has(link_key(u.prov, wp.enter))
-	return u.has("lastProv") and roads.has(link_key(u.lastProv, u.prov))
+	if wp.has("enter") and roads.has(link_key(u.prov, wp.enter)):
+		return true
+	if not wp.has("enter") and u.has("lastProv") and roads.has(link_key(u.lastProv, u.prov)):
+		return true
+	return RULES19 and near_road(float(u.x), float(u.y))   # 0.19: anyone walking along a road, not only from end to end
+
+
+## 0.19: how far from a road's middle a unit still walks on it: three times the road's drawn width (20), which
+## stays as it is
+const ROAD_HALF := 30.0
+var _road_lines := {}   # link key -> [a, middle of the border, b] (from the map: not saved)
+
+## A road's line, as it is drawn: from one province's middle, through the middle of their border, to the other's.
+func road_line(k: String) -> Array:
+	if _road_lines.has(k):
+		return _road_lines[k]
+	var ab := k.split("_")
+	var p := int(ab[0])
+	var q := int(ab[1])
+	var a := Vector2(G.provs[p].ic[0], G.provs[p].ic[1])
+	var b := Vector2(G.provs[q].ic[0], G.provs[q].ic[1])
+	var m := (a + b) / 2
+	for e in world.edges:
+		if (e.a == p and e.b == q) or (e.a == q and e.b == p):
+			var va: Array = world.vertices[e.v[0]]
+			var vb: Array = world.vertices[e.v[1]]
+			m = Vector2((va[0] + vb[0]) / 2.0, (va[1] + vb[1]) / 2.0)
+			break
+	_road_lines[k] = [a, m, b]
+	return _road_lines[k]
+
+
+## Is (x, y) on one of the roads (within ROAD_HALF of its line)?
+func near_road(x: float, y: float) -> bool:
+	var pt := Vector2(x, y)
+	for k in roads:
+		var L := road_line(k)
+		if Geometry2D.get_closest_point_to_segment(pt, L[0], L[1]).distance_to(pt) <= ROAD_HALF \
+				or Geometry2D.get_closest_point_to_segment(pt, L[1], L[2]).distance_to(pt) <= ROAD_HALF:
+			return true
+	return false
+
+
+# --- roads from one province to another (0.19): the player picks where a road starts and ends, and the Mason
+# paves every border along the way, one after another ---
+
+## The provinces a road from a to b would follow: a chain of your own provinces, each next to the next across an
+## open border or the gate of your own wall. [] when there is none.
+func road_path(a: int, b: int) -> Array:
+	if a == b or not owned(a) or not owned(b):
+		return []
+	var prev := {a: -1}
+	var q0 := [a]
+	while not q0.is_empty():
+		var p: int = q0.pop_front()
+		if p == b:
+			break
+		for q in all_nbr[p]:
+			if prev.has(q) or not owned(q):
+				continue
+			if not (open_between(p, q) or walled_own(p, q)):
+				continue
+			prev[q] = p
+			q0.append(q)
+	if not prev.has(b):
+		return []
+	var out := [b]
+	while out[0] != a:
+		out.push_front(prev[out[0]])
+	return out
+
+
+## Why a road can't be planned along `path` by Mason m ("" when it can).
+func road_plan_why(m: Dictionary, path: Array) -> String:
+	if not has_tech("roads"):
+		return "Research Dirt Roads first"
+	if m.kind != MASON or m.owner != ME:
+		return "Only your Mason builds roads"
+	if path.size() < 2:
+		return "No way for a road through your own provinces"
+	var todo := 0
+	for i in path.size() - 1:
+		var p: int = path[i]
+		var q: int = path[i + 1]
+		if not owned(p) or not owned(q) or not all_nbr[p].has(q) or not (open_between(p, q) or walled_own(p, q)):
+			return "No way for a road through your own provinces"
+		if not roads.has(link_key(p, q)):
+			todo += 1
+	if todo == 0:
+		return "There is already a road all the way"
+	return ""
+
+
+## The Mason paves a road along `path` (provinces), border after border; each costs what a road costs when he starts it.
+func plan_road(m: Dictionary, path: Array) -> bool:
+	var why := road_plan_why(m, path)
+	if why != "":
+		toast("Can’t build that road: %s." % (why[0].to_lower() + why.substr(1)), true)
+		return false
+	if m.build != null:
+		cancel_build(m)
+	var plan := path.map(func(x): return int(x))
+	m.surveyQueue = []
+	m.roadPlan = plan
+	var n := 0
+	for i in plan.size() - 1:
+		if not roads.has(link_key(plan[i], plan[i + 1])):
+			n += 1
+	toast("%s will pave a road from %s to %s: %d border%s, %s each." % [m.name, prov_name(plan[0]), prov_name(plan[-1]), n, "" if n == 1 else "s", cost_text(GameData.c("ROAD_COST"))])
+	road_next(m)
+	return true
+
+
+## The Mason's next stretch of his road: walk to its start, or start paving it.
+func road_next(m: Dictionary) -> void:
+	var plan = m.get("roadPlan")
+	if plan == null:
+		return
+	while plan.size() >= 2 and roads.has(link_key(plan[0], plan[1])):
+		plan.pop_front()
+	if plan.size() < 2:
+		m.roadPlan = null
+		if m.owner == ME:
+			toast("%s finished the road." % m.name)
+		return
+	var p: int = plan[0]
+	var q: int = plan[1]
+	if not owned(p) or not owned(q):
+		m.roadPlan = null
+		toast("The road can’t go on: %s or %s is no longer yours." % [prov_name(p), prov_name(q)], true)
+		return
+	if m.prov != p:
+		if not order(m, p):
+			m.roadPlan = null
+			return
+		m.roadPlan = plan   # (a new order forgets the plan: it is the plan's own)
+		m.pending = {"prov": p, "type": "road", "to": q}
+		return
+	if not start_link(m, q, "road"):
+		m.roadPlan = null
 
 
 func wall_between(p: int, q: int):
@@ -4160,7 +4434,7 @@ func wall_life(i: int) -> Dictionary:
 
 ## true when the wall comes down
 func damage_wall(i: int, dmg: float, by = null) -> bool:
-	if not walls.has(i):
+	if not walls.has(i) or flame_walls.has(i):   # (a Wall of Flame can't be broken)
 		return false
 	var w := wall_life(i)
 	wall_hp[i] = w.hp - dmg
@@ -4187,6 +4461,8 @@ func spell_hit_wall(i: int, by, dmg := 40.0) -> bool:
 
 
 func break_wall(i: int, by = null) -> void:
+	if flame_walls.has(i):   # (a Wall of Flame only burns out)
+		return
 	var e: Dictionary = world.edges[i]
 	var k := link_key(e.a, e.b)
 	var ctl := gate_ctl(k)
@@ -4372,6 +4648,7 @@ func end_quake(c: Dictionary, why := "") -> void:
 func quake_strike(c: Dictionary) -> void:
 	var p: int = c.prov
 	var lost := extras_in(p).size()
+	Quests.extras_lost(self, p, extras_in(p))
 	extras.erase(p)
 	for k in xup.keys():
 		if int(str(k).split("@")[0]) == p:
@@ -4451,8 +4728,8 @@ func step_siege(dt: float) -> void:
 		var n := 0
 		for a in alive:
 			n += troop_count(a)
-		if n >= SIEGE_MIN:
-			damage_wall(i, dt, alive[0])
+		if n >= SIEGE_MIN:   # (Siegebreaker Runeplate: 20% faster)
+			damage_wall(i, dt * (Quests.SIEGE_MUL if quests_on and alive.any(func(a): return Quests.wears(self, a, "armor:siegebreaker")) else 1.0), alive[0])
 
 
 # web: gpc.js rebuilding broken walls: select the fort (or capital), at peace only, 50 wood a wall, 15 s
@@ -4633,7 +4910,7 @@ func finish_link(b: Dictionary) -> void:
 	var q: int = b.to
 	if b.type == "road":
 		roads[link_key(p, q)] = true
-		toast("Road finished. Units move %d%% faster along it." % JS.round_js(GameData.c("ROAD_BONUS")[road_tier()] * 100))
+		toast("Road finished. Units move %d%% faster along it." % JS.round_js(road_bonus() * 100))
 		return
 	var o: int = b.get("owner", ME)
 	var home := p if (buildings.has(p) and buildings[p].owner == o) else q if (buildings.has(q) and buildings[q].owner == o) else -1
@@ -4936,6 +5213,7 @@ func dismiss(list: Array) -> void:
 		if u.build != null:
 			cancel_build(u)
 		u._gone = true
+		Quests.unit_lost(self, u)
 	units = units.filter(func(v): return not list.any(func(u): return is_same(u, v)))
 	compute_income()
 
@@ -4948,6 +5226,7 @@ func destroy_extra(p: int, slot: int) -> void:
 			e = x
 	if e == null or not owned(p):
 		return
+	Quests.extras_lost(self, p, [e])
 	extras[p] = extras_in(p).filter(func(x): return not is_same(x, e))
 	xup.erase("%d@%d" % [p, slot])
 	compute_income()
@@ -5124,7 +5403,7 @@ const TRADE_RATE := [0, 1.0 / 3, 2.0 / 3, 1]
 const MIND := {"show": 20, "cd": 40}
 const RIFT_CD := [0, 120, 15]
 const SEE_TIME := 60.0
-const STAVE_CAST := {"grandstave": 0.9, "mythicstave": 0.8}
+const STAVE_CAST := {"grandstave": 0.9, "mythicstave": 0.8, "triune": 0.8}   # (triune: the quests' Triune Staff)
 const WAND_MANA := {"crypticwand": 0.9, "enigmaticwand": 0.8}
 ## The spells a caster can cast from the command card, in order.
 const SPELLS := ["harvest", "mending", "graverob", "trading", "mind", "stasis", "rift", "eyes", "haunt", "spyre", "ftrap", "pfire", "sacred", "wrocks", "tportal", "fspirit", "gelem"]
@@ -5168,7 +5447,7 @@ func is_caster(u) -> bool:
 
 
 func mana_cap(o := ME) -> int:
-	return MANA_CAPS[2] if tech_of(o, "magicabund") else MANA_CAPS[1] if tech_of(o, "magicwell") else MANA_CAPS[0]
+	return (MANA_CAPS[2] if tech_of(o, "magicabund") else MANA_CAPS[1] if tech_of(o, "magicwell") else MANA_CAPS[0]) + (Quests.TRIUNE_MANA if Quests.has_triune(self, o) else 0)
 
 
 static func mana_of(c) -> float:
@@ -5714,6 +5993,8 @@ func mana_regen(o: int) -> int:
 	var L = leader_of(o)
 	if L != null and L.get("start") == "mage":
 		r += 4
+	if Quests.has_triune(self, o):   # (the quests' Triune Staff)
+		r += Quests.TRIUNE_REGEN
 	return r
 
 
@@ -5809,16 +6090,18 @@ func _magic_timers(now: float) -> void:
 # ---------------------------------------------------------------------------------------------------------------
 # saving and loading (web: save.js keeps the seed and regenerates the map; this is the Godot format)
 
-## 1: Godot 0.1–0.4. 2: Godot 0.5 (the build that wrote it, recordings, debug switches). Older saves load: fields
-## they don't have keep a new game's defaults (see migrate_save). A save from a newer build is refused.
-const SAVE_VERSION := 2
+## 1: Godot 0.1–0.4. 2: Godot 0.5 (the build that wrote it, recordings, debug switches). 3: quests, relics, dig
+## sites, chests and Reliquaries. Older saves load: fields they don't have keep a new game's defaults (see
+## migrate_save). A save from a newer build is refused.
+const SAVE_VERSION := 3
 ## Everything a game is, besides the map (which comes back from the seed) and the callbacks.
 const SAVE_FIELDS := ["battles", "bandit_count", "monster_count", "leader", "capital", "stock", "income", "income_parts", "buildings", "extras", "occ", "units", "next_id",
 	"army_counter", "tech", "rep", "surveyed", "unit_defs", "designs", "exhaust", "exhaust_ok", "harvest", "devel", "upgrades",
 	"xup", "auto_tech", "roads", "walls", "wall_hp", "artifacts", "gift_vault", "quakes", "quake_seq", "wall_max", "wall_crack", "broken_walls", "rewall_jobs", "gate_own", "fort_walled", "gpc_slow_t", "dev_t", "cd", "paths",
 	"harvest_by", "trap", "reveals", "eyes", "haunts", "mana_pool", "mana_prev_t", "mage_gear", "finds", "treasure_rolled",
 	"sp_found", "slot_races", "spyres", "ftraps", "sacreds", "wrocks", "gelems", "setpieces", "travelers", "train_orders", "train_order_seq", "design_seq", "prov_rename", "nations", "players", "my_nation", "race_of", "wars", "truces", "allies", "war_seq", "met", "occ", "occ_prog", "dipl", "war_log", "war_ever", "war_lock", "ai_met", "fallen", "ally_check", "bandit_next", "bandit_waves", "ally_ask", "crop_scan_at", "ai_scout_t", "wf", "known", "explored", "visible", "queues", "rally", "military", "UNIT_SPEED", "open_nbr", "all_nbr",
-	"yields", "look_seed", "tree_border", "debug_cap", "debug_tech", "reveal_all", "rec", "t", "next_tick", "paused", "last", "started", "seat_names", "paused_by", "seat_dipl", "mp_cd", "variant"]
+	"yields", "look_seed", "tree_border", "debug_cap", "debug_tech", "reveal_all", "rec", "t", "next_tick", "paused", "last", "started", "seat_names", "paused_by", "seat_dipl", "mp_cd", "variant",
+	"quests_on", "quest_pick", "digs", "chests", "star_next", "stars_fallen", "quest_log", "quest_rate", "quest_unlocks", "flame_walls", "time_warp", "detained", "prisoner_seq", "ransoms", "ransom_seq", "quest_events", "research_pen"]
 
 
 ## The whole game as a plain Dictionary (see SaveCodec for the text form).
@@ -5938,6 +6221,8 @@ static func from_save(d: Dictionary, map: Dictionary = {}) -> Game:
 		g._load_seat(sd[k].get("mana_prev", []))
 	g.use_seat(HOST)
 	g._load_seat(d.mana_prev)
+	if g.quest_events.has("jail"):   # (quests: the Convicts' soldier, for the gangs and a pardoned army)
+		Dungeons.ensure_convict(g)
 	g.rng.seed = d.rng[0]
 	g.rng.state = d.rng[1]
 	return g
@@ -5948,6 +6233,7 @@ func _load_seat(mana_ids: Array) -> void:
 	var keep_designs: Array = designs
 	var keep_tech: Dictionary = tech
 	Races.apply(self, race())   # the race's names on this game's tables (web: save.js → applyRace)
+	Quests.add_tables(self)     # (the Reliquary, when this game has quests)
 	if leader in Ai.FORGE_LEADERS:
 		for k in BUILD_DEFS.forge.cost:
 			BUILD_DEFS.forge.cost[k] = int(JS.round_js(GameData.c("BUILD_DEFS").forge.cost[k] * 0.75))
@@ -5979,6 +6265,7 @@ static func migrate_save(d: Dictionary) -> bool:
 		push_error("Can't read save version %s (this build reads 1 to %d)" % [d.get("version"), SAVE_VERSION])
 		return false
 	# 1 -> 2: new fields only (debug_cap, debug_tech, reveal_all, rec and the Batch A/B fields); their defaults hold
+	# 2 -> 3: new fields only (quests_on false: an older game has no quests, relics or Reliquaries)
 	d.version = SAVE_VERSION
 	return true
 
@@ -6449,6 +6736,8 @@ func step_battles(now: float) -> void:
 				a.moving = false
 				a.retreatHome = false
 				b.start[a.owner] = b.start.get(a.owner, 0) + troop_count(a)
+		if quests_on:   # the Freak Man's Bone Regalia takes the enemy's battle spells
+			Quests.steal_buffs(self, b)
 	for b in battles.duplicate():
 		var sides := {}
 		for a in units:
@@ -6486,6 +6775,8 @@ func step_battles(now: float) -> void:
 					war_wipe(b, a)
 					if a.get("bandit", false):
 						bandit_slain(a, b)
+						if a.get("convict", false) and quests_on:   # (quests: a Jailbreak convict caught or escaping)
+							Dungeons.convict_beaten(self, a, b)
 					remove_army(a)
 
 
@@ -6571,6 +6862,8 @@ func apply_damage(b: Dictionary, armies: Array, dmg: float, now: float, pierce :
 
 
 func apply_damage0(b: Dictionary, armies: Array, dmg: float, now: float, pierce := 0.0) -> void:
+	if quests_on and dmg > 0 and Quests.sham_blocks(self, b, armies):   # (the Shield of Sham: the first blow comes to nothing)
+		return
 	var bd := boss_damage(b, armies, dmg)
 	if bd >= 0:
 		dmg = bd
@@ -6659,6 +6952,8 @@ func apply_damage0(b: Dictionary, armies: Array, dmg: float, now: float, pierce 
 				a.troops.erase(k)
 			if a.get("monster") != null:
 				monster_loot(a, k, b)
+				if a.get("primal", false) and quests_on:   # (quests: its hide, for the victors)
+					Quests.beast_fell(self, a, b)
 			if a.has("fallen"):
 				a.fallen[k] = a.fallen.get(k, 0) + 1
 			b.lost[owner] = b.lost.get(owner, 0) + 1
@@ -7303,6 +7598,7 @@ func step_scouts(now: float) -> void:
 			u._gone = true
 			if visible.has(u.prov):
 				fx.append({"kind": "fall", "prov": u.prov, "owner": u.owner, "unit": u.kind, "t0": now, "r": 0.5})
+			Quests.unit_lost(self, u)   # (what he carried drops where he fell)
 			units = units.filter(func(v): return not is_same(v, u))
 			if u.build != null:
 				cancel_build(u)
@@ -7882,13 +8178,18 @@ func step_travelers(dt: float) -> void:
 				B.x += dx / d * sp
 				B.y += dy / d * sp
 				B.dir = -1 if dx < 0 else 1
-		var here := units.any(func(u): return u.owner == ME and u.prov == B.prov and not u.moving)
-		if not here:
+		# 0.19: any human nation may find them, not only the host: the first one to stand in their province is asked
+		var here := -1
+		for u in units:
+			if seats.has(u.owner) and u.prov == B.prov and not u.moving:
+				here = u.owner
+				break
+		if here < 0:
 			B.asked = false
 			continue
 		if not B.asked and trav_asking == null and travelers_ask:
 			B.asked = true
-			ask_travelers(B)
+			in_seat(here, func(): ask_travelers(B))
 
 
 func trav_army_here(B: Dictionary) -> bool:
@@ -8358,6 +8659,8 @@ static func new_world(seed: String, leader_id := "", slots := [], start := "cent
 			skip[u.prov] = true
 	g.place_travelers(skip)
 	g.spawn_bosses()
+	if QUESTS:
+		Quests.setup(g)
 	g.assign_leader(leader_id)
 	for o in g.seat_ids():
 		if o != HOST:
@@ -9530,6 +9833,10 @@ func connected_pick(winner: int, loser: int, n := -1) -> Array:
 func peace_check(w, kind: String, provs := []) -> String:
 	if w == null or not wars.has(w):
 		return "Not at war"
+	if quests_on and (Dungeons.PEACE.has(kind) or w.get("ransom") != null):   # (quests: the ransom war; raids, freed prisoners)
+		var qw := Dungeons.peace_why(self, w, ME, kind)
+		if qw != "" or Dungeons.PEACE.has(kind):
+			return qw
 	var s := warscore(w, ME)
 	var foe := foe_of(w, ME)
 	match kind:
@@ -9608,7 +9915,9 @@ func transfer_prov(p: int, to: int) -> void:
 	var list := extras_in(p)
 	var cap := plot_cap(p)
 	if list.size() > cap:
-		list = JS.stable_sort(list.duplicate(), func(x, y): return x.slot - y.slot).slice(0, cap)
+		var kept := JS.stable_sort(list.duplicate(), func(x, y): return x.slot - y.slot).slice(0, cap)
+		Quests.extras_lost(self, p, list.filter(func(x): return not kept.any(func(k): return is_same(k, x))))
+		list = kept
 		extras[p] = list
 
 
@@ -9692,6 +10001,11 @@ func end_war0(w: Dictionary) -> void:
 func make_peace(w, winner: int, terms: Dictionary) -> void:
 	if w == null or not wars.has(w):
 		return
+	if quests_on and Dungeons.PEACE.has(str(terms.get("kind", ""))):   # (quests: the ransom war's endings, raids, freed prisoners)
+		if Dungeons.peace_why(self, w, winner, str(terms.kind)) != "":
+			return
+		Dungeons.special_peace(self, w, winner, terms)
+		terms = {"kind": "white", "agreed": true}
 	# multiplayer: a white peace between two players is offered, and the other player chooses (step 11)
 	if _from_order and terms.get("kind") == "white" and seats.has(foe_of(w, ME)) and not terms.get("agreed", false):
 		_ask_player(foe_of(w, ME), "h_peace", {"war": w.id})
@@ -9761,6 +10075,9 @@ func kill_nation(o: int, by: int) -> void:
 	if not nations.has(o) or not nations[o].alive:
 		return
 	nations[o].alive = false
+	for v in units:
+		if v.owner == o:
+			Quests.unit_lost(self, v)
 	units = units.filter(func(v): return v.owner != o)
 	for w in wars_of(o):
 		end_war(w)
@@ -9769,6 +10086,7 @@ func kill_nation(o: int, by: int) -> void:
 		if by:
 			transfer_prov(p, by)
 		else:
+			Quests.extras_lost(self, p, extras_in(p))
 			buildings.erase(p)
 			extras.erase(p)
 	if knows(o):
@@ -9777,6 +10095,9 @@ func kill_nation(o: int, by: int) -> void:
 
 func game_over(winner: int) -> void:
 	fallen = true
+	for v in units:
+		if v.owner == ME:
+			Quests.unit_lost(self, v)
 	units = units.filter(func(v): return v.owner != ME)
 	for w in wars_of(ME):
 		end_war(w)
@@ -10022,6 +10343,8 @@ func meet_nation(o: int) -> void:
 	if met.has(o):
 		return
 	met[o] = true
+	if ME == view_seat:
+		sfx("wn_meet")   # 0.19: a fanfare for a new nation
 	if on_dialog.is_valid() and ME == view_seat:
 		var N: Dictionary = nations[o] if nations.has(o) else {"diff": "human"}
 		var al := allies_of(o)
@@ -10182,6 +10505,57 @@ func ask_why(o: int) -> String:
 		return "Allies already have access"
 	if at_war(ME, o):
 		return "You are at war"
+	if opinion(o, ME) <= 0:
+		return "Their opinion of you is %s (needs to be positive)" % sgn(opinion(o, ME))
+	return ""
+
+
+# --- Request Share Contacts (0.19) ---
+
+## The living nations o has met (a human nation: its own list; a computer nation: whom it has met).
+func contacts_of(o: int) -> Array:
+	var out := []
+	for x0 in nations.keys() + seats.keys():
+		var x := int(x0)
+		if x == o or not alive_nation(x) or out.has(x):
+			continue
+		var k := false
+		if seats.has(o):
+			k = seats[o].met.has(x) or seats[o].met.has(str(x))
+		elif seats.has(x):
+			k = seats[x].met.has(o) or seats[x].met.has(str(o))
+		else:
+			k = ai_met.has(pair_key(o, x))
+		if k:
+			out.append(x)
+	return out
+
+
+## The nations human nation `to` would meet if o shared its contacts with them.
+func contacts_new_for(to: int, o := ME) -> Array:
+	if not seats.has(to):
+		return []
+	var S: Dictionary = seats[to]
+	return contacts_of(o).filter(func(x): return x != to and not S.met.has(x) and not S.met.has(str(x)))
+
+
+## o shares its contacts with human nation `to`: to meets them all (quietly: one message, not a pop-up each).
+## Returns the nations met.
+func share_contacts(o: int, to: int) -> Array:
+	var got := contacts_new_for(to, o)
+	for x in got:
+		seats[to].met[x] = true
+	if not got.is_empty() and to == view_seat:
+		sfx("wn_meet")
+	return got
+
+
+## Why a computer nation won't share its contacts ("" when it will): it must like you and not be at war with you.
+func share_why(o: int) -> String:
+	if at_war(ME, o):
+		return "You are at war"
+	if contacts_new_for(ME, o).is_empty():
+		return "They know no nation you haven't met"
 	if opinion(o, ME) <= 0:
 		return "Their opinion of you is %s (needs to be positive)" % sgn(opinion(o, ME))
 	return ""
@@ -10369,6 +10743,11 @@ func dx_act(act: String, o: int, arg := -1) -> void:
 			if why == "":
 				D.access.append({"from": ME, "to": o})
 				toast("The %s accepts your offer: their armies may now march through your land. You can revoke it at any time." % nm)
+		"share":   # 0.19: Request Share Contacts: a nation that likes you shows you every nation it knows
+			why = share_why(o)
+			if why == "":
+				var got := share_contacts(o, ME)
+				toast("The %s share their contacts: you have met %s." % [nm, ", ".join(got.map(func(x): return the_name(x)))])
 		"ask":
 			why = ask_why(o)
 			if why == "":
@@ -10417,7 +10796,7 @@ func dx_act(act: String, o: int, arg := -1) -> void:
 
 # --- requests from computer nations (web: v105.js dipRequest / answerRequest / stepRequests): 30 s, then declined ---
 const REQ_NAME := {"flirt": "Flirting", "gift": "Gift", "access": "Access request", "alliance": "Alliance offer", "trade": "Trade Network", "crime": "Organized Crime",
-	"h_access": "Access request", "h_ally": "Alliance offer", "h_trade": "Trade Network", "h_crime": "Organized Crime", "barter": "Barter", "h_peace": "Peace offer"}
+	"h_access": "Access request", "h_ally": "Alliance offer", "h_trade": "Trade Network", "h_crime": "Organized Crime", "barter": "Barter", "h_peace": "Peace offer", "h_share": "Contacts request"}
 
 func req_text(r: Dictionary) -> Array:
 	var o: int = r.from
@@ -10430,10 +10809,14 @@ func req_text(r: Dictionary) -> Array:
 			return ["They propose a Trade Network: Community and Trade Routes give both nations 10% more gold.", "Agree", "Decline"]
 		"h_crime":
 			return ["They propose an Organized Crime Agreement: every Thug Den of both nations holds one more Thug.", "Agree", "Decline"]
+		"h_share":   # 0.19
+			var n := contacts_new_for(o).size()
+			return ["They ask you to share your contacts: they would meet the %d nation%s you know that they haven't met." % [n, "" if n == 1 else "s"], "Share", "Refuse"]
 		"h_peace":
 			return ["They offer a white peace: the war ends, no one gains anything, and a truce follows.", "Make peace", "Fight on"]
 		"barter":
-			return ["They offer %s for %s." % [res_text(r.data.give), res_text(r.data.want)], "Accept", "Decline"]
+			var bx: Dictionary = r.data.get("x", {})
+			return ["They offer %s for %s." % [Quests.trade_text(self, r.data.give, bx, true), Quests.trade_text(self, r.data.want, bx, false)], "Accept", "Decline"]
 		"flirt":
 			return ["%s is flirting with you." % (leader_of(o).full if leader_of(o) != null else "Their leader"), "Flirt back", "Ignore"]
 		"gift":
@@ -10702,6 +11085,8 @@ func unit_status(u: Dictionary) -> String:
 		return "surveying"
 	if u.get("build") != null:
 		return "building"
+	if u.get("dig") != null:
+		return "digging"
 	if u.get("pending") != null:
 		return "going to build"
 	if not u.get("surveyQueue", []).is_empty():
@@ -11071,12 +11456,12 @@ func trav_units(B: Dictionary) -> Dictionary:
 ## (set_paused, set_auto_tech, rename_prov, close_school_popup).
 const COMMANDS := ["order", "order_group", "order_build", "cancel_build", "queue_survey", "queue_survey_on", "train",
 	"cancel_training", "purchase_order", "start_upgrade", "cancel_upgrade", "start_xup", "cancel_xup", "start_develop",
-	"rebuild_walls", "pick_tech", "pick_school", "cast_spell", "start_spell2", "end_quake", "start_path", "set_mage_gear",
+	"rebuild_walls", "plan_road", "start_link", "pick_tech", "pick_school", "cast_spell", "start_spell2", "end_quake", "start_path", "set_mage_gear",
 	"save_design", "delete_design", "retrofit_armies", "split_army", "combine_armies", "mage_join", "mage_detach", "dismiss", "send_to_rest",
 	"retreat", "retreat_to", "fly_army", "thugs_enter", "thug_out", "dx_act", "answer_request", "make_peace",
 	"declare_war", "proclaim_enemy", "renounce_enemy", "travelers_choose", "dismiss_quake", "dismiss_news",
-	"answer_demand", "set_crop", "hand_to_ai", "send_message", "issue_proclamation", "offer_barter", "show_request", "set_paused", "set_auto_tech", "rename_prov", "close_school_popup",
-	"debug_reveal", "debug_resources", "debug_all_tech", "grant_tech", "rec_toggle"]
+	"answer_demand", "set_crop", "hand_to_ai", "take_from_ai", "send_message", "issue_proclamation", "offer_barter", "show_request", "set_paused", "set_auto_tech", "rename_prov", "close_school_popup",
+	"debug_reveal", "debug_resources", "debug_all_tech", "grant_tech", "rec_toggle", "start_dig", "stop_dig", "cast_flamewall", "cast_timewarp", "answer_ransom", "answer_jailbreak"]
 
 ## Multiplayer: hands a command to the network instead of applying it here (it comes back through apply()).
 var on_command: Callable
@@ -11109,7 +11494,7 @@ func apply(cmd: Dictionary):
 	var r = null
 	if args.has(null) and type in ["order", "order_build", "cancel_build", "queue_survey", "cast_spell", "start_spell2",
 			"end_quake", "start_path", "split_army", "dismiss", "send_to_rest", "retreat", "retreat_to", "fly_army",
-			"answer_request", "make_peace", "thug_out"] and args.size() > 0 and args[0] == null:
+			"answer_request", "make_peace", "thug_out", "start_dig", "stop_dig", "cast_flamewall", "cast_timewarp"] and args.size() > 0 and args[0] == null:
 		r = null   # (what it was about is gone: a unit died, a war ended, a request ran out)
 	else:
 		_from_order = true
@@ -11238,7 +11623,8 @@ func hand_to_ai(o: int, diff := "difficult") -> void:
 		"stuckSince": null, "warCheck": t + 60, "family": fam, "armorLine": aline, "race": rc, "school": school,
 		"wantSchool": school if school != null else "arcane", "spellT": 0, "dv": 0,
 		"design": {"inf": "d-sw-axe", "cav": "d-sw-ogre"} if rc == "swamp" else {"inf": "d-sword", "cav": "d-rider"}, "armyN": S.army_counter,
-		"income": S.income.duplicate(), "leader": S.leader, "fromHuman": true}
+		"income": S.income.duplicate(), "leader": S.leader, "fromHuman": true, "my_nation": S.my_nation.duplicate(),
+		"auto_tech": S.auto_tech.duplicate(), "designs": S.designs.duplicate(true)}
 	if ME == o:
 		use_seat(HOST)
 	seats.erase(o)
@@ -11254,9 +11640,72 @@ func hand_to_ai(o: int, diff := "difficult") -> void:
 		if nations.has(int(id)) and int(id) != o:
 			ai_met[pair_key(o, int(id))] = true
 	ai_redesign(N)
+	for x in N.get("designs", []):   # (as loading a save does: a saved and loaded copy stays the same game)
+		register_design(x)
 	N.income = Ai.income(self, N)
 	toast("%s is now played by the computer (%s)." % [N.name, GameData.c("DIFF_NAME").get(diff, diff)])
 
+
+
+## Multiplayer hot-join (0.19): a player takes nation o back from the computer (a nation a player had before it was
+## handed over). It gets its own seat again, with the computer's treasury, research, land and armies as they are.
+func take_from_ai(o: int, player_name := "") -> void:
+	if not nations.has(o) or seats.has(o) or o == HOST:
+		return
+	var N: Dictionary = nations[o]
+	var rc := race(o)
+	var keep: int = ME
+	seats[o] = seat_defaults()
+	use_seat(o)
+	var unames := {}   # (the unit table is shared: it keeps the host's race's names, as add_seat does)
+	for k in unit_defs:
+		unames[k] = [unit_defs[k].get("name"), unit_defs[k].get("blurb")]
+	seat_start(rc if rc in ["realm", "swamp", "wood"] else "realm")
+	for k in unames:
+		unit_defs[k].name = unames[k][0]
+		if unames[k][1] != null:
+			unit_defs[k].blurb = unames[k][1]
+	var nat: Dictionary = N.get("my_nation", {})
+	if nat.is_empty():
+		var ci := 0
+		var NC: Array = GameData.c("NATION_COLORS")
+		for i in NC.size():
+			if str(NC[i][0]) == str(player_info(o).get("color", "")):
+				ci = i
+		nat = {"name": str(N.get("name", "Realm")), "color": ci, "emblem": str(N.get("emblem", "crown")), "secondary": str(N.get("secondary", "#faf1dc"))}
+	set_nation(nat)
+	leader = str(N.get("leader", leader))
+	capital = int(N.get("capital", -1))
+	stock = N.get("stock", {}).duplicate()
+	rep = N.get("rep", {}).duplicate()
+	surveyed = N.get("surveyed", {}).duplicate()
+	exhaust = int(N.get("exhaust", 0))
+	army_counter = int(N.get("armyN", 0))
+	fallen = not bool(N.get("alive", true))
+	if N.get("designs") is Array and not N.designs.is_empty():
+		designs = N.designs.duplicate(true)
+	if N.get("auto_tech") is Dictionary:
+		for tr in N.auto_tech:
+			auto_tech[tr] = bool(N.auto_tech[tr])
+	tech = {}
+	var ts: Dictionary = N.get("tech", {})
+	for tr in ["gov", "mil", "mag"]:
+		var st: Dictionary = ts.get(tr, {})
+		tech[tr] = {"cur": st.get("cur"), "prog": st.get("prog", 0), "bank": st.get("bank", 0), "opts": Array(st.get("opts", [])).duplicate(),
+			"done": Array(st.get("done", [])).duplicate(), "tier": int(st.get("tier", 1 if tr == "gov" else 0)), "sticky": Array(st.get("sticky", [])).duplicate()}
+	for id in nations:   # whom it had met
+		if int(id) != o and ai_met.has(pair_key(o, int(id))):
+			met[int(id)] = true
+	for s2 in seats:
+		if s2 != o and (seats[s2].met.has(o) or seats[s2].met.has(str(o))):
+			met[s2] = true
+	compute_income()
+	use_seat(keep)
+	nations.erase(o)
+	if player_name != "":
+		seat_names[o] = player_name
+	in_seat(o, compute_fog)
+	toast("%s is played by %s again." % [player_info(o).name, player_name if player_name != "" else "a player"])
 
 
 # =================================================================================================================
@@ -11350,10 +11799,13 @@ func issue_proclamation(text: String) -> bool:
 	return true
 
 
-func barter_why(o: int, give: Dictionary, want: Dictionary) -> String:
+func barter_why(o: int, give: Dictionary, want: Dictionary, extra: Dictionary = {}) -> String:
 	if not seats.has(o) or o == ME or not met.has(o):
 		return "Only with a player you have met"
-	var any := false
+	var xw := Quests.trade_why(self, ME, o, extra)   # (quests: the relics and prisoners are there to trade)
+	if xw != "":
+		return xw
+	var any := Quests.trade_any(extra)
 	for d in [give, want]:
 		for k in d:
 			if not k in RES or int(d[k]) < 0:
@@ -11369,18 +11821,20 @@ func barter_why(o: int, give: Dictionary, want: Dictionary) -> String:
 
 
 ## Barter: any amounts of gold, wood and food for any amounts in return. The other player has 30 s to accept.
-func offer_barter(o: int, give: Dictionary, want: Dictionary) -> bool:
+## extra (quests, Godot only): relics and prisoners in the trade: {gi, wi: relic ids given / asked; gp, wp: prisoner ids}
+func offer_barter(o: int, give: Dictionary, want: Dictionary, extra: Dictionary = {}) -> bool:
 	var g2 := {}
 	var w2 := {}
 	for k in RES:
 		g2[k] = maxi(0, int(give.get(k, 0)))
 		w2[k] = maxi(0, int(want.get(k, 0)))
-	var why := barter_why(o, g2, w2)
+	var x2 := Quests.trade_clean(extra)
+	var why := barter_why(o, g2, w2, x2)
 	if why != "":
 		toast(why, true)
 		return false
-	_ask_player(o, "barter", {"give": g2, "want": w2})
-	toast("Your offer is on its way to the %s: %s for %s." % [player_info(o).name, res_text(g2), res_text(w2)])
+	_ask_player(o, "barter", {"give": g2, "want": w2, "x": x2})
+	toast("Your offer is on its way to the %s: %s for %s." % [player_info(o).name, Quests.trade_text(self, g2, x2, true), Quests.trade_text(self, w2, x2, false)])
 	return true
 
 
@@ -11404,6 +11858,12 @@ func _answer_player(r: Dictionary, yes: bool, quiet: bool) -> void:
 		return
 	var why := ""
 	match r.kind:
+		"h_share":
+			var got := share_contacts(ME, o)
+			if got.is_empty():
+				why = "They already know every nation you know"
+			else:
+				notify(o, "answer", ME, "The %s shared their contacts: you have met %s." % [player_info(ME).name, ", ".join(got.map(func(x): return the_name(x)))])
 		"h_access":
 			if not access_given(ME, o):
 				dipl_state().access.append({"from": ME, "to": o})
@@ -11429,14 +11889,18 @@ func _answer_player(r: Dictionary, yes: bool, quiet: bool) -> void:
 			var give: Dictionary = r.data.give
 			var want: Dictionary = r.data.want
 			var S: Dictionary = seats[o].stock
+			var bx: Dictionary = r.data.get("x", {})
 			if not _pays(want):
 				why = "You don’t have %s any more" % res_text(want)
 			elif RES.any(func(k): return S.get(k, 0) < give.get(k, 0)):
 				why = "They don’t have %s any more" % res_text(give)
+			elif Quests.trade_why(self, o, ME, bx) != "":
+				why = Quests.trade_why(self, o, ME, bx)
 			else:
 				for k in RES:
 					S[k] = S.get(k, 0) - give.get(k, 0) + want.get(k, 0)
 					stock[k] = stock.get(k, 0) + give.get(k, 0) - want.get(k, 0)
+				Quests.trade_do(self, o, ME, bx)
 				in_seat(o, compute_income)
 	if why != "":
 		toast("It can’t be done: %s." % (why[0].to_lower() + why.substr(1)), true)
@@ -11481,6 +11945,8 @@ func player_act_why(act: String, o: int) -> String:
 			return "Not between players"
 		"grant":
 			return "" if access_given(ME, o) else "You are at war" if at_war(ME, o) else "Allies already have access" if allied(ME, o) else ""
+		"share":
+			return "You are at war" if at_war(ME, o) else "They know no nation you haven't met" if contacts_new_for(ME, o).is_empty() else _waiting(o, "h_share")
 		"ask":
 			return "They already let you through" if access_given(o, ME) else "You are at war" if at_war(ME, o) else "Allies already have access" if allied(ME, o) else _waiting(o, "h_access")
 		"ally":
@@ -11534,6 +12000,9 @@ func _dx_player(act: String, o: int) -> void:
 		"ask":
 			_ask_player(o, "h_access")
 			toast("You asked the %s for military access." % nm)
+		"share":   # 0.19: they are asked, and choose
+			_ask_player(o, "h_share")
+			toast("You asked the %s to share their contacts." % nm)
 		"ally":
 			if allied(ME, o):
 				for A in allies:

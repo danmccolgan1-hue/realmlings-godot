@@ -98,6 +98,17 @@ func _draw() -> void:
 			var b: Array = game.G.provs[int(ab[1])].ic
 			var m: Vector2 = _edge_mid.get(k, Vector2.ZERO)
 			_stroke_road(PackedVector2Array([Vector2(a[0], a[1]), m, Vector2(b[0], b[1])]), 1.0)
+		# 0.19: a road a Mason of yours is going to pave, faint, border by border
+		for u in game.units:
+			var plan = u.get("roadPlan")
+			if plan == null or u.owner != Game.LOCAL:
+				continue
+			for i in plan.size() - 1:
+				var k2 := Game.link_key(plan[i], plan[i + 1])
+				if game.roads.has(k2):
+					continue
+				var L: Array = game.road_line(k2)
+				draw_polyline(PackedVector2Array([L[0], L[1], L[2]]), Color(ROAD_COL, 0.35), 20.0, true)
 		# roads and walls being built grow from the Mason's side (web: govtech.js drawLinks)
 		for u in game.units:
 			var bu = u.get("build")
@@ -436,6 +447,17 @@ func _draw_game() -> void:
 		if u.build != null and game.BUILD_DEFS.has(u.build.type) and u.build.get("slot") != null:   # (roads and walls have no plot)
 			var ic: Array = game.G.provs[u.build.prov].ic
 			_building(u.build.type, u.build.slot, u.build.prov, ic, (game.t - u.build.t0) / u.build.dur, 1)
+		elif u.build != null and u.build.type == "outpost":   # 0.19: the outpost's site, its stakes and its progress
+			var ic2: Array = game.G.provs[u.build.prov].ic
+			var site := Vector2(ic2[0], ic2[1])
+			var f2 := clampf((game.t - u.build.t0) / u.build.dur, 0.0, 1.0)
+			_ellipse(site + Vector2(0, 10), 62.0, 24.0, Color(OL, 0.55), 3.0)
+			for k2 in 6:
+				var a2 := TAU * k2 / 6.0
+				var stake := site + Vector2(cos(a2) * 62.0, 10 + sin(a2) * 24.0)
+				draw_line(stake, stake + Vector2(0, -16 - 18 * f2), OL, 4.0)
+				draw_line(stake, stake + Vector2(0, -16 - 18 * f2), Color("#b07a3e"), 2.2)
+			_bar(site + Vector2(0, -70), f2, Color("#e8c547"))
 		if u.kind == "army" and not u.get("monster"):
 			_army(u)
 			continue
@@ -468,7 +490,7 @@ func _draw_game() -> void:
 		if _is_sel(u):
 			_sel_ring(Vector2(u.x, u.y + 1), rrx + 1 * UK_K, rry + 0.5 * UK_K, t2)
 		# workers hop as they walk, and bob as they build or survey
-		var working: bool = u.build != null or u.survey != null
+		var working: bool = u.build != null or u.survey != null or u.get("dig") != null
 		var walking2: bool = u.moving or u.survey != null
 		var ttu: float = t2 * 2.4 if walking2 else t2 * 3.0 if working else t2
 		if u.get("monster") == null:
@@ -489,7 +511,18 @@ func _draw_game() -> void:
 			sp = Art.get_sprite("units", "common", Art.unit_file("monster-" + kind, side))
 		if sp == null and kind.begins_with("d"):
 			sp = Art.race_sprite("units", urc, Art.unit_file(Art.design_art(game, kind), _dir(u.th)))   # Armory designs without art yet
-		if sp:
+		if sp and u.get("monster") != null:
+			# 0.19: monsters have one picture a side, so they move by themselves: a beast on the march heaves and sways
+			# (a dragon beats its wings and rises), and breathes when it stands
+			var mv: bool = walking2 or u.get("patrolling", false)
+			var ph: float = t2 + float(u.id) * 0.7
+			var fly: bool = str(kind).contains("dragon") or str(kind).contains("inferno")
+			var bob := (absf(sin(ph * (5.0 if fly else 7.0))) * (14.0 if fly else 5.0)) if mv else sin(ph * 2.0) * 1.5
+			var sq := sin(ph * (10.0 if fly else 14.0)) * (0.06 if mv else 0.02)
+			if fly and mv:
+				_ellipse(Vector2(u.x, u.y + 2), 26.0 * (1.0 - bob / 40.0), 9.0 * (1.0 - bob / 40.0), Color(0, 0, 0, 0.18), 6.0)
+			Art.draw_xf(self, sp, at - Vector2(0, bob), Vector2(usc * (1.0 - sq * 0.5), usc * (1.0 + sq)), sin(ph * 3.5) * (0.07 if mv else 0.015), ua)
+		elif sp:
 			Art.draw(self, sp, at, usc, ua)
 			if u.kind == game.MAGE:   # v99: the Mage's mana, just over his hat
 				var top: float = sp.ay / sp.scale
@@ -498,10 +531,11 @@ func _draw_game() -> void:
 			draw_circle(at, 18.0, OL)
 		if n > 0 and u.get("monster") == null:   # (a boss is one creature: no number on it)
 			_badge(at + Vector2(26, -70), str(n))
+		if u.kind == "army" and u.get("monster") != null and game.troop_count(u) > 0:   # 0.19: monsters show their power too
+			_army_power(u, Vector2(u.x, u.y + rry + 6 * UK_K))
 		if u.survey != null:
 			_bar(at + Vector2(0, -60), minf(1.0, (game.t - u.survey.t0) / u.survey.dur), Color("#7fc8f0"))
-		elif u.build != null:
-			_bar(at + Vector2(0, -60), minf(1.0, (game.t - u.build.t0) / u.build.dur), Color("#e8c547"))
+		# (0.19: no bar over a building Mason: it hangs over what he builds instead)
 		if u.get("fleeing", false) or u.get("doomAt", 0.0):   # running for it (web: content.js drawFleeMark)
 			var fp := Vector2(u.x + 12, u.y - 36 + sin(t2 * 10) * 1.5)
 			draw_circle(fp, 8, Color("#ff6b5a"))
@@ -515,7 +549,12 @@ func _draw_game() -> void:
 			draw_arc(bp, 8, 0, TAU, 20, OL, 2.2, true)
 			draw_polyline(tail, OL, 2.2, true)
 			draw_string(font if font else ThemeDB.fallback_font, bp + Vector2(-3.5, 4.5), "?", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, OL)
-		if working and sin(t2 * 8) > 0.6:   # sparks from the work (web: drawUnitBody)
+		if u.get("dig") != null:   # quests: clods of earth fly from the hole (Godot only)
+			for k in 3:
+				var ph := fposmod(t2 * 1.6 + k / 3.0, 1.0)
+				var dx := (10 + k * 5) * UK_K * (1 if k % 2 == 0 else -1)
+				draw_circle(Vector2(u.x + dx * ph, u.y - 4 * UK_K - sin(ph * PI) * 22 * UK_K), 2.6 * UK_K, Color("#7a5232", 1 - ph * 0.6))
+		elif working and sin(t2 * 8) > 0.6:   # sparks from the work (web: drawUnitBody)
 			for k in 3:
 				draw_circle(Vector2(u.x + (12 + k * 3) * UK_K, u.y - (18 + k * 4) * UK_K), 1.8 * UK_K, Color("#fff3a6"))
 		if u.get("sieging") != null:   # battering a wall
@@ -655,6 +694,9 @@ func _army(u: Dictionary) -> void:
 			sp = Art.race_sprite("units", game.race(u.owner), Art.unit_file(sp_.k, _dir(u.th)))
 		if sp == null and str(sp_.k).begins_with("d"):
 			sp = Art.race_sprite("units", game.race(u.owner), Art.unit_file(Art.design_art(game, sp_.k), _dir(u.th)))
+		if sp == null and str(sp_.k).begins_with("m-"):   # (a monster in an army: its own picture)
+			sp = Art.get_sprite("units", "common", Art.unit_file("monster-" + str(sp_.k), "d2" if cos(u.th) >= 0 else "d6"))
+		sp = Art.armored(sp, Art.armor_look(game, str(sp_.k)))   # 0.19: chain and plate look like it
 		if sp:
 			var bob := -sin((tt + u.id + sp_.i * 0.7) * 3.2) * 1.3 * K * 0.5   # each soldier breathes (web: iso.js humanoid bob)
 			Art.draw(self, sp, Vector2(sp_.x, sp_.y + hop + bob), (0.85 if _is_cav(sp_.k) else 1.0) * sc, 0.55 if u.get("exiting", false) else 1.0)
