@@ -1148,6 +1148,8 @@ func _left_click(shift: bool) -> void:
 				game.do("fly_army", [hud.aim.unit, tp])
 			elif hud.aim.spell == "shock":
 				game.do("start_spell2", [hud.aim.unit, "shock", tp])
+			elif hud.aim.spell == "flamewall":   # (quests: the Wall of Flame)
+				game.do("cast_flamewall", [hud.aim.unit, tp])
 			else:
 				game.do("cast_spell", [hud.aim.unit, hud.aim.spell, tp])
 		hud.aim = null

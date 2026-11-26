@@ -348,6 +348,7 @@ func _outlined(s: String, at: Vector2, fs: int, col: Color, ol: Color) -> void:
 
 func draw_over(g: Game, t: float) -> void:
 	_falling_stars(g)
+	_flame_walls(g, t)
 	for b in g.battles:
 		if g.visible.has(b.prov):
 			draw_battle_bar(g, b)
@@ -365,6 +366,33 @@ func draw_over(g: Game, t: float) -> void:
 			for k in 4:
 				var f := fposmod(t * 0.8 + k / 4.0, 1.0)
 				v.draw_string(_font(), Vector2(u.x - 14 + k * 9, u.y - 20 - f * 24), "+", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.43, 0.86, 0.47, 1 - f))
+
+
+## Quests (Godot only): a Wall of Flame burns along its border; Time Warp's building turns inside a blue ring.
+func _flame_walls(g: Game, t: float) -> void:
+	for i in g.flame_walls:
+		var e: Dictionary = g.world.edges[int(i)]
+		if not (g.visible.has(e.a) or g.visible.has(e.b)):
+			continue
+		var a: Array = g.world.vertices[e.v[0]]
+		var b: Array = g.world.vertices[e.v[1]]
+		var pa := Vector2(a[0], a[1])
+		var pb := Vector2(b[0], b[1])
+		var n := maxi(4, int(pa.distance_to(pb) / 22.0))
+		var left: float = float(g.flame_walls[i].until) - g.t
+		var fade := clampf(left / 5.0, 0.3, 1.0)
+		for k in n + 1:
+			var at := pa.lerp(pb, float(k) / n)
+			var h := (26.0 + 10.0 * sin(t * 9.0 + k * 1.7)) * fade
+			_flame(at, 11.0, h, Color(0.93, 0.33, 0.12, 0.9))
+	var tw = g.time_warp
+	var e2 = Quests.warped(g, g.ME) if g.quests_on else null
+	if e2 != null and g.visible.has(int(tw.p)):
+		var o: Array = g.bslot_of(int(tw.p), int(tw.slot))
+		var c: Array = g.G.provs[int(tw.p)].ic
+		var at2 := Vector2(c[0] + o[0], c[1] + o[1] - 30)
+		_oval(at2, 46, 20, Color(0.45, 0.7, 1.0, 0.85), 3.0, t * 2.0, t * 2.0 + PI * 1.4)
+		_oval(at2, 46, 20, Color(0.75, 0.88, 1.0, 0.6), 2.0, t * 2.0 + PI, t * 2.0 + PI * 2.2)
 
 
 ## Quests (Godot only): a Fallen Star streaks down onto its province, then flashes where it lands.

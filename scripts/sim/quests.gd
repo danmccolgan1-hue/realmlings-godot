@@ -314,6 +314,8 @@ static func _where_text(where: String, u: Dictionary) -> String:
 ## the provinces they stand in.
 static func step(g) -> void:
 	step_stars(g)
+	if not g.flame_walls.is_empty():
+		step_flames(g)
 	if not g.star_fx.is_empty():
 		g.star_fx = g.star_fx.filter(func(f): return g.t - f.t0 < STAR_FX_TIME)
 	for u in g.units:
@@ -932,3 +934,181 @@ static func sham_blocks(g, b: Dictionary, armies: Array) -> bool:
 	b.sham.append(o)
 	tell(g, o, "The Shield of Sham turns aside the enemy's first blow!")
 	return true
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# Spell Books (session 8): Wall of Flame and Time Warp, for the Mages, Warlocks and Druids of a human nation that
+# finished the quest. 100 mana each, 10 s cooldown.
+#
+# Wall of Flame: a wall on the border between the caster's province and a neighbor, for 60 s. Its gate lets only the
+# caster's nation through; siege, Shockwave, Fireball and Earthquake can't break it. One at a time: casting again
+# puts out the last. Time Warp: one building in the caster's province works twice as well (twice the gold, wood or
+# food, twice the research, soldiers trained in half the time) until Time Warp is cast on another.
+
+const SPELL_MANA := 100
+const SPELL_CD := 10.0
+const FLAME_TIME := 60.0
+const SPELLS := {"flamewall": {"name": "Wall of Flame", "unlock": "spell:flamewall"},
+	"timewarp": {"name": "Time Warp", "unlock": "spell:timewarp"}}
+const WARP_TYPES := ["farm", "lumber", "goldmine", "market", "forge", "magetower", "temple", "barracks"]
+
+
+## Why caster c can't cast quest spell k now ("" when it can).
+static func spell_why(g, c: Dictionary, k: String) -> String:
+	if not g.quests_on or not g.seats.has(int(c.owner)) or not g.seats[c.owner]["quest_unlocks"].has(SPELLS[k].unlock):
+		return "Finish its quest first"
+	if g.mages_in(c) <= 0:
+		return "No " + Races.words("Mage", g.race(c.owner))
+	if c.get("cast") != null or c.get("quake"):
+		return "Already casting"
+	var left: float = g.in_seat(c.owner, func(): return g.cd_left(k))
+	if left > 0:
+		return "Ready in %d s" % ceili(left)
+	if Game.mana_of(c) < float(g.mc(SPELL_MANA, c.owner)):
+		return "Needs %d mana" % SPELL_MANA
+	return ""
+
+
+static func _spent(g, c: Dictionary, k: String) -> void:
+	g.spend_mana(c, SPELL_MANA)
+	g.in_seat(c.owner, func(): g.cd[k] = g.t + SPELL_CD)
+
+
+## Why caster c can't raise a Wall of Flame toward province q.
+static func flamewall_why(g, c: Dictionary, q: int) -> String:
+	var why := spell_why(g, c, "flamewall")
+	if why != "":
+		return why
+	if q < 0 or not g.all_nbr[c.prov].has(q):
+		return "Pick a province next to the caster"
+	if not g.open_between(c.prov, q):
+		return "That border is already closed"
+	return ""
+
+
+static func cast_flamewall(g, c: Dictionary, q: int) -> bool:
+	var why := flamewall_why(g, c, q)
+	if why != "":
+		tell(g, c.owner, why + ".", true)
+		return false
+	for i in g.flame_walls.keys():   # one at a time
+		if int(g.flame_walls[i].owner) == int(c.owner):
+			put_out(g, int(i))
+	_spent(g, c, "flamewall")
+	var p: int = c.prov
+	var had_road: bool = g.roads.has(Game.link_key(p, q))
+	var before := {}
+	for i in g.walls:
+		before[i] = true
+	g.raise_wall(p, q, int(c.owner), -1)
+	for i in g.walls:
+		if not before.has(i):
+			g.flame_walls[i] = {"owner": int(c.owner), "until": g.t + FLAME_TIME, "road": had_road}
+	tell(g, c.owner, "%s raises a Wall of Flame between %s and %s." % [c.name, g.prov_name(p), g.prov_name(q)])
+	return true
+
+
+## A Wall of Flame burns out: the border opens again (and a road there comes back).
+static func put_out(g, i: int) -> void:
+	var F = g.flame_walls.get(i)
+	if F == null:
+		return
+	g.flame_walls.erase(i)
+	var e: Dictionary = g.world.edges[i]
+	var k: String = Game.link_key(e.a, e.b)
+	var V: Array = g.world.vertices
+	var a: Array = V[e.v[0]]
+	var b: Array = V[e.v[1]]
+	e.open = true
+	e.style = "open"
+	g.walls.erase(i)
+	g.wall_hp.erase(i)
+	g.wall_crack.erase(i)
+	g.wall_max.erase(i)
+	g.gate_own.erase(k)
+	g.walls_ver += 1
+	g.open_nbr[e.a].append({"q": e.b, "m": [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]})
+	g.open_nbr[e.b].append({"q": e.a, "m": [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]})
+	if F.get("road", false):
+		g.roads[k] = true
+
+
+static func step_flames(g) -> void:
+	for i in g.flame_walls.keys():
+		if g.t >= float(g.flame_walls[i].until):
+			put_out(g, int(i))
+
+
+## The buildings in caster c's province that Time Warp can speed up.
+static func warp_targets(g, c: Dictionary) -> Array:
+	if g.nation_of(c.prov) != int(c.owner):
+		return []
+	return g.extras_in(c.prov).filter(func(e): return WARP_TYPES.has(str(e.type)))
+
+
+static func cast_timewarp(g, c: Dictionary, slot: int) -> bool:
+	var why := spell_why(g, c, "timewarp")
+	var e = null
+	for x in warp_targets(g, c):
+		if int(x.slot) == slot:
+			e = x
+	if why == "" and e == null:
+		why = "No building there to warp"
+	if why != "":
+		tell(g, c.owner, why + ".", true)
+		return false
+	_spent(g, c, "timewarp")
+	g.seats[c.owner]["time_warp"] = {"p": int(c.prov), "slot": slot}
+	g.in_seat(c.owner, func(): g.compute_income())
+	tell(g, c.owner, "%s bends time around the %s in %s: it works twice as fast." % [c.name, g.BUILD_DEFS[e.type].name, g.prov_name(c.prov)])
+	return true
+
+
+## The building nation o has warped (if it still stands and is still o's), or null.
+static func warped(g, o: int):
+	if not g.seats.has(o):
+		return null
+	var tw = g.seats[o].get("time_warp")
+	if tw == null or g.nation_of(int(tw.p)) != o or g.occ.has(int(tw.p)):
+		return null
+	for e in g.extras_in(int(tw.p)):
+		if int(e.slot) == int(tw.slot):
+			return e
+	return null
+
+
+## Time Warp's income for the current seat: the warped building's gold, wood or food once more.
+static func warp_income(g) -> Dictionary:
+	var out := {"gold": 0, "wood": 0, "food": 0}
+	var e = warped(g, g.ME)
+	if e == null:
+		return out
+	var gv: Dictionary = Ai.crop_gives(Ai.crop_of(e), g.gives_of("farm")) if e.type == "farm" else g.gives_of(str(e.type))
+	for k in gv:
+		if out.has(k):
+			out[k] += int(gv[k])
+	return out
+
+
+## Time Warp's research for the current seat: the warped Forge's, Mage Tower's or Temple's points once more.
+static func warp_research(g, tree: String) -> int:
+	var e = warped(g, g.ME)
+	if e == null:
+		return 0
+	var LP: Array = GameData.c("LEVEL_POINTS")
+	if e.type == "forge" and tree == "mil":
+		return int(LP[e.get("level", 1)])
+	if e.type == "magetower" and tree == "mag":
+		return int(LP[e.get("level", 1)])
+	if e.type == "temple" and tree == "gov":
+		return 2
+	return 0
+
+
+## Time Warp's training: a queue in the warped building trains in half the time.
+static func warp_train_mul(g, key: String) -> float:
+	var e = warped(g, g.ME)
+	if e == null:
+		return 1.0
+	var tw: Dictionary = g.seats[g.ME].time_warp
+	return 0.5 if key == "%s:%d" % [str(e.type), int(tw.p)] else 1.0

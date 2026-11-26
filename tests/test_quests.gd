@@ -27,6 +27,7 @@ func run() -> Array:
 	_gear(errs)
 	_beasts(errs)
 	_arms(errs)
+	_spells(errs)
 	Game.QUESTS = was
 	return errs
 
@@ -556,3 +557,57 @@ func _arms(errs: Array) -> void:
 	g.set_mage_gear({"weapon": "triune"})
 	if g.mana_cap() != cap0 + 100 or g.mana_regen(Game.HOST) != reg0 + 10 or Game.STAVE_CAST.get("triune") != 0.8:
 		errs.append("arms: Triune Staff mana %d (was %d), regen %d (was %d)" % [g.mana_cap(), cap0, g.mana_regen(Game.HOST), reg0])
+
+
+## Session 8: Wall of Flame (a border closed for 60 s to all but the caster's nation, unbreakable, one at a time)
+## and Time Warp (one building works twice as well).
+func _spells(errs: Array) -> void:
+	var g := Game.new_world(SEED, "cormac", SLOTS, "center")
+	var cap: int = g.capital
+	var c: Dictionary = g.new_army(cap, {Game.MAGE: 1})
+	c.mana = 300.0
+	var q: int = g.open_nbr[cap][0].q
+	if Quests.flamewall_why(g, c, q) == "":
+		errs.append("spells: Wall of Flame before its quest")
+	g.quest_unlocks.append_array(["spell:flamewall", "spell:timewarp"])
+	if not g.cast_flamewall(c, q):
+		errs.append("spells: Wall of Flame failed: %s" % Quests.flamewall_why(g, c, q))
+		return
+	if g.open_between(cap, q) or g.flame_walls.is_empty() or c.mana != 200.0:
+		errs.append("spells: the border is still open (%s), mana %s" % [g.flame_walls, c.mana])
+	var i: int = g.flame_walls.keys()[0]
+	if g.damage_wall(i, 10000.0) or not g.walls.has(i):
+		errs.append("spells: the Wall of Flame was broken")
+	if Quests.flamewall_why(g, c, g.open_nbr[cap][0].q) != "Ready in 10 s":
+		errs.append("spells: no cooldown: '%s'" % Quests.flamewall_why(g, c, g.open_nbr[cap][0].q))
+	# a second wall puts out the first
+	g.t += 11.0
+	var q2: int = g.open_nbr[cap][0].q
+	g.cast_flamewall(c, q2)
+	if not g.open_between(cap, q) or g.flame_walls.values().any(func(f): return false) or g.flame_walls.size() < 1:
+		errs.append("spells: the first Wall of Flame didn't go out")
+	g.t += 61.0
+	Quests.step(g)
+	if not g.flame_walls.is_empty() or not g.open_between(cap, q2):
+		errs.append("spells: the Wall of Flame didn't burn out")
+	# Time Warp on a Farm: its food twice
+	var farm := {"type": "farm", "slot": 5, "born": 0.0}
+	g.extras[cap].append(farm)
+	g.compute_income()
+	var food0: int = g.income.food
+	g.t += 11.0
+	if not g.cast_timewarp(c, 5):
+		errs.append("spells: Time Warp failed: %s" % Quests.spell_why(g, c, "timewarp"))
+	var per: int = Ai.crop_gives(Ai.crop_of(farm), g.gives_of("farm")).get("food", 0)
+	if g.income.food != food0 + per:
+		errs.append("spells: Time Warp's Farm: food %d, want %d" % [g.income.food, food0 + per])
+	# on a Barracks: soldiers in half the time; on a Forge: its research twice
+	var bar := {"type": "barracks", "slot": 4, "born": 0.0}
+	g.extras[cap].append(bar)
+	g.t += 11.0
+	c.mana = 300.0
+	g.cast_timewarp(c, 4)
+	if Quests.warp_train_mul(g, "barracks:%d" % cap) != 0.5 or Quests.warp_train_mul(g, "magetower:%d" % cap) != 1.0:
+		errs.append("spells: Time Warp's Barracks doesn't train faster")
+	if g.income.food != food0:
+		errs.append("spells: the Farm stayed warped after warping the Barracks")

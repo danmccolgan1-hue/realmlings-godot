@@ -403,6 +403,21 @@ def card_icons():
     cv.poly([(76, 6), (80, 10), (52, 52), (48, 52), (48, 48)], hexc("#efe6cf"))
     cv.line([(50, 50), (44, 60)], OL, 2)
     cv.save(os.path.join(ART, "icons", "common", "ui_quests.png"))
+    cv = Canvas(84, 84)  # Wall of Flame: a low wall with fire rising from it
+    for x, h in ((20, 34), (34, 46), (48, 40), (62, 30)):
+        cv.poly([(x - 9, 56), (x - 4, 56 - h * 0.6), (x, 56 - h), (x + 5, 56 - h * 0.55), (x + 9, 56)], hexc("#f08a3c"))
+        cv.poly([(x - 4, 56), (x, 56 - h * 0.5), (x + 4, 56)], hexc("#ffd34d"), None)
+    cv.poly([(8, 56), (76, 56), (76, 72), (8, 72)], hexc("#8a7a6a"))
+    for x in (25, 42, 59):
+        cv.line([(x, 56), (x, 72)], OL, 1.6)
+    cv.save(os.path.join(ART, "icons", "common", "cmd_flamewall.png"))
+    cv = Canvas(84, 84)  # Time Warp: an hourglass inside a blue swirl
+    cv.ell(42, 42, 34, 34, None, hexc("#4a8fe0"), 5)
+    cv.poly([(28, 18), (56, 18), (44, 42), (56, 66), (28, 66), (40, 42)], hexc("#f3ecd8"))
+    cv.poly([(32, 62), (52, 62), (44, 50), (40, 50)], hexc("#e8c547"), None)
+    cv.line([(24, 18), (60, 18)], hexc("#7a4a26"), 5)
+    cv.line([(24, 66), (60, 66)], hexc("#7a4a26"), 5)
+    cv.save(os.path.join(ART, "icons", "common", "cmd_timewarp.png"))
 
 
 # --- the Armory's tiles for the quest armors (Tier V of each family): gear_armor_<family>5.png ---

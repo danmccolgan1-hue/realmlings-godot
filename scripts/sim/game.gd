@@ -176,6 +176,10 @@ var chests := {}             # province -> [item ids]: relics left on the ground
 var star_next := -1.0        # when the next Fallen Star falls
 var stars_fallen := 0        # how many have fallen (each draws from its own stream)
 var star_fx := []            # the view's shooting stars: {prov, t0} (not saved)
+var flame_walls := {}        # edge index -> {owner, until, road}: a Wall of Flame burning there
+var time_warp:               # this human nation's Time Warp: {p, slot} of the building it speeds up, or null
+	get: return cur["time_warp"]
+	set(v): cur["time_warp"] = v
 var quest_log: Dictionary:   # this human nation's quests: id -> {state: active|done|failed, t0, part, t1, by}
 	get: return cur["quest_log"]
 	set(v): cur["quest_log"] = v
@@ -243,7 +247,7 @@ var rng := RandomNumberGenerator.new()   # stands in for the web's Math.random (
 # --- seats (multiplayer step 1): each human nation's own fields ---
 ## The fields each human nation has its own copy of. The properties above read and write the current seat's
 ## record (`cur`); use_seat() switches it. A single-player game has one seat, HOST.
-const SEAT_FIELDS := ["leader", "capital", "stock", "income", "income_parts", "army_counter", "tech", "rep", "surveyed", "designs", "exhaust", "exhaust_ok", "harvest", "upgrades", "xup", "cd", "harvest_by", "trap", "school_popup", "reveals", "eyes", "haunts", "mana_pool", "mana_prev", "mana_prev_t", "mage_gear", "auto_tech", "queues", "rally", "wf", "known", "explored", "visible", "my_nation", "train_orders", "met", "fallen", "ally_ask", "met_at", "dx_step_t", "gift_vault", "demand", "ally_offer", "quest_log", "quest_rate", "quest_unlocks", "BUILD_DEFS", "TECH_BY_ID", "TECHS", "TECH_TREES", "UNIT_BASE", "BUILD_ORDER", "CMD"]
+const SEAT_FIELDS := ["leader", "capital", "stock", "income", "income_parts", "army_counter", "tech", "rep", "surveyed", "designs", "exhaust", "exhaust_ok", "harvest", "upgrades", "xup", "cd", "harvest_by", "trap", "school_popup", "reveals", "eyes", "haunts", "mana_pool", "mana_prev", "mana_prev_t", "mage_gear", "auto_tech", "queues", "rally", "wf", "known", "explored", "visible", "my_nation", "train_orders", "met", "fallen", "ally_ask", "met_at", "dx_step_t", "gift_vault", "demand", "ally_offer", "quest_log", "quest_rate", "quest_unlocks", "time_warp", "BUILD_DEFS", "TECH_BY_ID", "TECHS", "TECH_TREES", "UNIT_BASE", "BUILD_ORDER", "CMD"]
 
 ## A new seat's record: every seat field at its starting value.
 static func seat_defaults() -> Dictionary:
@@ -301,6 +305,7 @@ static func seat_defaults() -> Dictionary:
 		"quest_log": {},
 		"quest_rate": {},
 		"quest_unlocks": [],
+		"time_warp": null,
 	}
 
 
@@ -1747,6 +1752,10 @@ func compute_income() -> void:
 	var tb := tech_bonus()
 	for k in RES:
 		gross[k] += tb[k]
+	if quests_on:   # (quests: Time Warp's building works twice)
+		var wb := Quests.warp_income(self)
+		for k in RES:
+			gross[k] += wb[k]
 	if harvest_by != null:   # v104: Harvest by crop, food from every crop and gold from Cash crops
 		var pct := harvest_pct()
 		var st := gives_of("farm")
@@ -2089,6 +2098,15 @@ var path_avoid = null
 
 
 # web: game.js order(u, target, quiet, pt) + v101.js (computer armies at war steer clear of armies that would crush them)
+## Quests: the Spell Books' spells (orders; the rules are in Quests).
+func cast_flamewall(c: Dictionary, q: int) -> bool:
+	return Quests.cast_flamewall(self, c, q)
+
+
+func cast_timewarp(c: Dictionary, slot: int) -> bool:
+	return Quests.cast_timewarp(self, c, slot)
+
+
 ## Quests: a scouting unit digs where it stands, or stops (orders; the rules are in Quests).
 func start_dig(u: Dictionary) -> bool:
 	return Quests.start_dig(self, u)
@@ -3535,7 +3553,7 @@ func step_training(now: float) -> void:
 		var q: Dictionary = Q[0]
 		if q.t0 == null:
 			q.t0 = now
-		if now - q.t0 < train_time(q.kind, q):
+		if now - q.t0 < train_time(q.kind, q) * (Quests.warp_train_mul(self, key) if quests_on else 1.0):
 			continue
 		Q.pop_front()
 		if q.get("retro", false):
@@ -3708,7 +3726,7 @@ func tech_rate(tree: String) -> int:
 	for p in buildings:
 		if buildings[p].owner == ME:
 			n += prov_research(p)[tree]
-	return n + int(quest_rate.get(tree, 0))   # (quests: research won for good)
+	return n + int(quest_rate.get(tree, 0)) + (Quests.warp_research(self, tree) if quests_on else 0)   # (quests: research won for good, Time Warp)
 
 
 func bank_cap(tree: String) -> float:
@@ -4395,7 +4413,7 @@ func wall_life(i: int) -> Dictionary:
 
 ## true when the wall comes down
 func damage_wall(i: int, dmg: float, by = null) -> bool:
-	if not walls.has(i):
+	if not walls.has(i) or flame_walls.has(i):   # (a Wall of Flame can't be broken)
 		return false
 	var w := wall_life(i)
 	wall_hp[i] = w.hp - dmg
@@ -4422,6 +4440,8 @@ func spell_hit_wall(i: int, by, dmg := 40.0) -> bool:
 
 
 func break_wall(i: int, by = null) -> void:
+	if flame_walls.has(i):   # (a Wall of Flame only burns out)
+		return
 	var e: Dictionary = world.edges[i]
 	var k := link_key(e.a, e.b)
 	var ctl := gate_ctl(k)
@@ -6060,7 +6080,7 @@ const SAVE_FIELDS := ["battles", "bandit_count", "monster_count", "leader", "cap
 	"harvest_by", "trap", "reveals", "eyes", "haunts", "mana_pool", "mana_prev_t", "mage_gear", "finds", "treasure_rolled",
 	"sp_found", "slot_races", "spyres", "ftraps", "sacreds", "wrocks", "gelems", "setpieces", "travelers", "train_orders", "train_order_seq", "design_seq", "prov_rename", "nations", "players", "my_nation", "race_of", "wars", "truces", "allies", "war_seq", "met", "occ", "occ_prog", "dipl", "war_log", "war_ever", "war_lock", "ai_met", "fallen", "ally_check", "bandit_next", "bandit_waves", "ally_ask", "crop_scan_at", "ai_scout_t", "wf", "known", "explored", "visible", "queues", "rally", "military", "UNIT_SPEED", "open_nbr", "all_nbr",
 	"yields", "look_seed", "tree_border", "debug_cap", "debug_tech", "reveal_all", "rec", "t", "next_tick", "paused", "last", "started", "seat_names", "paused_by", "seat_dipl", "mp_cd", "variant",
-	"quests_on", "quest_pick", "digs", "chests", "star_next", "stars_fallen", "quest_log", "quest_rate", "quest_unlocks"]
+	"quests_on", "quest_pick", "digs", "chests", "star_next", "stars_fallen", "quest_log", "quest_rate", "quest_unlocks", "flame_walls", "time_warp"]
 
 
 ## The whole game as a plain Dictionary (see SaveCodec for the text form).
@@ -11406,7 +11426,7 @@ const COMMANDS := ["order", "order_group", "order_build", "cancel_build", "queue
 	"retreat", "retreat_to", "fly_army", "thugs_enter", "thug_out", "dx_act", "answer_request", "make_peace",
 	"declare_war", "proclaim_enemy", "renounce_enemy", "travelers_choose", "dismiss_quake", "dismiss_news",
 	"answer_demand", "set_crop", "hand_to_ai", "take_from_ai", "send_message", "issue_proclamation", "offer_barter", "show_request", "set_paused", "set_auto_tech", "rename_prov", "close_school_popup",
-	"debug_reveal", "debug_resources", "debug_all_tech", "grant_tech", "rec_toggle", "start_dig", "stop_dig"]
+	"debug_reveal", "debug_resources", "debug_all_tech", "grant_tech", "rec_toggle", "start_dig", "stop_dig", "cast_flamewall", "cast_timewarp"]
 
 ## Multiplayer: hands a command to the network instead of applying it here (it comes back through apply()).
 var on_command: Callable
@@ -11439,7 +11459,7 @@ func apply(cmd: Dictionary):
 	var r = null
 	if args.has(null) and type in ["order", "order_build", "cancel_build", "queue_survey", "cast_spell", "start_spell2",
 			"end_quake", "start_path", "split_army", "dismiss", "send_to_rest", "retreat", "retreat_to", "fly_army",
-			"answer_request", "make_peace", "thug_out", "start_dig", "stop_dig"] and args.size() > 0 and args[0] == null:
+			"answer_request", "make_peace", "thug_out", "start_dig", "stop_dig", "cast_flamewall", "cast_timewarp"] and args.size() > 0 and args[0] == null:
 		r = null   # (what it was about is gone: a unit died, a war ended, a request ran out)
 	else:
 		_from_order = true

@@ -370,6 +370,22 @@ func commands_of(u) -> Array:
 			out[cell] = {"id": "spell2:" + k, "label": "%s\n%s" % [game.spell2_name(k), left if on else "%d mana" % Game.SPELL2_MANA[k]], "why": why,
 				"name": game.spell2_name(k), "desc": d2 + ((" " + left + ".") if on else ""), "ok": "Click to cancel" if on else "Click to cast"}
 			cell += 1
+	if game.quests_on and game.is_caster(u):   # quests: the Spell Books' spells, once their quest is done (Godot only)
+		for k in Quests.SPELLS:
+			if not game.quest_unlocks.has(Quests.SPELLS[k].unlock):
+				continue
+			var cell := -1
+			for i in range(4 if u.kind == "army" else 0, 15):
+				if out[i] == null and not list.any(func(c): return int(c.get("cell", -1)) == i):
+					cell = i
+					break
+			if cell < 0:
+				break
+			var sw := Quests.spell_why(game, u, k)
+			out[cell] = {"id": "qspell:" + k, "label": "%s\n%d mana" % [Quests.SPELLS[k].name, Quests.SPELL_MANA], "why": null if sw == "" else sw,
+				"name": Quests.SPELLS[k].name, "icon_path": "icons/common/cmd_%s.png" % k, "ok": "Click, then pick a neighboring province" if k == "flamewall" else "Click, then pick a building here",
+				"desc": "A wall of fire on the border with a neighboring province for %d s: only your units pass, and nothing can break it. One at a time." % int(Quests.FLAME_TIME) if k == "flamewall"
+					else "One building in this province works twice as fast: twice its gold, wood or food, twice its research, soldiers in half the time. Until you warp another."}
 	if u.kind == "army" and game.has_art(Game.LOCAL, "slippers"):   # v95: Winged Slippers
 		for cell in [9, 7, 6, 5, 4]:
 			if out[cell] == null and not list.any(func(c): return c.get("cell", -1) == cell):
@@ -480,6 +496,21 @@ func commands_of(u) -> Array:
 	return out
 
 
+## Time Warp: which building in the caster's province (Godot only).
+func _open_warp_menu(c: Dictionary) -> void:
+	var items := []
+	var tw = game.time_warp
+	for e in Quests.warp_targets(game, c):
+		var slot: int = e.slot
+		var on: bool = tw != null and int(tw.p) == int(c.prov) and int(tw.slot) == slot
+		items.append({"icon": icon("icons/realm/build_%s.png" % e.type), "name": str(game.BUILD_DEFS[e.type].name) + (" · warped now" if on else ""),
+			"small": "Plot %d" % (slot + 1), "why": "Already warped" if on else null, "do": func(): game.do("cast_timewarp", [c, slot])})
+	if items.is_empty():
+		add_toast("No building here that Time Warp can speed up.", true)
+		return
+	pick.open("Time Warp", game.prov_name(c.prov), items, card.global_position - Vector2(400, 40))
+
+
 ## A relic slot on the command card: a Reliquary's or what a scouting unit carries. id "" is an empty slot.
 func _relic_cell(id: String, empty_desc: String) -> Dictionary:
 	if id == "":
@@ -558,6 +589,11 @@ func press(i: int) -> void:
 			w.auto = not on
 	elif id == "advanced" or id == "basic":
 		mason_adv = id == "advanced"
+	elif id == "qspell:flamewall":
+		aim = {"unit": unit, "spell": "flamewall"}
+		add_toast("Click a province next to the caster: the Wall of Flame rises on that border. Right-click cancels.")
+	elif id == "qspell:timewarp":
+		_open_warp_menu(unit)
 	elif id == "dig":
 		game.do("start_dig", [unit])
 	elif id == "stopdig":
