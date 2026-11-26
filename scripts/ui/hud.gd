@@ -1365,6 +1365,15 @@ func part_commands() -> Array:
 			out[5] = _crop_cmd(e, "cropok")
 	if game.BUILD_DEFS[e.type].has("levels"):   # a Forge: its next upgrade
 		out[0] = _xup_cmd(e)
+	if e.type == Dungeons.DUNGEON:   # its 3 cells: each prisoner's silhouette (Godot only)
+		var held: Array = Dungeons.held_in(e)
+		for i in Dungeons.SLOTS:
+			if i < held.size():
+				var pr: Dictionary = held[i]
+				out[i] = {"id": "slot", "slot": true, "label": str(pr.name), "why": null, "name": "%s (%s)" % [pr.name, game.player_info(int(pr.from)).name if int(pr.from) else "outlaw"],
+					"desc": "A prisoner in your Dungeon.", "icon_path": "icons/common/prisoner_%s.png" % pr.kind, "ok": "Locked up"}
+			else:
+				out[i] = {"id": "slot", "slot": true, "label": "", "why": null, "name": "Empty cell", "desc": "An empty cell for a prisoner.", "ok": "Empty"}
 	if e.type == Quests.RELIQUARY:   # its slots, the top-left 3×3 of the card
 		var its: Array = Quests.items_in(e)
 		var cells := [0, 1, 2, 4, 5, 6, 8, 9, 10]

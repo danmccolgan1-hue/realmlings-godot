@@ -123,7 +123,10 @@ static func setup(g) -> void:
 static func add_tables(g) -> void:
 	if not g.quests_on:
 		return
-	var D: Dictionary = c("BUILD_DEFS")
+	var D: Dictionary = {}
+	for k in c("BUILD_DEFS"):   # (the Dungeon only in games with more than one human nation)
+		if not c("BUILD_DEFS")[k].get("mp", false) or g.seats.size() > 1:
+			D[k] = c("BUILD_DEFS")[k]
 	for k in D:
 		if not g.BUILD_DEFS.has(k):
 			var d: Dictionary = D[k].duplicate(true)
@@ -288,6 +291,7 @@ static func unit_lost(g, u: Dictionary) -> void:
 ## Buildings gone from province p (torn down, dismantled, shaken down, lost with the province): the relics in any
 ## Reliquary among them spill into a chest there.
 static func extras_lost(g, p: int, list: Array) -> void:
+	Dungeons.lost(g, p, list)
 	for e in list:
 		if e is Dictionary and e.get("type") == RELIQUARY:
 			var it: Array = items_in(e)
@@ -352,6 +356,8 @@ static func step(g) -> void:
 ## Every payday: diggers roll; what scouting units carry moves into a Reliquary as soon as one has room.
 static func payday(g) -> void:
 	dig_payday(g)
+	if not g.detained.is_empty():
+		Dungeons.payday(g)
 	for o in g.seat_ids():   # (a Mage Tower built since: the quests waiting on one start)
 		check(g, o)
 	for u in g.units:

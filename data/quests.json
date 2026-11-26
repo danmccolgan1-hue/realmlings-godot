@@ -48,14 +48,28 @@
    "upkeep": {},
    "note": "9 item slots",
    "blurb": "Keeps the relics your Wayfinders find: 9 slots. Found items go straight into a Reliquary with room, wherever they are found. One per province; build more for more room."
+  },
+  "dungeon": {
+   "name": "Dungeon",
+   "variant": 0,
+   "cost": {
+    "gold": 100,
+    "wood": 100
+   },
+   "upkeep": {},
+   "note": "3 prisoner cells",
+   "mp": true,
+   "blurb": "Holds 3 prisoners taken in the Dungeon quests. One per province; build more for more cells. Multiplayer only."
   }
  },
  "BUILD_NAMES": {
   "swamp": {
-   "reliquary": "Reliquary"
+   "reliquary": "Reliquary",
+   "dungeon": "Dungeon"
   },
   "wood": {
-   "reliquary": "Reliquary"
+   "reliquary": "Reliquary",
+   "dungeon": "Dungeon"
   }
  },
  "QUESTS": {

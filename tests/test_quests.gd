@@ -28,6 +28,7 @@ func run() -> Array:
 	_beasts(errs)
 	_arms(errs)
 	_spells(errs)
+	_dungeon(errs)
 	Game.QUESTS = was
 	return errs
 
@@ -611,3 +612,42 @@ func _spells(errs: Array) -> void:
 		errs.append("spells: Time Warp's Barracks doesn't train faster")
 	if g.income.food != food0:
 		errs.append("spells: the Farm stayed warped after warping the Barracks")
+
+
+func _mp() -> Game:
+	return Game.new_world(SEED, "cormac", ["human", "moderate"], "center", {}, {}, {"name": "Hosts"}, "realm", [], HUMANS.duplicate(true))
+
+
+## Session 9: Dungeons in multiplayer only; 3 cells each; a prisoner with no cell is Detained and escapes after 3 cycles.
+func _dungeon(errs: Array) -> void:
+	var solo := Game.new_world(SEED, "cormac", SLOTS, "center")
+	if solo.BUILD_ORDER.has("dungeon"):
+		errs.append("dungeon: on the build list in single player")
+	var g := _mp()
+	if not g.BUILD_ORDER.has("dungeon") or not g.CMD[Game.MASON].any(func(c): return c.id == "build:dungeon"):
+		errs.append("dungeon: not on the build lists in multiplayer")
+	var other: int = g.seat_ids().filter(func(o): return o != Game.HOST)[0]
+	var said := []
+	g.on_dialog = func(title, _t, _c, _f): said.append(title)
+	var pr := Dungeons.make(g, "envoy", other)
+	if Dungeons.jail(g, Game.HOST, pr) != "detained" or g.detained.size() != 1:
+		errs.append("dungeon: no cell, but not Detained")
+	for i in 3:
+		Dungeons.payday(g)
+	if not g.detained.is_empty() or not said.has("Prisoner Escape!"):
+		errs.append("dungeon: the Detained prisoner didn't escape after 3 cycles (%s)" % [said])
+	var e := {"type": "dungeon", "slot": 41, "born": 0.0}
+	g.extras[g.capital].append(e)
+	for i in 4:
+		Dungeons.jail(g, Game.HOST, Dungeons.make(g, "convict", 0))
+	if Dungeons.held_in(e).size() != 3 or g.detained.size() != 1:
+		errs.append("dungeon: %d in the cells, %d Detained (want 3, 1)" % [Dungeons.held_in(e).size(), g.detained.size()])
+	var id: int = Dungeons.held_in(e)[0].id
+	if Dungeons.holder(g, id) != Game.HOST or Dungeons.release(g, Game.HOST, id) == null:
+		errs.append("dungeon: can't find or release a prisoner")
+	Dungeons.payday(g)
+	if not g.detained.is_empty() or Dungeons.held_in(e).size() != 3:
+		errs.append("dungeon: the Detained prisoner didn't take the free cell")
+	g.destroy_extra(g.capital, 41)
+	if g.detained.size() != 3:
+		errs.append("dungeon: a torn-down Dungeon's prisoners aren't Detained (%d)" % g.detained.size())

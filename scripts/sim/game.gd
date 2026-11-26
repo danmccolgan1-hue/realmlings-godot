@@ -177,6 +177,8 @@ var star_next := -1.0        # when the next Fallen Star falls
 var stars_fallen := 0        # how many have fallen (each draws from its own stream)
 var star_fx := []            # the view's shooting stars: {prov, t0} (not saved)
 var flame_walls := {}        # edge index -> {owner, until, road}: a Wall of Flame burning there
+var detained := []           # prisoners with no Dungeon cell: [{owner, prisoner, cycles}] (Dungeons)
+var prisoner_seq := 0
 var time_warp:               # this human nation's Time Warp: {p, slot} of the building it speeds up, or null
 	get: return cur["time_warp"]
 	set(v): cur["time_warp"] = v
@@ -6080,7 +6082,7 @@ const SAVE_FIELDS := ["battles", "bandit_count", "monster_count", "leader", "cap
 	"harvest_by", "trap", "reveals", "eyes", "haunts", "mana_pool", "mana_prev_t", "mage_gear", "finds", "treasure_rolled",
 	"sp_found", "slot_races", "spyres", "ftraps", "sacreds", "wrocks", "gelems", "setpieces", "travelers", "train_orders", "train_order_seq", "design_seq", "prov_rename", "nations", "players", "my_nation", "race_of", "wars", "truces", "allies", "war_seq", "met", "occ", "occ_prog", "dipl", "war_log", "war_ever", "war_lock", "ai_met", "fallen", "ally_check", "bandit_next", "bandit_waves", "ally_ask", "crop_scan_at", "ai_scout_t", "wf", "known", "explored", "visible", "queues", "rally", "military", "UNIT_SPEED", "open_nbr", "all_nbr",
 	"yields", "look_seed", "tree_border", "debug_cap", "debug_tech", "reveal_all", "rec", "t", "next_tick", "paused", "last", "started", "seat_names", "paused_by", "seat_dipl", "mp_cd", "variant",
-	"quests_on", "quest_pick", "digs", "chests", "star_next", "stars_fallen", "quest_log", "quest_rate", "quest_unlocks", "flame_walls", "time_warp"]
+	"quests_on", "quest_pick", "digs", "chests", "star_next", "stars_fallen", "quest_log", "quest_rate", "quest_unlocks", "flame_walls", "time_warp", "detained", "prisoner_seq"]
 
 
 ## The whole game as a plain Dictionary (see SaveCodec for the text form).

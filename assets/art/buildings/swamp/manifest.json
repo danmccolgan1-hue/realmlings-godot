@@ -7653,6 +7653,45 @@
    "type": "reliquary",
    "variant": "v0",
    "rise": 0.75
+  },
+  "dungeon_v0.png": {
+   "w": 200,
+   "h": 132,
+   "ax": 100,
+   "ay": 80,
+   "scale": 3,
+   "type": "dungeon",
+   "variant": "v0"
+  },
+  "dungeon_v0_rise25.png": {
+   "w": 200,
+   "h": 132,
+   "ax": 100,
+   "ay": 80,
+   "scale": 3,
+   "type": "dungeon",
+   "variant": "v0",
+   "rise": 0.25
+  },
+  "dungeon_v0_rise50.png": {
+   "w": 200,
+   "h": 132,
+   "ax": 100,
+   "ay": 80,
+   "scale": 3,
+   "type": "dungeon",
+   "variant": "v0",
+   "rise": 0.5
+  },
+  "dungeon_v0_rise75.png": {
+   "w": 200,
+   "h": 132,
+   "ax": 100,
+   "ay": 80,
+   "scale": 3,
+   "type": "dungeon",
+   "variant": "v0",
+   "rise": 0.75
   }
  }
 }

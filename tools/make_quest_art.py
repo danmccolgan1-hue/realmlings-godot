@@ -171,18 +171,82 @@ def reliquary_wood(f):
     return cv
 
 
+def dungeon_realm(f):
+    """Bars set into the ground: a stone pit with an iron grate."""
+    cv = Canvas(W, H)
+    tile(cv, AX, AY, 92, hexc("#cfc7b0"))
+    if f <= 0.3:
+        tile(cv, AX, AY, 40, hexc("#6d6a64"))
+        return cv
+    box(cv, AX, AY - 2, 46, 10, hexc("#9a958a"))
+    top = [(AX, AY - 2 - 23 - 10), (AX + 46, AY - 12), (AX, AY - 2 + 23 - 10), (AX - 46, AY - 12)]
+    cv.poly(top, hexc("#2a2830"))
+    if f < 0.75:
+        return cv
+    L, T, R, B = top[3], top[0], top[1], top[2]
+    for i in range(1, 7):
+        t = i / 7
+        a = (L[0] + (T[0] - L[0]) * t, L[1] + (T[1] - L[1]) * t)
+        b = (B[0] + (R[0] - B[0]) * t, B[1] + (R[1] - B[1]) * t)
+        cv.line([a, b], hexc("#9aa0aa"), 3)
+    cv.poly(top, None, OL, 2.4)
+    return cv
+
+
+def dungeon_swamp(f):
+    """A cage of sticks and rope hung high on poles."""
+    cv = Canvas(W, H)
+    tile(cv, AX, AY, 92, hexc("#a8a070"))
+    hh = 34 * min(1.0, f / 0.75)
+    for x in (-34, 34):
+        cv.poly([(AX + x - 3, AY + 4), (AX + x - 2, AY - hh - 30), (AX + x + 2, AY - hh - 30), (AX + x + 3, AY + 4)], hexc("#6d4426"))
+    cv.line([(AX - 36, AY - hh - 26), (AX + 36, AY - hh - 26)], hexc("#6d4426"), 5)
+    if f <= 0.3:
+        return cv
+    cy = AY - hh + 6
+    cv.line([(AX, AY - hh - 26), (AX, cy - 26)], hexc("#c9b38a"), 2)
+    cv.poly([(AX - 18, cy - 26), (AX + 18, cy - 26), (AX + 20, cy + 8), (AX - 20, cy + 8)], (60, 50, 30, 120))
+    for k in range(-2, 3):
+        cv.line([(AX + k * 9, cy - 26), (AX + k * 10, cy + 8)], hexc("#8a5a34"), 3)
+    cv.line([(AX - 20, cy + 8), (AX + 20, cy + 8)], hexc("#8a5a34"), 4)
+    cv.line([(AX - 18, cy - 26), (AX + 18, cy - 26)], hexc("#8a5a34"), 4)
+    return cv
+
+
+def dungeon_wood(f):
+    """A hollow dead tree with bars across the hole in it."""
+    cv = Canvas(W, H)
+    tile(cv, AX, AY, 92, hexc("#b5d98a"))
+    hh = 70 * min(1.0, f / 0.75)
+    cv.poly([(AX - 26, AY + 4), (AX - 18, AY - hh), (AX - 6, AY - hh - 12), (AX + 4, AY - hh + 4), (AX + 18, AY - hh - 8), (AX + 26, AY + 4)], hexc("#7a6a58"))
+    if f <= 0.3:
+        return cv
+    cv.ell(AX, AY - hh * 0.45, 12, 18, hexc("#1d1a22"))
+    for k in (-6, 0, 6):
+        cv.line([(AX + k, AY - hh * 0.45 - 17), (AX + k, AY - hh * 0.45 + 17)], hexc("#9aa0aa"), 2.4)
+    if f >= 0.75:
+        cv.line([(AX + 16, AY - hh + 6), (AX + 34, AY - hh - 10)], hexc("#7a6a58"), 4)
+    return cv
+
+
 DRAW = {"realm": reliquary_realm, "swamp": reliquary_swamp, "wood": reliquary_wood}
+DUNGEON = {"realm": dungeon_realm, "swamp": dungeon_swamp, "wood": dungeon_wood}
 
 
 def buildings():
-    for race, fn in DRAW.items():
+    for kind, table in (("reliquary", DRAW), ("dungeon", DUNGEON)):
+        building(kind, table)
+
+
+def building(kind, table):
+    for race, fn in table.items():
         d = os.path.join(ART, "buildings", race)
         man_path = os.path.join(d, "manifest.json")
         man = json.load(open(man_path, encoding="utf-8"))
         for suffix, f in (("", 1.0), ("_rise25", 0.25), ("_rise50", 0.5), ("_rise75", 0.75)):
-            name = "reliquary_v0%s.png" % suffix
+            name = "%s_v0%s.png" % (kind, suffix)
             fn(f).save(os.path.join(d, name))
-            e = {"w": W, "h": H, "ax": AX, "ay": AY, "scale": 3, "type": "reliquary", "variant": "v0"}
+            e = {"w": W, "h": H, "ax": AX, "ay": AY, "scale": 3, "type": kind, "variant": "v0"}
             if suffix:
                 e["rise"] = f
             man["images"][name] = e
@@ -197,9 +261,9 @@ def buildings():
         ic = Image.new("RGBA", (84, 84), (0, 0, 0, 0))
         ic.paste(crop, ((84 - crop.size[0]) // 2, (84 - crop.size[1]) // 2), crop)
         os.makedirs(os.path.join(ART, "icons", race), exist_ok=True)
-        ic.save(os.path.join(ART, "icons", race, "build_reliquary.png"))
+        ic.save(os.path.join(ART, "icons", race, "build_%s.png" % kind))
         if race == "realm":
-            ic.save(os.path.join(ART, "icons", "common", "cmd_build_reliquary.png"))
+            ic.save(os.path.join(ART, "icons", "common", "cmd_build_%s.png" % kind))
 
 
 # --- relic icons (84 px), one per item, from its "look" in data/quests.json ---
@@ -504,7 +568,32 @@ def gear_icons():
     cv.save(os.path.join(ART, "icons", "common", "gear_weapon_triune.png"))
 
 
+# --- prisoners' silhouettes (session 9): prisoner_<kind>.png ---
+
+def prisoners():
+    hats = {"lady": "#c86aa8", "envoy": "#4a8fe0", "general": "#c8473d", "noble": "#e8c547", "merchant": "#5fb04a",
+            "apprentice": "#8a5ad0", "convict": "#6b6257"}
+    for kind, c in hats.items():
+        cv = Canvas(84, 84)
+        cv.ell(42, 28, 13, 14, hexc("#3a3440"))
+        cv.poly([(20, 78), (24, 50), (42, 42), (60, 50), (64, 78)], hexc("#3a3440"))
+        if kind == "lady":
+            cv.poly([(22, 78), (34, 46), (50, 46), (62, 78)], hexc("#3a3440"))
+            cv.poly([(32, 16), (42, 4), (52, 16)], hexc(c))
+        elif kind == "general":
+            cv.poly([(28, 18), (56, 18), (52, 8), (32, 8)], hexc(c))
+        elif kind == "convict":
+            for y in (56, 64, 72):
+                cv.line([(24, y), (60, y)], hexc("#d8d4ca"), 3)
+        else:
+            cv.poly([(29, 18), (55, 18), (50, 10), (34, 10)], hexc(c))
+        for x in (14, 30, 46, 62, 76):
+            cv.line([(x, 2), (x, 82)], hexc("#8a8f9a"), 3)
+        cv.save(os.path.join(ART, "icons", "common", "prisoner_%s.png" % kind))
+
+
 if __name__ == "__main__":
+    prisoners()
     beasts()
     gear_icons()
     buildings()
