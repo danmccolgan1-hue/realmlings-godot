@@ -30,6 +30,7 @@ func run() -> Array:
 	_spells(errs)
 	_dungeon(errs)
 	_ransom(errs)
+	_jailbreak(errs)
 	Game.QUESTS = was
 	return errs
 
@@ -38,13 +39,13 @@ func run() -> Array:
 func _catalog(errs: Array) -> void:
 	var Q: Dictionary = Quests.data().QUESTS
 	var I: Dictionary = Quests.data().ITEMS
-	if Q.size() != 19 or I.size() != 34:
-		errs.append("catalog: %d quests and %d relics, want 19 and 34" % [Q.size(), I.size()])
+	if Q.size() != 20 or I.size() != 34:
+		errs.append("catalog: %d quests and %d relics, want 20 (19 and Jailbreak) and 34" % [Q.size(), I.size()])
 	for id in Q:
 		var q: Dictionary = Q[id]
 		var goals: Array = q.goals + (q.part2.goals if q.has("part2") else [])
 		for x in goals + q.trigger.items.map(func(i): return {"item": i}):
-			if not I.has(x.item):
+			if not I.has(x.item) and x.item != "_convict":
 				errs.append("catalog: %s names a relic %s that doesn't exist" % [id, x.item])
 	for id in I:
 		if id != "star" and not Q.has(str(I[id].quest)):
@@ -724,3 +725,38 @@ func _ransom(errs: Array) -> void:
 	g.make_peace(w3, x, {"kind": "freeall"})
 	if not Dungeons.prisoners_of(g, y).is_empty() or Dungeons.prisoners_of(g, x).filter(func(p): return p.kind == "convict").size() != 1:
 		errs.append("ransom: Free Prisoners didn't move the convict")
+
+
+## Session 11: Jailbreak: 8 Convict Gangs; beaten ones fill the Dungeons; 8/8 and the choice.
+func _jailbreak(errs: Array) -> void:
+	var g := _mp()
+	var x: int = Game.HOST
+	var y: int = g.seat_ids().filter(func(o): return o != Game.HOST)[0]
+	for s in [40, 41, 42]:
+		g.extras[g.capital].append({"type": "dungeon", "slot": s, "born": 0.0})
+	Dungeons.jailbreak(g, x)
+	var gangs: Array = g.units.filter(func(u): return u.get("convict", false))
+	if gangs.size() != 8 or gangs.any(func(a): return a.troops != {Dungeons.CONVICT: 4}):
+		errs.append("jail: %d Convict Gangs" % gangs.size())
+		return
+	if g.quest_log.get("jailbreak", {}).get("state") != "active" or Quests.goal_text(g, x, "jailbreak") != "Recover Criminals 0/8":
+		errs.append("jail: no quest (%s)" % Quests.goal_text(g, x, "jailbreak"))
+	# another player beats one: it's theirs (no cell: it escapes to a new gang)
+	Dungeons.convict_beaten(g, gangs[0], {"prov": gangs[0].prov, "start": {y: 5, Game.RAIDERS: 4}})
+	if g.units.filter(func(u): return u.get("convict", false)).size() != 9:
+		errs.append("jail: a convict with no cell to go to didn't form a new gang")
+	for i in 7:
+		Dungeons.convict_beaten(g, gangs[i + 1], {"prov": gangs[i + 1].prov, "start": {x: 5, Game.RAIDERS: 4}})
+	if Dungeons.recovered(g, x) != 7 or g.quest_events.jail.state != "active":
+		errs.append("jail: %d recovered after 7" % Dungeons.recovered(g, x))
+	Dungeons.convict_beaten(g, gangs[0], {"prov": gangs[0].prov, "start": {x: 5, Game.RAIDERS: 4}})
+	if g.quest_events.jail.state != "deciding":
+		errs.append("jail: 8/8 but no choice (%s)" % g.quest_events.jail.state)
+	var n0: int = g.units.filter(func(u): return u.kind == "army" and u.owner == x).size()
+	g.in_seat(x, func(): g.answer_jailbreak("pardon"))
+	var arm: Array = g.units.filter(func(u): return u.kind == "army" and u.owner == x and u.troops.get(Dungeons.CONVICT, 0) == 8)
+	if arm.size() != 1 or Dungeons.recovered(g, x) != 0 or g.quest_log.jailbreak.state != "done":
+		errs.append("jail: pardon didn't give 8 Convicts (%d armies)" % arm.size())
+	var g2 := Game.load_text(g.save_text())
+	if g2 == null or not g2.DSTATS.has(Dungeons.CONVICT):
+		errs.append("jail: the Convicts' soldier is gone after loading")

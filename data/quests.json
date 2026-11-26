@@ -687,6 +687,25 @@
     "unlock": "shield:sham"
    },
    "reward_text": "Shield: The Shield of Sham unlocked"
+  },
+  "jailbreak": {
+   "group": "dungeon",
+   "title": "Jailbreak!",
+   "trigger": {
+    "items": [],
+    "tower": false
+   },
+   "text": "Our nation's hardened criminals have escaped from our dungeon. We must have justice! They cannot be allowed to escape! Track them down!",
+   "goals": [
+    {
+     "item": "_convict",
+     "n": 8,
+     "label": "Recover Criminals"
+    }
+   ],
+   "done_text": "Our nation is one that affirms justice. We hold the worst of the worst in our dungeons.",
+   "reward": {},
+   "reward_text": "Execute them: +300 Government and +300 Military research. Pardon them: 8 Convicts join your army."
   }
  },
  "ITEMS": {

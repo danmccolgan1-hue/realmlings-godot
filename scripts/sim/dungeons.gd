@@ -469,3 +469,164 @@ static func special_peace(g, w: Dictionary, winner: int, terms: Dictionary) -> v
 					jail(g, winner, pr)
 					freed.append(str(pr.name))
 			Quests.tell(g, winner, "You free their prisoners: " + ", ".join(freed) + ".")
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# Jailbreak! (session 11): after 10 minutes, 1% a cycle for a player with a Dungeon, once a game. The 8 Bandit
+# Gangs nearest that player's capital become Convict Gangs (4 Convicts: maces, Chain I). Beating one sends its convict
+# to the victor's Dungeon (another player keeps it: trade or war for it); with no cell free, the convict escapes and
+# a new Convict Gang forms somewhere unclaimed and empty (none left: the convict dies and the quest fails). With all 8
+# back: execute them (+300 Government and +300 Military research) or pardon them (8 Convicts join your army).
+# The quest's record is the player's quest log entry "jailbreak"; its state is in g.quest_events.jail.
+
+const JAIL_AFTER := 600.0
+const JAIL_CHANCE := 0.01
+const JAIL_N := 8
+const CONVICT := "d-convict"
+
+
+## The Convicts' soldier: a Footman with a mace and Chain I (registered on every copy, and again after loading).
+static func ensure_convict(g) -> void:
+	if g.DSTATS.has(CONVICT):
+		return
+	var st: Dictionary = g.design_stats({"type": "inf", "weapon": "mace", "shield": null, "armor": "chain1", "horse": null, "race": "realm"})
+	st.cost = {}
+	g.DSTATS[CONVICT] = st
+	g.unit_defs[CONVICT] = {"name": "Convict", "cost": {}, "upkeep": st.upkeep, "blurb": "A hardened criminal with a mace and chain mail.", "design": true}
+	g.military[CONVICT] = true
+	g.UNIT_SPEED[CONVICT] = st.speed
+
+
+static func jail_payday(g) -> void:
+	if not on(g) or g.quest_events.has("jail") or g.t < JAIL_AFTER:
+		return
+	var n := _cycle(g)
+	for x in g.seat_ids():
+		if g.seats[x].fallen or dungeons(g, x).is_empty():
+			continue
+		if Mulberry32.from_string("%s:jail:%d:%d" % [str(g.world.seed), n, x]).next() < JAIL_CHANCE:
+			jailbreak(g, x)
+			return
+
+
+static func jailbreak(g, x: int) -> void:
+	ensure_convict(g)
+	g.quest_events["jail"] = {"x": x, "left": JAIL_N, "state": "active"}
+	var cap: int = g.seats[x].capital
+	var d: Array = g.hops_list(cap, g.all_nbr)
+	var gangs: Array = g.units.filter(func(u): return u.get("bandit", false) and u.get("monster") == null and u.get("boss") == null and u.kind == "army" and g.troop_count(u) > 0)
+	gangs.sort_custom(func(a, b): return d[a.prov] < d[b.prov] or (d[a.prov] == d[b.prov] and a.id < b.id))
+	var made := 0
+	for a in gangs.slice(0, JAIL_N):
+		_to_convicts(a)
+		made += 1
+	while made < JAIL_N:   # (not enough Bandit Gangs on the map: new ones, nearest the capital first)
+		var p := _free_spot(g, cap)
+		if p < 0:
+			break
+		_to_convicts(g.spawn_bandit(p))
+		made += 1
+	g.quest_events.jail.left = made
+	g.seats[x]["quest_log"]["jailbreak"] = {"state": "active", "t0": g.t, "part": 1}
+	Quests.popup(g, x, "Jailbreak!", "Our nation's hardened criminals have escaped from our dungeon. We must have justice! They cannot be allowed to escape! Track them down!\n\n" + Quests.goal_text(g, x, "jailbreak"), "Track them down")
+
+
+static func _to_convicts(a: Dictionary) -> void:
+	a.troops = {CONVICT: 4}
+	a.convict = true
+	a.name = "Convict Gang"
+
+
+## An unclaimed province with no one in it, nearest to province `from` (-1 when there is none).
+static func _free_spot(g, from: int) -> int:
+	var d: Array = g.hops_list(from, g.all_nbr)
+	var ban: Dictionary = g.uq_skip()
+	var best := -1
+	for p in g.world.provinces.size():
+		if g.buildings.has(p) or ban.has(p) or g.units.any(func(u): return u.prov == p):
+			continue
+		if best < 0 or d[p] < d[best]:
+			best = p
+	return best
+
+
+## How many convicts the Jailbreak player holds (the quest's count).
+static func recovered(g, x: int) -> int:
+	return prisoners_of(g, x).filter(func(p): return p.get("jail", false)).size()
+
+
+## A Convict Gang beaten in battle b: its convict goes to the victor's Dungeon, or escapes to form a new gang.
+static func convict_beaten(g, a: Dictionary, b: Dictionary) -> void:
+	var J = g.quest_events.get("jail")
+	if J == null or J.state != "active":
+		return
+	var ks: Array = b.get("start", {}).keys().map(func(k): return int(k))
+	ks.sort()
+	var victor := 0
+	for o in ks:
+		if g.seats.has(o):
+			victor = o
+			break
+	var pr := make(g, "convict", 0, "Convict")
+	pr["jail"] = true
+	if victor and room(g, victor) != null:
+		jail(g, victor, pr)
+		Quests.tell(g, victor, "A convict is locked in your Dungeon.")
+		if victor != int(J.x):
+			Quests.tell(g, int(J.x), "The %s caught one of your convicts. Trade for them, or free them in a peace." % g.player_info(victor).name, true)
+	else:
+		var p := _free_spot(g, a.prov)
+		if p < 0:
+			J.state = "failed"
+			var st = g.seats[int(J.x)]["quest_log"].get("jailbreak")
+			if st != null:
+				st.state = "failed"
+				st.t1 = g.t
+			Quests.popup(g, int(J.x), "Jailbreak!", "A convict escaped with nowhere left to hide, and died in the wilds. Justice will never be whole.", "Oh well")
+			return
+		var ng: Dictionary = g.spawn_bandit(p)
+		_to_convicts(ng)
+		if victor:
+			Quests.tell(g, victor, "With no Dungeon cell free, the convict escaped: a new Convict Gang gathers in %s." % g.prov_name(p), true)
+	check_jail(g)
+
+
+## All 8 back in the Jailbreak player's Dungeons: they decide (the order answer_jailbreak).
+static func check_jail(g) -> void:
+	var J = g.quest_events.get("jail")
+	if J == null or J.state != "active" or recovered(g, int(J.x)) < JAIL_N:
+		return
+	J.state = "deciding"
+	_ask_jail(g, int(J.x))
+
+
+static func _ask_jail(g, x: int) -> void:
+	g.in_seat(x, func():
+		if g.on_dialog.is_valid() and g.ME == g.view_seat:
+			g.on_dialog.call("Jailbreak!", "Our nation is one that affirms justice. We hold the worst of the worst in our dungeons. What is your order?",
+				[{"id": "execute", "label": "Execute them", "why": null}, {"id": "pardon", "label": "Pardon them", "why": null}],
+				func(id): g.do("answer_jailbreak", [str(id)])))
+
+
+static func answer_jail(g, choice: String) -> void:
+	var J = g.quest_events.get("jail")
+	if J == null or J.state != "deciding" or g.ME != int(J.x):
+		return
+	var x: int = J.x
+	if choice != "execute" and choice != "pardon":
+		_ask_jail(g, x)
+		return
+	for pr in prisoners_of(g, x).filter(func(p): return p.get("jail", false)):
+		release(g, x, int(pr.id))
+	J.state = "done"
+	var st = g.seats[x]["quest_log"].get("jailbreak")
+	if st != null:
+		st.state = "done"
+		st.t1 = g.t
+	if choice == "execute":
+		g.add_research("gov", 300)
+		g.add_research("mil", 300)
+		Quests.popup(g, x, "Justice", "Today we can assure the citizens that mercy to the guilty is cruelty to the innocent and we have no mercy.\n\n+300 Government Research, +300 Military Research", "So be it")
+	else:
+		g.new_army(g.capital, {CONVICT: JAIL_N})
+		Quests.popup(g, x, "Pardoned", "Today we ask our citizenry to forgive these outlaws on the condition they fight under our banner.\n\n8 Convicts join your army", "Welcome")

@@ -2108,6 +2108,10 @@ var path_avoid = null
 
 # web: game.js order(u, target, quiet, pt) + v101.js (computer armies at war steer clear of armies that would crush them)
 ## Quests: the Spell Books' spells (orders; the rules are in Quests).
+func answer_jailbreak(choice: String) -> void:
+	Dungeons.answer_jail(self, choice)
+
+
 func answer_ransom(id: int, choice: String) -> void:
 	Dungeons.answer(self, id, choice)
 
@@ -6217,6 +6221,8 @@ static func from_save(d: Dictionary, map: Dictionary = {}) -> Game:
 		g._load_seat(sd[k].get("mana_prev", []))
 	g.use_seat(HOST)
 	g._load_seat(d.mana_prev)
+	if g.quest_events.has("jail"):   # (quests: the Convicts' soldier, for the gangs and a pardoned army)
+		Dungeons.ensure_convict(g)
 	g.rng.seed = d.rng[0]
 	g.rng.state = d.rng[1]
 	return g
@@ -6769,6 +6775,8 @@ func step_battles(now: float) -> void:
 					war_wipe(b, a)
 					if a.get("bandit", false):
 						bandit_slain(a, b)
+						if a.get("convict", false) and quests_on:   # (quests: a Jailbreak convict caught or escaping)
+							Dungeons.convict_beaten(self, a, b)
 					remove_army(a)
 
 
@@ -11452,7 +11460,7 @@ const COMMANDS := ["order", "order_group", "order_build", "cancel_build", "queue
 	"retreat", "retreat_to", "fly_army", "thugs_enter", "thug_out", "dx_act", "answer_request", "make_peace",
 	"declare_war", "proclaim_enemy", "renounce_enemy", "travelers_choose", "dismiss_quake", "dismiss_news",
 	"answer_demand", "set_crop", "hand_to_ai", "take_from_ai", "send_message", "issue_proclamation", "offer_barter", "show_request", "set_paused", "set_auto_tech", "rename_prov", "close_school_popup",
-	"debug_reveal", "debug_resources", "debug_all_tech", "grant_tech", "rec_toggle", "start_dig", "stop_dig", "cast_flamewall", "cast_timewarp", "answer_ransom"]
+	"debug_reveal", "debug_resources", "debug_all_tech", "grant_tech", "rec_toggle", "start_dig", "stop_dig", "cast_flamewall", "cast_timewarp", "answer_ransom", "answer_jailbreak"]
 
 ## Multiplayer: hands a command to the network instead of applying it here (it comes back through apply()).
 var on_command: Callable

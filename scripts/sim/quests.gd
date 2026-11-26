@@ -361,6 +361,7 @@ static func payday(g) -> void:
 	if not g.detained.is_empty():
 		Dungeons.payday(g)
 	Dungeons.events_payday(g)
+	Dungeons.jail_payday(g)
 	for o in g.seat_ids():   # (research cut for a while: an envoy left to die)
 		var keep := []
 		for pen in g.seats[o]["research_pen"]:
@@ -574,7 +575,8 @@ static func progress(g, o: int, qid: String) -> Array:
 	var st = log_of(g, o).get(qid)
 	for x in goals_of(qid, st):
 		var n := int(x.n)
-		out.append({"label": str(x.label), "item": str(x.item), "have": mini(count(g, o, str(x.item)), n), "n": n})
+		var have: int = Dungeons.recovered(g, o) if str(x.item) == "_convict" else count(g, o, str(x.item))   # (Jailbreak: convicts held)
+		out.append({"label": str(x.label), "item": str(x.item), "have": mini(have, n), "n": n})
 	return out
 
 
