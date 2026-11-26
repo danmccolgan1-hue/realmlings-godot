@@ -405,7 +405,23 @@ def card_icons():
     cv.save(os.path.join(ART, "icons", "common", "ui_quests.png"))
 
 
+# --- the Armory's tiles for the quest armors (Tier V of each family): gear_armor_<family>5.png ---
+
+GEAR_LOOK = {"beastleather": {"shape": "breastplate", "c": "#1d1a22", "glow": "#a0703c"},
+             "bone_regalia": {"shape": "breastplate", "c": "#efe6cf", "glow": "#5fb04a"},
+             "siegebreaker": {"shape": "breastplate", "c": "#2a2a30", "glow": "#ff8a2a"}}
+GEAR_FAMILY = {"leather": "beastleather", "stag": "beastleather", "spirit": "beastleather",
+               "chain": "bone_regalia", "wyvern": "bone_regalia", "mithril": "bone_regalia",
+               "plate": "siegebreaker", "dragon": "siegebreaker", "ornate": "siegebreaker"}
+
+
+def gear_icons():
+    for fam, g in GEAR_FAMILY.items():
+        icon(GEAR_LOOK[g]).save(os.path.join(ART, "icons", "common", "gear_armor_%s5.png" % fam))
+
+
 if __name__ == "__main__":
+    gear_icons()
     buildings()
     items()
     card_icons()

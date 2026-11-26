@@ -19,8 +19,8 @@ Godot-only content: nothing here exists in the web game, so none of it is in `da
   shaken down by an Earthquake or lost with its province drops its items as a chest there too.
 - **Dig sites** are hidden until surveyed. Once someone uncovers one, every player who can see the province sees it.
   Fallen Star sites are seen by anyone who has ever explored the province.
-- **Fallen Stars**: the first falls between 45 and 55 minutes, each next one 15 to 25 minutes after the last, until
-  the game ends. Never on Death Mountain, the Oasis, the Heart of the Forest or their boss provinces.
+- **Fallen Stars**: the first falls 30 minutes in, each next one 15 to 25 minutes after the last, until the game
+  ends. Never on Death Mountain, the Oasis, the Heart of the Forest or their boss provinces.
 - **Armor prices drop 10% across the board.** The special armors cost what Tier 4 of the same armor type costs.
 - **Freak Man's Bone Regalia** "steals mage buffs": in battle it removes the enemy's Cursed Weapons or Hardened Skin and
   gives it to the wearer's side.

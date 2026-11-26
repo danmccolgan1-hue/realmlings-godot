@@ -479,7 +479,7 @@ static func dug_up(g, u: Dictionary, p: int) -> void:
 
 
 # ---------------------------------------------------------------------------------------------------------------
-# Fallen Stars (session 3): the first falls 45–55 minutes in, then one every 15–25 minutes, on any province but
+# Fallen Stars (session 3): the first falls 30 minutes in, then one every 15–25 minutes, on any province but
 # the unique ones and their bosses'. Anyone who has explored the province sees its silver X.
 
 ## Where a star may fall: not Death Mountain, the Oasis, the Heart of the Forest or their boss provinces, nor where
@@ -692,3 +692,82 @@ static func popup(g, o: int, title: String, text: String, ok: String) -> void:
 	g.in_seat(o, func():
 		if g.on_dialog.is_valid() and g.ME == g.view_seat:
 			g.on_dialog.call(words(g, o, title), words(g, o, text), [{"id": "ok", "label": ok, "why": null}], Callable()))
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# Battlegear (session 5): three armors a quest unlocks, one tier above Tier IV of their family, for every race's
+# matching family. Added to the armor table once (GameData's ARMORS, Godot-only keys "<family>5"); the computer
+# nations and the web-game tests never look past Tier IV, and the Armory shows them only once unlocked.
+
+## family -> the armor its fifth tier is: light (leather and its twins), medium (chain...), heavy (plate...)
+const GEAR_FAMILY := {"leather": "beastleather", "stag": "beastleather", "spirit": "beastleather",
+	"chain": "bone_regalia", "wyvern": "bone_regalia", "mithril": "bone_regalia",
+	"plate": "siegebreaker", "dragon": "siegebreaker", "ornate": "siegebreaker"}
+const GEAR := {
+	"beastleather": {"name": "Yenny's Beastleather", "hp": 60, "speed_mul": 1.2,
+		"note": "+60 health, 20% faster on the march"},
+	"bone_regalia": {"name": "Freak Man's Bone Regalia", "hp": 70, "speed_mul": 1.0,
+		"note": "+70 health; in battle it steals the enemy's Hardened Skin and Cursed Weapons"},
+	"siegebreaker": {"name": "Siegebreaker Runeplate", "hp": 80, "speed": 1.0,
+		"note": "+80 health, no speed penalty, sieges 20% faster"},
+}
+const SIEGE_MUL := 1.25   # Siegebreaker Runeplate: walls fall in 80% of the time
+
+
+static func install_gear() -> void:
+	var A: Dictionary = GameData.c("ARMORS")
+	if A.has("leather5"):
+		return
+	for fam in GEAR_FAMILY:
+		var a4 = A.get(fam + "4")
+		var a3 = A.get(fam + "3")
+		if a4 == null or a3 == null:
+			continue
+		var G: Dictionary = GEAR[GEAR_FAMILY[fam]]
+		var x: Dictionary = a4.duplicate(true)
+		x.name = G.name
+		x.level = 5
+		x.armor = float(a4.armor) + (float(a4.armor) - float(a3.armor))   # one more tier's step
+		x.speed = float(G.get("speed", float(a4.speed) * float(G.get("speed_mul", 1.0))))
+		x.hp = int(G.hp)
+		x.tech = null
+		x.quest = "armor:" + GEAR_FAMILY[fam]
+		x.note = G.note
+		A[fam + "5"] = x
+
+
+## Whether nation o may use a piece of gear: quest gear only once its quest is done (computer nations never).
+static func gear_unlocked(g, o: int, item: Dictionary) -> bool:
+	var q = item.get("quest")
+	if q == null:
+		return true
+	return g.seats.has(o) and g.seats[o]["quest_unlocks"].has(str(q))
+
+
+## An army's soldiers wearing the quest armor `key` ("armor:siegebreaker"...).
+static func wears(g, a: Dictionary, key: String) -> bool:
+	if a.get("troops") == null:
+		return false
+	for k in a.troops:
+		if a.troops[k] > 0 and g.DSTATS.has(k) and g.DSTATS[k].get("quest_armor") == key:
+			return true
+	return false
+
+
+## The Bone Regalia in a battle: its wearers' side takes the enemy's Hardened Skin and Cursed Weapons.
+static func steal_buffs(g, b: Dictionary) -> void:
+	var here: Array = g.units.filter(func(a): return a.kind == "army" and is_same(a.get("battle"), b))
+	for w in here:
+		if not wears(g, w, "armor:bone_regalia"):
+			continue
+		for f in here:
+			if not g.hostile(w.owner, f.owner):
+				continue
+			for buff in ["skin", "curse"]:
+				var v: float = f.get(buff, 0.0)
+				if v > 0:
+					w[buff] = maxf(w.get(buff, 0.0), v)
+					f[buff] = 0.0
+					var nm: String = "Hardened Skin" if buff == "skin" else "Cursed Weapons"
+					tell(g, w.owner, "%s's Bone Regalia drinks in the enemy's %s!" % [w.name, nm])
+					tell(g, f.owner, "%s's Bone Regalia stole your %s's %s!" % [w.name, f.name, nm], true)

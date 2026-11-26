@@ -24,6 +24,7 @@ func run() -> Array:
 	_engine(errs)
 	_race(errs)
 	_armament(errs)
+	_gear(errs)
 	Game.QUESTS = was
 	return errs
 
@@ -86,7 +87,7 @@ func _map(g: Game, errs: Array) -> void:
 			errs.append("map: a dig site at %d, where nothing may be buried" % p)
 		if d.shown or d.star or not (str(Quests.item(d.item).quest) in g.quest_pick):
 			errs.append("map: dig site %d is %s" % [p, d])
-	if g.star_next < 2700 or g.star_next > 3300:
+	if g.star_next != 1800.0:
 		errs.append("map: the first Fallen Star falls at %s" % g.star_next)
 	var g2 := Game.new_world(SEED, "cormac", SLOTS, "center")
 	if g2.digs != g.digs or g2.quest_pick != g.quest_pick:
@@ -442,3 +443,43 @@ func _armament(errs: Array) -> void:
 	Quests.deposit(g, Game.HOST, "cutlass")
 	if g.quest_log.cutlass.state != "done" or not g.quest_unlocks.has("weapon:cutlass") or Quests.count(g, Game.HOST, "star") != 0:
 		errs.append("armament: %s, unlocks %s, stars left %d" % [g.quest_log.cutlass, g.quest_unlocks, Quests.count(g, Game.HOST, "star")])
+
+
+## Session 5: the Battlegear armors (Tier V of every family), hidden until their quest is done; armor 10% cheaper;
+## the Bone Regalia's theft; Siegebreaker's soldiers found.
+func _gear(errs: Array) -> void:
+	var A: Dictionary = GameData.c("ARMORS")
+	for fam in Quests.GEAR_FAMILY:
+		var x = A.get(fam + "5")
+		if x == null or int(x.level) != 5 or x.get("quest") == null:
+			errs.append("gear: no %s5" % fam)
+			continue
+		if x.cost != A[fam + "4"].cost or float(x.armor) <= float(A[fam + "4"].armor):
+			errs.append("gear: %s5 costs %s, armor %s" % [fam, x.cost, x.armor])
+	if int(Game.armor_cost(A.chain4).gold) != (72 if Game.RULES19 else 80):
+		errs.append("gear: Chain IV costs %s after the 10%% cut" % Game.armor_cost(A.chain4))
+	var g := Game.new_world(SEED, "cormac", SLOTS, "center")
+	if g.gear_why("armor", "plate5") == null:
+		errs.append("gear: Siegebreaker Runeplate can be picked before its quest")
+	g.quest_unlocks.append("armor:siegebreaker")
+	g.quest_unlocks.append("armor:bone_regalia")
+	if g.gear_why("armor", "plate5") != null:
+		errs.append("gear: Siegebreaker Runeplate locked after its quest: %s" % g.gear_why("armor", "plate5"))
+	var sb: Dictionary = g.save_design({"name": "Breaker", "type": "inf", "weapon": "shortsword", "shield": null, "armor": "plate5", "horse": null, "race": "realm"})
+	var st: Dictionary = g.DSTATS[sb.id]
+	var p4: Dictionary = g.design_stats({"type": "inf", "weapon": "shortsword", "shield": null, "armor": "plate4", "horse": null, "race": "realm"})
+	if st.hp != p4.hp - Game.armor_hp(A.plate4) + 80 or st.speed <= p4.speed or st.get("quest_armor") != "armor:siegebreaker":
+		errs.append("gear: Siegebreaker soldier hp %s speed %s (plate IV: %s, %s)" % [st.hp, st.speed, p4.hp, p4.speed])
+	var bone: Dictionary = g.save_design({"name": "Bones", "type": "inf", "weapon": "shortsword", "shield": null, "armor": "chain5", "horse": null, "race": "realm"})
+	# a battle: the Bone Regalia's wearers take the enemy's Hardened Skin and Cursed Weapons
+	var b := {"prov": g.capital}
+	var w := {"kind": "army", "owner": Game.HOST, "troops": {bone.id: 5}, "battle": b, "name": "Bones", "skin": 0.0, "curse": 0.0}
+	var foe := {"kind": "army", "owner": Game.RAIDERS, "troops": {"d-sword": 5}, "battle": b, "name": "Gang", "skin": 0.1, "curse": 0.05}
+	g.units.append(w)
+	g.units.append(foe)
+	Quests.steal_buffs(g, b)
+	if w.skin != 0.1 or w.curse != 0.05 or foe.skin != 0.0 or foe.curse != 0.0:
+		errs.append("gear: the Bone Regalia didn't steal (%s / %s)" % [[w.skin, w.curse], [foe.skin, foe.curse]])
+	var br := {"kind": "army", "owner": Game.HOST, "troops": {sb.id: 10}}
+	if not Quests.wears(g, br, "armor:siegebreaker") or Quests.wears(g, foe, "armor:siegebreaker"):
+		errs.append("gear: Siegebreaker wearers not found")

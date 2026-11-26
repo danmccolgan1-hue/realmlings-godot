@@ -373,6 +373,7 @@ func controller(o) -> String:
 
 func _init() -> void:
 	BUILD_DEFS = GameData.c("BUILD_DEFS")
+	Quests.install_gear()   # (the quest armors, Tier V: Godot only)
 	CAPITAL_BONUS = GameData.c("CAPITAL_BONUS")
 	TICK = GameData.c("TICK")
 	for x in TECHS:
@@ -1057,9 +1058,9 @@ func design_stats(d: Dictionary) -> Dictionary:
 		var W: Dictionary = WS[d.weapon] if WS.has(d.weapon) and WS[d.weapon].get("champ", false) else WS.champsword
 		var A: Dictionary = AS[d.armor] if AS.has(d.armor) and AS[d.armor].type == "ornate" else AS.ornate1
 		var armor: float = A.armor + CHAMP.armor
-		var cost := _add_cost(_add_cost(CHAMP.cost, W.cost), A.cost)
+		var cost := _add_cost(_add_cost(CHAMP.cost, W.cost), armor_cost(A))
 		var st := {"cav": true, "champ": true, "ogre": false, "race": "wood", "rough": true, "plate": true, "fam": W.fam, "atk": W.atk,
-			"hp": CHAMP.hp + W.get("hp", 0) + GameData.c("ARMOR_HP")[int(A.level)], "armor": armor, "shieldArmor": 0, "red": armor / (armor + ak),
+			"hp": CHAMP.hp + W.get("hp", 0) + armor_hp(A), "armor": armor, "shieldArmor": 0, "red": armor / (armor + ak),
 			"parry": 0.1 if W.fam == "thrust" or W.fam == "sword" else 0.0, "crit": 0.1 if W.fam == "axe" else 0.0,
 			"speed": float(JS.to_fixed(CHAMP.speed * A.speed * W.get("spd", 1.0), 2)), "cost": cost, "upkeep": CHAMP.upkeep.duplicate(), "two": d.get("two", false)}
 		st.blurb = "%s, %s armor. %s.%s" % [W.name, A.name, FAM[W.fam].note, " Two-handed swings: heavy blows every other round (125% damage over time)." if d.get("two", false) else ""]
@@ -1073,14 +1074,14 @@ func design_stats(d: Dictionary) -> Dictionary:
 	var Off = WS[d.off] if sw and d.get("off") != null and not W.twoH and WS.has(d.off) and not WS[d.off].twoH else null
 	var armor: float = A.armor * (OGRE_ARMOR if sw and d.type == "cav" else 1.0) + (Sh.armor if Sh else 0) + (H.armor if H else 0)
 	var cost := {}
-	for c in [B.cost, W.cost, A.cost, Sh.cost if Sh else {}, H.cost if H else {}, Off.cost if Off else {}]:
+	for c in [B.cost, W.cost, armor_cost(A), Sh.cost if Sh else {}, H.cost if H else {}, Off.cost if Off else {}]:
 		cost = _add_cost(cost, c)
 	cost.erase("food")
 	var speed: float = float(JS.to_fixed((H.speed if H else B.speed) * A.speed * (Sh.speed if Sh else 1), 2))
 	var lv: int = int(A.level)
 	var st := {"cav": d.type == "cav", "ogre": sw and d.type == "cav", "race": rc, "rough": H != null and H.get("rough", false),
 		"plate": A.type in GameData.c("PLATE_TYPES"), "fam": W.fam, "atk": float(JS.to_fixed(W.atk + (Off.atk * 0.5 if Off else 0.0) + (H.get("atk", 0) if H else 0), 1)),
-		"hp": B.hp + (H.get("hp", 0) if H else 0) + GameData.c("ARMOR_HP")[lv], "armor": armor, "shieldArmor": Sh.armor if Sh else 0,
+		"hp": B.hp + (H.get("hp", 0) if H else 0) + armor_hp(A), "armor": armor, "shieldArmor": Sh.armor if Sh else 0,
 		"red": armor / (armor + ak), "parry": 0.1 if W.fam == "sword" or W.fam == "thrust" else 0.0, "crit": 0.1 if W.fam == "axe" else 0.0,
 		"speed": speed, "cost": cost, "upkeep": {"food": maxf(0, B.upkeep.food + (H.get("upFood", 0) if H else 0))}}
 	st.blurb = "%s%s%s, %s armor%s. %s.%s" % [W.name, (" and " + Off.name + " (off hand, half damage)") if Off else "", (" and " + Sh.name) if Sh else "",
@@ -1089,6 +1090,22 @@ func design_stats(d: Dictionary) -> Dictionary:
 		st.two = true
 		st.blurb += " Two-handed grip: heavy blows every other round (125% damage over time)."
 	return st
+
+
+## An armor's health: its tier's (ARMOR_HP), or its own (the quest armors, Tier V).
+static func armor_hp(A: Dictionary) -> int:
+	return int(A.hp) if A.has("hp") else int(GameData.c("ARMOR_HP")[int(A.level)])
+
+
+## An armor's price: 0.19 makes every armor 10% cheaper (RULES19; the web-game tests keep the old prices).
+static func armor_cost(A: Dictionary) -> Dictionary:
+	var c: Dictionary = A.get("cost", {})
+	if not RULES19:
+		return c
+	var out := {}
+	for k in c:
+		out[k] = int(JS.round_js(float(c[k]) * 0.9))
+	return out
 
 
 static func _add_cost(a: Dictionary, b: Dictionary) -> Dictionary:
@@ -1130,6 +1147,8 @@ func register_design(d: Dictionary) -> void:
 	# 0.19: how heavy its armor looks on the map (0 leather, 1 chain, 2 plate, and the other races' twins)
 	var A = GameData.c("ARMORS").get(str(d.get("armor", "")))
 	st["look"] = {"chain": 1, "wyvern": 1, "mithril": 1, "plate": 2, "dragon": 2, "ornate": 2}.get(str(A.type), 0) if A is Dictionary else 0
+	if A is Dictionary and A.get("quest") != null:   # (quests: which Battlegear its soldiers wear)
+		st["quest_armor"] = str(A.quest)
 	DSTATS[d.id] = st
 	var blurb: String = st.blurb
 	unit_defs[d.id] = {"name": d.name, "cost": st.cost, "upkeep": st.upkeep, "blurb": blurb, "design": true}
@@ -1224,6 +1243,8 @@ func gear_why(kind: String, key: String):
 		return "Unknown"
 	if item.get("tech") != null and not has_tech(item.tech):
 		return "Research " + (TECH_BY_ID[item.tech].name if TECH_BY_ID.has(item.tech) else str(item.tech))
+	if not Quests.gear_unlocked(self, ME, item):
+		return "Locked: finish its quest"
 	return null
 
 
@@ -4662,8 +4683,8 @@ func step_siege(dt: float) -> void:
 		var n := 0
 		for a in alive:
 			n += troop_count(a)
-		if n >= SIEGE_MIN:
-			damage_wall(i, dt, alive[0])
+		if n >= SIEGE_MIN:   # (Siegebreaker Runeplate: 20% faster)
+			damage_wall(i, dt * (Quests.SIEGE_MUL if quests_on and alive.any(func(a): return Quests.wears(self, a, "armor:siegebreaker")) else 1.0), alive[0])
 
 
 # web: gpc.js rebuilding broken walls: select the fort (or capital), at peace only, 50 wood a wall, 15 s
@@ -6666,6 +6687,8 @@ func step_battles(now: float) -> void:
 				a.moving = false
 				a.retreatHome = false
 				b.start[a.owner] = b.start.get(a.owner, 0) + troop_count(a)
+		if quests_on:   # the Freak Man's Bone Regalia takes the enemy's battle spells
+			Quests.steal_buffs(self, b)
 	for b in battles.duplicate():
 		var sides := {}
 		for a in units:

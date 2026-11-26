@@ -458,9 +458,12 @@ func _design_editor(ed: VBoxContainer) -> void:
 			if not _mine(AT[t].get("race")) or (rc == "wood" and (t == "ornate") != (draft.type == "cav")):
 				continue
 			var row := []
-			for lv in [1, 2, 3, 4]:
+			for lv in [1, 2, 3, 4, 5]:
 				var k := "%s%d" % [t, lv]
-				row.append(_eq("armor", k, GameData.c("ARMORS")[k], draft.armor == k, game.gear_why("armor", k)))
+				var A = GameData.c("ARMORS").get(k)
+				if A == null or (A.get("quest") != null and not Quests.gear_unlocked(game, Game.LOCAL, A)):
+					continue   # (a quest's armor, Tier V: not shown at all until its quest is done)
+				row.append(_eq("armor", k, A, draft.armor == k, game.gear_why("armor", k)))
 			grid.add_child(_gear_row(AT[t].name, AT[t].note, row))
 	else:
 		var HS: Dictionary = MT
