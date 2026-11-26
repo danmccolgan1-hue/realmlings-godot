@@ -479,6 +479,14 @@ def beasts():
 def gear_icons():
     for fam, g in GEAR_FAMILY.items():
         icon(GEAR_LOOK[g]).save(os.path.join(ART, "icons", "common", "gear_armor_%s5.png" % fam))
+    # the Lost Armaments' tiles (session 7): drawn like their relics; the Triune Staff a shaft crowned with the orb
+    data = json.load(open(os.path.join(ROOT, "data", "quests.json"), encoding="utf-8"))
+    for k, kind in (("cutlass", "weapon"), ("freakaxe", "weapon"), ("greedmaul", "weapon"), ("sham", "shield")):
+        icon(data["ITEMS"][k]["look"]).save(os.path.join(ART, "icons", "common", "gear_%s_%s.png" % (kind, k)))
+    cv = icon({"shape": "shaft", "c": "#f4c44f"})
+    cv.ell(60, 14, 11, 11, hexc("#a8e6ff"))
+    cv.ell(57, 11, 4, 3, (255, 255, 255, 220), None)
+    cv.save(os.path.join(ART, "icons", "common", "gear_weapon_triune.png"))
 
 
 if __name__ == "__main__":

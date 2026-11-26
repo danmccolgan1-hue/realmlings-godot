@@ -717,6 +717,7 @@ const SIEGE_MUL := 1.25   # Siegebreaker Runeplate: walls fall in 80% of the tim
 
 static func install_gear() -> void:
 	install_beasts()
+	install_arms()
 	var A: Dictionary = GameData.c("ARMORS")
 	if A.has("leather5"):
 		return
@@ -870,3 +871,64 @@ static func beast_fell(g, a: Dictionary, b: Dictionary) -> void:
 		return
 	var where := give(g, winner, str(B.drop), null, int(b.prov))
 	tell(g, winner, "The %s falls: %s! %s" % [B.name, item_name(str(B.drop)), "It goes into your Reliquary." if where == "reliquary" else "No Reliquary has room: it lies in a chest where the beast fell."])
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# Lost Armaments (session 7): weapons, a shield and a staff the quests unlock. Added to the gear tables once
+# (Godot-only keys); shown in the Armory only once unlocked; every race can use them.
+
+const ARMS := {
+	"cutlass": {"table": "WEAPONS", "item": {"name": "Jagkara's Cutlass", "fam": "sword", "tier": 5, "atk": 25, "twoH": false,
+		"cost": {"gold": 120}, "tech": null, "quest": "weapon:cutlass", "rows": ["sword", "axe", "thrust"]}},
+	"freakaxe": {"table": "WEAPONS", "item": {"name": "The Freak Man's Axe", "fam": "axe", "tier": 5, "atk": 27, "twoH": false,
+		"cost": {"gold": 120}, "tech": null, "quest": "weapon:freakaxe", "rows": ["sword", "axe", "thrust"]}},
+	"greedmaul": {"table": "WEAPONS", "item": {"name": "The Maul of Greed", "fam": "blunt", "tier": 5, "atk": 35, "twoH": true,
+		"cost": {"gold": 120}, "tech": null, "quest": "weapon:greedmaul", "rows": ["blunt"]}},
+	"sham": {"table": "SHIELD_DEFS", "item": {"name": "Shield of Sham", "armor": 10, "speed": 0.92, "cost": {"gold": 35, "wood": 15},
+		"tech": null, "quest": "shield:sham"}},
+	"triune": {"table": "MAGE_WEAPONS", "item": {"name": "Triune Staff", "line": "stave", "atk": 12, "twoH": true, "tech": null,
+		"quest": "staff:triune"}},
+}
+const TRIUNE_MANA := 100   # the Triune Staff: +100 mana, +10 mana every cycle (and spells 20% faster: Game.STAVE_CAST)
+const TRIUNE_REGEN := 10
+
+
+static func install_arms() -> void:
+	for k in ARMS:
+		var T: Dictionary = GameData.c(ARMS[k].table)
+		if not T.has(k):
+			T[k] = ARMS[k].item.duplicate(true)
+
+
+## Nation o carries the Triune Staff (its Mages all carry the nation's Mage gear).
+static func has_triune(g, o: int) -> bool:
+	if not g.seats.has(o):
+		return false
+	return str(g.seats[o]["mage_gear"].get("weapon", "")) == "triune"
+
+
+## A side whose whole front line carries the Shield of Sham: the first blow against it in a battle comes to nothing.
+static func sham_front(g, armies: Array) -> bool:
+	if armies.is_empty():
+		return false
+	for a in armies:
+		var lay = g.row_sync(a)
+		var pool: Dictionary = a.troops if lay == null or g.row_sum(lay.f) <= 0 else lay.f
+		for k in pool:
+			if pool[k] > 0 and not g.DSTATS.get(k, {}).get("sham", false):
+				return false
+	return true
+
+
+## Before a blow lands on `armies` in battle b: true when the Shield of Sham turns it aside (once a side, a battle).
+static func sham_blocks(g, b: Dictionary, armies: Array) -> bool:
+	if armies.is_empty():
+		return false
+	var o: int = armies[0].owner
+	if b.get("sham", []).has(o) or not sham_front(g, armies):
+		return false
+	if not b.has("sham"):
+		b["sham"] = []
+	b.sham.append(o)
+	tell(g, o, "The Shield of Sham turns aside the enemy's first blow!")
+	return true

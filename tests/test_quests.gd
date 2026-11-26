@@ -26,6 +26,7 @@ func run() -> Array:
 	_armament(errs)
 	_gear(errs)
 	_beasts(errs)
+	_arms(errs)
 	Game.QUESTS = was
 	return errs
 
@@ -516,3 +517,42 @@ func _beasts(errs: Array) -> void:
 	Quests.beast_fell(g, a, b)
 	if Quests.count(g, Game.HOST, "phide") != 1:
 		errs.append("beasts: the hide didn't go to the Reliquary")
+
+
+## Session 7: the Lost Armaments' gear, locked until its quest; the Shield of Sham for every race and its first blow;
+## the Triune Staff's mana, regeneration and casting speed.
+func _arms(errs: Array) -> void:
+	var g := Game.new_world(SEED, "cormac", SLOTS, "center")
+	if g.gear_why("weapon", "cutlass") == null or g.mage_gear_why("weapon", "triune") == null:
+		errs.append("arms: quest gear usable before its quest")
+	g.quest_unlocks.append_array(["weapon:cutlass", "weapon:greedmaul", "shield:sham", "staff:triune"])
+	if g.gear_why("weapon", "cutlass") != null or g.gear_why("shield", "sham") != null or g.mage_gear_why("weapon", "triune") != null:
+		errs.append("arms: quest gear still locked after its quest")
+	var d: Dictionary = g.save_design({"name": "Jag", "type": "inf", "weapon": "cutlass", "shield": "sham", "armor": "leather1", "horse": null, "race": "realm"})
+	var st: Dictionary = g.DSTATS[d.id]
+	if st.atk != 25 or not st.get("sham", false) or st.shieldArmor != 10:
+		errs.append("arms: Cutlass and Sham soldier %s" % [[st.atk, st.get("sham"), st.shieldArmor]])
+	var mg: Dictionary = g.design_stats({"type": "inf", "weapon": "greedmaul", "shield": "sham", "armor": "leather1", "horse": null, "race": "realm"})
+	if mg.atk != 35 or mg.get("sham", false):
+		errs.append("arms: the Maul of Greed takes no shield (%s)" % [mg])
+	# the Swamplings and Woodlings carry the Shield of Sham too, but not with two weapons or a two-handed grip
+	var sw: Dictionary = g.design_stats({"type": "inf", "weapon": "handaxe", "off": "handaxe", "shield": "sham", "armor": "stag1", "horse": null, "race": "swamp"})
+	if not sw.get("sham", false) or sw.atk != 6:
+		errs.append("arms: a Swampling with the Shield of Sham fights with two weapons (%s)" % [[sw.atk, sw.get("sham")]])
+	var wd: Dictionary = g.design_stats({"type": "inf", "weapon": "dirk", "shield": "sham", "armor": "spirit1", "horse": null, "race": "wood", "two": true})
+	if not wd.get("sham", false) or wd.get("two", false):
+		errs.append("arms: a Woodling with the Shield of Sham two-hands (%s)" % [[wd.get("sham"), wd.get("two")]])
+	# the first blow against an all-Sham front line comes to nothing, once a battle
+	var b := {"prov": g.capital, "start": {}}
+	var a := {"kind": "army", "owner": Game.HOST, "troops": {d.id: 6}, "name": "Shields", "wounds": 0.0}
+	if not Quests.sham_blocks(g, b, [a]) or Quests.sham_blocks(g, b, [a]):
+		errs.append("arms: the Shield of Sham should turn aside the first blow, and only the first")
+	var mixed := {"kind": "army", "owner": Game.HOST, "troops": {d.id: 1, "d-sword": 1}, "name": "Mixed", "wounds": 0.0}
+	if Quests.sham_blocks(g, {"prov": g.capital}, [mixed]):
+		errs.append("arms: a front line not all carrying the Shield of Sham was shielded")
+	# the Triune Staff
+	var cap0 := g.mana_cap()
+	var reg0 := g.mana_regen(Game.HOST)
+	g.set_mage_gear({"weapon": "triune"})
+	if g.mana_cap() != cap0 + 100 or g.mana_regen(Game.HOST) != reg0 + 10 or Game.STAVE_CAST.get("triune") != 0.8:
+		errs.append("arms: Triune Staff mana %d (was %d), regen %d (was %d)" % [g.mana_cap(), cap0, g.mana_regen(Game.HOST), reg0])

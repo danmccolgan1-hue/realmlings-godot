@@ -1069,9 +1069,9 @@ func design_stats(d: Dictionary) -> Dictionary:
 	var B: Dictionary = UNIT_BASE[d.type] if UNIT_BASE else GameData.c("UNIT_BASE")[d.type]
 	var W: Dictionary = WS[d.weapon]
 	var A: Dictionary = AS[d.armor]
-	var Sh = GameData.c("SHIELD_DEFS")[d.shield] if rc == "realm" and d.get("shield") != null and not W.twoH else null
+	var Sh = GameData.c("SHIELD_DEFS")[d.shield] if (rc == "realm" or d.get("shield") == "sham") and d.get("shield") != null and not W.twoH else null   # (the Shield of Sham: every race)
 	var H = (GameData.c("OGRES") if sw else GameData.c("HORSES"))[d.get("horse") if d.get("horse") != null else "riding"] if d.type == "cav" else null
-	var Off = WS[d.off] if sw and d.get("off") != null and not W.twoH and WS.has(d.off) and not WS[d.off].twoH else null
+	var Off = WS[d.off] if sw and d.get("off") != null and not W.twoH and WS.has(d.off) and not WS[d.off].twoH and d.get("shield") != "sham" else null
 	var armor: float = A.armor * (OGRE_ARMOR if sw and d.type == "cav" else 1.0) + (Sh.armor if Sh else 0) + (H.armor if H else 0)
 	var cost := {}
 	for c in [B.cost, W.cost, armor_cost(A), Sh.cost if Sh else {}, H.cost if H else {}, Off.cost if Off else {}]:
@@ -1086,7 +1086,9 @@ func design_stats(d: Dictionary) -> Dictionary:
 		"speed": speed, "cost": cost, "upkeep": {"food": maxf(0, B.upkeep.food + (H.get("upFood", 0) if H else 0))}}
 	st.blurb = "%s%s%s, %s armor%s. %s.%s" % [W.name, (" and " + Off.name + " (off hand, half damage)") if Off else "", (" and " + Sh.name) if Sh else "",
 		A.name, (", " + H.name) if H else "", FAM[W.fam].note, (" No " + ("Ogre" if sw else "cavalry") + " penalty in forest or swamp.") if H and H.get("rough", false) else ""]
-	if rc == "wood" and d.get("two", false):
+	if Sh != null and d.get("shield") == "sham":
+		st.sham = true
+	if rc == "wood" and d.get("two", false) and d.get("shield") != "sham":
 		st.two = true
 		st.blurb += " Two-handed grip: heavy blows every other round (125% damage over time)."
 	return st
@@ -1213,6 +1215,8 @@ func register_mage() -> void:
 ## Why a Mage weapon or shield can't be chosen yet (a technology to research), or null.
 func mage_gear_why(kind: String, k: String):
 	var item: Dictionary = GameData.c("MAGE_WEAPONS")[k] if kind == "weapon" else GameData.c("SKULLS")[k] if kind == "skull" else GameData.c("SHIELD_DEFS")[k]
+	if not Quests.gear_unlocked(self, ME, item):
+		return "Locked: finish its quest"
 	var tch = item.get("tech")
 	return null if tch == null or has_tech(tch) else "Research " + TECH_BY_ID[tch].name
 
@@ -5358,7 +5362,7 @@ const TRADE_RATE := [0, 1.0 / 3, 2.0 / 3, 1]
 const MIND := {"show": 20, "cd": 40}
 const RIFT_CD := [0, 120, 15]
 const SEE_TIME := 60.0
-const STAVE_CAST := {"grandstave": 0.9, "mythicstave": 0.8}
+const STAVE_CAST := {"grandstave": 0.9, "mythicstave": 0.8, "triune": 0.8}   # (triune: the quests' Triune Staff)
 const WAND_MANA := {"crypticwand": 0.9, "enigmaticwand": 0.8}
 ## The spells a caster can cast from the command card, in order.
 const SPELLS := ["harvest", "mending", "graverob", "trading", "mind", "stasis", "rift", "eyes", "haunt", "spyre", "ftrap", "pfire", "sacred", "wrocks", "tportal", "fspirit", "gelem"]
@@ -5402,7 +5406,7 @@ func is_caster(u) -> bool:
 
 
 func mana_cap(o := ME) -> int:
-	return MANA_CAPS[2] if tech_of(o, "magicabund") else MANA_CAPS[1] if tech_of(o, "magicwell") else MANA_CAPS[0]
+	return (MANA_CAPS[2] if tech_of(o, "magicabund") else MANA_CAPS[1] if tech_of(o, "magicwell") else MANA_CAPS[0]) + (Quests.TRIUNE_MANA if Quests.has_triune(self, o) else 0)
 
 
 static func mana_of(c) -> float:
@@ -5948,6 +5952,8 @@ func mana_regen(o: int) -> int:
 	var L = leader_of(o)
 	if L != null and L.get("start") == "mage":
 		r += 4
+	if Quests.has_triune(self, o):   # (the quests' Triune Staff)
+		r += Quests.TRIUNE_REGEN
 	return r
 
 
@@ -6811,6 +6817,8 @@ func apply_damage(b: Dictionary, armies: Array, dmg: float, now: float, pierce :
 
 
 func apply_damage0(b: Dictionary, armies: Array, dmg: float, now: float, pierce := 0.0) -> void:
+	if quests_on and dmg > 0 and Quests.sham_blocks(self, b, armies):   # (the Shield of Sham: the first blow comes to nothing)
+		return
 	var bd := boss_damage(b, armies, dmg)
 	if bd >= 0:
 		dmg = bd

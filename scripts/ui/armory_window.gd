@@ -435,11 +435,20 @@ func _design_editor(ed: VBoxContainer) -> void:
 			var F: Dictionary = GameData.c("FAMILY")[f]
 			if not _mine(F.get("race")):
 				continue
-			grid.add_child(_gear_row(F.name, F.note, F.order.map(func(w): return _eq("weapon", w, GameData.c("WEAPONS")[w], draft.weapon == w, game.gear_why("weapon", w)))))
+			var fw: Array = F.order.map(func(w): return _eq("weapon", w, GameData.c("WEAPONS")[w], draft.weapon == w, game.gear_why("weapon", w)))
+			for w in _quest_weapons(f):   # (the Lost Armaments, once their quest is done)
+				fw.append(_eq("weapon", w, GameData.c("WEAPONS")[w], draft.weapon == w, game.gear_why("weapon", w)))
+			grid.add_child(_gear_row(F.name, F.note, fw))
+		if rc != "realm" and _unlocked(GameData.c("SHIELD_DEFS").sham):   # (the Shield of Sham: a row of its own)
+			var why2 = "Two-handed weapon" if W.twoH else ("Not with two weapons" if draft.get("off") != null else ("Not with a two-handed grip" if draft.get("two", false) else null))
+			grid.add_child(_gear_row("Shield", "The Shield of Sham: the first blow against a front line all carrying it comes to nothing",
+				[_eq_none(draft.get("shield") == null or W.twoH), _eq("shield", "sham", GameData.c("SHIELD_DEFS").sham, draft.get("shield") == "sham" and not W.twoH, why2)]))
 		if rc == "realm":
 			var sh := [_eq_none(draft.get("shield") == null or W.twoH)]
 			var SD: Dictionary = GameData.c("SHIELD_DEFS")
 			for k in SD:
+				if not _unlocked(SD[k]):
+					continue
 				sh.append(_eq("shield", k, SD[k], draft.get("shield") == k and not W.twoH, "Two-handed weapon" if W.twoH else game.gear_why("shield", k)))
 			grid.add_child(_gear_row("Shield", W.name + " needs both hands" if W.twoH else "One-handed weapons only", sh))
 		elif rc == "swamp":   # web: swamp.js offhandRow (Dual Wielding)
@@ -496,6 +505,8 @@ func _mage_editor(ed: VBoxContainer) -> void:
 	for ln in [["stave", "Staves", "Two-handed, the stronger attack"], ["wand", "Wands", "One-handed: leaves room for a skull" if rc == "swamp" else "One-handed: leaves room for a shield"]]:
 		var row := []
 		for k in MW:
+			if not _unlocked(MW[k]):
+				continue
 			if MW[k].line == ln[0] and _mine(MW[k].get("race")) and (MW[k].get("tech") == null or not game.TECH_BY_ID.has(MW[k].tech) or game.tech_for(game.TECH_BY_ID[MW[k].tech])):
 				row.append(_eq("weapon", k, MW[k], draft.weapon == k, game.mage_gear_why("weapon", k)))
 		grid.add_child(_gear_row(ln[1], ln[2], row))
@@ -509,6 +520,8 @@ func _mage_editor(ed: VBoxContainer) -> void:
 		var sh := [_eq_none(draft.get("shield") == null or W.twoH)]
 		var SD: Dictionary = GameData.c("SHIELD_DEFS")
 		for k in SD:
+			if not _unlocked(SD[k]):
+				continue
 			sh.append(_eq("shield", k, SD[k], draft.get("shield") == k and not W.twoH, "Two-handed stave" if W.twoH else game.mage_gear_why("shield", k)))
 		grid.add_child(_gear_row("Shield", "Staves need both hands" if W.twoH else "Wands only", sh))
 
@@ -605,6 +618,22 @@ func _eq_flag(kind: String, label: String, on: bool, why, val := true) -> Button
 	return b
 
 
+## Quests (Godot only): quest gear shows only once its quest is done.
+func _unlocked(item: Dictionary) -> bool:
+	return Quests.gear_unlocked(game, Game.LOCAL, item)
+
+
+## The unlocked Lost Armaments weapons shown at the end of family f's row.
+func _quest_weapons(f: String) -> Array:
+	var out := []
+	var WS: Dictionary = GameData.c("WEAPONS")
+	for w in Quests.ARMS:
+		var x = WS.get(w)
+		if x != null and x.get("rows") != null and x.rows.has(f) and _unlocked(x):
+			out.append(w)
+	return out
+
+
 func _eq_frame(on: bool, tip: String) -> Button:
 	var b := Button.new()
 	b.custom_minimum_size = Vector2(82, 66)
@@ -639,12 +668,19 @@ func _pick(kind: String, k: String) -> void:
 			draft.shield = null
 	elif kind == "shield":
 		draft.shield = null if k == "" else k
+		if k == "sham":   # (the Shield of Sham: no second weapon, no two-handed grip)
+			draft.off = null
+			draft.two = false
 	elif kind == "skull":
 		draft.skull = null if k == "" else k
 	elif kind == "off":
 		draft.off = null if k == "" else k
+		if draft.off != null and draft.get("shield") == "sham":   # (the Shield of Sham: not with two weapons)
+			draft.shield = null
 	elif kind == "two":
 		draft.two = k == "1"
+		if draft.two and draft.get("shield") == "sham":   # (nor with a two-handed grip)
+			draft.shield = null
 	else:
 		draft[kind] = k
 	_rebuild()
