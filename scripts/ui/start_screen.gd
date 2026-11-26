@@ -896,6 +896,14 @@ func _mp_players() -> void:
 			var pl := _lbl("%d ms" % int(P.get("ping", 0)), 14, MUTED)
 			row.add_child(pl)
 			mp_ping_l[id] = pl
+			if _mp_lead() and int(id) != net.my_id:   # the host may remove a player from the lobby
+				var kid := int(id)
+				var pname := str(P.name)
+				row.add_child(_link("Remove", func():
+					if net:
+						net.kick(kid)
+						mp_status.text = "%s was removed from the lobby. They can't join it again under that name." % pname,
+					"Remove %s from the lobby (they can't join it again under that name)" % pname))
 		mp_players.add_child(row)
 
 

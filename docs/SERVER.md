@@ -104,7 +104,8 @@ saves appear below it. A longer log is on the Droplet at
    there is one.
 2. The first to join is the host. Everyone else chooses their nation under **Your Nation** and presses **Ready**.
 3. The host chooses **Map Settings** (or **Load a saved game**), sets a **Password** if they want one, and presses
-   **Start Game** once everyone is ready. On a server, one player may start alone.
+   **Start Game** once everyone is ready. On a server, one player may start alone. The host can **Remove** a player
+   from the lobby: that player can't join the same lobby again under the same name.
 4. **Loading a saved game:** each player picks one of its nations in the lobby. Players whose names match are offered
    the nation they played. Someone has to take the first nation (the original host's), because it can't be handed to
    the computer. Nations nobody picks are played by the computer.

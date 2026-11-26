@@ -58,6 +58,7 @@ var pw := ""                   # a player: the password they give when joining
 ## The saved game the host chose to carry on: {"name", "desc", "seats": MpSetup.save_seats} ({} for a new island).
 ## Each player picks one of its nations (players[id].pick).
 var lobby_save := {}
+var kicked := {}               # the host: names (lower case) removed from this lobby, who may not join again
 
 ## ENet's timeouts (0.19): generous, so a few seconds of a busy computer (loading a save, an autosave) or a wobbly
 ## connection don't throw a player out. ENet's own default gives up after as little as 5 s.
@@ -222,6 +223,30 @@ func set_lobby_save(save: Dictionary) -> void:
 			players[id].ready = false
 	send_all({"t": "lsave", "save": lobby_save})
 	lobby_save_changed.emit()
+	_broadcast_players()
+
+
+## The host (or the player hosting on a server): remove player id from the lobby. They are told, and may not join
+## this lobby again under that name. Only before the game starts.
+func kick(id: int) -> void:
+	if is_host:
+		_kick(id)
+	elif is_leader():
+		_send(1, {"t": "lkick", "id": id})
+
+
+# the host: remove player id from the lobby
+func _kick(id: int) -> void:
+	if locked or not players.has(id) or id == leader or (id == 1 and not dedicated):
+		return
+	var nm := str(players[id].name)
+	kicked[nm.to_lower()] = true
+	_refuse(id, nm, "The host removed you from the lobby.")
+	players.erase(id)
+	picking.erase(id)
+	_gone_ids[id] = true
+	log_line("The host removed %s from the lobby" % nm)
+	_relay_chat(0, "%s was removed by the host." % nm)
 	_broadcast_players()
 
 
@@ -391,6 +416,9 @@ func _handle(from: int, m: Dictionary) -> void:
 			if str(m.get("version", "")) != version:
 				_refuse(from, nm0, "Different game versions: the host has %s, you have %s. Both of you need the same version." % [version, m.get("version", "?")])
 				return
+			if kicked.has(nm0.to_lower()) and not locked:
+				_refuse(from, nm0, "The host removed you from this lobby.")
+				return
 			if password != "" and str(m.get("pw", "")) != password:
 				_refuse(from, nm0, "This game needs a password: type it under Password and join again." if str(m.get("pw", "")) == "" else "Wrong password.")
 				return
@@ -456,6 +484,9 @@ func _handle(from: int, m: Dictionary) -> void:
 		"lset":   # a server: the player hosting the game changed its choices
 			if is_host and dedicated and from == leader and not locked:
 				set_lobby_info(str(m.get("text", "")), str(m.get("terms", "")))
+		"lkick":   # a server: the player hosting removes someone from the lobby
+			if is_host and dedicated and from == leader:
+				_kick(int(m.get("id", 0)))
 		"lpass":
 			if is_host and dedicated and from == leader:
 				set_password(str(m.get("pw", "")))

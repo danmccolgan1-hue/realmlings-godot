@@ -2,7 +2,7 @@ extends RefCounted
 ## The dedicated server (MpServer, docs/SERVER.md) over a real connection on this computer: the first player to join
 ## hosts the game; an optional password keeps others out; the host starts the game on the server and every copy
 ## stays in step; the host saves it on the server; a player who drops out is put to the host (wait, or the computer);
-## when the host leaves, the next player hosts; the host ends the game and the server stops. Then a second server
+## the host removes a player from the lobby; when the host leaves, the next player hosts; the host ends the game and the server stops. Then a second server
 ## finds the interrupted game's autosave, offers it in the lobby, and the players pick their nations from it.
 ## Also the shared setup (MpSetup) a player hosting from their own copy uses: saving and loading with picks.
 
@@ -60,6 +60,27 @@ func _setup_saves() -> Array:
 	if made2.is_empty() or made2[0].seats.has(ids[1]) or not made2[0].nations.has(ids[1]):
 		errs.append("setup: a nation nobody picked was not handed to the computer")
 	MpSetup.delete_save(DIR, nm)
+	# a player hosting from their own copy removes someone too
+	var h := NetSession.new("Host", {})
+	h.host(PORT + 5, false)
+	var al := NetSession.new("Al", {})
+	al.join("127.0.0.1:%d" % (PORT + 5))
+	var gone := []
+	al.closed.connect(func(why): gone.append(why))
+	var t0 := Time.get_ticks_msec()
+	while Time.get_ticks_msec() - t0 < 4000 and h.players.size() < 2:
+		h.poll(0.01); al.poll(0.01); OS.delay_msec(2)
+	h.kick(al.my_id)
+	h.kick(1)
+	t0 = Time.get_ticks_msec()
+	while Time.get_ticks_msec() - t0 < 4000 and gone.is_empty():
+		h.poll(0.01)
+		if al.peer != null:
+			al.poll(0.01)
+		OS.delay_msec(2)
+	if gone.is_empty() or h.players.size() != 1 or not h.players.has(1):
+		errs.append("host: removing a player from the lobby didn't work (%s, %d players)" % [gone, h.players.size()])
+	h.leave()
 	return errs
 
 
@@ -95,9 +116,31 @@ func _server_game() -> Array:
 	_run(func(): return dee2.joined and srv.net.players.size() == 4, 4.0)
 	if srv.net.players.size() != 4:
 		errs.append("server: the password didn't let Dee in")
-	dee2.leave()
+	# kicking: only the host may; Dee is told, is gone, and can't come back under that name
+	bo.send_to(1, {"t": "lkick", "id": cy.my_id})
+	_run(func(): return false, 0.3)
+	if not srv.net.players.has(cy.my_id):
+		errs.append("server: a player who isn't hosting removed someone")
+	var kicked := []
+	dee2.closed.connect(func(why): kicked.append(why))
+	ann.kick(dee2.my_id)
+	_run(func(): return not kicked.is_empty() and srv.net.players.size() == 3 and ann.players.size() == 3, 5.0)
+	if kicked.is_empty() or not str(kicked[0]).contains("removed"):
+		errs.append("server: Dee wasn't told she was removed (%s)" % [kicked])
+	if srv.net.players.size() != 3:
+		errs.append("server: Dee is still in the lobby after the host removed her")
 	clients.erase(dee2)
-	_run(func(): return srv.net.players.size() == 3, 20.0)
+	var dee3 := _client("Dee", {"race": "realm", "color": 3}, "moss")
+	var back := []
+	dee3.closed.connect(func(why): back.append(why))
+	_run(func(): return not back.is_empty() or srv.net.players.size() == 4, 4.0)
+	if srv.net.players.size() != 3 or back.is_empty():
+		errs.append("server: Dee came back after being removed")
+	clients.erase(dee3)
+	ann.kick(ann.my_id)
+	_run(func(): return false, 0.3)
+	if not srv.net.players.has(ann.my_id):
+		errs.append("server: the host removed themself")
 	# only the host chooses: Bo's choices are ignored
 	bo.send_to(1, {"t": "lset", "text": "Bo's island", "terms": "x"})
 	ann.lead_info("Island: Classic, seed pine.", "pine")
