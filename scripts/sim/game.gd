@@ -8875,7 +8875,7 @@ var seat_wants := {}   # multiplayer: slot index -> {nation, race, leader} of ea
 ## With this many computer nations or more, the lobby offers Spawn near players.
 const NEAR_MIN_AI := 3
 ## How many provinces no other nation may start in, for each capital: the capital and the ones nearest it.
-const SPAWN_GAP := 24
+const SPAWN_GAP := 40
 var spawn_near := false   # (only while the world is made; not saved)
 var spawn_off := {}       # (while placing: province -> true where no capital may go)
 var _spawn_r: Mulberry32
