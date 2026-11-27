@@ -2,6 +2,7 @@
 # Copy to /etc/systemd/system/realmlings.service, then: sudo systemctl daemon-reload && sudo systemctl start realmlings
 #
 # Restart=on-failure: a crash brings the server back by itself, and the lobby offers the interrupted game again.
+# So does a game everyone left 3 minutes ago (the server saves it and asks to be started again: exit code 75).
 # A game that ends normally stops the server and it stays stopped: start it again for the next game
 # (sudo systemctl start realmlings). For an always-ready lobby instead, change it to Restart=always.
 

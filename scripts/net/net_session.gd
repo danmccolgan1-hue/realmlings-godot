@@ -442,7 +442,7 @@ func _handle(from: int, m: Dictionary) -> void:
 				return
 			if locked and reserved.has(nm0):   # coming back to their own nation
 				players[from] = {"name": nm0, "nation": m.get("nation", {}), "ping": 0, "ready": true, "pick": 0}
-				_send(from, {"t": "welcome", "id": from, "locked": true})
+				_send(from, {"t": "welcome", "id": from, "locked": true, "server": dedicated})
 				_update_leader()
 				_broadcast_players()
 				log_line("%s is coming back to their nation" % nm0)
@@ -457,7 +457,7 @@ func _handle(from: int, m: Dictionary) -> void:
 				players[from] = {"name": nm0, "nation": m.get("nation", {}), "ping": 0, "ready": true, "pick": 0}
 				picking[from] = true
 				_update_leader()
-				_send(from, {"t": "welcome", "id": from, "locked": true, "name": nm0})
+				_send(from, {"t": "welcome", "id": from, "locked": true, "name": nm0, "server": dedicated})
 				_send(from, {"t": "pick_seat", "choices": choices})
 				log_line("%s joined the game in progress and is choosing a nation" % nm0)
 				return

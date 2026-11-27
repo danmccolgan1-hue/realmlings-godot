@@ -13,4 +13,5 @@ Write-Host "Uploading $($files -join ', ') ..."
 
 ssh "root@$Ip" "mkdir -p /home/realmlings/upload"
 scp @files "root@${Ip}:/home/realmlings/upload/"
-ssh "root@$Ip" "systemctl stop realmlings; rm -f /home/realmlings/server/Realmlings.pck; mv /home/realmlings/upload/* /home/realmlings/server/; chmod +x /home/realmlings/server/Realmlings.x86_64; chown -R realmlings: /home/realmlings; systemctl start realmlings; sleep 2; systemctl --no-pager status realmlings | head -5"
+# (every Realmlings server on the Droplet: the first, and any realmlings@<port> ones)
+ssh "root@$Ip" "units=`$(systemctl list-units --all --plain --no-legend 'realmlings*' | awk '{print `$1}' | grep -E '^realmlings(@[0-9]+)?\.service$'); systemctl stop `$units; rm -f /home/realmlings/server/Realmlings.pck; mv /home/realmlings/upload/* /home/realmlings/server/; chmod +x /home/realmlings/server/Realmlings.x86_64; chown -R realmlings: /home/realmlings; systemctl start `$units; sleep 2; systemctl --no-pager --lines=0 status `$units"

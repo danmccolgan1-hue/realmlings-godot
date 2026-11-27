@@ -5,6 +5,11 @@ extends Control
 ## web: v106.js renderPatchNotes
 
 const PORT_NOTES := [
+	{"v": "Godot 0.19.2", "date": "November 27, 2026", "items": [
+		["No more late-game stalls", "A Wayfinder with Automatic Scouting chose its next survey by working out a path to every explored province: with the whole map known that took seconds and froze the game for everyone. It makes the same choice in a fraction of the time."],
+		["Servers", "A server whose players have all left goes back to a fresh lobby after 3 minutes, offering to carry the game on. A player who rejoins a game on a server can end it from the menu. One server can run several games at once on different ports."],
+		["Lobbies", "Each new lobby you host starts on a new random island. You can start a game alone, hosting or on a server. Host a game is now Host on this computer."],
+	]},
 	{"v": "Godot 0.19.1", "date": "November 26, 2026", "items": [
 		["Multiplayer stays in step", "Players on Windows and a server on Linux now calculate everything exactly alike (the game has its own maths), and a lost band of travelers no longer splits a player's game from the server's. Both caused lag spikes, a stuttering clock and lost selections."],
 		["Woodling homes", "The tree houses are back: isometric hollow trees with doors. Two of a building's three homes wear the nation's color on their leaves, the third its accent color, so they stand out from the forest."],

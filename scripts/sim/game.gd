@@ -2662,24 +2662,21 @@ func auto_survey(u: Dictionary) -> void:
 	if u.kind != WAYFINDER or u.owner != ME or u.get("auto", true) == false or not has_tech("autoscout") or busy(u) or u.nextAuto > t:
 		return
 	u.nextAuto = t + 1
-	var best := -1
-	var bd := INF
 	u.autoWalk = {"to": -1}
+	# The nearest province explored but not surveyed: fewest crossings, then straight-line distance (the first such in
+	# `explored` on a tie). 0.19.1: the same choice as working out a path to every one of them, which took seconds
+	# once the whole map was explored (a stall for every player in multiplayer): a cheap lower bound on each one's
+	# crossings first, then paths only for those that could still win.
+	var cands := []
 	for p in explored:
-		if surveyed.has(p) or survey_queued(p):
-			continue
-		var hops = [] if p == u.prov else find_path(u, p)
-		if hops == null:
-			continue
-		var d: float = hops.size() * 1000 + JS.hypot(G.provs[p].ic[0] - u.x, G.provs[p].ic[1] - u.y)
-		if d < bd:
-			bd = d
-			best = p
+		if not surveyed.has(p) and not survey_queued(p):
+			cands.append(p)
+	var best := _auto_nearest(u, cands, false)
 	if best >= 0:
 		u.surveyQueue.append(best)
 		return
-	var next := -1
-	bd = INF
+	# none: walk on to the nearest unexplored neighbor of explored land no other Wayfinder is heading for
+	var front := []
 	for p in explored:
 		for n in open_nbr[p]:
 			var q: int = n.q
@@ -2690,17 +2687,9 @@ func auto_survey(u: Dictionary) -> void:
 				if not is_same(v, u) and v.autoWalk != null and v.autoWalk.to == q:
 					taken = true
 					break
-			if taken:
-				continue
-			u.autoWalk = {"to": q}
-			var hops = find_path(u, q)
-			u.autoWalk = {"to": -1}
-			if hops == null:
-				continue
-			var d: float = hops.size() * 1000 + JS.hypot(G.provs[q].ic[0] - u.x, G.provs[q].ic[1] - u.y)
-			if d < bd:
-				bd = d
-				next = q
+			if not taken:
+				front.append(q)
+	var next := _auto_nearest(u, front, true)
 	if next >= 0:
 		u.autoWalk = {"to": next}
 		order(u, next, true)
@@ -2708,7 +2697,68 @@ func auto_survey(u: Dictionary) -> void:
 		u.autoWalk = null
 
 
-# web: v78.js placeRuins(): Intact Ruins in a swamp away from the capital (seeded by the map)
+
+## auto_survey's choice among cands (in their order): the one with the fewest crossings on u's path, then the
+## nearest in a straight line, the first on a tie; -1 if none can be reached. walking: u.autoWalk names each one
+## while its path is found (as the frontier search always did). A breadth-first count of crossings over every
+## link u could ever use (all neighbors, and a Woodling Wayfinder's tree-ways) never exceeds a real path's, so
+## candidates are tried from the lowest such bound, and the search stops once no bound can beat the best found.
+func _auto_nearest(u: Dictionary, cands: Array, walking: bool) -> int:
+	if cands.is_empty():
+		return -1
+	var lb := _hops_bound(u)
+	var keyed := []
+	for i in cands.size():
+		var p: int = cands[i]
+		if p != u.prov and lb[p] == INF:
+			continue
+		var line: float = JS.hypot(G.provs[p].ic[0] - u.x, G.provs[p].ic[1] - u.y)
+		keyed.append([(0.0 if p == u.prov else float(lb[p])) * 1000 + line, i, p, line])
+	keyed.sort_custom(func(x, y): return x[0] < y[0] or (x[0] == y[0] and x[1] < y[1]))
+	var best := -1
+	var bd := INF
+	var bi := -1
+	for k in keyed:
+		if k[0] > bd:
+			break
+		var p: int = k[2]
+		if walking:
+			u.autoWalk = {"to": p}
+		var hops = [] if p == u.prov else find_path(u, p)
+		if walking:
+			u.autoWalk = {"to": -1}
+		if hops == null:
+			continue
+		var d: float = hops.size() * 1000 + k[3]
+		if d < bd or (d == bd and k[1] < bi):
+			bd = d
+			best = p
+			bi = k[1]
+	return best
+
+
+## Crossings from u's province to every province over every link u could use (a lower bound on find_path's).
+func _hops_bound(u: Dictionary) -> Array:
+	var wood: bool = u.kind == WAYFINDER and is_wd(u.owner)
+	var d := []
+	d.resize(G.provs.size())
+	d.fill(INF)
+	d[u.prov] = 0
+	var q: Array = [u.prov]
+	var i := 0
+	while i < q.size():
+		var a: int = q[i]
+		i += 1
+		var nb: Array = all_nbr[a]
+		if wood:
+			nb = nb + tree_nbr(a)
+		for n in nb:
+			var b: int = n if n is int else int(n.q)
+			if d[b] == INF:
+				d[b] = d[a] + 1
+				q.append(b)
+	return d
+
 func place_ruins(avoid := {}) -> int:
 	var r := Mulberry32.from_string(str(world.seed) + ":ruins")
 	var near := {}
@@ -2731,6 +2781,8 @@ func place_ruins(avoid := {}) -> int:
 	finds[p] = {"id": "ruins", "done": false}
 	return p
 
+
+# web: v78.js placeRuins(): Intact Ruins in a swamp away from the capital (seeded by the map)
 
 # web: v78.js surveyFinds(u): Intact Ruins give a random Tier I Government technology (or 3 minutes of Government
 # research when none is left); a desert may hide treasure

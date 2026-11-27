@@ -10,6 +10,10 @@ extends Node
 ## standing), the server saves it and stops.
 
 const AUTOSAVE_EVERY := 60.0   # seconds of play between saves
+## 0.19.1: a game everyone has left for this long (real seconds) is saved and the server starts afresh, with a new
+## lobby that offers it again: it used to wait for them forever, and anyone joining went straight back into it.
+var idle_reset := 180.0
+const EXIT_RESTART := 75       # (the exit code for "start me again": the service restarts the server after a failure)
 
 var net: NetSession
 var lock: Lockstep
@@ -22,6 +26,7 @@ var asks := {}                 # nation -> name: players who dropped out, waitin
 var asked_to := {}             # nation -> peer id the question went to
 var on_quit: Callable          # (tests: called instead of quitting)
 var _check_t := 0.0
+var _idle := 0.0
 
 
 func _ready() -> void:
@@ -85,6 +90,10 @@ func tick(dt: float) -> void:
 			_check_t = 1.0
 			_check_asks()
 			_check_end()
+		_idle = _idle + dt if net.players.is_empty() and lock.started and not done else 0.0
+		if _idle >= idle_reset:
+			_idle = 0.0
+			reset_to_lobby()
 	if quit_t >= 0.0:
 		quit_t -= dt
 		if quit_t < 0.0:
@@ -261,6 +270,16 @@ func finish(why: String, keep := true) -> void:
 	if lock != null:
 		lock.end_game(why + " The server has stopped.")
 	quit_t = 3.0   # (time for the message to reach everyone)
+
+
+## Everyone left the game in progress: keep it (the new lobby offers it to carry on) and start the server afresh.
+func reset_to_lobby() -> void:
+	if done or lock == null:
+		return
+	done = true
+	MpSetup.write_save(dir, lock.game, MpSetup.AUTOSAVE)
+	say("Everyone has left the game: it is saved, and the server starts a new lobby (which offers to carry it on).")
+	_quit(EXIT_RESTART)
 
 
 func _quit(code: int) -> void:

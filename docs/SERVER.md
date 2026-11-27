@@ -94,7 +94,7 @@ ssh root@203.0.113.10 "systemctl status realmlings --no-pager"
 ssh root@203.0.113.10 "journalctl -u realmlings -f"      # its messages as they come; Ctrl+C to stop watching
 ```
 
-The first line should read `Realmlings server 0.19.1: listening on UDP port 24565`. Joins, departures, starts and
+The first line should read `Realmlings server 0.19.2: listening on UDP port 24565`. Joins, departures, starts and
 saves appear below it. A longer log is on the Droplet at
 `/home/realmlings/.local/share/godot/app_userdata/Realmlings/mp_log.txt`.
 
@@ -104,7 +104,7 @@ saves appear below it. A longer log is on the Droplet at
    there is one.
 2. The first to join is the host. Everyone else chooses their nation under **Your Nation** and presses **Ready**.
 3. The host chooses **Map Settings** (or **Load a saved game**), sets a **Password** if they want one, and presses
-   **Start Game** once everyone is ready. On a server, one player may start alone. The host can **Remove** a player
+   **Start Game** once everyone is ready. One player may start alone. Each new lobby starts on a new random island. The host can **Remove** a player
    from the lobby: that player can't join the same lobby again under the same name. **Allows Debug** (off unless
    the host switches it on) lets every player use Settings → Debug in the game. Revealing the map and +2000
    resources then go to every player; Every technology goes to the player who presses it, in the Magic school they
@@ -117,9 +117,31 @@ saves appear below it. A longer log is on the Droplet at
    name. A newcomer may take a nation whose player is away.
 6. **Ending:** the host uses **Esc → End the game for everyone**. The server saves the game, tells everyone and stops.
 
+## Several games at once
+
+One server runs one game. To let several groups play at the same time, run more servers on the same Droplet, each
+on its own port with its own saves. Players type the port after the address: `157.245.250.30:24566`. The first
+server keeps port 24565, so its players type just the address.
+
+1. In the DigitalOcean firewall, change the game's rule to the port range **24565-24569** (UDP).
+2. In PowerShell, from the project folder (replace the address):
+
+```powershell
+scp tools\server\realmlings@.service root@157.245.250.30:/etc/systemd/system/
+ssh root@157.245.250.30 "systemctl daemon-reload; systemctl enable --now realmlings@24566 realmlings@24567"
+```
+
+That adds two more servers (24566 and 24567). Each uses about 200-250 MB of memory: a 1 GiB Droplet runs about
+three games at once, a 2 GiB one about seven. `update_server.ps1` updates and restarts all of them.
+
+Hosting on your own computer (**Host on this computer** in the Multiplayer menu) is a separate thing: your PC runs
+the game and you play in it. To play on the Droplet, everyone uses **Join by address** instead.
+
 ## 8. The next game
 
-The server stays stopped after a game ends, so start it again:
+When everyone leaves a game without ending it, the server waits 3 minutes, saves it, and starts a fresh lobby by
+itself; the lobby offers to carry the game on (**New island** starts a different one). When the host ends the game,
+the server stays stopped, so start it again:
 
 ```powershell
 ssh root@203.0.113.10 "systemctl start realmlings"

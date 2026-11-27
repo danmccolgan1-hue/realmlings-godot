@@ -412,7 +412,8 @@ var mp_ping_l := {}              # peer id -> its ping label (updated in place)
 var mp_taken_sig := ""           # the colors and leaders others have taken, as last shown on the Nation page
 var mp_info_t := 0.0
 var mp_debug_shown := false      # Allows Debug as the lobby last drew it
-var mp_in_lobby := false         # the lobby (not the Multiplayer menu) is showing
+var mp_in_lobby := false
+var mp_seeded := false           # this lobby's island got its fresh random seed (0.19.1)         # the lobby (not the Multiplayer menu) is showing
 var mp_saves := []               # the host: the saved games offered under Load a saved game
 var mp_saves_open := false
 
@@ -447,12 +448,12 @@ func _mp_menu() -> void:
 		Settings.menu.mp_name = t2
 		Settings.save_all())
 	_row("Your name", name_edit, mp_box)
-	mp_box.add_child(_big("Host a game", BLUE, func(): _mp_host(name_edit.text),
-		"Up to 8 players. Everyone picks their nation in the lobby"))
+	mp_box.add_child(_big("Host on this computer", BLUE, func(): _mp_host(name_edit.text),
+		"Your computer runs the game and you play in it (up to 8 players). To play on a dedicated server, join its address below instead"))
 	var jr := HBoxContainer.new()
 	jr.add_theme_constant_override("separation", 8)
 	var addr := LineEdit.new()
-	addr.placeholder_text = "Host's address, e.g. 192.168.1.20 or 81.2.3.4"
+	addr.placeholder_text = "Host's or server's address, e.g. 81.2.3.4 or 81.2.3.4:24566"
 	addr.text = str(Settings.menu.get("mp_addr", ""))
 	addr.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_style_edit(addr)
@@ -507,7 +508,11 @@ func _mp_wire() -> void:
 			else:
 				_mp_options())
 	net.seat_offer.connect(_mp_pick_seat)
-	net.leader_changed.connect(func(): if mp_in_lobby: _mp_lobby())   # (a server: someone else hosts the game now)
+	net.leader_changed.connect(func():   # (a server: someone else hosts the game now; if it's us, a new island)
+		if net != null and net.is_leader() and not mp_seeded:
+			_mp_fresh_seed()
+		if mp_in_lobby:
+			_mp_lobby())
 	net.lobby_save_changed.connect(func():
 		mp_saves_open = false
 		if mp_in_lobby:
@@ -544,6 +549,7 @@ func _mp_host(nm: String) -> void:
 		net = null
 		return
 	net.debug_ok = bool(Settings.menu.get("mp_debug", false))
+	_mp_fresh_seed()
 	_mp_lobby()
 	mp_status.text = "Hosting on port %d. Friends on your network see this game in their list; over the internet they join your address." % NetSession.PORT
 	mp_note.text = "Asking your router to open the port..."
@@ -553,6 +559,7 @@ func _mp_join(nm: String, address: String) -> void:
 	if net != null:
 		net.leave()
 	net = NetSession.new(nm, _mp_nation())
+	mp_seeded = false
 	net.pw = str(Settings.menu.get("mp_pw", ""))
 	_mp_wire()
 	var w := net.join(address)
@@ -861,7 +868,7 @@ func _mp_players() -> void:
 	if mp_start and is_instance_valid(mp_start):
 		if _mp_lead():
 			var waiting_for: Array = net.players.keys().filter(func(id): return int(id) != net.leader and not net.players[id].get("ready", false)).map(func(id): return str(net.players[id].name))
-			var few: bool = net.players.size() < 2 and not net.dedicated   # (on a server one player may start alone)
+			var few := false   # (0.19.1: one player may start alone, hosting or on a server, to test)
 			mp_start.disabled = few or not waiting_for.is_empty()
 			mp_start.tooltip_text = "Waiting for at least one more player" if few else ("Waiting for %s to be ready" % ", ".join(waiting_for)) if not waiting_for.is_empty() else "Everyone is ready: start the game for everyone"
 		else:
@@ -1027,6 +1034,16 @@ func _mp_humans() -> Array:
 	var ids := net.players.keys()
 	ids.sort()
 	return ids.filter(func(x): return int(x) != net.leader).map(func(x): return str(net.players[x].name))
+
+
+## 0.19.1: a lobby the player hosts starts on a new random island (the rest of Map Settings is kept): the seed
+## used to carry over from the last game, the same island every time.
+func _mp_fresh_seed() -> void:
+	mp_seeded = true
+	var M := _mp_map()
+	M.seed = random_seed()
+	Settings.menu.mp_map = M
+	Settings.save_all()
 
 
 ## The map settings the page changes: the New Game ones, or the multiplayer host's own (kept apart).

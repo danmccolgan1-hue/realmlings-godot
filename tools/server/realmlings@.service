@@ -1,0 +1,22 @@
+# More Realmlings servers on one Droplet, one game each (docs/SERVER.md, "More than one game at once").
+# Each runs on its own port, with its own saves; players join <address>:<port>, e.g. 157.245.250.30:24566.
+# Copy to /etc/systemd/system/realmlings@.service, open the ports in the firewall (UDP 24566-24569), then:
+#   systemctl daemon-reload && systemctl enable --now realmlings@24566 realmlings@24567
+# (The first server, realmlings.service, keeps port 24565.) Each one uses about 200-250 MB of memory: a 1 GiB
+# Droplet runs about three games at once, a 2 GiB one about seven.
+
+[Unit]
+Description=Realmlings dedicated server on port %i
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=realmlings
+WorkingDirectory=/home/realmlings/server
+ExecStartPre=/bin/mkdir -p /home/realmlings/saves-%i
+ExecStart=/home/realmlings/server/Realmlings.x86_64 --headless -- --server --port=%i --saves=/home/realmlings/saves-%i
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

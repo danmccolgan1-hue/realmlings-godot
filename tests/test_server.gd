@@ -347,8 +347,28 @@ func _resume() -> Array:
 	_run(func(): return srv.lock.step >= 100, 10.0)
 	_settle()
 	errs.append_array(_same("in the carried-on game"))
-	srv.finish("test over")
-	_run(func(): return quit_code != -99, 5.0)
+	# Cy comes back after a drop: he is told it's a server (so his menu offers to end the game)
+	var eve_seat: int = L[eve].me
+	cy.leave()
+	L.erase(cy)
+	clients.erase(cy)
+	var cy2 := _client("Cy", {"race": "wood"}, "fern", PORT + 1)
+	_run(func(): return cy2.joined and cy2.dedicated, 6.0)
+	if not cy2.dedicated:
+		errs.append("resume: a player coming back to a game in progress wasn't told it's a server")
+	# everyone leaves the game: after a while the server keeps it and asks to be started again (a fresh lobby)
+	srv.idle_reset = 1.0
+	for c in clients:
+		c.leave()
+	clients.clear()
+	L.clear()
+	_run(func(): return quit_code != -99, 30.0)
+	if quit_code != MpServer.EXIT_RESTART:
+		errs.append("resume: a game everyone left didn't send the server back to a new lobby (exit %d)" % quit_code)
+	if MpSetup.read_save(DIR, MpSetup.AUTOSAVE) == "":
+		errs.append("resume: the game everyone left wasn't kept")
+	if eve_seat != Game.HOST:
+		errs.append("resume: Eve's nation changed")
 	for c in clients:
 		c.leave()
 	clients.clear()
