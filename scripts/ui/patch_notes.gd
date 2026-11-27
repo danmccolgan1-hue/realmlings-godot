@@ -5,6 +5,16 @@ extends Control
 ## web: v106.js renderPatchNotes
 
 const PORT_NOTES := [
+	{"v": "Godot 0.19.3", "date": "November 27, 2026", "items": [
+		["Loading screen", "While a game is being built, every menu goes away and the world tells you what it is up to (shaping your world, sculpting mountains, growing trees, adding secrets, populating with enemies) with the percentage under it."],
+		["Host locally or online", "The Multiplayer menu has Host locally (your computer runs the game) and Host online: it asks the server which of its games nobody is in yet and hosts a random one of them for you (friends join the address and port it shows). When every game is taken it says: No ports available. Try hosting locally."],
+		["Watching a game", "Watch, beside Join (and beside every game on your network), joins as an observer: you play no nation and give no orders, but see the whole map, the minimap and its toggles, and zoom as you like. A window you can drag and fold away lists every player in their nation's color with their ping, resources, army power and provinces. Observers can join in the lobby or a game under way, and never hold it up."],
+		["Servers", "End the game for everyone is gone: a game with no player left in it is over (after 30 seconds, in case someone's connection only dropped for a moment). The server keeps a last save of it and opens a fresh lobby, ready for the next game."],
+		["Quests", "Picking up a relic starts its quest at once, whether it goes into a Reliquary or a Wayfinder carries it, and no quest waits for a Mage Tower any more. The new quest's pop-up shows the relic that started it, and the Quest Log shows an icon for every relic each quest needs, with a check mark once it is in a Reliquary (a little bag while a Wayfinder carries it)."],
+		["Spawn near players", "In the lobby's Map Settings, with 3 or more computer nations: the players start near one another (each a few provinces from another player) and the computer nations around them, spread out as usual."],
+		["A random game", "Random beside the races on the Nation page: a random race and leader, with a nation name and flag of that race, drawn when the game starts (in a lobby, when you press Done). Your color stays yours."],
+		["Dungeons and buttons", "The Dungeon can be built in any multiplayer game, even one you started alone. Join and Watch are plain buttons now, not switches."],
+	]},
 	{"v": "Godot 0.19.2", "date": "November 27, 2026", "items": [
 		["No more late-game stalls", "A Wayfinder with Automatic Scouting chose its next survey by working out a path to every explored province: with the whole map known that took seconds and froze the game for everyone. It makes the same choice in a fraction of the time."],
 		["Servers", "A server whose players have all left goes back to a fresh lobby after 3 minutes, offering to carry the game on. A player who rejoins a game on a server can end it from the menu. One server can run several games at once on different ports."],

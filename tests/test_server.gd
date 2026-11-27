@@ -2,7 +2,9 @@ extends RefCounted
 ## The dedicated server (MpServer, docs/SERVER.md) over a real connection on this computer: the first player to join
 ## hosts the game; an optional password keeps others out; the host starts the game on the server and every copy
 ## stays in step; the host saves it on the server; a player who drops out is put to the host (wait, or the computer);
-## the host removes a player from the lobby; when the host leaves, the next player hosts; the host ends the game and the server stops. Then a second server
+## the host removes a player from the lobby; when the host leaves, the next player hosts; an observer watches the
+## game in step without holding it up or giving orders; when no player is left the game ends and the server starts a
+## new lobby (0.19.3). Then a second server
 ## finds the interrupted game's autosave, offers it in the lobby, and the players pick their nations from it.
 ## Also the shared setup (MpSetup) a player hosting from their own copy uses: saving and loading with picks.
 
@@ -21,6 +23,7 @@ func run() -> Array:
 	_wipe()
 	errs.append_array(_setup_saves())
 	errs.append_array(_debug_rules())
+	errs.append_array(_near())
 	errs.append_array(_server_game())
 	errs.append_array(_resume())
 	_wipe()
@@ -82,6 +85,56 @@ func _setup_saves() -> Array:
 	if gone.is_empty() or h.players.size() != 1 or not h.players.has(1):
 		errs.append("host: removing a player from the lobby didn't work (%s, %d players)" % [gone, h.players.size()])
 	h.leave()
+	return errs
+
+
+# --- Spawn near players (0.19.3) ------------------------------------------------------------------------------
+func _near() -> Array:
+	var errs := []
+	var players := {1: {"name": "Host", "nation": {"race": "realm", "color": 0}}, 5: {"name": "Ann", "nation": {"race": "realm", "color": 1}},
+		6: {"name": "Bo", "nation": {"race": "wood", "color": 2}}}
+	for sd in ["ember-oak-12", "moss-fern-40"]:
+		var o := {"seed": sd, "slots": ["moderate", "moderate", "moderate", "moderate", "moderate", "closed", "closed"], "races": [], "start": "center", "map": {}, "near": true}
+		var g: Game = MpSetup.new_game(o, players, 1)[0]
+		var humans: Array = g.seat_ids()
+		var ais: Array = g.nations.keys()
+		if humans.size() != 3 or ais.size() < 3:
+			errs.append("near: %d players, %d computer nations" % [humans.size(), ais.size()])
+			continue
+		var caps := {}
+		for x in humans + ais:
+			caps[x] = g.capital_of(x)
+		var hh := 0.0
+		var hn := 0
+		var ha := 0.0
+		var hm := 0
+		for a in humans:
+			var d: Array = g.hops_list(caps[a], g.all_nbr)
+			var nearest_h := INF
+			for b in humans:
+				if b != a:
+					nearest_h = minf(nearest_h, d[caps[b]])
+					hh += d[caps[b]]
+					hn += 1
+			for b in ais:
+				ha += d[caps[b]]
+				hm += 1
+			if nearest_h > Game.NEAR_HOPS + 2:
+				errs.append("near (%s): player %d is %d provinces from the nearest other player" % [sd, a, nearest_h])
+			for b in humans + ais:
+				if b != a and d[caps[b]] < 3:
+					errs.append("near (%s): two capitals closer than 3 provinces" % sd)
+		if hh / hn >= ha / hm:
+			errs.append("near (%s): the players aren't closer to one another (%.1f) than to the computers (%.1f)" % [sd, hh / hn, ha / hm])
+		# without the option, the old spread
+		o.near = false
+		var g2: Game = MpSetup.new_game(o, players, 1)[0]
+		if g2.capital_of(g2.seat_ids()[1]) == g.capital_of(humans[1]) and g2.capital_of(g2.seat_ids()[2]) == g.capital_of(humans[2]):
+			errs.append("near (%s): the option changed nothing" % sd)
+	# fewer than 3 computer nations: no effect
+	var g3: Game = Game.new_world("ember-oak-12", "", ["human", "moderate", "moderate", "closed", "closed", "closed", "closed"], "center", {}, {}, {}, "realm", [], {0: {"race": "realm"}}, true)
+	if g3.spawn_near:
+		errs.append("near: on with only 2 computer nations")
 	return errs
 
 
@@ -238,6 +291,33 @@ func _server_game() -> Array:
 		if hl.game.seats[oo].queues.values().all(func(q): return q.is_empty()) and hl.game.units.filter(func(u): return u.owner == oo).size() < 2:
 			errs.append("server: %s's order never arrived" % c.my_name)
 	errs.append_array(_same("after the first orders"))
+	# 0.19.3: an observer joins the game in progress: the game reaches them, they stay in step, play no nation
+	var wes := _client("Wes", {}, "moss", PORT, true)
+	_run(func(): return L.has(wes) and L[wes].game != null and L[wes].step >= hl.step - 5, 10.0)
+	if not L.has(wes) or L[wes].game == null:
+		errs.append("observer: the game never reached the observer")
+	else:
+		var wl: Lockstep = L[wes]
+		if not wl.observer or not wl.game.spectator or wl.me != 0:
+			errs.append("observer: the observer's copy isn't an observer's (me %d)" % wl.me)
+		if hl.seat_of.has(wes.my_id) or srv.net.playing_count() != 3:
+			errs.append("observer: the observer was given a nation, or counted as a player")
+		var n_cmds := hl.pending.size()
+		wl.game.do("set_paused", [true])
+		_run(func(): return false, 0.3)
+		if hl.game.paused:
+			errs.append("observer: an observer's order paused the game")
+		wl.game.spy_view()
+		if wl.game.explored.size() != wl.game.G.provs.size():
+			errs.append("observer: the observer doesn't see the whole map (%d of %d)" % [wl.game.explored.size(), wl.game.G.provs.size()])
+		wl.game.spy_end()
+		if wl.game.seats[Game.HOST].explored.size() == wl.game.G.provs.size() and hl.game.seats[Game.HOST].explored.size() != wl.game.G.provs.size():
+			errs.append("observer: the observer's view changed the game")
+		var rows := ObserverPanel.rows_of(wl.game, wes)
+		if rows.size() != 3 or rows.any(func(r): return str(r[3]) == "–"):
+			errs.append("observer: the players' window is wrong: %s" % [rows])
+		if n_cmds < 0:
+			pass
 	# the host saves on the server; a player who isn't hosting can't
 	var before := MpSetup.list_saves(DIR).size()
 	bo.send_to(1, {"t": "save_now"})
@@ -277,16 +357,21 @@ func _server_game() -> Array:
 	var ask2 := _heard(cy, "ask_drop")
 	if ask2.is_empty() or int(ask2.o) != Game.HOST or ask2.can_ai:
 		errs.append("server: the new host wasn't asked about Ann's nation, or could hand it to the computer (%s)" % [ask2])
-	# the host ends the game: everyone is told, a last save is kept, the autosave goes, the server stops
+	# 0.19.3: no "End the game" any more: when the last player leaves, the game is over. The observer is told, a
+	# last save is kept, the autosave goes, and the server starts a new lobby.
 	var ends := []
-	L[cy].ended.connect(func(why): ends.append(why))
+	if L.has(wes):
+		L[wes].ended.connect(func(why): ends.append(why))
 	var n_saves := MpSetup.list_saves(DIR).size()
-	cy.send_to(1, {"t": "end_game"})
-	_run(func(): return quit_code != -99 and not ends.is_empty(), 8.0)
-	if ends.is_empty() or not str(ends[0]).contains("ended the game"):
-		errs.append("server: Cy wasn't told the game ended (%s)" % [ends])
-	if quit_code != 0:
-		errs.append("server: it didn't stop after the game ended (%d)" % quit_code)
+	srv.idle_reset = 1.0
+	cy.leave()
+	L.erase(cy)
+	clients.erase(cy)
+	_run(func(): return quit_code != -99, 15.0)
+	if ends.is_empty() or not str(ends[0]).contains("No player"):
+		errs.append("server: the observer wasn't told the game ended (%s)" % [ends])
+	if quit_code != MpServer.EXIT_RESTART:
+		errs.append("server: it didn't start a new lobby when no player was left (%d)" % quit_code)
 	if MpSetup.read_save(DIR, MpSetup.AUTOSAVE) != "":
 		errs.append("server: the finished game's autosave was kept (a restart would offer it again)")
 	if MpSetup.list_saves(DIR).size() != n_saves:   # (the autosave went, a last save came)
@@ -313,6 +398,14 @@ func _resume() -> Array:
 	if srv.net.lobby_save.is_empty() or str(srv.net.lobby_save.name) != MpSetup.AUTOSAVE:
 		return ["resume: the interrupted game wasn't offered"]
 	var seats: Array = srv.net.lobby_save.seats
+	# 0.19.3: Host online: an empty lobby is free; a port with no server isn't
+	var probe := OnlinePorts.new()
+	probe.start("127.0.0.1", [PORT + 1, PORT + 9])
+	_run(func():
+		probe.poll(0.05)
+		return probe.done, 6.0)
+	if probe.free != [PORT + 1]:
+		errs.append("online: the free lobby wasn't found (%s, answers %s)" % [probe.free, probe.answered])
 	var cy := _client("Cy", {"race": "wood"}, "fern", PORT + 1)
 	var eve := _client("Eve", {"race": "realm"}, "fern", PORT + 1)
 	_run(func(): return srv.net.players.size() == 2 and eve.players.size() == 2 and not eve.lobby_save.is_empty(), 5.0)
@@ -321,6 +414,23 @@ func _resume() -> Array:
 	var cy_old := int(seats.filter(func(s): return str(s.player) == "Cy")[0].id)
 	if int(srv.net.players[cy.my_id].get("pick", 0)) != cy_old:
 		errs.append("resume: Cy wasn't given back the nation he played")
+	# 0.19.3: the lobby is taken now: a probe doesn't offer it, and Host online's join is turned away
+	var probe2 := OnlinePorts.new()
+	probe2.start("127.0.0.1", [PORT + 1])
+	_run(func():
+		probe2.poll(0.05)
+		return probe2.done, 6.0)
+	if not probe2.free.is_empty() or not probe2.answered.has(PORT + 1):
+		errs.append("online: a lobby with players was offered as free (%s)" % [probe2.answered])
+	if not probe2.why_none().begins_with("No ports available. Try hosting locally."):
+		errs.append("online: the message is '%s'" % probe2.why_none())
+	var late := _client("Late", {"race": "realm"}, "fern", PORT + 1, false, true)
+	var turned := []
+	late.closed.connect(func(why): turned.append(why))
+	_run(func(): return not turned.is_empty(), 5.0)
+	if turned.is_empty() or turned[0] != NetSession.TAKEN:
+		errs.append("online: a second Host online got into the taken lobby (%s)" % [turned])
+	clients.erase(late)
 	# Cy joined first, so he hosts. Eve tries Cy's nation (taken), then takes the first nation
 	eve.pick(cy_old)
 	_run(func(): return false, 0.5)
@@ -356,8 +466,9 @@ func _resume() -> Array:
 	_run(func(): return cy2.joined and cy2.dedicated, 6.0)
 	if not cy2.dedicated:
 		errs.append("resume: a player coming back to a game in progress wasn't told it's a server")
-	# everyone leaves the game: after a while the server keeps it and asks to be started again (a fresh lobby)
+	# everyone leaves the game: it is over (0.19.3): kept as a last save, and the server starts a new, empty lobby
 	srv.idle_reset = 1.0
+	var n_kept := MpSetup.list_saves(DIR).size()
 	for c in clients:
 		c.leave()
 	clients.clear()
@@ -365,8 +476,8 @@ func _resume() -> Array:
 	_run(func(): return quit_code != -99, 30.0)
 	if quit_code != MpServer.EXIT_RESTART:
 		errs.append("resume: a game everyone left didn't send the server back to a new lobby (exit %d)" % quit_code)
-	if MpSetup.read_save(DIR, MpSetup.AUTOSAVE) == "":
-		errs.append("resume: the game everyone left wasn't kept")
+	if MpSetup.read_save(DIR, MpSetup.AUTOSAVE) != "" or MpSetup.list_saves(DIR).size() != n_kept:
+		errs.append("resume: the game everyone left wasn't kept as a finished game (or its autosave stayed)")
 	if eve_seat != Game.HOST:
 		errs.append("resume: Eve's nation changed")
 	for c in clients:
@@ -377,9 +488,11 @@ func _resume() -> Array:
 
 
 # --- helpers -----------------------------------------------------------------------------------------------------
-func _client(nm: String, nation: Dictionary, pw := "", port := PORT) -> NetSession:
+func _client(nm: String, nation: Dictionary, pw := "", port := PORT, watch := false, fresh := false) -> NetSession:
 	var s := NetSession.new(nm, nation)
 	s.pw = pw
+	s.watch = watch
+	s.fresh = fresh
 	got[s] = []
 	s.message.connect(func(from, m): _on_msg(from, m, s))
 	s.join("127.0.0.1:%d" % port)

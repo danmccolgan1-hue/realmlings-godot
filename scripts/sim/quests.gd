@@ -124,8 +124,8 @@ static func add_tables(g) -> void:
 	if not g.quests_on:
 		return
 	var D: Dictionary = {}
-	for k in c("BUILD_DEFS"):   # (the Dungeon only in games with more than one human nation)
-		if not c("BUILD_DEFS")[k].get("mp", false) or g.seats.size() > 1:
+	for k in c("BUILD_DEFS"):   # (the Dungeon only in multiplayer games: Dungeons.on)
+		if not c("BUILD_DEFS")[k].get("mp", false) or g.seats.size() > 1 or g.mp_game:
 			D[k] = c("BUILD_DEFS")[k]
 	for k in D:
 		if not g.BUILD_DEFS.has(k):
@@ -266,6 +266,7 @@ static func give(g, o: int, id: String, u, p: int) -> String:
 		return "reliquary"
 	if u != null and is_scout(g, u) and bag(u).size() < carry():
 		bag(u).append(id)
+		check(g, o)   # (0.19.3: a relic picked up starts its quest at once, carried or not)
 		return "bag"
 	drop(g, p, [id])
 	return "chest"
@@ -600,16 +601,40 @@ static func progress(g, o: int, qid: String) -> Array:
 	return out
 
 
+## The Quest Log's relic icons for quest qid (0.19.3): one for every relic it needs, [{item, got, carried}]: got in a
+## Reliquary (it counts toward finishing), carried by a scouting unit on its way to one, or neither yet. Read only.
+static func icon_slots(g, o: int, qid: String) -> Array:
+	var out := []
+	var st = log_of(g, o).get(qid)
+	for x in progress(g, o, qid):
+		var id: String = x.item
+		var have: int = x.have
+		var bagged: int = carried(g, o, id) if id != "_convict" else 0
+		if st is Dictionary and st.get("state") == "done":
+			have = x.n
+		for k in int(x.n):
+			out.append({"item": id, "got": k < have, "carried": k >= have and k < have + bagged})
+	return out
+
+
 static func goals_met(g, o: int, qid: String) -> bool:
 	return progress(g, o, qid).all(func(x): return x.have >= x.n)
 
 
-## Whether quest qid starts for nation o now: one of its relics in a Reliquary (and a Mage Tower if it asks for one).
+## How many of relic `id` nation o's scouting units carry.
+static func carried(g, o: int, id: String) -> int:
+	var n := 0
+	for u in g.units:
+		if u.owner == o and u.get("bag") is Array:
+			n += u.bag.count(id)
+	return n
+
+
+## Whether quest qid starts for nation o now: one of its relics picked up, in a Reliquary or carried by a scouting
+## unit. (0.19.3: nothing else; some quests used to wait for a relic to reach a Reliquary, or for a Mage Tower.)
 static func triggered(g, o: int, qid: String) -> bool:
 	var tr: Dictionary = quest(qid).trigger
-	if tr.get("tower", false) and not has_tower(g, o):
-		return false
-	return tr.items.any(func(i): return count(g, o, str(i)) > 0)
+	return tr.items.any(func(i): return count(g, o, str(i)) + carried(g, o, str(i)) > 0)
 
 
 ## Look over human nation o's quests: start the ones it has triggered, move on the ones it has finished.
@@ -637,7 +662,9 @@ static func _won_by_other(g, o: int, qid: String) -> bool:
 static func acquire(g, o: int, qid: String) -> void:
 	log_of(g, o)[qid] = {"state": "active", "t0": g.t, "part": 1}
 	var q: Dictionary = quest(qid)
-	popup(g, o, "New quest: " + str(q.title), str(q.text) + "\n\n" + goal_text(g, o, qid), "Onward")
+	# (0.19.3: the pop-up shows the relic that started it, so the player sees which find the quest is about)
+	var found: Array = q.trigger.items.filter(func(i): return count(g, o, str(i)) + carried(g, o, str(i)) > 0)
+	popup(g, o, "New quest: " + str(q.title), str(q.text) + "\n\n" + goal_text(g, o, qid), "Onward", found.map(func(i): return str(i)))
 
 
 ## A Lost Armament's map is whole (part 1 done): its pieces are used up, and the prize lies buried somewhere in the
@@ -726,13 +753,16 @@ static func words(g, o: int, text: String) -> String:
 	return Races.words(text, g.race(o))
 
 
-static func popup(g, o: int, title: String, text: String, ok: String) -> void:
+## items: relics whose icons the pop-up shows (0.19.3; Game.dialog_items while it opens).
+static func popup(g, o: int, title: String, text: String, ok: String, items := []) -> void:
 	if not g.seats.has(o):
 		return
 	tell(g, o, title)
 	g.in_seat(o, func():
 		if g.on_dialog.is_valid() and g.ME == g.view_seat:
-			g.on_dialog.call(words(g, o, title), words(g, o, text), [{"id": "ok", "label": ok, "why": null}], Callable()))
+			g.dialog_items = items
+			g.on_dialog.call(words(g, o, title), words(g, o, text), [{"id": "ok", "label": ok, "why": null}], Callable())
+			g.dialog_items = [])
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -1321,7 +1351,7 @@ static func ai_own_survey_target(g, N: Dictionary, u: Dictionary, reach: Diction
 ## How to Play's quest lines (Godot only), after the web game's guide.
 const HOWTO := [
 	"[b]Quests and relics[/b] (full maps): each map hides the relics of six quests. A Wayfinder's survey uncovers a province's dig site (a red X, seen by anyone with vision); stand on it and press [b]Dig[/b]: every 10 s there is a chance to unearth the relic (common 20%, uncommon 10%, rare 5%). The longer a Wayfinder keeps digging, the better its odds: at least 10% after 3 minutes, 20% after 4, 30% after 5, 50% after 6, and after 7 minutes the relic is certain.",
-	"[b]Reliquary[/b]: 100 gold and 100 wood, 9 slots, one per province. Relics go straight into a Reliquary with room, wherever they are found; with none, the Wayfinder carries one, and the rest wait in a chest. A relic in a Reliquary starts its quest; the [b]Quest Log[/b] (L, under Diplomacy) shows every text and what is left to find.",
+	"[b]Reliquary[/b]: 100 gold and 100 wood, 9 slots, one per province. Relics go straight into a Reliquary with room, wherever they are found; with none, the Wayfinder carries one, and the rest wait in a chest. Picking up a relic starts its quest; the [b]Quest Log[/b] (L, under Diplomacy) shows every text and an icon for each relic it needs, checked once it is in a Reliquary.",
 	"[b]Fallen Stars[/b]: the first falls 30 minutes in, then one every 15 to 25 minutes, marked by a silver X for anyone who has explored the province. Battlegear, Spell Books and Lost Armaments need them.",
 	"[b]Rewards[/b]: research every 10 s for good, Tier V armor, new weapons, the Shield of Sham, the Triune Staff, and the spells Wall of Flame and Time Warp. The first nation to finish a quest wins it; everyone else who had it fails.",
 	"[b]Mason[/b]: the buildings that need no research come first; [b]Advanced Buildings[/b] (U) opens the ones research unlocks.",

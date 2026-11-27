@@ -63,6 +63,10 @@ var msglog: MessageLog        # the messages box, beside the minimap
 var roster: Roster
 var menu_win: Dictionary
 var ui_scale := 1.0
+## 0.19.3: an observer's interface: the map, the minimap and its toggles, zoom and the menu, and the players'
+## window (ObserverPanel); nothing to select, order, research or open (set before set_game).
+var observer := false
+var watch_panel: ObserverPanel
 
 
 func _ready() -> void:
@@ -195,6 +199,8 @@ func _ready() -> void:
 	bug = preload("res://scripts/ui/bug_report.gd").new()   # 0.19: the bug report box (the bug button, top right)
 	bug.hud = self
 	add_child(bug)
+	watch_panel = ObserverPanel.new()
+	add_child(watch_panel)
 	# drawing order: the Paused plaque, the top bar, the flags and the toasts under every window and panel
 	move_child(paused_label, 0)
 	move_child(topbar, 1)
@@ -213,6 +219,10 @@ func set_game(g: Game) -> void:
 	g.on_notice = add_banner
 	g.on_dialog = func(title: String, text: String, choices: Array, f: Callable):
 		var pics := []
+		for it in g.dialog_items:   # (0.19.3: a new quest shows the relic that started it)
+			var tx := QuestLogWindow.item_tex(str(it))
+			if tx != null:
+				pics.append(tx)
 		if g.dialog_nation != 0:   # meeting a nation: its flag and its leader
 			pics = [Art.nation_flag(g, g.dialog_nation)]
 			var L = g.leader_of(g.dialog_nation)
@@ -246,7 +256,29 @@ func set_game(g: Game) -> void:
 	if map and cam:
 		minimap.setup(g, map, cam)
 	topbar.setup(g)
+	_apply_observer()
 	show()
+
+
+## An observer's interface (see `observer`), or a player's: what shows, and no pop-ups or messages from the game
+## (an observer's copy plays no nation; the rules never wait on these).
+func _apply_observer() -> void:
+	topbar.set_observer(observer)
+	for c in [card, sel_line, sel_rename, flags, roster, msglog, banners, requests]:
+		c.visible = not observer
+	if observer:
+		game.on_toast = Callable()
+		game.on_notice = Callable()
+		game.on_dialog = Callable()
+		game.on_game_over = Callable()
+		select_unit(null)
+		select_province(-1)
+		for w in [armory, diplomacy, quests, country, school]:
+			if w.visible:
+				w.hide()
+		research.hide()
+	else:
+		watch_panel.hide()
 
 
 func select_province(p: int, prt := "") -> void:
@@ -764,6 +796,15 @@ func _process(_delta: float) -> void:
 	if not game:
 		return
 	paused_label.visible = game.paused
+	if observer:   # (the map, the minimap, the tooltip and the toasts; nothing of a nation's)
+		paused_label.text = "Paused by %s" % game.seat_names.get(game.paused_by, "a player") if game.paused and game.paused_by != 0 else "Paused"
+		_hover_tip()
+		minimap.position = Vector2(16, topbar.size.y - Minimap.SIZE.y - 16)
+		paused_label.position.y = topbar.bottom() + 8.0
+		var now0 := Time.get_ticks_msec()
+		while not toast_list.is_empty() and toast_list[0].until < now0:
+			toast_list.pop_front().label.queue_free()
+		return
 	if not dialog.visible and not dialog_queue.is_empty():
 		var dq: Array = dialog_queue.pop_front()
 		dialog.ask(dq[0], dq[1], dq[2], dq[3] if dq[3].is_valid() else func(_id): pass, dq[4])
@@ -915,12 +956,6 @@ func _build_menu() -> void:
 			toggle_menu()
 			main.import_save())
 	b.add_child(menu_btns.import)
-	menu_btns.end = UiKit.button("End the game for everyone", 20, func():
-		if main:
-			dialog.ask("End the game?", "The server saves the game, tells everyone it is over and stops. You can carry it on later: start the server again and choose the save under Load a saved game.",
-				[{"id": "end", "label": "End the game", "why": null}, {"id": "no", "label": "Keep playing", "why": null}],
-				func(id): if id == "end" and main: main.end_mp_game()))
-	b.add_child(menu_btns.end)
 	b.add_child(UiKit.button("Settings", 20, func(): settings.open(game)))
 	b.add_child(UiKit.button("How to Play", 20, func():
 		if main:
@@ -940,13 +975,12 @@ func toggle_menu() -> void:
 		# multiplayer: only the host saves (on a server, the server keeps it); nobody loads a single-player game
 		var lk = main.lock if main else null
 		var lead: bool = lk != null and (lk.is_host or (lk.net != null and lk.net.is_leader()))
-		menu_btns.save.visible = lk == null or lead
+		menu_btns.save.visible = (lk == null or lead) and not observer
 		menu_btns.save.text = "Save game (F5)" if lk == null else "Save the game on the server" if not lk.is_host else "Save the multiplayer game"
 		menu_btns.load.visible = lk == null
 		menu_btns.import.visible = lk == null
-		menu_btns.end.visible = lk != null and not lk.is_host and lk.net != null and lk.net.dedicated and lk.net.is_leader()
 		UiKit.center.call_deferred(p)
-		if game:
+		if game and not observer:
 			game.do("set_paused", [true])
 
 

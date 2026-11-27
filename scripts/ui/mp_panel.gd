@@ -53,6 +53,9 @@ func setup(lk: Lockstep) -> void:
 func _process(dt: float) -> void:
 	if lock == null or lock.game == null:
 		return
+	if lock.observer:   # (0.19.3: an observer has their own window, ObserverPanel)
+		visible = false
+		return
 	# beside the outliner, under the clock (until the player drags it elsewhere)
 	if not UiKit.is_placed("players"):
 		position = Vector2(get_viewport_rect().size.x - 300 - size.x, 76)

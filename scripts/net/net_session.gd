@@ -17,6 +17,7 @@ signal take_seat(id: int, name: String, nation: int)   # host: a player joining 
 signal lobby_info_changed                   # the host's summary of the game everyone is agreeing to (0.19)
 signal lobby_save_changed                   # the host chose a saved game to carry on (or a new island again)
 signal leader_changed                       # a dedicated server: the player hosting the game changed
+signal watcher(id: int)                     # host: an observer joined the game in progress (0.19.3): send them the game
 
 const PORT := 24565            # the game's port (UDP); forward this one on the host's router
 const DISCOVER_PORT := 24566   # LAN games announce themselves here (UDP broadcast)
@@ -60,6 +61,12 @@ var pw := ""                   # a player: the password they give when joining
 var lobby_save := {}
 var debug_ok := false          # the lobby's Allows Debug: Settings → Debug may be used in the game (by everyone)
 var kicked := {}               # the host: names (lower case) removed from this lobby, who may not join again
+## 0.19.3: this player joins as an observer: no nation, no orders, the whole map in view (players[id].watch on the
+## host). Observers are always ready, never host the game and don't count as players.
+var watch := false
+## 0.19.3: Host online: this player only wants a server's lobby nobody is in yet (refused "taken" otherwise).
+var fresh := false
+const TAKEN := "Someone else started hosting on this server a moment ago."
 
 ## ENet's timeouts (0.19): generous, so a few seconds of a busy computer (loading a save, an autosave) or a wobbly
 ## connection don't throw a player out. ENet's own default gives up after as little as 5 s.
@@ -179,9 +186,19 @@ func set_ready(on: bool) -> void:
 ## Is everyone but the host ready?
 func all_ready() -> bool:
 	for id in players:
-		if id != leader and not players[id].get("ready", false):
+		if id != leader and not players[id].get("watch", false) and not players[id].get("ready", false):
 			return false
 	return true
+
+
+## How many of the lobby's people play a nation (not the observers).
+func playing_count() -> int:
+	return players.values().filter(func(P): return not P.get("watch", false)).size()
+
+
+## Is player id an observer?
+func is_watcher(id: int) -> bool:
+	return players.has(id) and players[id].get("watch", false)
 
 
 ## Is this player the one hosting the game (from their own copy, or on a server)?
@@ -278,7 +295,7 @@ func pick(o: int) -> void:
 
 # the host: player id picks nation o of the saved game, if nobody else has it
 func _pick(id: int, o: int) -> void:
-	if not players.has(id) or lobby_save.is_empty() or locked:
+	if not players.has(id) or lobby_save.is_empty() or locked or players[id].get("watch", false):
 		return
 	var ok: bool = o == 0 or lobby_save.get("seats", []).any(func(s): return int(s.id) == o)
 	for other in players:
@@ -296,8 +313,8 @@ func _update_leader() -> void:
 	if not dedicated:
 		return
 	var was := leader
-	if not players.has(leader):
-		var ids := players.keys()
+	if not players.has(leader) or players[leader].get("watch", false):   # (an observer never hosts)
+		var ids := players.keys().filter(func(x): return not players[x].get("watch", false))
 		ids.sort()
 		leader = ids[0] if not ids.is_empty() else 0
 	if leader != was:
@@ -319,7 +336,7 @@ func set_lobby_info(text: String, terms := "") -> void:
 	lobby_terms = terms
 	if changed:
 		for id in players:
-			if id != 1:
+			if id != 1 and not players[id].get("watch", false):
 				players[id].ready = false
 	send_all({"t": "linfo", "text": text})
 	_broadcast_players()
@@ -406,7 +423,7 @@ func poll(dt := 0.016) -> void:
 	if not is_host and st == MultiplayerPeer.CONNECTION_CONNECTED and my_id == 0:
 		my_id = peer.get_unique_id()
 		_patient(1)
-		_send(1, {"t": "hello", "name": my_name, "version": version, "nation": nation, "pw": pw})
+		_send(1, {"t": "hello", "name": my_name, "version": version, "nation": nation, "pw": pw, "watch": watch, "fresh": fresh})
 	while peer != null and peer.get_available_packet_count() > 0:
 		var from := peer.get_packet_peer()
 		var msg = bytes_to_var(peer.get_packet())
@@ -424,6 +441,10 @@ func poll(dt := 0.016) -> void:
 
 func _handle(from: int, m: Dictionary) -> void:
 	match str(m.get("t", "")):
+		"probe":   # 0.19.3: Host online asks whether this lobby is free (OnlinePorts); nobody joins
+			if is_host:
+				_send(from, {"t": "probe_ok", "players": playing_count(), "locked": locked, "version": version, "server": dedicated})
+				_kick_later(from)
 		"hello":   # host: a player wants in
 			if not is_host:
 				return
@@ -439,6 +460,29 @@ func _handle(from: int, m: Dictionary) -> void:
 				return
 			if password != "" and str(m.get("pw", "")) != password:
 				_refuse(from, nm0, "This game needs a password: type it under Password and join again." if str(m.get("pw", "")) == "" else "Wrong password.")
+				return
+			if bool(m.get("fresh", false)) and (locked or playing_count() > 0):   # (Host online: this lobby was just taken)
+				_refuse(from, nm0, TAKEN)
+				return
+			if bool(m.get("watch", false)):   # 0.19.3: an observer, before or during the game
+				if players.size() >= MAX_PLAYERS:
+					_refuse(from, nm0, "The game is full (%d people)" % MAX_PLAYERS)
+					return
+				nm0 = _unique_name(nm0, from)
+				players[from] = {"name": nm0, "nation": {}, "ping": 0, "ready": true, "pick": 0, "watch": true}
+				_send(from, {"t": "welcome", "id": from, "locked": locked, "name": nm0, "server": dedicated, "watch": true})
+				if not locked:
+					if lobby_info != "":
+						_send(from, {"t": "linfo", "text": lobby_info})
+					if debug_ok:
+						_send(from, {"t": "ldebug", "on": true})
+					if not lobby_save.is_empty():
+						_send(from, {"t": "lsave", "save": lobby_save})
+				_broadcast_players()
+				_relay_chat(0, "%s is watching." % nm0)
+				log_line("%s joined as an observer%s" % [nm0, " (game in progress)" if locked else ""])
+				if locked:
+					watcher.emit(from)
 				return
 			if locked and reserved.has(nm0):   # coming back to their own nation
 				players[from] = {"name": nm0, "nation": m.get("nation", {}), "ping": 0, "ready": true, "pick": 0}
@@ -529,6 +573,8 @@ func _handle(from: int, m: Dictionary) -> void:
 			if m.has("name") and str(m.name) != my_name:   # (the host renamed you: someone already had your name)
 				my_name = str(m.name)
 				status.emit("Connected. Someone already had your name, so you are %s." % my_name)
+			elif bool(m.get("watch", false)):
+				status.emit("Connected as an observer. The game is under way: loading it…" if in_progress else "Connected as an observer: you'll watch the game once the host starts it.")
 			else:
 				status.emit("Connected. The game is already under way: loading it…" if in_progress else "Connected.")
 			log_line("Connected to the host as %s%s" % [my_name, " (game in progress)" if in_progress else ""])
@@ -540,7 +586,7 @@ func _handle(from: int, m: Dictionary) -> void:
 		"players":
 			players = {}
 			for p in m.get("list", []):
-				players[int(p.id)] = {"name": p.name, "nation": p.nation, "ping": p.ping, "ready": p.get("ready", false), "pick": int(p.get("pick", 0))}
+				players[int(p.id)] = {"name": p.name, "nation": p.nation, "ping": p.ping, "ready": p.get("ready", false), "pick": int(p.get("pick", 0)), "watch": p.get("watch", false)}
 			var ld := int(m.get("leader", 1))
 			if ld != leader:
 				leader = ld
@@ -597,7 +643,7 @@ func _relay_chat(from: int, text: String) -> void:
 func _broadcast_players() -> void:
 	var list := []
 	for id in players:
-		list.append({"id": id, "name": players[id].name, "nation": players[id].nation, "ping": players[id].ping, "ready": players[id].get("ready", id == leader), "pick": int(players[id].get("pick", 0))})
+		list.append({"id": id, "name": players[id].name, "nation": players[id].nation, "ping": players[id].ping, "ready": players[id].get("ready", id == leader), "pick": int(players[id].get("pick", 0)), "watch": players[id].get("watch", false)})
 	players_changed.emit()
 	for id in players:
 		if id != 1:
@@ -633,6 +679,12 @@ func send_all(m: Dictionary) -> void:
 	for id in players:
 		if id != 1:
 			_send(id, m)
+
+
+## Send what is queued now (the server, before it builds a game and doesn't read the network for a few seconds).
+func flush() -> void:
+	if peer != null and peer.host != null:
+		peer.host.flush()
 
 
 ## A chat line from the game itself (a player dropped, came back...), to everyone.

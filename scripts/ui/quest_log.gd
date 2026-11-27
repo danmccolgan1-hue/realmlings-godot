@@ -2,7 +2,9 @@ class_name QuestLogWindow
 extends Control
 ## The Quest Log (Godot only, docs/QUESTS_PLAN.md): every quest your nation has found, each with all its texts and
 ## how many of each relic you have. Open quests in gray, finished ones in green ("Complete"), lost ones in red
-## ("Failed"). Click a quest to fold its texts away or open them. The button under Diplomacy, or L. Views only.
+## ("Failed"). Click a quest to fold its texts away or open them. Under each quest, an icon for every relic it needs
+## (0.19.3): dim until found, a green check once it is in a Reliquary, a bag once a scouting unit carries it. The
+## button under Diplomacy, or L. Views only.
 
 const MUTED := Color("#6b6257")
 const ACTIVE := Color("#6b6b70")
@@ -50,6 +52,51 @@ func _process(_dt: float) -> void:
 		_refresh()
 
 
+## A relic's icon (null when it has none, as for Jailbreak's convicts). Marked "square" for the pop-ups' layout.
+static func item_tex(id: String) -> Texture2D:
+	var path := "res://assets/art/icons/common/item_%s.png" % id
+	if not ResourceLoader.exists(path):
+		return null
+	var t: Texture2D = load(path)
+	if t != null and not t.has_meta("square"):
+		t.set_meta("square", true)
+	return t
+
+
+## A row of the quest's relic icons with their marks (see the class note).
+func _icon_row(qid: String) -> Control:
+	var row := HFlowContainer.new()
+	row.add_theme_constant_override("h_separation", 6)
+	row.add_theme_constant_override("v_separation", 6)
+	for slot in Quests.icon_slots(game, game.ME, qid):
+		var tex := item_tex(str(slot.item))
+		var cell := Control.new()
+		cell.custom_minimum_size = Vector2(44, 44)
+		var nm := Quests.words(game, game.ME, Quests.item_name(str(slot.item))) if str(slot.item) != "_convict" else "A Convict"
+		cell.tooltip_text = "%s: %s" % [nm, "in your Reliquary" if slot.got else "carried by one of your scouts, on its way to a Reliquary" if slot.carried else "not found yet"]
+		cell.mouse_filter = Control.MOUSE_FILTER_PASS
+		var got: bool = slot.got
+		var carried: bool = slot.carried
+		cell.draw.connect(func():
+			var r := Rect2(Vector2.ZERO, cell.size)
+			cell.draw_rect(r, Color("#efe3c4"))
+			if tex != null:
+				cell.draw_texture_rect(tex, r.grow(-3), false, Color.WHITE if got or carried else Color(1, 1, 1, 0.3))
+			else:
+				cell.draw_string(ThemeDB.fallback_font, Vector2(6, 30), "?", HORIZONTAL_ALIGNMENT_LEFT, -1, 22, Color(UiKit.INK, 0.5 if not got else 1.0))
+			cell.draw_rect(r, Color(UiKit.INK, 0.6), false, 1.5)
+			if got:   # a green check over the icon
+				var pts := PackedVector2Array([Vector2(10, 23), Vector2(19, 32), Vector2(35, 12)])
+				cell.draw_polyline(pts, Color.WHITE, 7.0, true)
+				cell.draw_polyline(pts, Color("#2f8a3a"), 4.0, true)
+			elif carried:   # a little bag in the corner
+				cell.draw_circle(Vector2(34, 34), 7.0, Color("#b07a2a"))
+				cell.draw_arc(Vector2(34, 34), 7.0, 0, TAU, 16, UiKit.INK, 1.2, true)
+				cell.draw_line(Vector2(31, 27), Vector2(37, 27), UiKit.INK, 1.5))
+		row.add_child(cell)
+	return row
+
+
 ## The quests in the order the log shows them: open ones first, then finished, then failed; oldest first in each.
 static func entries(g: Game) -> Array:
 	var L: Dictionary = g.quest_log
@@ -82,14 +129,14 @@ static func body_text(g: Game, qid: String) -> String:
 
 func _refresh() -> void:
 	var ids := entries(game)
-	var k := str(ids) + str(folded) + str(ids.map(func(id): return [game.quest_log[id], Quests.progress(game, game.ME, id)]))
+	var k := str(ids) + str(folded) + str(ids.map(func(id): return [game.quest_log[id], Quests.icon_slots(game, game.ME, id)]))
 	if k == key:
 		return
 	key = k
 	UiKit.clear(win.body)
 	if ids.is_empty():
 		var l := UiKit.rich(16, 600)
-		l.text = Quests.words(game, game.ME, "No quests yet. Your Wayfinders find relics by surveying and digging; a relic in one of your Reliquaries starts its quest.")
+		l.text = Quests.words(game, game.ME, "No quests yet. Your Wayfinders find relics by surveying and digging; picking one up starts its quest.")
 		win.body.add_child(l)
 		return
 	var scroll := ScrollContainer.new()
@@ -124,5 +171,9 @@ func _refresh() -> void:
 		body.add_theme_color_override("default_color", UiKit.INK if st.state == "active" else colr.darkened(0.2))
 		var m := MarginContainer.new()
 		m.add_theme_constant_override("margin_left", 22)
-		m.add_child(body)
+		var mv := VBoxContainer.new()
+		mv.add_theme_constant_override("separation", 6)
+		mv.add_child(_icon_row(qid))   # (0.19.3: every relic it needs, checked once found)
+		mv.add_child(body)
+		m.add_child(mv)
 		col.add_child(m)

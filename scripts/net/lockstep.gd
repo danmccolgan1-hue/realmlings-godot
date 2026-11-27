@@ -34,7 +34,9 @@ const HOST_ONLY := ["hand_to_ai", "take_from_ai", "grant_tech", "rec_toggle"]
 var net: NetSession
 var game: Game
 var is_host := false
-var me := 0                    # this player's nation
+var me := 0                    # this player's nation (0: an observer, 0.19.3)
+var observer := false          # this copy watches the game: no nation, no orders, the whole map (Game.spectator)
+var watchers := {}             # host: peer ids of the observers who have the game
 var seat_of := {}              # host: peer id -> nation
 var names := {}                # nation -> player name
 var step := 0                  # the next step to run
@@ -61,6 +63,7 @@ func _init(session: NetSession, g: Game, host: bool, nation: int) -> void:
 	net = session
 	is_host = host
 	me = nation
+	observer = not host and nation == 0
 	if g != null:
 		_set_game(g)
 	net.message.connect(_on_message)
@@ -70,6 +73,7 @@ func _init(session: NetSession, g: Game, host: bool, nation: int) -> void:
 		net.left.connect(_on_left)
 		net.rejoined.connect(_on_rejoined)
 		net.take_seat.connect(_on_take_seat)
+		net.watcher.connect(_send_to_watcher)
 		net.seat_choices = _seat_choices
 
 
@@ -86,8 +90,9 @@ func loaded(g: Game, s: int) -> void:
 
 func _set_game(g: Game) -> void:
 	game = g
-	game.view_seat = me
-	game.use_seat(me)
+	game.spectator = observer
+	game.view_seat = Game.HOST if observer else me   # (an observer's copy runs like the first nation's; Game.spy_view)
+	game.use_seat(game.view_seat)
 	game.on_command = _order
 
 
@@ -104,6 +109,10 @@ func begin(seats: Dictionary) -> void:
 			net.reserved[names[seat_of[pid]]] = true
 			net.send_to(pid, {"t": "start", "save": text, "seat": seat_of[pid], "s": step})
 			heard[pid] = _clock
+	for pid in net.players:   # the observers watch from the first step (they never hold the game up)
+		if net.is_watcher(pid) and not seat_of.has(pid):
+			watchers[pid] = true
+			net.send_to(pid, {"t": "start", "save": text, "seat": 0, "s": step})
 	ready = {1: true}
 	waiting.emit("Waiting for everyone to load the island…")
 
@@ -156,6 +165,15 @@ func _send_waiting() -> void:
 			heard[pid] = _clock
 			acked[pid] = step
 			net.send_to(pid, {"t": "start", "save": game.save_text(), "seat": o, "s": step})
+
+
+## host (0.19.3): an observer joined the game in progress: the game as it is now (the next step's orders follow).
+func _send_to_watcher(pid: int) -> void:
+	if game == null:
+		return
+	watchers[pid] = true
+	net.send_to(pid, {"t": "start", "save": game.save_text(), "seat": 0, "s": step})
+	NetSession.log_line("%s is watching from step %d" % [str(net.players.get(pid, {}).get("name", "An observer")), step])
 
 
 ## The name of a player too far behind to go on without, or "".
@@ -294,6 +312,8 @@ func _on_take_seat(pid: int, nm: String, o: int) -> void:
 
 # an order from this player's interface (Game.do)
 func _order(cmd: Dictionary) -> void:
+	if observer:
+		return
 	if is_host:
 		_queue(cmd, 1)
 	else:
@@ -338,11 +358,13 @@ func _client_tick() -> void:
 		waiting.emit("Loading the island…")
 		return
 	var n := 0
+	game.spy_end()   # (an observer: the seat's own fields for the steps; the whole map again after them)
 	while inbox.has(step) and n < MAX_CATCHUP:
 		var cmds: Array = inbox[step]
 		inbox.erase(step)
 		_run(cmds)
 		n += 1
+	game.spy_view()
 	waiting.emit("" if inbox.has(step) or n > 0 or _clock - float(heard.get(1, _clock)) < 1.0 else "Waiting for the host…")
 
 
@@ -373,7 +395,7 @@ func _on_message(from: int, m: Dictionary) -> void:
 		"sum":
 			if is_host and sums.has(int(m.s)) and sums[int(m.s)] != int(m.h):
 				resyncs += 1
-				NetSession.log_line("%s fell out of step at step %d and was sent the game again (resync %d)" % [names.get(seat_of.get(from, 0), "A player"), int(m.s), resyncs])
+				NetSession.log_line("%s fell out of step at step %d and was sent the game again (resync %d)" % [names.get(seat_of.get(from, 0), "An observer" if watchers.has(from) else "A player"), int(m.s), resyncs])
 				net.send_to(from, {"t": "resync", "save": game.save_text(), "s": step})
 				note.emit("%s fell out of step and was sent the game again." % names.get(seat_of.get(from, 0), "A player"))
 		"resync", "start":

@@ -5,14 +5,16 @@ extends Node
 ##   Realmlings.x86_64 --headless -- --server [--port=24565] [--password=secret] [--saves=/path/to/folder] [--name=Name]
 ## The first player to join hosts the game: they choose the island and the computer nations (or a saved game to
 ## carry on), may set a password, start the game, save it, and decide about players who drop out. If they leave,
-## the next player to have joined takes over. The game is saved every minute of play; after a crash or a restart
-## the server offers it again in the lobby. When the game ends (the host ends it, or no player's nation is left
-## standing), the server saves it and stops.
+## the next player to have joined takes over. Observers may join too (0.19.3): they watch and never host. The game
+## is saved every minute of play; after a crash or a restart the server offers it again in the lobby. When the game
+## ends (no player is left in it, or no player's nation is left standing), the server keeps a last save of it and
+## starts again with a fresh lobby (exit EXIT_RESTART: the service brings it back).
 
 const AUTOSAVE_EVERY := 60.0   # seconds of play between saves
-## 0.19.1: a game everyone has left for this long (real seconds) is saved and the server starts afresh, with a new
-## lobby that offers it again: it used to wait for them forever, and anyone joining went straight back into it.
-var idle_reset := 180.0
+## 0.19.3: a game with no player left in it (observers don't count) for this long (real seconds) is over: the server
+## keeps a last save and starts afresh with a new, empty lobby (Host online finds it free). The wait lets a player
+## whose connection dropped for a moment come back. (0.19.1-0.19.2 waited 3 minutes and offered the game again.)
+var idle_reset := 30.0
 const EXIT_RESTART := 75       # (the exit code for "start me again": the service restarts the server after a failure)
 
 var net: NetSession
@@ -90,14 +92,14 @@ func tick(dt: float) -> void:
 			_check_t = 1.0
 			_check_asks()
 			_check_end()
-		_idle = _idle + dt if net.players.is_empty() and lock.started and not done else 0.0
+		_idle = _idle + dt if net.playing_count() == 0 and lock.started and not done else 0.0
 		if _idle >= idle_reset:
 			_idle = 0.0
-			reset_to_lobby()
+			finish("No player is left in the game: it is over.")
 	if quit_t >= 0.0:
 		quit_t -= dt
 		if quit_t < 0.0:
-			_quit(0)
+			_quit(EXIT_RESTART)   # (0.19.3: always a fresh lobby after a game, so the port is free for the next one)
 
 
 ## A line in the server's output and its log.
@@ -133,9 +135,6 @@ func _on_message(from: int, m: Dictionary) -> void:
 				var nm := MpSetup.write_save(dir, lock.game)
 				net.send_to(from, {"t": "lnote", "text": "Saved on the server. Choose it under Load a saved game in the lobby to carry on." if nm != "" else "The game could not be saved on the server."})
 				say("Saved the game as %s" % nm)
-		"end_game":
-			if lock != null:
-				finish("%s ended the game." % str(net.players[from].name), true)
 		"hand_over":
 			var o := int(m.get("o", 0))
 			if lock != null and asks.has(o):
@@ -167,13 +166,13 @@ func _choose_save(name: String) -> void:
 
 # the host pressed Start
 func _start(o: Dictionary) -> void:
-	if lock != null or net.players.is_empty():
+	if lock != null or net.playing_count() == 0:
 		return
 	var tell := func(t2: String): net.send_to(net.leader, {"t": "lnote", "text": t2})
 	if not net.all_ready():
 		tell.call("Not everyone is ready yet.")
 		return
-	var players := net.players.duplicate(true)
+	var players := MpSetup.playing(net.players.duplicate(true))   # (the observers play no nation)
 	var made: Array
 	if net.lobby_save.is_empty():
 		var why := MpSetup.clash(players)
@@ -184,6 +183,8 @@ func _start(o: Dictionary) -> void:
 			o.seed = str(randi() % 100000)
 		say("Raising a new island (seed %s) for %d player%s" % [o.seed, players.size(), "" if players.size() == 1 else "s"])
 		net.send_all({"t": "lnote", "text": "Raising the world and its nations…"})
+		net.send_all({"t": "building"})   # (0.19.3: everyone's loading screen)
+		net.flush()
 		made = MpSetup.new_game(o, players, net.leader)
 	else:
 		var picks := {}
@@ -194,6 +195,8 @@ func _start(o: Dictionary) -> void:
 			tell.call(why)
 			return
 		say("Carrying on saved game %s" % net.lobby_save.name)
+		net.send_all({"t": "building"})
+		net.flush()
 		made = MpSetup.load_game(MpSetup.read_save(dir, str(net.lobby_save.name)), picks, players)
 		if made.is_empty():
 			tell.call("That saved game can't be read.")
@@ -266,20 +269,10 @@ func finish(why: String, keep := true) -> void:
 		var nm := MpSetup.write_save(dir, lock.game)
 		say("Kept the finished game as %s" % nm)
 	MpSetup.delete_save(dir, MpSetup.AUTOSAVE)
-	say(why + " The server is stopping.")
+	say(why + " The server starts a new lobby.")
 	if lock != null:
-		lock.end_game(why + " The server has stopped.")
+		lock.end_game(why)
 	quit_t = 3.0   # (time for the message to reach everyone)
-
-
-## Everyone left the game in progress: keep it (the new lobby offers it to carry on) and start the server afresh.
-func reset_to_lobby() -> void:
-	if done or lock == null:
-		return
-	done = true
-	MpSetup.write_save(dir, lock.game, MpSetup.AUTOSAVE)
-	say("Everyone has left the game: it is saved, and the server starts a new lobby (which offers to carry it on).")
-	_quit(EXIT_RESTART)
 
 
 func _quit(code: int) -> void:

@@ -33,6 +33,7 @@ var replay_hud: ReplayHud
 var lock: Lockstep              # a multiplayer game's lockstep (null in a single-player game)
 var mp_panel: MpPanel
 var server: MpServer            # --server: this copy is the dedicated server (no window, no player)
+var loading: LoadingScreen      # 0.19.3: the screen while a game is being built
 
 
 func _ready() -> void:
@@ -80,6 +81,12 @@ func _ready() -> void:
 				menu.open_setup(true, "setup_map")
 		elif a == "--mpplay":   # pictures: a two-player game over this computer's own network (the host's view)
 			_mp_demo.call_deferred()
+		elif a == "--mpwatch":   # pictures: watching a game another copy hosts on this computer (0.19.3)
+			_watch_demo.call_deferred()
+		elif a == "--loading":   # pictures: the loading screen while a new game is built
+			_loading_demo.call_deferred()
+		elif a == "--mpmenu":   # pictures: the Multiplayer menu
+			menu.show_screen("multi")
 		elif a == "--fps":   # measuring: start a game at once and log the frame rate (see _process)
 			_start.call_deferred()
 		elif a == "--newgame":   # pictures: the New Game pages (--newgame --mapsettings: the second one)
@@ -90,12 +97,12 @@ func _ready() -> void:
 			Settings.record_games = true
 		elif a.begins_with("--replay=") and Array(OS.get_cmdline_user_args()).any(func(x): return x.begins_with("--shot=")):
 			start_replay.call_deferred(a.substr(9))
-		elif a.begins_with("--shot=") and (OS.get_cmdline_user_args().has("--menu") or OS.get_cmdline_user_args().has("--newgame") or OS.get_cmdline_user_args().has("--mphost")):
+		elif a.begins_with("--shot=") and (OS.get_cmdline_user_args().has("--menu") or OS.get_cmdline_user_args().has("--newgame") or OS.get_cmdline_user_args().has("--mphost") or OS.get_cmdline_user_args().has("--mpmenu")):
 			_menu_shot.call_deferred(a.substr(7), false)
 		elif a.begins_with("--shot=") and (OS.get_cmdline_user_args().has("--patch") or Array(OS.get_cmdline_user_args()).any(func(x): return x.begins_with("--replay="))):
 			if OS.get_cmdline_user_args().has("--patch"):
 				_menu_shot.call_deferred(a.substr(7))
-		elif a.begins_with("--shot=") and not OS.get_cmdline_user_args().has("--tutorial") and not OS.get_cmdline_user_args().has("--mpplay"):
+		elif a.begins_with("--shot=") and not OS.get_cmdline_user_args().has("--tutorial") and not OS.get_cmdline_user_args().has("--mpplay") and not OS.get_cmdline_user_args().has("--mpwatch") and not OS.get_cmdline_user_args().has("--loading"):
 			_start.call_deferred()
 
 
@@ -125,7 +132,32 @@ func _build_menu() -> void:
 	ui.add_child(files)
 	replay_hud = ReplayHud.new()
 	add_child(replay_hud)
+	var top := CanvasLayer.new()   # (over everything else)
+	top.layer = 100
+	add_child(top)
+	loading = LoadingScreen.new()
+	top.add_child(loading)
 	_menu_backdrop()
+
+
+## 0.19.3: the game is being built: the loading screen, and no other menu.
+func show_loading() -> void:
+	if loading == null:
+		return
+	if not loading.visible:
+		loading.open()
+	menu.hide()
+
+
+## The game is ready (or couldn't be built): the loading screen goes.
+func hide_loading() -> void:
+	if loading != null:
+		loading.close()
+
+
+## Is this copy watching a multiplayer game (0.19.3)?
+func watching() -> bool:
+	return lock != null and lock.observer
 
 
 var how_to: HowToWindow
@@ -160,6 +192,7 @@ func start_from_menu(o: Dictionary) -> void:
 	var slots := Array(shot_slots) if not shot_slots.is_empty() else ([] if practice else Array(o.slots))
 	var leader: String = "" if o.leader == "random" else o.leader
 	status.text = "Raising the island…" if practice else "Raising the world and its nations…"
+	show_loading()
 	thread = Thread.new()
 	thread.start(_gen.bind(o.seed, leader, slots, o.start, o.map, o.nation, practice, str(o.get("race", "realm")), Array(o.get("races", [])) if shot_slots.is_empty() else []))
 
@@ -200,8 +233,9 @@ func _on_file(path: String) -> void:
 
 ## Leave the game for the start screen (from the in-game menu).
 func to_main_menu() -> void:
+	hide_loading()
 	if lock != null:
-		if game:
+		if game and not lock.observer:
 			save_to(MP_SAVE, true)
 		_end_mp()
 	elif game and game.tutorial == null:
@@ -239,9 +273,13 @@ func _gen(seed: String, leader_id: String, slots := [], start := "center", opts 
 func _on_ready(g: Game, from_thread := true) -> void:
 	if from_thread:
 		thread.wait_to_finish()
-	Game.LOCAL = g.view_seat
-	if lock == null and mp_panel != null:
+	hide_loading()
+	Game.LOCAL = 0 if watching() else g.view_seat   # (an observer has no units or land of their own)
+	hud.observer = watching()
+	if (lock == null or watching()) and mp_panel != null:
 		mp_panel.hide()
+	if watching():
+		hud.watch_panel.setup(lock)
 	game = g
 	Art.player_race = g.race()
 	menu.reset_start()
@@ -255,7 +293,7 @@ func _on_ready(g: Game, from_thread := true) -> void:
 	var vp := get_viewport_rect().size
 	var z := minf(vp.x / b.size.x, vp.y / b.size.y) * 0.8
 	cam.zoom = Vector2(z, z)
-	if g.capital >= 0:   # the game opens on your capital
+	if g.capital >= 0 and not watching():   # the game opens on your capital (an observer: on the whole map)
 		go_home()
 	_maybe_screenshot()
 
@@ -275,6 +313,8 @@ func start_mp_host(net: NetSession, o: Dictionary) -> void:
 		return
 	_mp_pending = {"net": net, "o": o}
 	status.text = "Raising the world and its nations…"
+	net.send_all({"t": "building"})   # (0.19.3: everyone's loading screen)
+	show_loading()
 	thread = Thread.new()
 	thread.start(_mp_gen.bind(o, net.players.duplicate(true)))
 
@@ -285,7 +325,7 @@ func _mp_gen(o: Dictionary, players: Dictionary) -> void:
 		var picks := {}
 		for pid in players:
 			picks[pid] = int(players[pid].get("pick", 0))
-		made = MpSetup.load_game(host_save_text(str(o.save)), picks, players)
+		made = MpSetup.load_game(host_save_text(str(o.save)), picks, players)   # (MpSetup leaves the observers out)
 	else:
 		made = MpSetup.new_game(o, players, 1)
 	if not made.is_empty():
@@ -323,16 +363,12 @@ func save_mp() -> void:
 		hud.add_toast("Saving the game on the server…")
 
 
-## The player hosting a game on a server ends it for everyone (the server saves it and stops).
-func end_mp_game() -> void:
-	if lock != null and lock.net != null and lock.net.dedicated and lock.net.is_leader():
-		lock.net.send_to(1, {"t": "end_game"})
-
-
 func _mp_host_ready(g: Game, seat_of: Dictionary) -> void:
 	thread.wait_to_finish()
 	if g == null:
 		_mp_pending.net.leave()
+		hide_loading()
+		menu.show()
 		menu.reset_start()
 		menu.show_screen("main")
 		status.text = "That saved game can't be read."
@@ -347,10 +383,11 @@ func _mp_host_ready(g: Game, seat_of: Dictionary) -> void:
 func start_mp_client(net: NetSession, m: Dictionary) -> void:
 	if lock != null or (thread and thread.is_alive()):
 		return
-	lock = Lockstep.new(net, null, false, int(m.seat))
+	lock = Lockstep.new(net, null, false, int(m.seat))   # (seat 0: an observer)
 	_mp_wire()
 	status.text = "Loading the host's island…"
 	menu.show_screen("main")
+	show_loading()
 	thread = Thread.new()
 	thread.start(func():
 		var g := Game.load_text(str(m.save))
@@ -361,6 +398,8 @@ func _mp_client_ready(g: Game, s: int) -> void:
 	thread.wait_to_finish()
 	if g == null or lock == null:
 		_end_mp()
+		hide_loading()
+		menu.show()
 		status.text = "The host's game could not be loaded."
 		return
 	lock.loaded(g, s)
@@ -393,9 +432,10 @@ func _mp_wire() -> void:
 	if lock.net != null:
 		lock.net.message.connect(_on_mp_message)
 	lock.ended.connect(func(why):
+		var watched := watching()
 		to_main_menu()   # (it keeps the game in MP_SAVE)
 		menu.show_screen("main")
-		status.text = "%s. The game is saved: the host can continue it from the Multiplayer page." % why.strip_edges().trim_suffix("."))
+		status.text = ("%s." if watched else "%s. The game is saved: the host can continue it from the Multiplayer page.") % why.strip_edges().trim_suffix("."))
 
 
 ## Messages from a dedicated server to the player hosting the game: a player dropped out (wait, or hand their
@@ -597,7 +637,8 @@ func _process(delta: float) -> void:
 		if game.t >= next_autosave:
 			next_autosave = (floor(game.t / AUTOSAVE_EVERY) + 1) * AUTOSAVE_EVERY
 			if lock != null:
-				save_to(MP_SAVE, true)   # (every player keeps the game, for when the host leaves)
+				if not lock.observer:
+					save_to(MP_SAVE, true)   # (every player keeps the game, for when the host leaves)
 			elif game.tutorial == null:
 				save_to(AUTOSAVE, true)
 				save_recording()
@@ -902,7 +943,18 @@ func _quest_shot(what: String) -> void:
 		game.digs[q2] = {"item": "callum", "shown": false, "star": false}
 		w.prov = q2
 		Quests.uncover(game, w)
+	if what == "newquest" and w != null:   # (0.19.3) a relic picked up starts its quest: the pop-up shows it
+		game.quest_pick.append("signet")
+		Quests.give(game, Game.LOCAL, "signet", w, cap)
 	if what == "log":
+		if w != null:   # (0.19.3: a relic a Wayfinder carries, and its quest started)
+			game.quest_pick.append("signet")
+			w.bag = ["signet"]
+			Quests.check(game, Game.LOCAL)
+			for i in 6:
+				if hud.dialog.visible:
+					hud.dialog.pick("close")
+			hud.dialog_queue.clear()
 		hud.quests.open()
 	elif what == "reliq":
 		map.selected_unit = null
@@ -999,6 +1051,70 @@ func _mp_demo() -> void:
 		get_tree().quit()
 
 
+## Pictures (0.19.3): this copy watches a game that a host session in the same program runs.
+func _watch_demo() -> void:
+	var h := NetSession.new("Daniel", {"race": "realm", "color": 0, "nation": "Daniel's Realm", "leader": "random"})
+	h.host(24608, false)
+	var ann := NetSession.new("Ann", {"race": "swamp", "color": 1, "emblem": "skull", "secondary": "#f0c43c", "nation": "Bog Kings", "leader": "random"})
+	ann.join("127.0.0.1:24608")
+	var ann_lock := []
+	ann.message.connect(func(_f, m):
+		if m.get("t") == "start" and ann_lock.is_empty():
+			var lk := Lockstep.new(ann, null, false, int(m.seat))
+			lk.loaded(Game.load_text(str(m.save)), int(m.s))
+			ann_lock.append(lk))
+	menu.show_screen("multi")
+	menu._mp_join("Wes", "127.0.0.1:24608", true)
+	for i in 400:
+		h.poll(0.01)
+		ann.poll(0.01)
+		menu.net.poll(0.01)
+		if h.players.size() == 3 and ann.joined and menu.net.joined:
+			break
+		OS.delay_msec(10)
+	var made := MpSetup.new_game({"seed": "ember-oak-12", "slots": ["moderate", "moderate", "closed", "closed", "closed", "closed", "closed"], "races": [], "start": "center", "map": {}}, h.players, 1)
+	var hl := Lockstep.new(h, made[0], true, Game.HOST)
+	hl.begin(made[1])
+	var shot := ""
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--shot="):
+			shot = a.substr(7)
+	while lock == null or game == null or lock.step < 300:
+		h.poll(0.016)
+		hl.process(0.05)
+		ann.poll(0.016)
+		if not ann_lock.is_empty():
+			ann_lock[0].process(0.05)
+		await get_tree().process_frame
+	for i in 30:
+		h.poll(0.016)
+		hl.process(0.016)
+		await get_tree().process_frame
+	if shot != "":
+		await RenderingServer.frame_post_draw
+		get_viewport().get_texture().get_image().save_png(shot)
+		get_tree().quit()
+
+
+## Pictures (0.19.3): the loading screen part way through building a new game.
+func _loading_demo() -> void:
+	start_from_menu(menu.opts)
+	var shot := ""
+	var at := 1.6
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--shot="):
+			shot = a.substr(7)
+		elif a.begins_with("--at="):
+			at = float(a.substr(5))
+	var t0 := Time.get_ticks_msec()
+	while Time.get_ticks_msec() - t0 < at * 1000:
+		await get_tree().process_frame
+	if shot != "":
+		await RenderingServer.frame_post_draw
+		get_viewport().get_texture().get_image().save_png(shot)
+		get_tree().quit()
+
+
 func _menu_shot(path: String, notes := true) -> void:
 	if notes:
 		patch_notes.open()
@@ -1051,6 +1167,12 @@ const MAX_Z := 6.0   # web: game.js MAX_Z
 
 
 func go_home() -> void:
+	if game != null and watching():   # (an observer: the whole map)
+		var bb := map.bounds()
+		zoom_to = 0.0
+		cam.position = bb.get_center()
+		cam.zoom = Vector2.ONE * map.fit_zoom()
+		return
 	if game == null or game.capital < 0:
 		return
 	var r := Rect2(map.polys[game.capital][0], Vector2.ZERO)
@@ -1078,6 +1200,33 @@ func _unhandled_input(ev: InputEvent) -> void:
 			replay_hud.toggle_play()
 			get_viewport().set_input_as_handled()
 			return
+	if watching() and game:   # 0.19.3: an observer looks: zoom, pan, the menu, full screen; nothing to select or order
+		if ev is InputEventKey and ev.pressed and not ev.echo:
+			if ev.keycode == KEY_ESCAPE:
+				if hud.settings.win.panel.visible:
+					hud.settings.close()
+				elif hud.dialog.visible:
+					hud.dialog.pick("close")
+				else:
+					hud.toggle_menu()
+				get_viewport().set_input_as_handled()
+			elif ev.keycode == KEY_F11:
+				hud.toggle_fullscreen()
+				get_viewport().set_input_as_handled()
+			elif ev.keycode == KEY_HOME:
+				go_home()
+			return
+		if ev is InputEventMouseButton:
+			if ev.button_index == MOUSE_BUTTON_WHEEL_UP and ev.pressed:
+				zoom_by(1.2)
+			elif ev.button_index == MOUSE_BUTTON_WHEEL_DOWN and ev.pressed:
+				zoom_by(1 / 1.2)
+			elif ev.button_index in [MOUSE_BUTTON_LEFT, MOUSE_BUTTON_MIDDLE]:   # (a drag with either moves the map)
+				dragging = ev.pressed
+				drag_btn = ev.button_index
+		elif ev is InputEventMouseMotion and dragging:
+			cam.position -= ev.relative / cam.zoom
+		return
 	if ev is InputEventKey and ev.pressed and not ev.echo and game:
 		if ev.keycode == KEY_ESCAPE:
 			if hud.settings.win.panel.visible:

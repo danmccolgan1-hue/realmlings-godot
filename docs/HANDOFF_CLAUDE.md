@@ -1,4 +1,4 @@
-# Handoff for a new Claude conversation (2026-11-27, version 0.19.2)
+# Handoff for a new Claude conversation (2026-11-27, version 0.19.3)
 
 Paste this whole file at the start of a new conversation, or tell Claude: "Read docs/HANDOFF_CLAUDE.md in the
 realmlings-godot repo (branch `server`) and continue from there." Also read the repo's `CLAUDE.md`.
@@ -40,12 +40,24 @@ realmlings-godot repo (branch `server`) and continue from there." Also read the 
 - One server process = one game. The first player to join leads the lobby: map settings, optional password,
   kicking players, "Allows Debug", loading a save. Each new lobby gets a fresh random island seed.
 - A player may start alone. Players joining a loaded game pick a nation from the save.
-- Autosave; after a restart the lobby offers to carry the saved game on. If everyone leaves a running game, the
-  server waits 3 min, autosaves and restarts to a fresh lobby. The menu's "End the game for everyone" stops it.
+- Autosave; after a crash/restart the lobby offers to carry the saved game on. 0.19.3: no "End the game" button. A
+  game with no player left (observers don't count) for 30 s is over: a last save is kept, the autosave deleted, and
+  the server exits 75 so systemd starts a fresh empty lobby. Every finished game exits 75 now (always a lobby ready).
+- 0.19.3 observers: **Watch** joins with `NetSession.watch` (players[id].watch). Never lead, always ready, no nation
+  (`MpSetup.playing` filters them). Lockstep seat 0 = observer: `Game.spectator`, view_seat HOST, `Game.LOCAL = 0`;
+  between steps `Game.spy_view()` swaps `cur` for a whole-map copy (spy_end before steps; to_save always saves the
+  real seat). Hud/TopBar `observer` mode + `ObserverPanel`. Observer orders are dropped (Game.do, Lockstep._order).
+- 0.19.3 Host online: `OnlinePorts` probes 157.245.250.30:24565-24569 ({"t":"probe"} → "probe_ok"), picks a random
+  empty lobby of the same version and joins it with `fresh` (refused with NetSession.TAKEN if someone got there
+  first → next port). None free: "No ports available. Try hosting locally."
+- 0.19.3 loading screen (`LoadingScreen`): Game.build_pct reported from new_world/from_save; "building" message.
 - Debug (only when the lobby allows it): reveal and +2000 resources go to all humans; "Every technology" asks
   for the Magic school.
-- "Host on this computer" in the menu = a PC hosts, not the Droplet. For the Droplet use "Join by address".
-- The Dungeon only appears with 2+ human players (my rule), for every race.
+- "Host locally" in the menu = a PC hosts, not the Droplet. "Host online" = an empty lobby on the Droplet.
+- The Dungeon appears in any multiplayer game (`Game.mp_game`, saved), even with one player (0.19.3).
+- Quests (0.19.3): picking up a relic (Reliquary or a scout's bag) starts its quest; no Mage Tower requirement
+  (quests.json's trigger.tower is ignored). The pop-up shows the relic's icon (Game.dialog_items); the Quest Log
+  shows `Quests.icon_slots` with checks (in a Reliquary) or a bag badge (carried).
 
 ## Architecture rules Claude must keep
 
@@ -67,7 +79,17 @@ realmlings-godot repo (branch `server`) and continue from there." Also read the 
 Single file: `--script res://tests/<file>.gd`. Important ones: test_server, test_dmath, test_mp_events,
 test_quests, test_build.
 
-## What 0.19.2 changed (last session)
+## What 0.19.3 changed (last session)
+
+- Loading screen; Host locally / Host online; observers (Watch); Join/Watch/Set are buttons; Dungeon in any
+  multiplayer game; empty games end and the server reopens a lobby; quests start on pickup with item icons.
+- Spawn near players (lobby Map Settings, 3+ computer nations): `o.near` → `Game.new_world(..., near)` →
+  `pick_ai_capital(..., near)` places each player ~NEAR_HOPS (4) from the nearest player; computers spread as before.
+- Random race on the Nation page (`opts.random_race`, `StartScreen.resolved_nation()`): race, leader, name, emblem.
+- Picture modes: `-- --mpwatch --shot=x.png`, `-- --loading --at=2 --shot=x.png`, `-- --mpmenu --menu --shot=x.png`,
+  `-- --world=easy,easy --quests=log|newquest --shot=x.png` (render with xvfb-run and `--rendering-driver opengl3`).
+
+## What 0.19.2 changed
 
 - Late-game stall fixed: automatic scouting was pathing to every explored province (2.5 s per call with all tech
   + reveal); now a bounded nearest search with the identical result (64 ms worst step).

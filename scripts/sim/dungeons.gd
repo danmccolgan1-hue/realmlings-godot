@@ -17,9 +17,10 @@ const KIND_NAME := {"lady": "Noble Lady", "envoy": "Envoy", "general": "General"
 	"apprentice": "Apprentice", "convict": "Convict"}
 
 
-## Dungeons are for games with more than one human nation.
+## Dungeons are for multiplayer games (0.19.3: any game started from the multiplayer lobby, even by one player; it
+## used to take a second human nation).
 static func on(g) -> bool:
-	return g.quests_on and g.seats.size() > 1
+	return g.quests_on and (g.seats.size() > 1 or g.mp_game)
 
 
 ## Nation o's Dungeons, in province order: [{p, e}].

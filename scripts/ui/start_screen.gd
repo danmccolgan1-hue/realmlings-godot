@@ -91,10 +91,10 @@ func show_screen(n: String) -> void:
 
 func _load_opts() -> Dictionary:
 	var NAT: Dictionary = GameData.c("NATION")
-	var d := {"seed": random_seed(), "nation": {"name": NAT.name, "color": NAT.color, "emblem": NAT.emblem, "secondary": "#faf1dc"}, "leader": "random", "race": "realm", "races": ["random", "random", "random", "random", "random", "random", "random"], "start": "center", "practice": false,
+	var d := {"seed": random_seed(), "nation": {"name": NAT.name, "color": NAT.color, "emblem": NAT.emblem, "secondary": "#faf1dc"}, "leader": "random", "race": "realm", "races": ["random", "random", "random", "random", "random", "random", "random"], "start": "center", "practice": false, "random_race": false,
 		"map": {"shape": "classic", "pens": 2, "coves": 2, "trees": 0}, "slots": ["easy", "easy", "moderate", "closed", "closed", "closed", "closed"]}
 	var m: Dictionary = Settings.menu
-	for k in ["nation", "leader", "race", "races", "start", "practice", "map", "slots"]:
+	for k in ["nation", "leader", "race", "races", "start", "practice", "map", "slots", "random_race"]:
 		if m.has(k) and typeof(m[k]) == typeof(d[k]):
 			d[k] = m[k]
 	d.practice = false   # 0.19: every island is a full island (the Practice island choice is gone)
@@ -191,6 +191,29 @@ func _link(text: String, f: Callable, tip := "") -> Button:
 		var w := b.get_theme_font("font").get_string_size(b.text, HORIZONTAL_ALIGNMENT_LEFT, -1, 18).x
 		var x0 := (b.size.x - w) / 2
 		b.draw_line(Vector2(x0, b.size.y - 7), Vector2(x0 + w, b.size.y - 7), Color("#4a4f5c"), 1.5))
+	return b
+
+
+## A small solid button (0.19.3: Join, Watch and Set were drawn as switches and looked like toggles).
+func _btn(text: String, col: Color, f: Callable, tip := "") -> Button:
+	var b := Button.new()
+	b.text = text
+	b.focus_mode = Control.FOCUS_NONE
+	b.tooltip_text = tip
+	b.custom_minimum_size = Vector2(96, 40)
+	b.add_theme_font_size_override("font_size", 18)
+	b.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	for st in [["normal", col], ["hover", col.lightened(0.12)], ["pressed", col.darkened(0.12)], ["disabled", col.lerp(Color("#cfcfd6"), 0.6)]]:
+		var sb := _sb(st[1], 2, 3, 6)
+		sb.content_margin_left = 14
+		sb.content_margin_right = 14
+		b.add_theme_stylebox_override(st[0], sb)
+	for st in ["font_color", "font_hover_color", "font_pressed_color", "font_disabled_color"]:
+		b.add_theme_color_override(st, Color.WHITE)
+	b.add_theme_color_override("font_outline_color", Color(INK, 0.45))
+	b.add_theme_constant_override("outline_size", 3)
+	if f.is_valid():
+		b.pressed.connect(f)
 	return b
 
 
@@ -416,6 +439,10 @@ var mp_in_lobby := false
 var mp_seeded := false           # this lobby's island got its fresh random seed (0.19.1)         # the lobby (not the Multiplayer menu) is showing
 var mp_saves := []               # the host: the saved games offered under Load a saved game
 var mp_saves_open := false
+var online: OnlinePorts          # 0.19.3: Host online is asking the server's ports which lobby is free
+var online_ports := []           # the free ports not tried yet
+var online_name := ""
+const WATCH_TIP := "Join as an observer: you play no nation and give no orders, but see the whole map and every player's resources, army and provinces"
 
 
 func _build_multi() -> void:
@@ -434,6 +461,12 @@ func _mp_clear() -> void:
 
 
 func _mp_nation() -> Dictionary:
+	if opts.get("random_race", false):   # (0.19.3: Random: drawn once, and kept while the choices stay the same)
+		if mp_rand.is_empty() or int(mp_rand.nation.color) != int(opts.nation.color) or str(mp_rand.nation.get("secondary", "")) != str(opts.nation.get("secondary", "")):
+			mp_rand = resolved_nation()
+		var R: Dictionary = mp_rand
+		return {"race": R.race, "color": int(R.nation.color), "emblem": R.nation.emblem,
+			"secondary": R.nation.get("secondary", "#faf1dc"), "nation": R.nation.name, "leader": "random"}
 	return {"race": opts.get("race", "realm"), "color": int(opts.nation.color), "emblem": opts.nation.emblem,
 		"secondary": opts.nation.get("secondary", "#faf1dc"), "nation": opts.nation.name, "leader": opts.leader}
 
@@ -448,8 +481,17 @@ func _mp_menu() -> void:
 		Settings.menu.mp_name = t2
 		Settings.save_all())
 	_row("Your name", name_edit, mp_box)
-	mp_box.add_child(_big("Host on this computer", BLUE, func(): _mp_host(name_edit.text),
-		"Your computer runs the game and you play in it (up to 8 players). To play on a dedicated server, join its address below instead"))
+	var hr := HBoxContainer.new()
+	hr.add_theme_constant_override("separation", 8)
+	var hl := _big("Host locally", BLUE, func(): _mp_host(name_edit.text))
+	hl.tooltip_text = "Your computer runs the game and you play in it (up to 8 players): friends on your network, or over the internet if your router lets them in"
+	hl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hr.add_child(hl)
+	var ho := _big("Host online", PURPLE, func(): _mp_host_online(name_edit.text))
+	ho.tooltip_text = "Host on the Realmlings server: it finds a game nobody is in yet and you host it. Friends join the address and port it shows"
+	ho.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hr.add_child(ho)
+	mp_box.add_child(hr)
 	var jr := HBoxContainer.new()
 	jr.add_theme_constant_override("separation", 8)
 	var addr := LineEdit.new()
@@ -458,11 +500,13 @@ func _mp_menu() -> void:
 	addr.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_style_edit(addr)
 	jr.add_child(addr)
-	var jb := _tog("Join", false, func():
+	var go := func(as_watcher: bool):
 		Settings.menu.mp_addr = addr.text
 		Settings.save_all()
-		_mp_join(name_edit.text, addr.text))
+		_mp_join(name_edit.text, addr.text, as_watcher)
+	var jb := _btn("Join", Color("#3e9b4f"), func(): go.call(false), "Join this game and play a nation")
 	jr.add_child(jb)
+	jr.add_child(_btn("Watch", Color("#5a6475"), func(): go.call(true), WATCH_TIP))
 	addr.text_submitted.connect(func(_t2): jb.pressed.emit())
 	_row("Join by address", jr, mp_box)
 	var pw_edit := LineEdit.new()
@@ -498,7 +542,15 @@ func _mp_wire() -> void:
 	net.status.connect(func(t2): if mp_status and is_instance_valid(mp_status): mp_status.text = t2)
 	net.closed.connect(func(why):
 		net = null
+		mp_in_lobby = false
+		main.hide_loading()
+		show()
 		_mp_menu()
+		if why == NetSession.TAKEN:   # (Host online: someone took that lobby first: the next free one)
+			if not online_ports.is_empty():
+				_mp_online_next()
+				return
+			why = "No ports available. Try hosting locally."
 		mp_status.text = why)
 	net.players_changed.connect(_mp_players)
 	net.lobby_info_changed.connect(func():
@@ -532,6 +584,11 @@ func _mp_message(_from: int, m: Dictionary) -> void:
 		"lnote":   # a server's word to the player hosting (why it can't start yet, a save was refused...)
 			if mp_status and is_instance_valid(mp_status):
 				mp_status.text = str(m.get("text", ""))
+			if main.loading.visible and main.lock == null and not str(m.get("text", "")).begins_with("Raising"):
+				main.hide_loading()   # (the server couldn't build the game after all)
+				show()
+		"building":   # 0.19.3: the game is being built: everyone's loading screen
+			main.show_loading()
 		"saves":   # a server's saved games
 			mp_saves = m.get("list", [])
 			if mp_saves_open:
@@ -555,10 +612,30 @@ func _mp_host(nm: String) -> void:
 	mp_note.text = "Asking your router to open the port..."
 
 
-func _mp_join(nm: String, address: String) -> void:
+## Host online (0.19.3): ask the server's ports which lobby nobody is in, then host one of them at random.
+func _mp_host_online(nm: String) -> void:
+	if online != null:
+		return
+	online_name = nm
+	online_ports = []
+	online = OnlinePorts.new()
+	online.start()
+	mp_status.text = "Looking for a free game on the server…"
+
+
+# Host online: join the next free port as its first player (who hosts it)
+func _mp_online_next() -> void:
+	var port: int = online_ports.pop_front()
+	_mp_join(online_name, "%s:%d" % [OnlinePorts.HOST, port], false, true)
+	mp_status.text = "Hosting on the server: friends join %s:%d. Connecting…" % [OnlinePorts.HOST, port]
+
+
+func _mp_join(nm: String, address: String, as_watcher := false, fresh := false) -> void:
 	if net != null:
 		net.leave()
 	net = NetSession.new(nm, _mp_nation())
+	net.watch = as_watcher
+	net.fresh = fresh
 	mp_seeded = false
 	net.pw = str(Settings.menu.get("mp_pw", ""))
 	_mp_wire()
@@ -568,7 +645,7 @@ func _mp_join(nm: String, address: String) -> void:
 		net = null
 		return
 	_mp_lobby()
-	mp_status.text = "Connecting to %s..." % address
+	mp_status.text = ("Connecting to %s to watch..." if as_watcher else "Connecting to %s...") % address
 
 
 ## Is this player hosting the game: from their own copy, or as the player hosting on a dedicated server?
@@ -581,6 +658,7 @@ func _mp_lobby() -> void:
 	mp_in_lobby = true
 	mp_debug_shown = net != null and net.debug_ok
 	var lead := _mp_lead()
+	var watching: bool = net != null and net.watch
 	var saved: bool = net != null and not net.lobby_save.is_empty()
 	mp_status = _lbl("", 15, INK)
 	mp_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -606,10 +684,11 @@ func _mp_lobby() -> void:
 	_row("Players", mp_players, mp_box, true)
 	var pr := HBoxContainer.new()
 	pr.add_theme_constant_override("separation", 8)
-	var yb := _big("Your Nation", Color("#5aa05a"), func(): open_setup(true, "setup"), "", saved)
-	yb.tooltip_text = "In a saved game you play one of its nations: pick it below" if saved else "Choose your nation's name, race, leader and flag for this game"
-	yb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	pr.add_child(yb)
+	if not watching:   # (an observer has no nation)
+		var yb := _big("Your Nation", Color("#5aa05a"), func(): open_setup(true, "setup"), "", saved)
+		yb.tooltip_text = "In a saved game you play one of its nations: pick it below" if saved else "Choose your nation's name, race, leader and flag for this game"
+		yb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		pr.add_child(yb)
 	if lead:
 		var mb := _big("Map Settings", PURPLE, func(): open_setup(true, "setup_map"), "", saved)
 		mb.tooltip_text = "A saved game keeps its own island" if saved else "Choose the island and the computer nations"
@@ -647,7 +726,7 @@ func _mp_lobby() -> void:
 			Settings.save_all()
 			net.set_password(pe.text)
 			mp_status.text = ("Password set: players joining from now on need it." if pe.text.strip_edges() != "" else "No password: anyone with the address can join.")
-		pwr.add_child(_tog("Set", false, setp))
+		pwr.add_child(_btn("Set", BLUE, setp, "Set the password (empty: none)"))
 		pe.text_submitted.connect(func(_t2): setp.call())
 		_row("Password", pwr, mp_box)
 	if net != null:   # Allows Debug: the host switches it; everyone sees it
@@ -672,7 +751,10 @@ func _mp_lobby() -> void:
 		_mp_menu())
 	lb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	br.add_child(lb)
-	if net == null or lead:
+	if watching:   # 0.19.3: an observer just waits for the host to start
+		mp_start = _big("Watching", Color("#5a6475"), Callable(), "", true)
+		mp_start.tooltip_text = "You are watching: the game opens for you when the host starts it"
+	elif net == null or lead:
 		mp_start = _big("Start Game", BLUE, _mp_begin)
 	else:   # 0.19: everyone else says when they are ready; the host can't start until they all are
 		mp_start = _big("Ready", Color("#3e9b4f"), func():
@@ -705,7 +787,9 @@ func _mp_options() -> void:
 			if int(net.players[id].get("pick", 0)) != 0:
 				by[int(net.players[id].pick)] = id
 		var mine := int(net.players.get(net.my_id, {}).get("pick", 0))
-		for st in net.lobby_save.get("seats", []):
+		if net.watch:
+			head.text = "Carrying on a saved game: %s. You are watching it." % str(net.lobby_save.get("desc", ""))
+		for st in (net.lobby_save.get("seats", []) if not net.watch else []):
 			var o := int(st.id)
 			var who := ""
 			if by.has(o):
@@ -767,21 +851,28 @@ func _mp_choose_save(name: String) -> void:
 	net.set_lobby_save({"name": name, "desc": desc, "seats": MpSetup.save_seats(g)})
 
 
+## How many computer nations the multiplayer map settings M have (the slots after the players' own).
+func _mp_ais(M: Dictionary) -> int:
+	var others := net.playing_count() - 1 if net != null else _mp_humans().size()
+	return range(maxi(0, others), 7).filter(func(x): return x < M.slots.size() and str(M.slots[x]) != "closed").size()
+
+
 ## The host's game in a line: what everyone agrees to when they say they are ready.
 func _mp_summary() -> String:
 	var M := _mp_map()
-	var humans := net.players.size()
+	var humans := net.playing_count()
 	var ais := []
 	for i in range(humans - 1, 7):
 		if i < M.slots.size() and str(M.slots[i]) != "closed":
 			ais.append(str(M.slots[i]))
-	return "Island: %s, seed %s, start %s. %d players and %d computer nation%s%s." % [str(M.map.get("shape", "classic")).capitalize(), str(M.seed), str(M.start), humans, ais.size(), "" if ais.size() == 1 else "s", (" (" + ", ".join(ais) + ")") if not ais.is_empty() else ""]
+	return "Island: %s, seed %s, start %s. %d players and %d computer nation%s%s.%s" % [str(M.map.get("shape", "classic")).capitalize(), str(M.seed), str(M.start), humans, ais.size(), "" if ais.size() == 1 else "s", (" (" + ", ".join(ais) + ")") if not ais.is_empty() else "",
+		" The players spawn near one another." if bool(M.get("near", false)) and ais.size() >= Game.NEAR_MIN_AI else ""]
 
 
 ## What the players agree to when they are ready: the host's island and computer nations (not how many have joined).
 func _mp_terms() -> String:
 	var M := _mp_map()
-	return str([M.get("seed"), M.get("start"), M.get("map"), M.get("slots"), M.get("races")])
+	return str([M.get("seed"), M.get("start"), M.get("map"), M.get("slots"), M.get("races"), M.get("near", false)])
 
 
 ## A player joining a game in progress (0.19 hot-join): the nations they may take.
@@ -842,7 +933,8 @@ func _mp_begin() -> void:
 		return
 	var M := _mp_map()
 	var o := {"seed": str(M.get("seed", random_seed())).strip_edges(), "slots": M.slots.duplicate(), "races": M.races.duplicate(),
-		"start": M.start, "map": M.map, "save": str(net.lobby_save.get("name", "")) if saved else "", "debug": net.debug_ok}
+		"start": M.start, "map": M.map, "save": str(net.lobby_save.get("name", "")) if saved else "", "debug": net.debug_ok,
+		"near": bool(M.get("near", false)) and _mp_ais(M) >= Game.NEAR_MIN_AI}
 	if o.seed == "":
 		o.seed = random_seed()
 	if not net.is_host:   # a dedicated server: it builds the game and sends it to everyone
@@ -867,11 +959,11 @@ func _mp_players() -> void:
 		return
 	if mp_start and is_instance_valid(mp_start):
 		if _mp_lead():
-			var waiting_for: Array = net.players.keys().filter(func(id): return int(id) != net.leader and not net.players[id].get("ready", false)).map(func(id): return str(net.players[id].name))
+			var waiting_for: Array = net.players.keys().filter(func(id): return int(id) != net.leader and not net.players[id].get("watch", false) and not net.players[id].get("ready", false)).map(func(id): return str(net.players[id].name))
 			var few := false   # (0.19.1: one player may start alone, hosting or on a server, to test)
 			mp_start.disabled = few or not waiting_for.is_empty()
 			mp_start.tooltip_text = "Waiting for at least one more player" if few else ("Waiting for %s to be ready" % ", ".join(waiting_for)) if not waiting_for.is_empty() else "Everyone is ready: start the game for everyone"
-		else:
+		elif not net.watch:
 			var me_ready: bool = net.players.has(net.my_id) and net.players[net.my_id].get("ready", false)
 			mp_start.text = "Ready ✓ (click to cancel)" if me_ready else "Ready"
 			mp_start.disabled = not net.joined
@@ -884,7 +976,7 @@ func _mp_players() -> void:
 	var sig := ""
 	for id in net.players:
 		var P: Dictionary = net.players[id]
-		sig += "%s|%s|%s|%s|%s;" % [id, P.name, str(P.get("nation", {})), P.get("ready", false), P.get("pick", 0)]
+		sig += "%s|%s|%s|%s|%s|%s;" % [id, P.name, str(P.get("nation", {})), P.get("ready", false), P.get("pick", 0), P.get("watch", false)]
 	if sig == mp_rows_sig:
 		for id in mp_ping_l:
 			if net.players.has(id) and is_instance_valid(mp_ping_l[id]):
@@ -908,14 +1000,18 @@ func _mp_players() -> void:
 		r.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		row.add_child(r)
 		var who := "%s%s · %s · %s" % [P.name, " (host)" if int(id) == net.leader else "", str(n.get("nation", "")), Races.NAME.get(str(n.get("race", "realm")), "")]
-		if not net.lobby_save.is_empty():   # a saved game: the nation they picked from it
+		if P.get("watch", false):   # 0.19.3: an observer
+			r.texture = null
+			who = "%s%s · watching" % [P.name, " (you)" if int(id) == net.my_id else ""]
+		elif not net.lobby_save.is_empty():   # a saved game: the nation they picked from it
 			var pk := int(P.get("pick", 0))
 			var st: Array = net.lobby_save.get("seats", []).filter(func(x): return int(x.id) == pk)
 			who = "%s%s · %s" % [P.name, " (host)" if int(id) == net.leader else "", (str(st[0].nation) + " · " + Races.NAME.get(str(st[0].race), "")) if not st.is_empty() else "no nation picked yet"]
 		row.add_child(_lbl(who, 16, INK))
 		if int(id) != net.leader:
 			var rd: bool = P.get("ready", false)
-			row.add_child(_lbl("Ready" if rd else "Not ready", 14, Color("#3e9b4f") if rd else Color("#a0461e")))
+			if not P.get("watch", false):
+				row.add_child(_lbl("Ready" if rd else "Not ready", 14, Color("#3e9b4f") if rd else Color("#a0461e")))
 			var pl := _lbl("%d ms" % int(P.get("ping", 0)), 14, MUTED)
 			row.add_child(pl)
 			mp_ping_l[id] = pl
@@ -931,6 +1027,17 @@ func _mp_players() -> void:
 
 
 func _mp_poll(dt: float) -> void:
+	if online != null:   # Host online: the ports' answers
+		online.poll(dt)
+		if online.done:
+			var o := online
+			online = null
+			online_ports = o.free.duplicate()
+			if online_ports.is_empty():
+				if mp_status and is_instance_valid(mp_status):
+					mp_status.text = o.why_none()
+			else:
+				_mp_online_next()
 	if net == null:
 		return
 	net.poll(dt)
@@ -954,8 +1061,14 @@ func _mp_poll(dt: float) -> void:
 			for k in net.lan_games:
 				var gm: Dictionary = net.lan_games[k]
 				var addr: String = k
-				mp_lan.add_child(_tog("Join %s's game (%d player%s)%s" % [gm.name, gm.players, "" if gm.players == 1 else "s", "" if gm.version == net.version else " · version " + gm.version], false,
-					func(): _mp_join(str(Settings.menu.get("mp_name", "Player")), addr)))
+				var lr := HBoxContainer.new()
+				lr.add_theme_constant_override("separation", 8)
+				var jl := _btn("Join %s's game (%d player%s)%s" % [gm.name, gm.players, "" if gm.players == 1 else "s", "" if gm.version == net.version else " · version " + gm.version], Color("#3e9b4f"),
+					func(): _mp_join(str(Settings.menu.get("mp_name", "Player")), addr))
+				jl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+				lr.add_child(jl)
+				lr.add_child(_btn("Watch", Color("#5a6475"), func(): _mp_join(str(Settings.menu.get("mp_name", "Player")), addr, true), WATCH_TIP))
+				mp_lan.add_child(lr)
 
 
 # --- the New Game page ---
@@ -1018,7 +1131,7 @@ func _mp_taken() -> Dictionary:
 	if not mp_mode or net == null:
 		return out
 	for id in net.players:
-		if int(id) == net.my_id:
+		if int(id) == net.my_id or net.players[id].get("watch", false):
 			continue
 		var n: Dictionary = net.players[id].get("nation", {})
 		out.colors[int(n.get("color", -1))] = str(net.players[id].name)
@@ -1033,7 +1146,7 @@ func _mp_humans() -> Array:
 		return []
 	var ids := net.players.keys()
 	ids.sort()
-	return ids.filter(func(x): return int(x) != net.leader).map(func(x): return str(net.players[x].name))
+	return ids.filter(func(x): return int(x) != net.leader and not net.players[x].get("watch", false)).map(func(x): return str(net.players[x].name))
 
 
 ## 0.19.1: a lobby the player hosts starts on a new random island (the rest of Map Settings is kept): the seed
@@ -1148,11 +1261,41 @@ func _pick(k: String, val) -> void:
 
 
 func _pick_race(r: String) -> void:
-	if opts.get("race", "realm") != r:
+	if opts.get("race", "realm") != r or opts.get("random_race", false):
 		opts.leader = "random"
 	opts.race = r
+	opts.random_race = false
+	mp_rand = {}
 	_save_opts()
 	_refresh_setup()
+
+
+## 0.19.3: Random: a random race, with a random leader, a nation name of that race and one of its flags, chosen when
+## the game starts (in a lobby, when you press Done); the color stays yours.
+func _pick_random_race() -> void:
+	opts.random_race = not opts.get("random_race", false)
+	opts.leader = "random"
+	mp_rand = {}
+	_save_opts()
+	_refresh_setup()
+
+
+var mp_rand := {}   # a lobby: the random nation drawn for this player (kept until they change their choices)
+
+
+## The nation choices to play with: opts' own, or (Random) a race, leader, name and flag drawn now.
+func resolved_nation() -> Dictionary:
+	var o := {"race": str(opts.get("race", "realm")), "leader": str(opts.leader), "nation": opts.nation.duplicate()}
+	if not opts.get("random_race", false):
+		return o
+	var rc: String = ["realm", "swamp", "wood"].pick_random()
+	o.race = rc
+	o.leader = "random"
+	o.nation.name = random_nation_name(rc)
+	while str(o.nation.name).length() > 24:
+		o.nation.name = random_nation_name(rc)
+	o.nation.emblem = Races.EMBLEMS[rc].pick_random()
+	return o
 
 
 ## The New Game: Nation page's choices: race, leader, color, flag and emblem color (in a multiplayer lobby, colors and
@@ -1163,11 +1306,17 @@ func _refresh_setup() -> void:
 	# race (web: menu.js #mRace): the leader list follows it
 	var race := HBoxContainer.new()
 	race.add_theme_constant_override("separation", 8)
+	var rnd: bool = opts.get("random_race", false)
 	for r in [["realm", "Realmlings", "Small, cheerful and sturdy: they start on grassland"], ["swamp", "Swamplings", "Fierce bog folk: they start in a swamp, fight and move better there, and raise Ogres"],
 			["wood", "Woodlings", "Tall forest folk: they start in a forest, are tougher and quicker there, and need no roads"]]:
-		race.add_child(_tog(r[1], opts.get("race", "realm") == r[0], _pick_race.bind(r[0]), false, r[2]))
+		race.add_child(_tog(r[1], not rnd and opts.get("race", "realm") == r[0], _pick_race.bind(r[0]), false, r[2]))
+	race.add_child(_tog("Random", rnd, _pick_random_race, false, "Play a random game: a random race and leader, with a nation name and flag of that race, chosen when the game starts (your color stays yours)"))
 	_row("Race", race, setup_box)
-	_row("Leader", _leader_pick(), setup_box)
+	if rnd:
+		var rl := _lbl("Random: a leader of whichever race comes up", 16, MUTED)
+		_row("Leader", rl, setup_box)
+	else:
+		_row("Leader", _leader_pick(), setup_box)
 	# color and flag
 	var NC: Array = GameData.c("NATION_COLORS")
 	var cols := HBoxContainer.new()
@@ -1384,6 +1533,14 @@ func _refresh_map() -> void:
 	ob.add_child(quick)
 	var n: int = range(humans.size(), 7).filter(func(x): return M.slots[x] != "closed").size() + humans.size()
 	_row("Opponents\n%s" % ("" if practice else "%d nation%s" % [n + 1, "s" if n else ""]), ob, map_box)
+	if mp_mode:   # 0.19.3: Spawn near players, with 3 or more computer nations
+		var ok := _mp_ais(M) >= Game.NEAR_MIN_AI
+		var on: bool = ok and bool(M.get("near", false))
+		_row("Players", _tog("Spawn near players", on, func():
+			M.near = not bool(M.get("near", false))
+			_save_map()
+			_refresh_map(), not ok,
+			"The players start near one another (each within a few provinces of another player), and the computer nations around them, spread out as usual" if ok else "Needs 3 or more computer nations"), map_box)
 
 
 
@@ -1510,7 +1667,12 @@ func start_game() -> void:
 	if start_btn:
 		start_btn.text = "Building the realm…"
 		start_btn.disabled = true
-	main.start_from_menu(opts.duplicate(true))
+	var o := opts.duplicate(true)
+	var R := resolved_nation()   # (0.19.3: Random draws the race, leader, name and flag now)
+	o.race = R.race
+	o.leader = R.leader
+	o.nation = R.nation
+	main.start_from_menu(o)
 
 
 func reset_start() -> void:

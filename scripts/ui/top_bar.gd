@@ -33,6 +33,10 @@ var dip_btn: Button
 var quest_btn: Button   # the Quest Log, under Diplomacy (games with quests only)
 var war_g: Glyph
 var key := ""
+## 0.19.3: an observer's bar: only the menu, the clock and the map buttons (no resources, research, nation, Armory,
+## Diplomacy or Quest Log; nothing to pause or go home to).
+var observer := false
+var _player_only := []   # what an observer doesn't get
 
 
 static func paper(radius := 3, border := 2) -> StyleBoxFlat:
@@ -183,6 +187,7 @@ func _ready() -> void:
 	clock_box.add_child(clock_l)
 	right.add_child(clock_box)
 	var play := paper_button("", "", "Pause or play [Space]", func(): hud.game.do("set_paused", [not hud.game.paused]))
+	_player_only.append(play)
 	play_g = Glyph.make("play", 24.0)
 	play.add_child(play_g)
 	play_g.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT, Control.PRESET_MODE_KEEP_SIZE, 11)
@@ -190,7 +195,9 @@ func _ready() -> void:
 	right.add_child(paper_button("", "full", "Full screen [F11]", func(): hud.toggle_fullscreen()))
 	right.add_child(paper_button("", "plus", "Zoom in", func(): hud.main.zoom_by(1.25)))
 	right.add_child(paper_button("", "minus", "Zoom out", func(): hud.main.zoom_by(0.8)))
-	right.add_child(paper_button("", "home", "Back to your capital [Home]", func(): hud.main.go_home()))
+	var home := paper_button("", "home", "Back to your capital [Home]", func(): hud.main.go_home())
+	right.add_child(home)
+	_player_only.append(home)
 	right.add_child(paper_button("", "bug", "Report a bug: what happened, with a screenshot", func(): hud.bug.toggle()))
 	# top left: the menu, your nation, Armory and Diplomacy
 	var left := VBoxContainer.new()
@@ -221,6 +228,7 @@ func _ready() -> void:
 	nb.resized.connect(func(): nb.custom_minimum_size.x = nrow.get_combined_minimum_size().x + 22)
 	nrow.resized.connect(func(): nb.custom_minimum_size.x = nrow.get_combined_minimum_size().x + 22)
 	top_row.add_child(nb)
+	_player_only.append(nb)
 	# Armory and Diplomacy: picture buttons, as the web game's left column (web: #armBtn, #dip)
 	var arm := paper_button("", "", "Armory (G): design your soldiers' gear and set the Army Training Order", func(): hud.armory.toggle(), 54.0)
 	_icon_on(arm, "icons/common/ui_armory.png")
@@ -239,6 +247,16 @@ func _ready() -> void:
 	for b in [arm, dip_btn, quest_btn]:
 		b.custom_minimum_size = Vector2(140, 54)
 		b.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	_player_only.append_array([strip, research_btn, arm, dip_btn, quest_btn])
+
+
+## An observer's bar (see `observer`), or a player's again.
+func set_observer(on: bool) -> void:
+	observer = on
+	for c in _player_only:
+		c.visible = not on
+	if not on and game != null:
+		setup(game)
 
 
 func _counter(row: HBoxContainer, glyph: String, tip: String) -> Label:
@@ -262,8 +280,8 @@ func setup(g: Game) -> void:
 	nation_l.text = "Basic Tutorial" if g.tutorial != null else str(P.name)
 	var L = g.leader_of(Game.LOCAL)
 	nation_l.get_parent().get_parent().tooltip_text = "%s%s" % [P.name, (", led by %s" % L.full) if L != null else ""]
-	dip_btn.visible = not g.nations.is_empty()
-	quest_btn.visible = g.quests_on
+	dip_btn.visible = not g.nations.is_empty() and not observer
+	quest_btn.visible = g.quests_on and not observer
 
 
 func _process(_dt: float) -> void:
@@ -286,6 +304,8 @@ func _process(_dt: float) -> void:
 	rrow0.position = ((rs - rm) / 2).round()
 	ring.set_value(clampf(1.0 - (g.next_tick - g.t) / g.TICK, 0, 1) if g.next_tick > 0 else 0.0)
 	clock_l.text = Game.fmt_time(g.t)
+	if observer:
+		return
 	play_g.kind = "play" if g.paused else "pause"
 	play_g.queue_redraw()
 	for tr in TREES:

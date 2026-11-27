@@ -385,14 +385,30 @@ func _engine(errs: Array) -> void:
 	Quests.deposit(g, Game.HOST, "callum")
 	if g.quest_log.callum.state != "done":
 		errs.append("engine: a finished quest started again")
-	# a Mage's Request waits for a Mage Tower
+	# 0.19.3: a Mage's Request starts at once, without a Mage Tower
 	Quests.deposit(g, Game.HOST, "quarterroyal")
-	if g.quest_log.has("quarterroyal"):
-		errs.append("engine: the Mage's Request started without a Mage Tower")
-	g.extras[g.capital].append({"type": "magetower", "slot": 39, "born": 0.0})
-	Quests.payday(g)
 	if g.quest_log.get("quarterroyal", {}).get("state") != "active":
-		errs.append("engine: the Mage's Request didn't start once a Mage Tower stood")
+		errs.append("engine: the Mage's Request didn't start when its relic was found")
+	var slots := Quests.icon_slots(g, Game.HOST, "quarterroyal")
+	if slots.size() != 3 or not slots[0].got or slots[1].got or slots.any(func(x): return x.item != "quarterroyal"):
+		errs.append("engine: the Quest Log's icons are wrong: %s" % [slots])
+	# 0.19.3: a relic a scouting unit picks up (no Reliquary room) starts its quest too, and shows as carried
+	var wf0 = g.units.filter(func(u): return u.kind == g.WAYFINDER and u.owner == Game.HOST)
+	if not wf0.is_empty():
+		var keep_ex: Array = g.extras[g.capital].duplicate()
+		g.extras[g.capital] = g.extras[g.capital].filter(func(e): return e.type != "reliquary")
+		var todo: Array = g.quest_pick.filter(func(q): return not g.quest_log.has(q) and not Quests.quest(q).trigger.items.is_empty())
+		var qn: String = todo[0] if not todo.is_empty() else "peacock"
+		var it := str(Quests.quest(qn).trigger.items[0])
+		Quests.give(g, Game.HOST, it, wf0[0], g.capital)
+		if not Quests.bag_of(wf0[0]).has(it) or g.quest_log.get(qn, {}).get("state") != "active":
+			errs.append("engine: a relic carried by a Wayfinder didn't start its quest (%s, %s)" % [qn, Quests.bag_of(wf0[0])])
+		var ps: Array = Quests.icon_slots(g, Game.HOST, qn).filter(func(x): return x.item == it)
+		if ps.is_empty() or ps[0].got or not ps[0].carried:
+			errs.append("engine: a carried relic isn't shown as carried: %s" % [ps])
+		g.extras[g.capital] = keep_ex
+	else:
+		errs.append("engine: no Wayfinder to test carrying with")
 	# a Battlegear quest needs a Fallen Star too, and unlocks its armor
 	var e2 := {"type": "reliquary", "slot": 38, "born": 0.0}   # (a second Reliquary: the first is nearly full)
 	g.extras[g.capital].append(e2)

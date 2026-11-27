@@ -45,7 +45,7 @@ func ask(title: String, body: String, choices: Array, f: Callable, images := [])
 			tr.texture = tex
 			tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 			tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-			tr.custom_minimum_size = Vector2(66, 44) if pics.get_child_count() == 0 else Vector2(104, 104)   # (0.19: the flag at half size)
+			tr.custom_minimum_size = Vector2(80, 80) if tex.has_meta("square") else Vector2(66, 44) if pics.get_child_count() == 0 else Vector2(104, 104)   # (0.19: the flag at half size; 0.19.3: a relic's icon)
 			tr.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 			pics.add_child(tr)
 	pics.visible = pics.get_child_count() > 0

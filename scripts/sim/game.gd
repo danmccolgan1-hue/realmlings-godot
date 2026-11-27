@@ -170,6 +170,7 @@ var sp_found := {}
 # quests, relics and dig sites (Godot only; docs/QUESTS_PLAN.md, scripts/sim/quests.gd)
 static var QUESTS := true    # tests that compare against the web game turn quests off
 var quests_on := false       # this game has quests (full maps only)
+var mp_game := false         # 0.19.3: started from the multiplayer lobby (even by one player): the Dungeon is built in it
 var quest_pick := []         # the quests chosen for this map
 var digs := {}               # province -> {item, shown, star}: a relic buried there
 var chests := {}             # province -> [item ids]: relics left on the ground
@@ -324,6 +325,8 @@ func use_seat(o) -> void:
 		_swap_dipl(o)
 		ME = o
 		cur = seats[o]
+		if _spying and o == view_seat:   # (an observer's view, back from a look at another nation: the whole map again)
+			cur = _spy_rec
 
 
 static func _sorted(d: Dictionary) -> Dictionary:
@@ -3464,6 +3467,50 @@ var debug_tech := false      # web: S.debugTech
 var debug_ok := true
 const DEBUG_CMDS := ["debug_reveal", "debug_resources", "debug_all_tech"]
 
+## 0.19.3: an observer's copy of a multiplayer game. It runs every step like any other copy (view_seat stays the
+## first nation's, so its fields come back the same way) but plays no nation and gives no orders. Not saved.
+var spectator := false
+
+## How far building a game has got (0-1), for the loading screen (0.19.3): new_world and from_save report it from
+## the thread that builds the game. The steps it reports, in order (the screen creeps on between them).
+static var build_pct := 0.0
+const BUILD_STOPS := [0.62, 0.66, 0.8, 0.92, 1.0]
+
+
+## Building has got this far (it only goes up; the loading screen sets it back to 0 when it opens).
+static func built(x: float) -> void:
+	build_pct = maxf(build_pct, x)
+
+
+## An observer's copy, between steps: the views read a copy of the seat fields that sees and knows the whole map.
+## The seat's own record is untouched (spy_end before the next step), so the game stays the same as everyone's.
+var _spying := false
+var _spy_rec := {}
+var _spy_all := {}
+
+
+func spy_view() -> void:
+	if not spectator or not seats.has(view_seat) or G.is_empty():
+		return
+	use_seat(view_seat)
+	if _spy_all.size() != G.provs.size():
+		_spy_all = {}
+		for i in G.provs.size():
+			_spy_all[i] = true
+	_spy_rec = seats[ME].duplicate()
+	_spy_rec.explored = _spy_all
+	_spy_rec.visible = _spy_all
+	_spy_rec.known = _spy_all
+	cur = _spy_rec
+	_spying = true
+
+
+## An observer's copy: back to the seat's own fields before the game runs on.
+func spy_end() -> void:
+	if _spying:
+		_spying = false
+		cur = seats[ME]
+
 
 func fog_state(i: int) -> String:
 	return "visible" if visible.has(i) else "explored" if explored.has(i) else "unexplored"
@@ -6166,15 +6213,19 @@ const SAVE_FIELDS := ["battles", "bandit_count", "monster_count", "leader", "cap
 	"harvest_by", "trap", "reveals", "eyes", "haunts", "mana_pool", "mana_prev_t", "mage_gear", "finds", "treasure_rolled",
 	"sp_found", "slot_races", "spyres", "ftraps", "sacreds", "wrocks", "gelems", "setpieces", "travelers", "train_orders", "train_order_seq", "design_seq", "prov_rename", "nations", "players", "my_nation", "race_of", "wars", "truces", "allies", "war_seq", "met", "occ", "occ_prog", "dipl", "war_log", "war_ever", "war_lock", "ai_met", "fallen", "ally_check", "bandit_next", "bandit_waves", "ally_ask", "crop_scan_at", "ai_scout_t", "wf", "known", "explored", "visible", "queues", "rally", "military", "UNIT_SPEED", "open_nbr", "all_nbr",
 	"yields", "look_seed", "tree_border", "debug_cap", "debug_tech", "debug_ok", "reveal_all", "rec", "t", "next_tick", "paused", "last", "started", "seat_names", "paused_by", "seat_dipl", "mp_cd", "variant",
-	"quests_on", "quest_pick", "digs", "chests", "star_next", "stars_fallen", "quest_log", "quest_rate", "quest_unlocks", "flame_walls", "time_warp", "detained", "prisoner_seq", "ransoms", "ransom_seq", "quest_events", "research_pen"]
+	"quests_on", "mp_game", "quest_pick", "digs", "chests", "star_next", "stars_fallen", "quest_log", "quest_rate", "quest_unlocks", "flame_walls", "time_warp", "detained", "prisoner_seq", "ransoms", "ransom_seq", "quest_events", "research_pen"]
 
 
 ## The whole game as a plain Dictionary (see SaveCodec for the text form).
 func to_save() -> Dictionary:
+	var spied := _spying   # (an observer's copy saves the seat's own fields, not its whole-map view)
+	spy_end()
 	var keep: int = ME
 	use_seat(HOST)
 	var d := _to_save()
 	use_seat(keep)
+	if spied:
+		spy_view()
 	return d
 
 
@@ -6256,7 +6307,9 @@ static func from_save(d: Dictionary, map: Dictionary = {}) -> Game:
 		g.world.mode = md
 	else:
 		g.world = map if not map.is_empty() else RealmGen.scale_world(RealmGen.generate_practice(d.seed))
+	built(0.62)
 	g.G = WorldPrep.prep(g.world)   # province shapes come from the map as generated, before walls and paths
+	built(0.66)
 	for i in d.edges.size():
 		g.world.edges[i].open = d.edges[i][0]
 		g.world.edges[i].style = d.edges[i][1]
@@ -6265,6 +6318,7 @@ static func from_save(d: Dictionary, map: Dictionary = {}) -> Game:
 	for f in SAVE_FIELDS:
 		if d.has(f):   # (an older save may not have every field: the new game's default stays)
 			g.set(f, d[f])
+	built(0.8)
 	var rof := {}
 	for k in g.race_of:
 		rof[int(k)] = g.race_of[k]
@@ -8706,19 +8760,25 @@ func player_info(o: int) -> Dictionary:
 ## ("easy" / "moderate" / "difficult" / "closed"). web: menu.js startGame
 ## humans (multiplayer): slot index -> {nation, race, leader} for each slot marked "human" in `slots`: another human
 ## nation, started at that slot's capital with its own seat.
-static func new_world(seed: String, leader_id := "", slots := [], start := "center", map: Dictionary = {}, opts: Dictionary = {}, nation: Dictionary = {}, race := "", races := [], humans: Dictionary = {}) -> Game:
+## near (multiplayer, 0.19.3): Spawn near players: with 3 or more computer nations, the players' capitals are put
+## near one another and the computer nations' around them.
+static func new_world(seed: String, leader_id := "", slots := [], start := "center", map: Dictionary = {}, opts: Dictionary = {}, nation: Dictionary = {}, race := "", races := [], humans: Dictionary = {}, near := false) -> Game:
 	var g := Game.new()
 	g.pick_race(race, leader_id)
 	g.slot_races = races
 	g.seat_wants = humans
+	g.spawn_near = near and slots.has("human") and slots.filter(func(x): return GameData.c("DIFF_NAME").has(str(x))).size() >= NEAR_MIN_AI
 	var mode := map_mode(opts)
 	g.world = map if not map.is_empty() else RealmGen.scale_world(RealmGen.generate_world(seed, map_opts_of(mode) if mode != "normal" else null, true))
+	built(0.62)   # (the island's shape, terrain and mountains)
 	g.world.mode = mode
 	g.G = WorldPrep.prep(g.world)
+	built(0.66)
 	g.players = GameData.c("PLAYERS").duplicate(true)
 	g.set_nation(nation)
 	g.setup_game(start)
 	g.spawn_ai_nations(slots)
+	built(0.8)
 	g.place_setpieces()
 	var uqs := g.uq_skip()
 	var ruins := g.place_ruins(uqs)
@@ -8737,6 +8797,7 @@ static func new_world(seed: String, leader_id := "", slots := [], start := "cent
 	for o in g.seat_ids():
 		if o != HOST:
 			g.in_seat(o, func(): g.assign_leader(str(g.seat_wants.values().filter(func(h): return h.get("id") == o)[0].get("leader", ""))))
+	built(0.92)   # (ruins, lairs, travelers, bosses, quests)
 	g.assign_ai_leaders()
 	g.apply_leader_start(HOST)
 	for o in g.seat_ids():
@@ -8800,6 +8861,14 @@ func ai_emblem_color(id: int) -> String:
 var slot_races := []   # the New Game page's race for each opponent slot: "realm", "swamp", "wood" or "random"
 var seat_wants := {}   # multiplayer: slot index -> {nation, race, leader} of each human slot (new_world's humans)
 
+## Spawn near players (0.19.3): how many computer nations it takes, and how far (in hops) a player's capital
+## should be from the nearest other player's: as near as nations may start (3 hops) plus one, so the players still
+## have room.
+const NEAR_MIN_AI := 3
+const NEAR_HOPS := 4
+var spawn_near := false   # (only while the world is made; not saved)
+
+
 func spawn_ai_nations(slots: Array) -> void:
 	nations.clear()
 	var key := ",".join(slots.map(func(x): return str(x)))
@@ -8829,7 +8898,7 @@ func spawn_ai_nations(slots: Array) -> void:
 			var hid: int = AI_IDS[i]
 			var hrc: String = str(H.get("race", "realm"))
 			hrc = hrc if hrc in ["realm", "swamp", "wood"] else "realm"
-			var hcap := pick_ai_capital(caps, reach, r, Races.HOME[hrc])
+			var hcap := pick_ai_capital(caps, reach, r, Races.HOME[hrc], caps if spawn_near else [])
 			if hcap < 0:
 				continue
 			caps.append(hcap)
@@ -8928,7 +8997,9 @@ func ai_wood_around(i: int) -> float:
 
 
 # web: v103.js pickAICapital (ai.js, plus the wood around)
-func pick_ai_capital(caps: Array, reach: Array, r: Mulberry32, terrain := "grassland") -> int:
+## near (Spawn near players): capitals of the players already placed: the best spot is the one nearest NEAR_HOPS
+## from the nearest of them (still at least 3 hops from every capital), not the one farthest from everyone.
+func pick_ai_capital(caps: Array, reach: Array, r: Mulberry32, terrain := "grassland", near: Array = []) -> int:
 	var all := range(G.provs.size()).filter(func(i): return not buildings.has(i) and reach[i] < INF and not unique_ban(i))
 	var cands := all.filter(func(i): return G.provs[i].terrain == terrain and open_nbr[i].size() >= 2)
 	if cands.size() < 8:
@@ -8945,6 +9016,8 @@ func pick_ai_capital(caps: Array, reach: Array, r: Mulberry32, terrain := "grass
 		if md < 3:
 			continue
 		var sc: float = minf(md, 9) * 10 + open_nbr[i].size() * 2 - (3 if G.provs[i].coastal else 0) + minf(ai_wood_around(i), 6) * 3 + r.next() * 4
+		if not near.is_empty():   # (Spawn near players: close to a player instead of far from everyone)
+			sc = -absf(md - NEAR_HOPS) * 30 + open_nbr[i].size() * 2 - (3 if G.provs[i].coastal else 0) + minf(ai_wood_around(i), 6) * 3 + r.next() * 4
 		if sc > bs:
 			bs = sc
 			best = i
@@ -11564,12 +11637,15 @@ var on_command: Callable
 var paused_by := 0
 var _from_order := false
 var mp_cd := {}            # multiplayer: "<from>><to>:<flirt|growl>" -> when (the 10-minute wait between players)
+var dialog_items := []    # while a quest's pop-up opens: the relics whose icons it shows (0.19.3; not saved)
 var dialog_nation := 0     # while a pop-up about meeting a nation opens: that nation (the view shows its flag and leader)   # apply() is running a player's order (not the game's own rules)
 
 
 ## A player's order, from the interface: applied now (single-player), or sent to every copy (multiplayer, where
 ## the answer isn't known yet: null).
 func do(type: String, args := []):
+	if spectator:   # (an observer gives no orders)
+		return null
 	var cmd := {"player": view_seat, "type": type, "args": pack_args(args)}
 	if on_command.is_valid():
 		on_command.call(cmd)

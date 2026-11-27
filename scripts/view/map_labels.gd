@@ -171,9 +171,9 @@ func _near_zoom() -> float:
 ## A label for your nation and every nation you have met, over the biggest block of their land you know.
 ## web: v78.js realmLabelsOf
 func _realm_labels() -> Array:
-	var who := [Game.LOCAL]
-	for o in game.met:
-		if game.nations.has(o) and not game.provs_of(o).is_empty():
+	var who := [Game.LOCAL] if not game.spectator else game.seat_ids()   # (0.19.3: an observer sees every nation)
+	for o in (game.met if not game.spectator else game.nations):
+		if game.nations.has(o) and not game.provs_of(o).is_empty() and not who.has(o):
 			who.append(o)
 	var sig := ""
 	for o in who:

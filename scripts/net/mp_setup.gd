@@ -5,11 +5,21 @@ extends RefCounted
 ## picked from it, and keeping saved multiplayer games in a folder. No drawing, no network: the caller sends the game.
 
 
-## A new island. o: the lobby's choices {seed, slots, races, start, map}; players: peer id -> {name, nation};
+## The lobby's players who play a nation: everyone but the observers (0.19.3: players[id].watch).
+static func playing(players: Dictionary) -> Dictionary:
+	var out := {}
+	for id in players:
+		if not players[id].get("watch", false):
+			out[id] = players[id]
+	return out
+
+
+## A new island. o: the lobby's choices {seed, slots, races, start, map, near (0.19.3: Spawn near players)}; players: peer id -> {name, nation};
 ## host_pid: the player who plays the first nation (Game.HOST): the host, or on a server the player hosting the game.
 ## Everyone else takes the next slots, then the host's computer nations fill the rest. Returns [game, seat_of]
 ## (seat_of: peer id -> nation).
 static func new_game(o: Dictionary, players: Dictionary, host_pid: int) -> Array:
+	players = playing(players)
 	var ids := players.keys()
 	ids.sort()
 	var slots := []
@@ -33,13 +43,15 @@ static func new_game(o: Dictionary, players: Dictionary, host_pid: int) -> Array
 	var leader := "" if str(hn.get("leader", "random")) == "random" else str(hn.get("leader", ""))
 	var g := Game.new_world(str(o.get("seed", "realm")), leader, slots, str(o.get("start", "center")), {}, o.get("map", {}),
 		{"name": str(hn.get("nation", "My Realm")), "color": int(hn.get("color", 0)), "emblem": str(hn.get("emblem", "crown")), "secondary": str(hn.get("secondary", "#faf1dc"))},
-		str(hn.get("race", "realm")), races, humans)
+		str(hn.get("race", "realm")), races, humans, bool(o.get("near", false)))
 	var seat_of := {host_pid: Game.HOST}
 	g.seat_names[Game.HOST] = str(players[host_pid].name)
 	for i in humans:
 		if humans[i].has("id"):
 			seat_of[humans[i].pid] = humans[i].id
 			g.seat_names[humans[i].id] = str(players[humans[i].pid].name)
+	g.mp_game = true   # (0.19.3: the Dungeon is on the build lists even with one player)
+	g.each_seat(func(): Quests.add_tables(g))
 	g.paused = false
 	return [g, seat_of]
 
@@ -57,6 +69,7 @@ static func save_seats(g: Game) -> Array:
 
 ## Why the lobby can't start a saved game with these picks (peer id -> nation), or "".
 static func picks_why(seats: Array, picks: Dictionary, players: Dictionary) -> String:
+	players = playing(players)
 	var ids := seats.map(func(s): return int(s.id))
 	var taken := {}
 	for pid in players:
@@ -75,11 +88,14 @@ static func picks_why(seats: Array, picks: Dictionary, players: Dictionary) -> S
 ## A saved game, carried on with the players' picks (peer id -> nation; check picks_why first). The nations nobody
 ## picked are played by the computer. Returns [game, seat_of], or [] when the save can't be read.
 static func load_game(text: String, picks: Dictionary, players: Dictionary) -> Array:
+	players = playing(players)
 	var g := Game.load_text(text)
 	if g == null:
 		return []
 	var seat_of := {}
 	for pid in picks:
+		if not players.has(pid):   # (an observer picks nothing)
+			continue
 		var o := int(picks[pid])
 		if g.seats.has(o):
 			seat_of[pid] = o
@@ -88,6 +104,9 @@ static func load_game(text: String, picks: Dictionary, players: Dictionary) -> A
 	for o in g.seat_ids():
 		if not held.has(o) and o != Game.HOST:
 			g.hand_to_ai(o)
+	if not g.mp_game:   # (a single-player save carried on in the lobby is a multiplayer game from now on)
+		g.mp_game = true
+		g.each_seat(func(): Quests.add_tables(g))
 	g.paused = false
 	return [g, seat_of]
 
@@ -95,6 +114,7 @@ static func load_game(text: String, picks: Dictionary, players: Dictionary) -> A
 ## The nation each player probably wants in a saved game: the one they played when it was saved (by name).
 static func guess_picks(seats: Array, players: Dictionary) -> Dictionary:
 	var out := {}
+	players = playing(players)
 	for pid in players:
 		for s in seats:
 			if str(s.player) == str(players[pid].name) and not out.values().has(int(s.id)):
@@ -104,6 +124,7 @@ static func guess_picks(seats: Array, players: Dictionary) -> Dictionary:
 
 ## Two nations can't fly the same color or share a leader. Returns why not, or "".
 static func clash(players: Dictionary) -> String:
+	players = playing(players)
 	var colors := {}
 	var leaders := {}
 	for id in players:

@@ -13,8 +13,14 @@ ports on their home router.
   interrupted game again, and each player picks their nation from it.
 - **The host can save** from the in-game menu (Esc), **and load** a saved game in the lobby: either one kept on the
   server, or the last multiplayer game on the host's own computer (it is sent to the server).
-- **The server stops when the game ends**: when the host ends it from the in-game menu, or when no player's nation is
-  left standing. It keeps a last save of the finished game. Start it again for the next game (step 8).
+- **A game ends when no player is left in it** (30 seconds after the last one leaves, so a dropped connection can
+  come back), or when no player's nation is left standing. The server keeps a last save of the finished game and
+  opens a fresh lobby by itself (0.19.3; there is no "End the game" button any more).
+- **Observers** (0.19.3): **Watch** instead of **Join** joins without a nation. Observers see the whole map and a
+  window with every player's ping, resources, army power and provinces. They never host or hold the game up, and
+  don't count as players (a game with only observers left ends).
+- **Host online** (0.19.3) in the Multiplayer menu asks every server on the Droplet (ports 24565-24569) whether its
+  lobby is empty and joins a random empty one as its host. Ports with no server running simply don't answer.
 
 Code: `scripts/net/mp_server.gd` (the server), `scripts/net/mp_setup.gd` (starting games and the saves folder, shared
 with a player hosting from their own copy), `tests/test_server.gd`.
@@ -94,14 +100,15 @@ ssh root@203.0.113.10 "systemctl status realmlings --no-pager"
 ssh root@203.0.113.10 "journalctl -u realmlings -f"      # its messages as they come; Ctrl+C to stop watching
 ```
 
-The first line should read `Realmlings server 0.19.2: listening on UDP port 24565`. Joins, departures, starts and
+The first line should read `Realmlings server 0.19.3: listening on UDP port 24565`. Joins, departures, starts and
 saves appear below it. A longer log is on the Droplet at
 `/home/realmlings/.local/share/godot/app_userdata/Realmlings/mp_log.txt`.
 
 ## 7. Play
 
-1. Everyone opens **Multiplayer** and types the Droplet's address under **Join by address**, plus the password, if
-   there is one.
+1. One player presses **Host online**: the game finds an empty lobby on the Droplet and shows its address and port.
+   Everyone else opens **Multiplayer** and types that address (with the port, e.g. `157.245.250.30:24566`) under
+   **Join by address**, plus the password, if there is one. **Watch** joins as an observer.
 2. The first to join is the host. Everyone else chooses their nation under **Your Nation** and presses **Ready**.
 3. The host chooses **Map Settings** (or **Load a saved game**), sets a **Password** if they want one, and presses
    **Start Game** once everyone is ready. One player may start alone. Each new lobby starts on a new random island. The host can **Remove** a player
@@ -115,7 +122,8 @@ saves appear below it. A longer log is on the Droplet at
 5. **During the game:** the host saves with **Esc → Save the game on the server**. When a player drops out, the host is
    asked whether to wait for them or hand their nation to the computer. A player who comes back joins with the same
    name. A newcomer may take a nation whose player is away.
-6. **Ending:** the host uses **Esc → End the game for everyone**. The server saves the game, tells everyone and stops.
+6. **Ending:** when every player has left (observers don't count), the game is over: the server keeps a last save,
+   tells any observers and opens a fresh lobby.
 
 ## Several games at once
 
@@ -134,21 +142,15 @@ ssh root@157.245.250.30 "systemctl daemon-reload; systemctl enable --now realmli
 That adds two more servers (24566 and 24567). Each uses about 200-250 MB of memory: a 1 GiB Droplet runs about
 three games at once, a 2 GiB one about seven. `update_server.ps1` updates and restarts all of them.
 
-Hosting on your own computer (**Host on this computer** in the Multiplayer menu) is a separate thing: your PC runs
+Hosting on your own computer (**Host locally** in the Multiplayer menu) is a separate thing: your PC runs
 the game and you play in it. To play on the Droplet, everyone uses **Join by address** instead.
 
 ## 8. The next game
 
-When everyone leaves a game without ending it, the server waits 3 minutes, saves it, and starts a fresh lobby by
-itself; the lobby offers to carry the game on (**New island** starts a different one). When the host ends the game,
-the server stays stopped, so start it again:
-
-```powershell
-ssh root@203.0.113.10 "systemctl start realmlings"
-```
-
-If you would rather it reopened the lobby by itself after every game, change `Restart=on-failure` to `Restart=always`
-in the service file, then run `systemctl daemon-reload`.
+Nothing to do: after every game the server exits with code 75, which the service treats as "start me again", and
+a fresh, empty lobby is ready a few seconds later (so **Host online** finds it free). A finished game is kept in the
+saves folder; the host can carry it on with **Load a saved game**. A server that crashed comes back the same way and
+offers the interrupted game again.
 
 ## Updating to a new version
 
