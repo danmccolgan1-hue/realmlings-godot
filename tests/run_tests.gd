@@ -9,6 +9,7 @@ func _initialize() -> void:
 	Game.VARIANTS = false   # (the web game has no terrain variants: tests that compare against it see plain terrain)
 	Game.RULES19 = false    # (nor 0.19's changes to Aithne's kit and to roads)
 	Game.QUESTS = false     # (nor quests: tests/test_quests.gd turns them on for itself)
+	Game.SPAWN19 = false    # (nor 0.19.3's starting positions: tests/test_server.gd's _near turns them on for itself)
 	# a script that doesn't compile fails the run (its tests could otherwise pass vacuously)
 	for dir in ["res://scripts/core/", "res://scripts/gen/", "res://scripts/sim/", "res://scripts/view/", "res://scripts/ui/", "res://scripts/net/"]:
 		for f in DirAccess.get_files_at(dir):

@@ -865,7 +865,7 @@ func _mp_summary() -> String:
 	for i in range(humans - 1, 7):
 		if i < M.slots.size() and str(M.slots[i]) != "closed":
 			ais.append(str(M.slots[i]))
-	return "Island: %s, seed %s, start %s. %d players and %d computer nation%s%s.%s" % [str(M.map.get("shape", "classic")).capitalize(), str(M.seed), str(M.start), humans, ais.size(), "" if ais.size() == 1 else "s", (" (" + ", ".join(ais) + ")") if not ais.is_empty() else "",
+	return "Island: %s, seed %s%s. %d players and %d computer nation%s%s.%s" % [str(M.map.get("shape", "classic")).capitalize(), str(M.seed), "", humans, ais.size(), "" if ais.size() == 1 else "s", (" (" + ", ".join(ais) + ")") if not ais.is_empty() else "",
 		" The players spawn near one another." if bool(M.get("near", false)) and ais.size() >= Game.NEAR_MIN_AI else ""]
 
 
@@ -1406,11 +1406,7 @@ func _refresh_map() -> void:
 	_clear_now(map_box)
 	var M: Dictionary = _map_opts()
 	var practice := false   # 0.19: every island is a full island; the Full/Practice choice is gone
-	var sp := HBoxContainer.new()
-	sp.add_theme_constant_override("separation", 8)
-	for s in [["center", "Center"], ["edge", "Edge"], ["random", "Random"]]:
-		sp.add_child(_tog(s[1], M.start == s[0], _pick_map.bind("start", s[0]), practice, "Where your capital starts: %s always start on %s" % [Races.NAME[opts.get("race", "realm")], Races.HOME[opts.get("race", "realm")]]))
-	_row("Start position", sp, map_box)
+	# (0.19.3: no Start position choice: the first capital is on or near the coast, the rest spread out; Game.spawn_pick)
 	# the island
 	var sh := HBoxContainer.new()
 	sh.add_theme_constant_override("separation", 8)
@@ -1540,7 +1536,7 @@ func _refresh_map() -> void:
 			M.near = not bool(M.get("near", false))
 			_save_map()
 			_refresh_map(), not ok,
-			"The players start near one another (each within a few provinces of another player), and the computer nations around them, spread out as usual" if ok else "Needs 3 or more computer nations"), map_box)
+			"Each player starts as near the first player as the room around every capital allows, and no computer nation starts between two players" if ok else "Needs 3 or more computer nations"), map_box)
 
 
 

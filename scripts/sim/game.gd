@@ -45,6 +45,7 @@ var all_nbr := []
 var yields := []             # province -> {gold, wood, food, bonus, deposit}
 var variant := []            # province -> "" or a terrain variant ("drylands", "meadow", "fae", "bog"), Godot 0.18
 static var VARIANTS := true  # tests that compare against the web game's numbers turn the variants off
+static var SPAWN19 := true   # 0.19.3's starting positions (spawn_order); off in the tests that compare with the web game
 static var RULES19 := true   # 0.19's rule changes (Aithne's kit, faster and wider roads); off in the same tests
 var tree_border := []
 
@@ -568,7 +569,9 @@ func setup_game(where := "center") -> void:
 	var cands: Array = home2 if not home2.is_empty() else home if not home.is_empty() else range(G.provs.size()).filter(func(i): return not unique_ban(i))
 	var fit := func(i: int) -> float: return open_nbr[i].size() * 420 - (2000 if G.provs[i].coastal or G.provs[i].lakeside else 0)
 	var best := -1
-	if where == "random":
+	if where == "coast":   # 0.19.3: any suitable province on the coast or one in from it (see spawn_order)
+		best = spawn_first()
+	elif where == "random":
 		var good := cands.filter(func(i): return open_nbr[i].size() >= 2 and not G.provs[i].coastal and not G.provs[i].lakeside)
 		var pool := good if not good.is_empty() else cands.filter(func(i): return open_nbr[i].size() >= 1)
 		if pool.is_empty():
@@ -8776,7 +8779,7 @@ static func new_world(seed: String, leader_id := "", slots := [], start := "cent
 	built(0.66)
 	g.players = GameData.c("PLAYERS").duplicate(true)
 	g.set_nation(nation)
-	g.setup_game(start)
+	g.setup_game("coast" if SPAWN19 else start)   # (0.19.3: the Start position choice is gone)
 	g.spawn_ai_nations(slots)
 	built(0.8)
 	g.place_setpieces()
@@ -8861,12 +8864,88 @@ func ai_emblem_color(id: int) -> String:
 var slot_races := []   # the New Game page's race for each opponent slot: "realm", "swamp", "wood" or "random"
 var seat_wants := {}   # multiplayer: slot index -> {nation, race, leader} of each human slot (new_world's humans)
 
-## Spawn near players (0.19.3): how many computer nations it takes, and how far (in hops) a player's capital
-## should be from the nearest other player's: as near as nations may start (3 hops) plus one, so the players still
-## have room.
+# --- starting positions (0.19.3) ---------------------------------------------------------------------------------
+# The first player's capital: a random suitable province on the coast or next to a coastal one. Every capital then
+# puts SPAWN_GAP provinces off-limits: itself and those nearest it (ties for the last places drawn at random). Each next player
+# takes, with Spawn near players, the suitable province nearest the first player's capital that isn't off-limits;
+# without it, any one at random. The computer nations come after the players, the same way at random (with Spawn
+# near players, not between two players when there is a choice). A suitable province: reachable, not a unique or
+# boss province, with at least two open borders. Every draw comes from the seed's own stream.
+
+## With this many computer nations or more, the lobby offers Spawn near players.
 const NEAR_MIN_AI := 3
-const NEAR_HOPS := 4
+## How many provinces no other nation may start in, for each capital: the capital and the ones nearest it.
+const SPAWN_GAP := 24
 var spawn_near := false   # (only while the world is made; not saved)
+var spawn_off := {}       # (while placing: province -> true where no capital may go)
+var _spawn_r: Mulberry32
+
+
+func _spawn_rng() -> Mulberry32:
+	if _spawn_r == null:
+		_spawn_r = Mulberry32.from_string(str(world.seed) + ":spawn")
+	return _spawn_r
+
+
+## Shuffled with the spawn stream (Fisher-Yates), so ties are drawn at random but every copy draws alike.
+func _spawn_shuffle(a: Array) -> Array:
+	var out := a.duplicate()
+	var r := _spawn_rng()
+	for i in range(out.size() - 1, 0, -1):
+		var j := int(floor(r.next() * (i + 1)))
+		var t = out[i]
+		out[i] = out[j]
+		out[j] = t
+	return out
+
+
+func _spawn_ok(i: int) -> bool:
+	return not buildings.has(i) and not unique_ban(i) and not spawn_off.has(i) and open_nbr[i].size() >= 2
+
+
+## The first player's capital: a random suitable province on the coast or next to one (any suitable one if none).
+func spawn_first() -> int:
+	var all := range(G.provs.size()).filter(func(i): return not unique_ban(i) and open_nbr[i].size() >= 2)
+	var coast := all.filter(func(i): return G.provs[i].coastal or all_nbr[i].any(func(q): return G.provs[int(q)].coastal))
+	var pool := coast if not coast.is_empty() else all if not all.is_empty() else range(G.provs.size())
+	return pool[int(floor(_spawn_rng().next() * pool.size()))]
+
+
+## A new capital at c: SPAWN_GAP provinces go off-limits: c itself and the ones nearest it.
+func spawn_block(c: int) -> void:
+	var d := hops_list(c, all_nbr)
+	var near := _spawn_shuffle(range(G.provs.size()).filter(func(i): return i != c and d[i] < INF))
+	near.sort_custom(func(a, b): return d[a] < d[b])   # (stable: ties keep their random order)
+	spawn_off[c] = true
+	for i in near.slice(0, SPAWN_GAP - 1):
+		spawn_off[i] = true
+
+
+## A capital for the next nation (see the notes above). near_host: the nearest allowed province to the first
+## player's capital; else a random one, of terrain (the race's home) when there are at least 8 of those.
+## between: players' capitals a computer nation shouldn't start between. -1: nowhere is left.
+func spawn_pick(reach: Array, terrain: String, near_host: bool, between: Array = []) -> int:
+	var all := range(G.provs.size()).filter(func(i): return reach[i] < INF and _spawn_ok(i))
+	if between.size() > 1:
+		var pd := between.map(func(c): return hops_list(c, all_nbr))
+		var apart := all.filter(func(i):
+			for x in pd.size():
+				for y in range(x + 1, pd.size()):
+					if pd[x][i] + pd[y][i] <= pd[x][between[y]] + 1:
+						return false
+			return true)
+		if not apart.is_empty():
+			all = apart
+	if all.is_empty():
+		return -1
+	if near_host:
+		var d := hops_list(capital, all_nbr)
+		var pool := _spawn_shuffle(all)
+		pool.sort_custom(func(a, b): return d[a] < d[b])
+		return pool[0]
+	var home := all.filter(func(i): return G.provs[i].terrain == terrain)
+	var pool2: Array = home if home.size() >= 8 else all
+	return pool2[int(floor(_spawn_rng().next() * pool2.size()))]
 
 
 func spawn_ai_nations(slots: Array) -> void:
@@ -8883,6 +8962,10 @@ func spawn_ai_nations(slots: Array) -> void:
 	var used_emblems := {NAT.emblem: true}
 	var caps := [capital]
 	var reach := hops_list(capital)
+	var pcaps := [capital]   # (the players' capitals so far)
+	if SPAWN19:
+		spawn_off = {}
+		spawn_block(capital)
 	var k := 0
 	var kr := 0
 	var ks := 0
@@ -8898,10 +8981,15 @@ func spawn_ai_nations(slots: Array) -> void:
 			var hid: int = AI_IDS[i]
 			var hrc: String = str(H.get("race", "realm"))
 			hrc = hrc if hrc in ["realm", "swamp", "wood"] else "realm"
-			var hcap := pick_ai_capital(caps, reach, r, Races.HOME[hrc], caps if spawn_near else [])
+			var hcap := spawn_pick(reach, Races.HOME[hrc], spawn_near) if SPAWN19 else -1
+			if hcap < 0:   # (the web game's way; or 0.19.3's when no province is left outside the off-limits ones)
+				hcap = pick_ai_capital(caps, reach, r, Races.HOME[hrc])
+			elif SPAWN19:
+				spawn_block(hcap)
 			if hcap < 0:
 				continue
 			caps.append(hcap)
+			pcaps.append(hcap)
 			race_of[hid] = hrc
 			H.id = hid
 			var hn: Dictionary = H.get("nation", {}).duplicate()
@@ -8917,7 +9005,11 @@ func spawn_ai_nations(slots: Array) -> void:
 		# each opponent is Realmling, Swampling, Woodling or (Random) any of them (web: ai.js spawnAINations races[i])
 		var want: String = str(slot_races[i]) if i < slot_races.size() else "realm"
 		var rc: String = want if want in ["realm", "swamp", "wood"] else ["realm", "swamp", "wood"][int(floor(r.next() * 3))]
-		var cap := pick_ai_capital(caps, reach, r, Races.HOME[rc])
+		var cap := spawn_pick(reach, Races.HOME[rc], false, pcaps if spawn_near else []) if SPAWN19 else -1
+		if cap < 0:
+			cap = pick_ai_capital(caps, reach, r, Races.HOME[rc])
+		elif SPAWN19:
+			spawn_block(cap)
 		if cap < 0:
 			continue
 		race_of[id] = rc
@@ -8997,9 +9089,7 @@ func ai_wood_around(i: int) -> float:
 
 
 # web: v103.js pickAICapital (ai.js, plus the wood around)
-## near (Spawn near players): capitals of the players already placed: the best spot is the one nearest NEAR_HOPS
-## from the nearest of them (still at least 3 hops from every capital), not the one farthest from everyone.
-func pick_ai_capital(caps: Array, reach: Array, r: Mulberry32, terrain := "grassland", near: Array = []) -> int:
+func pick_ai_capital(caps: Array, reach: Array, r: Mulberry32, terrain := "grassland") -> int:
 	var all := range(G.provs.size()).filter(func(i): return not buildings.has(i) and reach[i] < INF and not unique_ban(i))
 	var cands := all.filter(func(i): return G.provs[i].terrain == terrain and open_nbr[i].size() >= 2)
 	if cands.size() < 8:
@@ -9016,8 +9106,6 @@ func pick_ai_capital(caps: Array, reach: Array, r: Mulberry32, terrain := "grass
 		if md < 3:
 			continue
 		var sc: float = minf(md, 9) * 10 + open_nbr[i].size() * 2 - (3 if G.provs[i].coastal else 0) + minf(ai_wood_around(i), 6) * 3 + r.next() * 4
-		if not near.is_empty():   # (Spawn near players: close to a player instead of far from everyone)
-			sc = -absf(md - NEAR_HOPS) * 30 + open_nbr[i].size() * 2 - (3 if G.provs[i].coastal else 0) + minf(ai_wood_around(i), 6) * 3 + r.next() * 4
 		if sc > bs:
 			bs = sc
 			best = i

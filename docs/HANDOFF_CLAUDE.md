@@ -83,8 +83,11 @@ test_quests, test_build.
 
 - Loading screen; Host locally / Host online; observers (Watch); Join/Watch/Set are buttons; Dungeon in any
   multiplayer game; empty games end and the server reopens a lobby; quests start on pickup with item icons.
-- Spawn near players (lobby Map Settings, 3+ computer nations): `o.near` → `Game.new_world(..., near)` →
-  `pick_ai_capital(..., near)` places each player ~NEAR_HOPS (4) from the nearest player; computers spread as before.
+- Starting positions (`Game.spawn_first/spawn_block/spawn_pick`, `SPAWN19`; tests that compare with the web game
+  turn it off): first capital a random suitable province on/next to the coast; each capital blocks SPAWN_GAP (24)
+  provinces (itself + 23 nearest, ties random); next nations random outside the blocks (players first, then
+  computers). Spawn near players (3+ computers): each player takes the nearest allowed province to the first
+  player's capital, and computers avoid shortest routes between players. Start position option removed.
 - Random race on the Nation page (`opts.random_race`, `StartScreen.resolved_nation()`): race, leader, name, emblem.
 - Picture modes: `-- --mpwatch --shot=x.png`, `-- --loading --at=2 --shot=x.png`, `-- --mpmenu --menu --shot=x.png`,
   `-- --world=easy,easy --quests=log|newquest --shot=x.png` (render with xvfb-run and `--rendering-driver opengl3`).

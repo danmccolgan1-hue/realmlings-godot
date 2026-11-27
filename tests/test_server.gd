@@ -88,53 +88,52 @@ func _setup_saves() -> Array:
 	return errs
 
 
-# --- Spawn near players (0.19.3) ------------------------------------------------------------------------------
+# --- Starting positions and Spawn near players (0.19.3) ----------------------------------------------------------
 func _near() -> Array:
 	var errs := []
+	var was := Game.SPAWN19
+	Game.SPAWN19 = true
 	var players := {1: {"name": "Host", "nation": {"race": "realm", "color": 0}}, 5: {"name": "Ann", "nation": {"race": "realm", "color": 1}},
 		6: {"name": "Bo", "nation": {"race": "wood", "color": 2}}}
-	for sd in ["ember-oak-12", "moss-fern-40"]:
-		var o := {"seed": sd, "slots": ["moderate", "moderate", "moderate", "moderate", "moderate", "closed", "closed"], "races": [], "start": "center", "map": {}, "near": true}
-		var g: Game = MpSetup.new_game(o, players, 1)[0]
-		var humans: Array = g.seat_ids()
-		var ais: Array = g.nations.keys()
-		if humans.size() != 3 or ais.size() < 3:
-			errs.append("near: %d players, %d computer nations" % [humans.size(), ais.size()])
-			continue
-		var caps := {}
-		for x in humans + ais:
-			caps[x] = g.capital_of(x)
-		var hh := 0.0
-		var hn := 0
-		var ha := 0.0
-		var hm := 0
-		for a in humans:
-			var d: Array = g.hops_list(caps[a], g.all_nbr)
-			var nearest_h := INF
-			for b in humans:
-				if b != a:
-					nearest_h = minf(nearest_h, d[caps[b]])
-					hh += d[caps[b]]
-					hn += 1
-			for b in ais:
-				ha += d[caps[b]]
-				hm += 1
-			if nearest_h > Game.NEAR_HOPS + 2:
-				errs.append("near (%s): player %d is %d provinces from the nearest other player" % [sd, a, nearest_h])
-			for b in humans + ais:
-				if b != a and d[caps[b]] < 3:
-					errs.append("near (%s): two capitals closer than 3 provinces" % sd)
-		if hh / hn >= ha / hm:
-			errs.append("near (%s): the players aren't closer to one another (%.1f) than to the computers (%.1f)" % [sd, hh / hn, ha / hm])
-		# without the option, the old spread
-		o.near = false
-		var g2: Game = MpSetup.new_game(o, players, 1)[0]
-		if g2.capital_of(g2.seat_ids()[1]) == g.capital_of(humans[1]) and g2.capital_of(g2.seat_ids()[2]) == g.capital_of(humans[2]):
-			errs.append("near (%s): the option changed nothing" % sd)
-	# fewer than 3 computer nations: no effect
+	for sd in ["ember-oak-12", "moss-fern-40", "river-stone-7"]:
+		for near in [true, false]:
+			var o := {"seed": sd, "slots": ["moderate", "moderate", "moderate", "moderate", "moderate", "closed", "closed"], "races": [], "start": "center", "map": {}, "near": near}
+			var g: Game = MpSetup.new_game(o, players, 1)[0]
+			var humans: Array = g.seat_ids()
+			var ais: Array = g.nations.keys()
+			if humans.size() != 3 or ais.size() != 3:
+				errs.append("spawn (%s): %d players, %d computer nations" % [sd, humans.size(), ais.size()])
+				continue
+			var host: int = g.capital_of(Game.HOST)
+			if not (g.G.provs[host].coastal or g.all_nbr[host].any(func(q): return g.G.provs[int(q)].coastal)):
+				errs.append("spawn (%s): the first capital isn't on or next to the coast" % sd)
+			var caps := {}
+			for x in humans + ais:
+				caps[x] = g.capital_of(x)
+			var order: Array = humans + ais   # (the order they were placed in: the first player, the others, the computers)
+			for ia in order.size():   # nobody starts among an earlier capital's 24 provinces (itself and its 23 nearest)
+				var a: int = order[ia]
+				var d: Array = g.hops_list(caps[a], g.all_nbr)
+				for b in order.slice(ia + 1):
+					var le := range(d.size()).filter(func(i): return d[i] <= d[caps[b]]).size()
+					if le <= Game.SPAWN_GAP:
+						errs.append("spawn (%s, near %s): nation %d starts among the %d provinces nearest nation %d (%d apart)" % [sd, near, b, Game.SPAWN_GAP, a, d[caps[b]]])
+			if near:
+				for a in humans:
+					var d: Array = g.hops_list(caps[a], g.all_nbr)
+					for b in humans:
+						if b != a:
+							for c in ais:
+								if d[caps[c]] + g.hops_list(caps[c], g.all_nbr)[caps[b]] <= d[caps[b]] + 1:
+									errs.append("spawn (%s): computer nation %d starts between players %d and %d" % [sd, c, a, b])
+			var again: Game = MpSetup.new_game(o, players, 1)[0]
+			if (humans + ais).any(func(x): return again.capital_of(x) != caps[x]):
+				errs.append("spawn (%s): the same seed placed the nations differently" % sd)
+	# fewer than 3 computer nations: no Spawn near players
 	var g3: Game = Game.new_world("ember-oak-12", "", ["human", "moderate", "moderate", "closed", "closed", "closed", "closed"], "center", {}, {}, {}, "realm", [], {0: {"race": "realm"}}, true)
 	if g3.spawn_near:
-		errs.append("near: on with only 2 computer nations")
+		errs.append("spawn: near on with only 2 computer nations")
+	Game.SPAWN19 = was
 	return errs
 
 
