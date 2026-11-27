@@ -17,7 +17,6 @@ const SLOT_BG := {"closed": Color("#e3e6ec"), "easy": Color("#dff3e0"), "moderat
 const SLOT_TEXT := {"closed": "Closed", "easy": "Easy", "moderate": "Moderate", "difficult": "Difficult"}
 const SLOT_CYCLE := ["closed", "easy", "moderate", "difficult"]
 const SHAPES := [["classic", "Classic", "The island you know"], ["crescent", "Half-moon", "A half-moon arch"], ["ring", "Ring", "A ring of land around a great lake"], ["random", "Random", "Any outline, with forests, deserts and swamps scattered anywhere"]]
-const TREE_WORDS := ["Classic", "More", "Many", "Lots", "Dense"]
 const PARADE := ["pioneer:B", "mason:A", "d-sword", "d-spear", "d-rider", "mage:A"]
 
 var main                    # the scene's entry node: starts games, loads saves, opens windows
@@ -1416,26 +1415,53 @@ func _refresh_map() -> void:
 			_save_map()
 			_refresh_map(), practice, s[2]))
 	_row("Island", sh, map_box)
-	for sl in [["Peninsulas", "pens", 5], ["Coves", "coves", 5], ["Trees", "trees", 4]]:
-		var h := HBoxContainer.new()
-		h.add_theme_constant_override("separation", 12)
-		var s := HSlider.new()
-		s.min_value = 0
-		s.max_value = sl[2]
-		s.step = 1
-		s.value = M.map[sl[1]]
-		s.editable = not practice
-		s.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		s.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		var val := _lbl(TREE_WORDS[int(s.value)] if sl[1] == "trees" else str(int(s.value)), 17)
-		val.custom_minimum_size = Vector2(70, 0)
+	# 0.19.3: each a range, Min to Max: the island gets a value between them, drawn from its seed
+	var lake_off: bool = M.map.shape == "ring"   # (the Ring has its great lake instead)
+	for sl in [["Peninsulas", "pens", 5], ["Coves", "coves", 5], ["Trees", "trees", 5], ["Lakes", "lakes", 5]]:
 		var key: String = sl[1]
-		s.value_changed.connect(func(x):
-			M.map[key] = int(x)
-			val.text = TREE_WORDS[int(x)] if key == "trees" else str(int(x))
-			_save_map())
-		h.add_child(s)
-		h.add_child(val)
+		var top: int = sl[2]
+		var rg := map_range(M.map, key)
+		var h := HBoxContainer.new()
+		h.add_theme_constant_override("separation", 6)
+		for side in 2:
+			var tag := _lbl("Min" if side == 0 else "Max", 14, MUTED)
+			tag.custom_minimum_size = Vector2(36 if side == 0 else 46, 0)
+			tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+			h.add_child(tag)
+			var v: int = rg[side]
+			var off := practice or (key == "lakes" and lake_off)
+			var step := func(by: int):
+				var r2 := map_range(M.map, key)
+				r2[side] = clampi(r2[side] + by, Game.TREE_MIN_STEP if key == "trees" else 0, top)
+				if side == 0 and r2[0] > r2[1]:
+					r2[1] = r2[0]
+				if side == 1 and r2[1] < r2[0]:
+					r2[0] = r2[1]
+				M.map[key + "_min"] = r2[0]
+				M.map[key + "_max"] = r2[1]
+				M.map.erase(key)
+				_save_map()
+				_refresh_map()
+			var minus := _btn("−", BLUE, step.bind(-1), "Less")
+			minus.custom_minimum_size = Vector2(40, 34)
+			minus.disabled = off or v <= (Game.TREE_MIN_STEP if key == "trees" else 0)
+			h.add_child(minus)
+			var val := _lbl(Game.MAP_WORDS[v], 17)   # (None, Few, Some, Normal, More, Lots)
+			val.custom_minimum_size = Vector2(64, 0)
+			val.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			h.add_child(val)
+			var plus := _btn("+", BLUE, step.bind(1), "More")
+			plus.custom_minimum_size = Vector2(40, 34)
+			plus.disabled = off or v >= top
+			h.add_child(plus)
+		if key == "trees":
+			h.tooltip_text = "Normal; More: a fifth of the ruin borders are tree lines instead; Lots: a fifth of the ruin and a fifth of the mountain borders"
+		if key == "lakes":
+			h.tooltip_text = "Lakes inside the island, each 2 to 3 provinces" + (" (the Ring has its great lake instead)" if lake_off else "")
+		var note := _lbl("random in between" if rg[0] != rg[1] else "", 13, MUTED)
+		note.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		note.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		h.add_child(note)
 		_row(sl[0], h, map_box)
 	# the opponents
 	var ob := VBoxContainer.new()
@@ -1539,6 +1565,23 @@ func _refresh_map() -> void:
 			"Each player starts as near the first player as the room around every capital allows, and no computer nation starts between two players" if ok else "Needs 3 or more computer nations"), map_box)
 
 
+
+
+## A map setting's range [min, max] (0.19.3); an older remembered single value is both. Lakes: 1-3 at first, as
+## islands always had.
+static func map_range(m: Dictionary, key: String) -> Array:
+	if m.has(key + "_min") or m.has(key + "_max"):
+		var lo := int(m.get(key + "_min", m.get(key + "_max", 0)))
+		return [lo, maxi(lo, int(m.get(key + "_max", lo)))]
+	if m.has(key):   # (an older single value; trees: the old density 0-4 as a step)
+		var v := int(m[key])
+		if key == "trees":
+			v = [3, 4, 4, 5, 5][clampi(v, 0, 4)]
+		return [v, v]
+	if key == "trees" and (m.has("trees_min") or m.has("trees_max")):   # (never below Normal)
+		var r3 := [maxi(Game.TREE_MIN_STEP, int(m.get("trees_min", 3))), maxi(Game.TREE_MIN_STEP, int(m.get("trees_max", 3)))]
+		return [r3[0], maxi(r3[0], r3[1])]
+	return [1, 3] if key == "lakes" else [2, 2] if key in ["pens", "coves"] else [3, 3]
 
 
 ## Portrait cards for every Realmling leader, and Random; the chosen one's start, bonus, likes and dislikes.

@@ -282,7 +282,7 @@ func _new_game_choices(errs: Array) -> void:
 	var opts := {"shape": "ring", "pens": 1, "coves": 3, "trees": 2}
 	if Game.map_mode(opts) != "map:ring:1:3:2" or Game.map_mode({"shape": "classic", "pens": 2, "coves": 2, "trees": 0}) != "normal":
 		errs.append("new game: map modes are %s / %s" % [Game.map_mode(opts), Game.map_mode({"shape": "classic", "pens": 2, "coves": 2, "trees": 0})])
-	if Game.map_opts_of("map:ring:1:3:2") != opts:
+	if Game.map_opts_of("map:ring:1:3:2") != opts.merged({"lakes": -1}):   # (0.19.3: lakes, -1 when not chosen)
 		errs.append("new game: map_opts_of doesn't read the mode back")
 	var nat := {"name": "The Thistle Crown", "color": 3, "emblem": "fleur"}
 	var g := Game.new_world("lantern-fable-63", "cormac", ["easy", "moderate"], "center", {}, opts, nat)

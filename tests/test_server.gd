@@ -24,6 +24,7 @@ func run() -> Array:
 	errs.append_array(_setup_saves())
 	errs.append_array(_debug_rules())
 	errs.append_array(_near())
+	errs.append_array(_map_ranges())
 	errs.append_array(_server_game())
 	errs.append_array(_resume())
 	_wipe()
@@ -134,6 +135,53 @@ func _near() -> Array:
 	if g3.spawn_near:
 		errs.append("spawn: near on with only 2 computer nations")
 	Game.SPAWN19 = was
+	return errs
+
+
+# --- Map Settings ranges and lakes (0.19.3) -----------------------------------------------------------------------
+func _map_ranges() -> Array:
+	var errs := []
+	var seen := {}
+	for i in 40:
+		var o := Game.roll_map("seed-%d" % i, {"shape": "classic", "pens_min": 1, "pens_max": 3, "coves_min": 2, "coves_max": 2, "trees_min": 3, "trees_max": 5, "lakes_min": 0, "lakes_max": 5})
+		for k in Game.MAP_KEYS:
+			if o.has(k + "_min") or o.has(k + "_max"):
+				errs.append("ranges: %s's range left in the options" % k)
+		if o.pens < 1 or o.pens > 3 or o.coves != 2 or o.trees != 0 or not [0, 1, 2].has(int(o.get("tl", -1))) or o.lakes < 0 or o.lakes > 5:
+			errs.append("ranges: a value outside its range: %s" % [o])
+		seen[o.lakes] = true
+		if Game.roll_map("seed-%d" % i, {"lakes_min": 0, "lakes_max": 5}).lakes != o.lakes:
+			errs.append("ranges: the same seed drew a different number of lakes")
+	if seen.size() < 4:
+		errs.append("ranges: lakes hardly vary (%s)" % [seen.keys()])
+	if Game.map_opts_of(Game.map_mode({"shape": "classic", "pens": 2, "coves": 2, "trees": 0, "lakes": 4})).lakes != 4:
+		errs.append("ranges: the number of lakes isn't kept in a save's map")
+	# Trees: More and Lots turn a fifth of the ruin (Lots: and of the mountain) borders into tree lines; nothing else
+	var styles := func(w: Dictionary) -> Dictionary:
+		var c := {}
+		for e in w.edges:
+			if not e.open:
+				c[e.get("style")] = int(c.get(e.get("style"), 0)) + 1
+		return c
+	var w0 := RealmGen.generate_world("moss-fern-40", {"lakes": 2}, true)
+	var c0: Dictionary = styles.call(w0)
+	for lv in [1, 2]:
+		var o2 := Game.roll_map("x", {"trees_min": 3 + lv, "trees_max": 3 + lv})
+		var w2 := RealmGen.generate_world("moss-fern-40", {"lakes": 2, "trees": o2.trees, "tl": o2.tl}, true)
+		var c2: Dictionary = styles.call(w2)
+		var ru := int(c0.get("ruins", 0)) - int(c2.get("ruins", 0))
+		var mo := int(c0.get("mountains", 0)) - int(c2.get("mountains", 0))
+		var ru_ok := absi(ru - int(round(int(c0.get("ruins", 0)) * 0.2))) <= 1
+		var mo_ok := mo == 0 if lv == 1 else mo > 0 and mo <= int(round(int(c0.get("mountains", 0)) * 0.2))   # (not Death Mountain's)
+		if w2.provinces.map(func(p): return p.terrain) != w0.provinces.map(func(p): return p.terrain) or not ru_ok or not mo_ok \
+				or int(c2.get("trees", 0)) != int(c0.get("trees", 0)) + ru + mo:
+			errs.append("trees: level %d changed %s into %s" % [lv, c0, c2])
+		if Game.map_opts_of(Game.map_mode(Game.roll_map("x", {"trees_min": 3 + lv, "trees_max": 3 + lv}))).get("tl", 0) != lv:
+			errs.append("trees: level %d isn't kept in a save's map" % lv)
+	for n in [0, 5]:
+		var w := RealmGen.generate_world("moss-fern-40", {"lakes": n}, true)
+		if w.is_empty() or w.lakes.size() != n or w.lakes.any(func(l): return int(l.cells) < 2 or int(l.cells) > 3):
+			errs.append("lakes: asked for %d, got %s" % [n, w.get("lakes", []).map(func(l): return l.cells)])
 	return errs
 
 

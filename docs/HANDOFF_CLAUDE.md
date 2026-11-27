@@ -88,6 +88,8 @@ test_quests, test_build.
   provinces (itself + 39 nearest, ties random); next nations random outside the blocks (players first, then
   computers). Spawn near players (3+ computers): each player takes the nearest allowed province to the first
   player's capital, and computers avoid shortest routes between players. Start position option removed.
+- Map Settings ranges: `<key>_min/_max` for pens, coves, trees, lakes; `Game.roll_map` draws the value from the
+  seed in new_world; lakes 0-5 (`RealmGen` opts.lakes, -1 = the web game's random 1-3; saved in the map mode).
 - Random race on the Nation page (`opts.random_race`, `StartScreen.resolved_nation()`): race, leader, name, emblem.
 - Picture modes: `-- --mpwatch --shot=x.png`, `-- --loading --at=2 --shot=x.png`, `-- --mpmenu --menu --shot=x.png`,
   `-- --world=easy,easy --quests=log|newquest --shot=x.png` (render with xvfb-run and `--rendering-driver opengl3`).

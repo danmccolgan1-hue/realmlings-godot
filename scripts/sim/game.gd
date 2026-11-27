@@ -526,6 +526,38 @@ func set_nation(n: Dictionary) -> void:
 
 # web: menu.js mapMode / mapOptsOf: "normal" is the classic island (2 peninsulas, 2 coves, the usual trees);
 # anything else is "map:<shape>:<peninsulas>:<coves>:<trees>"
+## The Map Settings' ranges (0.19.3): each of peninsulas, coves, trees and lakes may come as <key>_min and
+## <key>_max; the island gets a value between them (both included), drawn from the seed's own stream, so the same seed
+## and ranges always make the same island. Returns the options with plain values.
+const MAP_KEYS := ["pens", "coves", "trees", "lakes"]
+## The Map Settings' six steps: None, Few, Some, Normal, More, Lots. For peninsulas, coves and lakes the step is the
+## number. Trees only go Normal, More or Lots (they matter too much to the game for fewer): More turns a fifth of the
+## ruin borders into tree lines, Lots a fifth of the ruin and a fifth of the mountain borders (RealmGen.tree_lines;
+## the generator's own trees value stays 0).
+const MAP_WORDS := ["None", "Few", "Some", "Normal", "More", "Lots"]
+const TREE_MIN_STEP := 3
+
+static func roll_map(seed: String, m: Dictionary) -> Dictionary:
+	var o := m.duplicate()
+	for k in MAP_KEYS:
+		if not (o.has(k + "_min") or o.has(k + "_max")):
+			continue
+		var lo := int(o.get(k + "_min", o.get(k + "_max", 0)))
+		var hi := int(o.get(k + "_max", lo))
+		if hi < lo:
+			var t := lo
+			lo = hi
+			hi = t
+		var r := Mulberry32.from_string("%s:map:%s" % [seed, k])
+		o[k] = lo + int(floor(r.next() * (hi - lo + 1)))
+		if k == "trees":   # (the step: Normal, More or Lots, as tree lines; RealmGen.tree_lines)
+			o.tl = clampi(int(o[k]) - TREE_MIN_STEP, 0, 2)
+			o[k] = 0
+		o.erase(k + "_min")
+		o.erase(k + "_max")
+	return o
+
+
 static func map_mode(o: Dictionary) -> String:
 	if o.is_empty():
 		return "normal"
@@ -533,14 +565,21 @@ static func map_mode(o: Dictionary) -> String:
 	var pens: int = o.get("pens", 2)
 	var coves: int = o.get("coves", 2)
 	var trees: int = o.get("trees", 0)
-	return "normal" if shape == "classic" and pens == 2 and coves == 2 and trees == 0 else "map:%s:%d:%d:%d" % [shape, pens, coves, trees]
+	var lakes: int = int(o.get("lakes", -1))   # (0.19.3: -1 for the web game's 1-3 at random)
+	var tl: int = int(o.get("tl", 0))          # (0.19.3: More / Lots tree lines)
+	if shape == "classic" and pens == 2 and coves == 2 and trees == 0 and lakes < 0 and tl == 0:
+		return "normal"
+	return "map:%s:%d:%d:%d" % [shape, pens, coves, trees] + (":%d" % lakes if lakes >= 0 or tl > 0 else "") + (":%d" % tl if tl > 0 else "")
 
 
 static func map_opts_of(mode: String) -> Dictionary:
 	var m := mode.split(":")
-	if m.size() == 5 and m[0] == "map":
-		return {"shape": m[1], "pens": int(m[2]), "coves": int(m[3]), "trees": int(m[4])}
-	return {"shape": "classic", "pens": 2, "coves": 2, "trees": 0}
+	if m.size() >= 5 and m.size() <= 7 and m[0] == "map":
+		var out := {"shape": m[1], "pens": int(m[2]), "coves": int(m[3]), "trees": int(m[4]), "lakes": int(m[5]) if m.size() >= 6 else -1}
+		if m.size() == 7:
+			out.tl = int(m[6])
+		return out
+	return {"shape": "classic", "pens": 2, "coves": 2, "trees": 0, "lakes": -1}
 
 
 func setup_game(where := "center") -> void:
@@ -8771,7 +8810,7 @@ static func new_world(seed: String, leader_id := "", slots := [], start := "cent
 	g.slot_races = races
 	g.seat_wants = humans
 	g.spawn_near = near and slots.has("human") and slots.filter(func(x): return GameData.c("DIFF_NAME").has(str(x))).size() >= NEAR_MIN_AI
-	var mode := map_mode(opts)
+	var mode := map_mode(roll_map(seed, opts))   # (0.19.3: the Map Settings' ranges, drawn now)
 	g.world = map if not map.is_empty() else RealmGen.scale_world(RealmGen.generate_world(seed, map_opts_of(mode) if mode != "normal" else null, true))
 	built(0.62)   # (the island's shape, terrain and mountains)
 	g.world.mode = mode

@@ -15,7 +15,10 @@ const S := 286.0
 const NPROV := 200
 const MIN_EDGE := 40.0
 const TERRAINS := ["grassland", "forest", "desert", "swamp"]
-const DEFAULT_OPTS := {"shape": "classic", "pens": 2, "coves": 2, "trees": 0}
+## lakes (Godot 0.19.3): how many inland lakes, 0-5, each 2-3 provinces; -1 (the web game's way): 1-3 at random.
+## tl (Godot 0.19.3, the Map Settings' Trees): 1 (More): a fifth of the ruin borders become tree lines; 2 (Lots): a
+## fifth of the ruin borders and a fifth of the mountain borders. The island is otherwise the same (RealmGen.tree_lines).
+const DEFAULT_OPTS := {"shape": "classic", "pens": 2, "coves": 2, "trees": 0, "lakes": -1, "tl": 0}
 
 
 # ---------- Delaunay (Bowyer-Watson) ----------
@@ -228,8 +231,10 @@ static func generate_world(seed: String, opts = null, with_uniques := false) -> 
 	var o := DEFAULT_OPTS.duplicate()
 	if opts is Dictionary:
 		o.merge(opts, true)
-	var classic: bool = o.shape == "classic" and o.pens == 2 and o.coves == 2 and not o.trees
+	var classic: bool = o.shape == "classic" and o.pens == 2 and o.coves == 2 and not o.trees and int(o.lakes) < 0
 	var key := seed if classic else "%s|%s:%s:%s:%s" % [seed, o.shape, o.pens, o.coves, o.trees]
+	if int(o.lakes) >= 0:   # (0.19.3: a chosen number of lakes is another island)
+		key += ":L%d" % int(o.lakes)
 	var tries := 80 if classic else 160
 	var reasons := {}
 	for attempt in tries:
@@ -247,9 +252,27 @@ static func generate_world(seed: String, opts = null, with_uniques := false) -> 
 			if U.death < 0 or U.oasis < 0 or U.heart < 0:
 				reasons["unique provinces"] = reasons.get("unique provinces", 0) + 1
 				continue
+		if int(o.get("tl", 0)) > 0:   # (0.19.3: More / Lots trees, on the finished island)
+			tree_lines(r.world, key, int(o.tl))
 		return r.world
 	push_error("Could not generate a valid world: " + str(reasons))
 	return {}
+
+
+## The Map Settings' More and Lots trees (Godot 0.19.3): a fifth of the ruin borders (Lots: and a fifth of the
+## mountain borders), chosen at random from the island's own stream, become tree lines. Nothing else changes.
+static func tree_lines(w: Dictionary, key: String, level: int) -> void:
+	var r := Mulberry32.from_string(key + ":treelines")
+	for style in (["ruins"] if level == 1 else ["ruins", "mountains"]):
+		var ids := []
+		var dm := int(w.get("unique", {}).get("death", -1))   # (Death Mountain keeps its ring of mountains)
+		for e in w.edges:
+			if not e.open and e.get("style") == style and e.a != dm and e.b != dm:
+				ids.append(int(e.id))
+		ids.sort()
+		ids = r.shuffle(ids)
+		for id in ids.slice(0, int(round(ids.size() * 0.2))):
+			w.edges[id].style = "trees"
 
 
 # web: gen.js placeUniques
@@ -914,6 +937,10 @@ class _Attempt:
 		var lake_sizes := []
 		for _i in n_lakes:
 			lake_sizes.append(2 + int(floor(rng.next() * 2)))
+		if int(o.get("lakes", -1)) >= 0:   # (Godot 0.19.3: the number of lakes chosen on the Map Settings page)
+			lake_sizes.clear()
+			for _i in clampi(int(o.lakes), 0, 5):
+				lake_sizes.append(2 + int(floor(rng.next() * 2)))
 		if o.shape == "ring":
 			lake_sizes.clear()
 		var lake_cells := 0
@@ -1061,7 +1088,7 @@ class _Attempt:
 		strict = o.shape == "classic" and o.pens == 2 and o.coves == 2
 		if strict and not no_corridors():
 			return fail("corridor")
-		# 6b. carve 1–3 inland lakes, each 2–3 cells
+		# 6b. carve the inland lakes (1–3, or as many as chosen), each 2–3 cells
 		for size in lake_sizes:
 			var placed := false
 			var seed_list := []
