@@ -66,6 +66,10 @@ var kicked := {}               # the host: names (lower case) removed from this 
 var watch := false
 ## 0.19.3: Host online: this player only wants a server's lobby nobody is in yet (refused "taken" otherwise).
 var fresh := false
+## 0.19.4: the last player to leave said goodbye (left from the menu, not a dropped connection): a server ends the
+## game at once instead of waiting for them to come back.
+var last_left_bye := false
+var _byes := {}                # host: peer ids that said goodbye
 const TAKEN := "Someone else started hosting on this server a moment ago."
 
 ## ENet's timeouts (0.19): generous, so a few seconds of a busy computer (loading a save, an autosave) or a wobbly
@@ -139,6 +143,13 @@ func listen_lan() -> void:
 
 
 func leave() -> void:
+	if peer != null and not is_host and joined and peer.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED:
+		_send(1, {"t": "bye"})   # (0.19.4: leaving on purpose; see last_left_bye)
+		flush()
+		var t0 := Time.get_ticks_msec()   # (a moment for it to arrive: closing at once loses it)
+		while Time.get_ticks_msec() - t0 < 120 and peer.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED:
+			peer.poll()
+			OS.delay_msec(5)
 	if peer != null:
 		peer.close()
 	peer = null
@@ -441,6 +452,10 @@ func poll(dt := 0.016) -> void:
 
 func _handle(from: int, m: Dictionary) -> void:
 	match str(m.get("t", "")):
+		"bye":   # 0.19.4: a player is leaving on purpose: gone now (not when the connection times out)
+			if is_host:
+				_byes[from] = true
+				_closed_ids[from] = true
 		"probe":   # 0.19.3: Host online asks whether this lobby is free (OnlinePorts); nobody joins
 			if is_host:
 				_send(from, {"t": "probe_ok", "players": playing_count(), "locked": locked, "version": version, "server": dedicated})
@@ -659,6 +674,8 @@ func _drop_gone() -> void:
 			gone.append(id)
 	for id in gone:
 		var nm: String = players[id].name
+		if not players[id].get("watch", false):
+			last_left_bye = _byes.has(id)
 		players.erase(id)
 		picking.erase(id)
 		_gone_ids[id] = true

@@ -441,6 +441,7 @@ var mp_saves_open := false
 var online: OnlinePorts          # 0.19.3: Host online is asking the server's ports which lobby is free
 var online_ports := []           # the free ports not tried yet
 var online_name := ""
+var mp_addr_shown := ""          # 0.19.4: the server's address this lobby is on (shown, with Copy, for the host to pass on)
 const WATCH_TIP := "Join as an observer: you play no nation and give no orders, but see the whole map and every player's resources, army and provinces"
 
 
@@ -626,7 +627,7 @@ func _mp_host_online(nm: String) -> void:
 func _mp_online_next() -> void:
 	var port: int = online_ports.pop_front()
 	_mp_join(online_name, "%s:%d" % [OnlinePorts.HOST, port], false, true)
-	mp_status.text = "Hosting on the server: friends join %s:%d. Connecting…" % [OnlinePorts.HOST, port]
+	mp_status.text = "Hosting on the server: friends join %s:%d (the Address below). Connecting…" % [OnlinePorts.HOST, port]
 
 
 func _mp_join(nm: String, address: String, as_watcher := false, fresh := false) -> void:
@@ -635,6 +636,8 @@ func _mp_join(nm: String, address: String, as_watcher := false, fresh := false) 
 	net = NetSession.new(nm, _mp_nation())
 	net.watch = as_watcher
 	net.fresh = fresh
+	var a2 := address.strip_edges()
+	mp_addr_shown = a2 if a2.count(":") == 1 else "%s:%d" % [a2, NetSession.PORT]
 	mp_seeded = false
 	net.pw = str(Settings.menu.get("mp_pw", ""))
 	_mp_wire()
@@ -677,6 +680,19 @@ func _mp_lobby() -> void:
 		if net:
 			net.set_name(t2.strip_edges() if t2.strip_edges() != "" else "Player"))
 	_row("Your name", name_edit, mp_box)
+	if net != null and not net.is_host and mp_addr_shown != "":   # 0.19.4: where this lobby is, to pass on
+		var ar := HBoxContainer.new()
+		ar.add_theme_constant_override("separation", 10)
+		var al := _lbl(mp_addr_shown, 20, INK)
+		al.tooltip_text = "Friends join this game with this address (Multiplayer → Join by address)"
+		al.mouse_filter = Control.MOUSE_FILTER_PASS
+		ar.add_child(al)
+		var addr := mp_addr_shown
+		ar.add_child(_btn("Copy", BLUE, func():
+			DisplayServer.clipboard_set(addr)
+			if mp_status and is_instance_valid(mp_status):
+				mp_status.text = "Address copied: %s. Friends paste it under Join by address." % addr, "Copy the address to send to your friends"))
+		_row("Address", ar, mp_box)
 	mp_players = VBoxContainer.new()
 	mp_players.add_theme_constant_override("separation", 4)
 	mp_players.custom_minimum_size = Vector2(0, 8 * 32)   # room for 8 players from the start

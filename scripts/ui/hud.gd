@@ -495,10 +495,8 @@ func commands_of(u) -> Array:
 			elif u.survey != null:
 				why = "Surveying…"
 			cmd = {"id": id, "label": "Survey", "why": why, "desc": "Walk a loop around this province to reveal its resources and any Hidden Gold Deposit."}
-		elif id == "auto" and game.has_tech("autoscout"):
-			var on: bool = u.get("auto", true) != false
-			cmd = {"id": id, "label": "Auto: %s" % ("on" if on else "off"), "why": null, "name": "Auto-survey: %s" % ("On" if on else "Off"),
-				"desc": "When idle, Wayfinders walk to the nearest explored province that hasn’t been surveyed and survey it. Click to turn it %s." % ("off" if on else "on")}
+		elif id == "auto" and game.has_tech("autoscout"):   # 0.19.4: Auto Explore (Survey and Dig: cells 6 and 7, below)
+			cmd = _auto_cell(u, "explore")
 		elif id == "cancelbuild":
 			var b = u.build
 			var nm := ""
@@ -576,7 +574,24 @@ func commands_of(u) -> Array:
 			var cell: int = 12 + i
 			if cell <= 14 and out[cell] == null:
 				out[cell] = _relic_cell(str(b[i]) if i < b.size() else "", "Carries a relic when no Reliquary has room; it goes into one as soon as one has.")
+	if u.kind == game.WAYFINDER and u.owner == Game.LOCAL and game.has_tech("autoscout"):
+		for k in [[6, "survey"], [7, "dig"]]:
+			if out[k[0]] == null:
+				out[k[0]] = _auto_cell(u, k[1])
 	return out
+
+
+const AUTO_TEXT := {
+	"explore": ["Auto Explore", "walks to the nearest unexplored province beside explored land that it may enter"],
+	"survey": ["Auto Survey", "surveys the province it stands in, then the nearest explored province not yet surveyed"],
+	"dig": ["Auto Dig", "digs at the nearest dig site you can see"]}
+
+## A Wayfinder's automatic mode switch (0.19.4): one mode at a time; any order you give switches it off.
+func _auto_cell(u: Dictionary, mode: String) -> Dictionary:
+	var on: bool = str(u.get("amode", "")) == mode
+	var T: Array = AUTO_TEXT[mode]
+	return {"id": "auto:" + mode, "label": "%s\n%s" % [T[0], "on" if on else "off"], "why": null, "name": "%s: %s" % [T[0], "On" if on else "Off"],
+		"desc": "When idle, the %s %s; with nothing to do it looks again every payday. One automatic mode at a time; any order you give it switches this off. Click to turn it %s." % [game.unit_defs[game.WAYFINDER].name, T[1], "off" if on else "on"]}
 
 
 ## Time Warp: which building in the caster's province (Godot only).
@@ -666,10 +681,10 @@ func press(i: int) -> void:
 		game.do("order_build", [unit, unit.prov, id.substr(6)])
 	elif id == "survey":
 		game.do("queue_survey", [unit, unit.prov])
-	elif id == "auto":
-		var on: bool = tab_units().any(func(w): return w.get("auto", true) != false)
-		for w in tab_units():
-			w.auto = not on
+	elif id.begins_with("auto:"):   # 0.19.4: an order, so every copy of a multiplayer game switches it alike
+		var mode := id.substr(5)
+		var on: bool = tab_units().any(func(w): return str(w.get("amode", "")) == mode)
+		game.do("set_auto_mode", [tab_units(), "" if on else mode])
 	elif id == "advanced" or id == "basic":
 		mason_adv = id == "advanced"
 	elif id == "qspell:flamewall":

@@ -414,15 +414,16 @@ func _server_game() -> Array:
 	cy.leave()
 	L.erase(cy)
 	clients.erase(cy)
-	_run(func(): return quit_code != -99, 15.0)
+	_run(func(): return srv.restarts > 0, 15.0)
 	if ends.is_empty() or not str(ends[0]).contains("No player"):
 		errs.append("server: the observer wasn't told the game ended (%s)" % [ends])
-	if quit_code != MpServer.EXIT_RESTART:
-		errs.append("server: it didn't start a new lobby when no player was left (%d)" % quit_code)
+	if srv.restarts != 1 or srv.net == null or srv.lock != null or not srv.net.players.is_empty() or quit_code != -99:
+		errs.append("server: no fresh lobby when no player was left (restarts %d, quit %d)" % [srv.restarts, quit_code])
 	if MpSetup.read_save(DIR, MpSetup.AUTOSAVE) != "":
 		errs.append("server: the finished game's autosave was kept (a restart would offer it again)")
 	if MpSetup.list_saves(DIR).size() != n_saves:   # (the autosave went, a last save came)
 		errs.append("server: the finished game wasn't kept")
+	srv.stop()
 	for c in clients:
 		c.leave()
 	clients.clear()
@@ -513,16 +514,36 @@ func _resume() -> Array:
 	_run(func(): return cy2.joined and cy2.dedicated, 6.0)
 	if not cy2.dedicated:
 		errs.append("resume: a player coming back to a game in progress wasn't told it's a server")
-	# everyone leaves the game: it is over (0.19.3): kept as a last save, and the server starts a new, empty lobby
-	srv.idle_reset = 1.0
+	# everyone leaves the game from the menu: it is over at once (0.19.4: no wait), kept as a last save, and a new,
+	# empty lobby opens on the same port (Host online finds it free a few seconds later)
+	srv.idle_reset = 600.0
 	var n_kept := MpSetup.list_saves(DIR).size()
+	var t_left := Time.get_ticks_msec()
+	var go := [true]   # (the server reads the network while the players leave, as a real one does all the time)
+	var th := Thread.new()
+	th.start(func():
+		while go[0]:
+			srv.net.poll(0.01)
+			OS.delay_msec(2))
 	for c in clients:
 		c.leave()
+	OS.delay_msec(200)
+	go[0] = false
+	th.wait_to_finish()
 	clients.clear()
 	L.clear()
-	_run(func(): return quit_code != -99, 30.0)
-	if quit_code != MpServer.EXIT_RESTART:
-		errs.append("resume: a game everyone left didn't send the server back to a new lobby (exit %d)" % quit_code)
+	_run(func(): return srv.restarts > 0, 30.0)
+	if srv.restarts != 1 or quit_code != -99:
+		errs.append("resume: a game everyone left didn't open a new lobby (restarts %d, exit %d)" % [srv.restarts, quit_code])
+	elif Time.get_ticks_msec() - t_left > 12000:
+		errs.append("resume: leaving from the menu still waited (%d ms)" % (Time.get_ticks_msec() - t_left))
+	var probe3 := OnlinePorts.new()
+	probe3.start("127.0.0.1", [PORT + 1])
+	_run(func():
+		probe3.poll(0.05)
+		return probe3.done, 6.0)
+	if probe3.free != [PORT + 1]:
+		errs.append("resume: the fresh lobby isn't offered as free (%s)" % [probe3.answered])
 	if MpSetup.read_save(DIR, MpSetup.AUTOSAVE) != "" or MpSetup.list_saves(DIR).size() != n_kept:
 		errs.append("resume: the game everyone left wasn't kept as a finished game (or its autosave stayed)")
 	if eve_seat != Game.HOST:
@@ -531,6 +552,7 @@ func _resume() -> Array:
 		c.leave()
 	clients.clear()
 	L.clear()
+	srv.stop()
 	return errs
 
 

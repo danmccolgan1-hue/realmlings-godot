@@ -15,6 +15,8 @@ func run() -> Array:
 	for f in files:
 		if not f.ends_with(".json") or (OS.get_environment("PLAY_ONLY") != "" and not OS.get_environment("PLAY_ONLY") in f):
 			continue
+		if f.ends_with("_auto.json"):   # (0.19.4: automatic Wayfinders work differently from the web game's auto-survey now)
+			continue
 		var fx: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(DIR + f))
 		if not maps.has(fx.seed):
 			maps[fx.seed] = RealmGen.scale_world(RealmGen.generate_practice(fx.seed))

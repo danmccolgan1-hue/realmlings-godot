@@ -815,7 +815,7 @@ func mk_unit(id: int, kind: String, name: String, prov: int, slot: int) -> Dicti
 		name = cute_name()
 	return {"id": id, "owner": ME, "kind": kind, "name": name, "prov": prov, "slot": slot, "x": xy[0], "y": xy[1], "th": 0.0,
 		"path": [], "moving": false, "build": null, "survey": null, "scouting": null, "surveyQueue": [], "pendingSurvey": -1,
-		"pending": null, "autoWalk": null, "exploreSp": 0.0, "nextAuto": 0.0}
+		"pending": null, "autoWalk": null, "exploreSp": 0.0, "nextAuto": 0.0, "amode": ""}
 
 
 # web: game.js slotPos()
@@ -2538,6 +2538,22 @@ func start_survey(u: Dictionary) -> bool:
 
 
 # web: game.js surveyQueued(p)
+## Every province the current seat's Wayfinders are surveying, will survey or are on their way to survey (what
+## survey_queued answers for one province), in one pass over the units.
+func _surveys_queued() -> Dictionary:
+	var out := {}
+	for v in units:
+		if v.kind == WAYFINDER and v.owner == ME:
+			for x in v.surveyQueue:
+				if x is int:
+					out[x] = true
+			if v.pendingSurvey >= 0:
+				out[v.pendingSurvey] = true
+			if v.survey != null:
+				out[int(v.survey.prov)] = true
+	return out
+
+
 func survey_queued(p: int) -> bool:
 	for v in units:
 		if v.kind == WAYFINDER and v.owner == ME and (v.surveyQueue.has(p) or v.pendingSurvey == p or (v.survey != null and v.survey.prov == p)):
@@ -2701,108 +2717,117 @@ func step_survey_queue(u: Dictionary) -> void:
 		u.pendingSurvey = p
 
 
-# web: govtech.js autoSurvey(u, t): with Automated Scouting, idle Wayfinders survey the nearest known province,
-# then explore the nearest unknown one
+# --- automatic Wayfinders (0.19.4) -------------------------------------------------------------------------------
+# Automated Scouting unlocks three modes for each Wayfinder, one at a time and all off until the player switches one
+# on (u.amode: "explore", "survey", "dig" or ""). An idle Wayfinder with a mode on looks outward from where it stands,
+# ring by ring (its own province, then the ones next to it, then the next...), spreading only through provinces it
+# may walk into, and takes a random one from the first ring with something to do:
+#   explore: an unexplored province beside explored land that it may enter: it walks there;
+#   survey:  an explored province not yet surveyed: it surveys it (walking there first);
+#   dig:     a dig site the nation can see: it digs there (walking there first).
+# Nothing another of the nation's Wayfinders is already on or heading for. With nothing to do it waits a payday
+# (AUTO_IDLE) before looking again. Any order the player gives it switches its mode off (Game.apply).
+const AUTO_MODES := ["explore", "survey", "dig"]
+const AUTO_IDLE := 10.0
+
 func auto_survey(u: Dictionary) -> void:
-	if u.kind != WAYFINDER or u.owner != ME or u.get("auto", true) == false or not has_tech("autoscout") or busy(u) or u.nextAuto > t:
+	if u.kind != WAYFINDER or u.owner != ME or busy(u) or u.nextAuto > t:
+		return
+	var mode := str(u.get("amode", ""))
+	if mode == "" or not has_tech("autoscout"):
+		return
+	u.autoWalk = null
+	var p := _auto_ring(u, mode)
+	if p < 0:
+		u.nextAuto = t + AUTO_IDLE
 		return
 	u.nextAuto = t + 1
-	u.autoWalk = {"to": -1}
-	# The nearest province explored but not surveyed: fewest crossings, then straight-line distance (the first such in
-	# `explored` on a tie). 0.19.1: the same choice as working out a path to every one of them, which took seconds
-	# once the whole map was explored (a stall for every player in multiplayer): a cheap lower bound on each one's
-	# crossings first, then paths only for those that could still win.
-	var cands := []
-	for p in explored:
-		if not surveyed.has(p) and not survey_queued(p):
-			cands.append(p)
-	var best := _auto_nearest(u, cands, false)
-	if best >= 0:
-		u.surveyQueue.append(best)
-		return
-	# none: walk on to the nearest unexplored neighbor of explored land no other Wayfinder is heading for
-	var front := []
-	for p in explored:
-		for n in open_nbr[p]:
-			var q: int = n.q
-			if explored.has(q):
-				continue
-			var taken := false
-			for v in units:
-				if not is_same(v, u) and v.autoWalk != null and v.autoWalk.to == q:
-					taken = true
-					break
-			if not taken:
-				front.append(q)
-	var next := _auto_nearest(u, front, true)
-	if next >= 0:
-		u.autoWalk = {"to": next}
-		order(u, next, true)
-	else:
-		u.autoWalk = null
-
-
-
-## auto_survey's choice among cands (in their order): the one with the fewest crossings on u's path, then the
-## nearest in a straight line, the first on a tie; -1 if none can be reached. walking: u.autoWalk names each one
-## while its path is found (as the frontier search always did). A breadth-first count of crossings over every
-## link u could ever use (all neighbors, and a Woodling Wayfinder's tree-ways) never exceeds a real path's, so
-## candidates are tried from the lowest such bound, and the search stops once no bound can beat the best found.
-func _auto_nearest(u: Dictionary, cands: Array, walking: bool) -> int:
-	if cands.is_empty():
-		return -1
-	var lb := _hops_bound(u)
-	var keyed := []
-	for i in cands.size():
-		var p: int = cands[i]
-		if p != u.prov and lb[p] == INF:
-			continue
-		var line: float = JS.hypot(G.provs[p].ic[0] - u.x, G.provs[p].ic[1] - u.y)
-		keyed.append([(0.0 if p == u.prov else float(lb[p])) * 1000 + line, i, p, line])
-	keyed.sort_custom(func(x, y): return x[0] < y[0] or (x[0] == y[0] and x[1] < y[1]))
-	var best := -1
-	var bd := INF
-	var bi := -1
-	for k in keyed:
-		if k[0] > bd:
-			break
-		var p: int = k[2]
-		if walking:
+	match mode:
+		"survey":
+			u.surveyQueue.append(p)   # (step_survey_queue walks there and surveys)
+		"dig":
+			if p == u.prov:
+				Quests.start_dig(self, u)
+			else:
+				u.autoWalk = {"to": p}
+				order(u, p, true)
+		"explore":
 			u.autoWalk = {"to": p}
-		var hops = [] if p == u.prov else find_path(u, p)
-		if walking:
-			u.autoWalk = {"to": -1}
-		if hops == null:
-			continue
-		var d: float = hops.size() * 1000 + k[3]
-		if d < bd or (d == bd and k[1] < bi):
-			bd = d
-			best = p
-			bi = k[1]
-	return best
+			order(u, p, true)
 
 
-## Crossings from u's province to every province over every link u could use (a lower bound on find_path's).
-func _hops_bound(u: Dictionary) -> Array:
-	var wood: bool = u.kind == WAYFINDER and is_wd(u.owner)
-	var d := []
-	d.resize(G.provs.size())
-	d.fill(INF)
-	d[u.prov] = 0
-	var q: Array = [u.prov]
-	var i := 0
-	while i < q.size():
-		var a: int = q[i]
-		i += 1
-		var nb: Array = all_nbr[a]
-		if wood:
-			nb = nb + tree_nbr(a)
-		for n in nb:
-			var b: int = n if n is int else int(n.q)
-			if d[b] == INF:
-				d[b] = d[a] + 1
-				q.append(b)
-	return d
+## The province u's mode picks (see the notes above), or -1.
+func _auto_ring(u: Dictionary, mode: String) -> int:
+	var seen := enter_cache(u)
+	var claimed := _auto_claims(u)
+	var visited := {u.prov: true}
+	var ring: Array = [u.prov]
+	while not ring.is_empty():
+		var hits := []
+		var next := []
+		for p in ring:
+			if _auto_wants(u, mode, p, claimed):
+				hits.append(p)
+		if not hits.is_empty():
+			return hits[int(floor(rng.randf() * hits.size()))]
+		for a in ring:
+			if mode == "explore" and not explored.has(a):
+				continue   # (a province to explore is a place to go, not a way through)
+			for n in path_nbr(u, a, false):
+				var b: int = n.q
+				if visited.has(b):
+					continue
+				if explored.has(b):
+					if can_enter(u, b, -2, seen):
+						visited[b] = true
+						next.append(b)
+				elif mode == "explore":
+					u.autoWalk = {"to": b}
+					var ok := can_enter(u, b, b, seen)
+					u.autoWalk = null
+					if ok:
+						visited[b] = true
+						next.append(b)
+		ring = next
+	return -1
+
+
+func _auto_wants(u: Dictionary, mode: String, p: int, claimed: Dictionary) -> bool:
+	if claimed.has(p):
+		return false
+	match mode:
+		"explore":
+			return not explored.has(p)
+		"survey":
+			return explored.has(p) and not surveyed.has(p)
+		"dig":
+			return explored.has(p) and Quests.dig_seen(self, p) and not units.any(func(v): return v.get("dig") != null and int(v.dig.prov) == p)
+	return false
+
+
+## The provinces the current seat's other Wayfinders are surveying, digging, will survey or are heading for.
+func _auto_claims(u: Dictionary) -> Dictionary:
+	var out := _surveys_queued()
+	for v in units:
+		if v.kind == WAYFINDER and v.owner == ME and not is_same(v, u):
+			if v.get("dig") != null:
+				out[int(v.dig.prov)] = true
+			if v.autoWalk != null and int(v.autoWalk.get("to", -1)) >= 0:
+				out[int(v.autoWalk.to)] = true
+	return out
+
+
+## An order: switch the automatic mode of Wayfinders ws to mode ("" for off; the one mode replaces any other).
+func set_auto_mode(ws: Array, mode: String) -> void:
+	if mode != "" and (not mode in AUTO_MODES or not has_tech("autoscout")):
+		return
+	for w in ws:
+		if w is Dictionary and w.kind == WAYFINDER and w.owner == ME:
+			w.amode = mode
+			w.nextAuto = 0.0
+			if mode == "":
+				w.autoWalk = null
+
 
 func place_ruins(avoid := {}) -> int:
 	var r := Mulberry32.from_string(str(world.seed) + ":ruins")
@@ -11755,7 +11780,7 @@ const COMMANDS := ["order", "order_group", "order_build", "cancel_build", "queue
 	"save_design", "delete_design", "retrofit_armies", "split_army", "combine_armies", "mage_join", "mage_detach", "dismiss", "send_to_rest",
 	"retreat", "retreat_to", "fly_army", "thugs_enter", "thug_out", "dx_act", "answer_request", "make_peace",
 	"declare_war", "proclaim_enemy", "renounce_enemy", "travelers_choose", "dismiss_quake", "dismiss_news",
-	"answer_demand", "set_crop", "hand_to_ai", "take_from_ai", "send_message", "issue_proclamation", "offer_barter", "show_request", "set_paused", "set_auto_tech", "rename_prov", "close_school_popup",
+	"answer_demand", "set_crop", "hand_to_ai", "take_from_ai", "send_message", "issue_proclamation", "offer_barter", "show_request", "set_paused", "set_auto_tech", "rename_prov", "close_school_popup", "set_auto_mode",
 	"debug_reveal", "debug_resources", "debug_all_tech", "grant_tech", "rec_toggle", "start_dig", "stop_dig", "cast_flamewall", "cast_timewarp", "answer_ransom", "answer_jailbreak"]
 
 ## Multiplayer: hands a command to the network instead of applying it here (it comes back through apply()).
@@ -11791,6 +11816,12 @@ func apply(cmd: Dictionary):
 		return null
 	use_seat(o)
 	var args: Array = unpack_args(cmd.get("args", []))
+	if type != "set_auto_mode":   # (0.19.4: any order to a Wayfinder switches its automatic mode off)
+		for x in args:
+			for w in (x if x is Array else [x]):
+				if w is Dictionary and w.get("kind") == WAYFINDER and w.get("owner") == o and str(w.get("amode", "")) != "":
+					w.amode = ""
+					w.autoWalk = null
 	var r = null
 	if args.has(null) and type in ["order", "order_build", "cancel_build", "queue_survey", "cast_spell", "start_spell2",
 			"end_quake", "start_path", "split_army", "dismiss", "send_to_rest", "retreat", "retreat_to", "fly_army",

@@ -1,4 +1,4 @@
-# Handoff for a new Claude conversation (2026-11-27, version 0.19.4)
+# Handoff for a new Claude conversation (2026-11-27, version 0.19.5)
 
 Paste this whole file at the start of a new conversation, or tell Claude: "Read docs/HANDOFF_CLAUDE.md in the
 realmlings-godot repo (branch `server`) and continue from there." Also read the repo's `CLAUDE.md`.
@@ -88,6 +88,11 @@ test_quests, test_build.
   provinces (itself + 39 nearest, ties random); next nations random outside the blocks (players first, then
   computers). Spawn near players (3+ computers): each player takes the nearest allowed province to the first
   player's capital, and computers avoid shortest routes between players. Start position option removed.
+- Automatic Wayfinders (0.19.5): `u.amode` "explore"/"survey"/"dig" (one, off by default; order `set_auto_mode`;
+  any other player order naming the Wayfinder switches it off in `Game.apply`). `Game._auto_ring`: rings outward
+  through enterable provinces, random pick in the first ring with a hit; idle → look again after AUTO_IDLE (10 s).
+- Server (0.19.5): a player's `leave()` sends "bye"; if the last player left that way the game ends at once;
+  `MpServer.fresh_lobby()` reopens the lobby in-process (no exit). Lobby shows the server address with Copy.
 - Map Settings ranges: `<key>_min/_max` for pens, coves, trees, lakes; `Game.roll_map` draws the value from the
   seed in new_world; lakes 0-5 (`RealmGen` opts.lakes, -1 = the web game's random 1-3; saved in the map mode).
 - Random race on the Nation page (`opts.random_race`, `StartScreen.resolved_nation()`): race, leader, name, emblem.

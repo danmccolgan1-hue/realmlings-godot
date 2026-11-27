@@ -8,7 +8,7 @@ extends Node
 ## the next player to have joined takes over. Observers may join too (0.19.3): they watch and never host. The game
 ## is saved every minute of play; after a crash or a restart the server offers it again in the lobby. When the game
 ## ends (no player is left in it, or no player's nation is left standing), the server keeps a last save of it and
-## starts again with a fresh lobby (exit EXIT_RESTART: the service brings it back).
+## opens a fresh lobby (fresh_lobby). A crash, or a fresh lobby that can't open, is left to the service.
 
 const AUTOSAVE_EVERY := 60.0   # seconds of play between saves
 ## 0.19.3: a game with no player left in it (observers don't count) for this long (real seconds) is over: the server
@@ -29,6 +29,8 @@ var asked_to := {}             # nation -> peer id the question went to
 var on_quit: Callable          # (tests: called instead of quitting)
 var _check_t := 0.0
 var _idle := 0.0
+var _args := []                # the command line's arguments (to start a fresh lobby with them again)
+var restarts := 0              # fresh lobbies opened in place (0.19.4)
 
 
 func _ready() -> void:
@@ -40,6 +42,7 @@ func _ready() -> void:
 ## Start listening. args: the command line's own arguments (--port=, --password=, --saves=, --name=). Returns why it
 ## couldn't, or "".
 func start(args: Array) -> String:
+	_args = args.duplicate()
 	var nm := "Realmlings server"
 	var pw := ""
 	for a in args:
@@ -93,13 +96,13 @@ func tick(dt: float) -> void:
 			_check_asks()
 			_check_end()
 		_idle = _idle + dt if net.playing_count() == 0 and lock.started and not done else 0.0
-		if _idle >= idle_reset:
+		if net.playing_count() == 0 and lock.started and not done and _idle >= (0.0 if net.last_left_bye else idle_reset):   # (0.19.4: at once when the last one left on purpose)
 			_idle = 0.0
 			finish("No player is left in the game: it is over.")
 	if quit_t >= 0.0:
 		quit_t -= dt
 		if quit_t < 0.0:
-			_quit(EXIT_RESTART)   # (0.19.3: always a fresh lobby after a game, so the port is free for the next one)
+			fresh_lobby()   # (always a fresh lobby after a game, so the port is free for the next one)
 
 
 ## A line in the server's output and its log.
@@ -273,6 +276,38 @@ func finish(why: String, keep := true) -> void:
 	if lock != null:
 		lock.end_game(why)
 	quit_t = 3.0   # (time for the message to reach everyone)
+
+
+## 0.19.4: a fresh, empty lobby on the same port, in this same program (it used to stop and leave it to the service
+## to start it again, which kept the port busy for several seconds more). If that fails, the service does it.
+func fresh_lobby() -> void:
+	if lock != null:
+		lock.stop()
+	lock = null
+	if net != null:
+		net.leave()
+	net = null
+	done = false
+	quit_t = -1.0
+	asks.clear()
+	asked_to.clear()
+	_idle = 0.0
+	_check_t = 0.0
+	next_save = AUTOSAVE_EVERY
+	restarts += 1
+	say("A fresh lobby is open.")
+	if start(_args) != "":
+		_quit(EXIT_RESTART)
+
+
+## Close the server (tests).
+func stop() -> void:
+	if lock != null:
+		lock.stop()
+	lock = null
+	if net != null:
+		net.leave()
+	net = null
 
 
 func _quit(code: int) -> void:

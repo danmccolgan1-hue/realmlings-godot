@@ -84,4 +84,9 @@ func why_none() -> String:
 	var s := "No ports available. Try hosting locally."
 	if not other.is_empty() and other.size() == answered.size():
 		s += " (The server runs version %s; you have %s.)" % [other[0], mine]
+	elif answered.is_empty():
+		s += " (No game server answered.)"
+	else:   # (0.19.4: how many servers there are, and that they are all busy)
+		s += " (%d game server%s answered on port%s %s; %s busy.)" % [answered.size(), "" if answered.size() == 1 else "s", "" if answered.size() == 1 else "s",
+			", ".join(answered.keys().map(func(p): return str(p))), "it is" if answered.size() == 1 else "all are"]
 	return s

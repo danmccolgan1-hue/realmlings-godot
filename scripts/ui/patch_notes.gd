@@ -5,6 +5,10 @@ extends Control
 ## web: v106.js renderPatchNotes
 
 const PORT_NOTES := [
+	{"v": "Godot 0.19.5", "date": "November 27, 2026", "items": [
+		["Automatic Wayfinders", "Automated Scouting now unlocks three switches on each Wayfinder: Auto Explore, Auto Survey and Auto Dig, all off until you turn one on (one at a time). An idle Wayfinder looks outward from where it stands, nearest first and only where it may walk: Explore goes to an unexplored province beside explored land, Survey surveys its own province or the nearest one not yet surveyed, Dig digs at the nearest dig site you can see. With nothing to do it looks again every payday. Any order you give it switches it off. This also ends the slowdown late in a game with the whole map known."],
+		["Hosting online", "The lobby shows the server's address with a Copy button, to send to your friends. Leaving a game from the menu ends it on the server at once (a dropped connection still has 30 seconds to come back), and the server opens a fresh lobby in a few seconds instead of restarting. When no port is free, the message says how many servers answered."],
+	]},
 	{"v": "Godot 0.19.4", "date": "November 27, 2026", "items": [
 		["Map ranges and lakes", "Peninsulas, coves, trees and the new lakes (0 to 5, each 2 to 3 provinces) each have a Min and a Max on the Map Settings page, in New Game and in the lobby: the island gets a value between them, drawn from its seed (the same seed and settings always make the same island). Every setting reads None, Few, Some, Normal, More or Lots; trees go Normal, More (a fifth of the ruin borders become tree lines) or Lots (a fifth of the ruin and a fifth of the mountain borders)."],
 	]},
