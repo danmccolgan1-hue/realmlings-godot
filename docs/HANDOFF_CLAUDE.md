@@ -1,4 +1,4 @@
-# Handoff for a new Claude conversation (2026-11-27, version 0.19.3)
+# Handoff for a new Claude conversation (2026-11-27, version 0.19.4)
 
 Paste this whole file at the start of a new conversation, or tell Claude: "Read docs/HANDOFF_CLAUDE.md in the
 realmlings-godot repo (branch `server`) and continue from there." Also read the repo's `CLAUDE.md`.
@@ -79,7 +79,7 @@ realmlings-godot repo (branch `server`) and continue from there." Also read the 
 Single file: `--script res://tests/<file>.gd`. Important ones: test_server, test_dmath, test_mp_events,
 test_quests, test_build.
 
-## What 0.19.3 changed (last session)
+## What 0.19.3 and 0.19.4 changed (last session; 0.19.4: the Map Settings ranges, lakes and tree lines)
 
 - Loading screen; Host locally / Host online; observers (Watch); Join/Watch/Set are buttons; Dungeon in any
   multiplayer game; empty games end and the server reopens a lobby; quests start on pickup with item icons.

@@ -5,6 +5,9 @@ extends Control
 ## web: v106.js renderPatchNotes
 
 const PORT_NOTES := [
+	{"v": "Godot 0.19.4", "date": "November 27, 2026", "items": [
+		["Map ranges and lakes", "Peninsulas, coves, trees and the new lakes (0 to 5, each 2 to 3 provinces) each have a Min and a Max on the Map Settings page, in New Game and in the lobby: the island gets a value between them, drawn from its seed (the same seed and settings always make the same island). Every setting reads None, Few, Some, Normal, More or Lots; trees go Normal, More (a fifth of the ruin borders become tree lines) or Lots (a fifth of the ruin and a fifth of the mountain borders)."],
+	]},
 	{"v": "Godot 0.19.3", "date": "November 27, 2026", "items": [
 		["Loading screen", "While a game is being built, every menu goes away and the world tells you what it is up to (shaping your world, sculpting mountains, growing trees, adding secrets, populating with enemies) with the percentage under it."],
 		["Host locally or online", "The Multiplayer menu has Host locally (your computer runs the game) and Host online: it asks the server which of its games nobody is in yet and hosts a random one of them for you (friends join the address and port it shows). When every game is taken it says: No ports available. Try hosting locally."],
@@ -12,7 +15,6 @@ const PORT_NOTES := [
 		["Servers", "End the game for everyone is gone: a game with no player left in it is over (after 30 seconds, in case someone's connection only dropped for a moment). The server keeps a last save of it and opens a fresh lobby, ready for the next game."],
 		["Quests", "Picking up a relic starts its quest at once, whether it goes into a Reliquary or a Wayfinder carries it, and no quest waits for a Mage Tower any more. The new quest's pop-up shows the relic that started it, and the Quest Log shows an icon for every relic each quest needs, with a check mark once it is in a Reliquary (a little bag while a Wayfinder carries it)."],
 		["Starting positions", "The Start position choice (Center, Edge, Random) is gone. The first player starts on or next to the coast; every capital keeps 40 provinces (itself and the nearest 39) free of other capitals, and the next nation starts anywhere outside them. Spawn near players (in the lobby's Map Settings, with 3 or more computer nations): each player starts as near the first player as that allows, and no computer nation starts between two players."],
-		["Map ranges and lakes", "Peninsulas, coves, trees and the new lakes (0 to 5, each 2 to 3 provinces) each have a Min and a Max on the Map Settings page, in New Game and in the lobby: the island gets a value between them, drawn from its seed (the same seed and settings always make the same island). Every setting reads None, Few, Some, Normal, More or Lots; trees go Normal, More (a fifth of the ruin borders become tree lines) or Lots (a fifth of the ruin and a fifth of the mountain borders)."],
 		["A random game", "Random beside the races on the Nation page: a random race and leader, with a nation name and flag of that race, drawn when the game starts (in a lobby, when you press Done). Your color stays yours."],
 		["Dungeons and buttons", "The Dungeon can be built in any multiplayer game, even one you started alone. Join and Watch are plain buttons now, not switches."],
 	]},
